@@ -1,3 +1,4 @@
+import os
 import requests
 import tinys3
 import csv
@@ -21,7 +22,7 @@ with open('flood_observatory.csv', 'wb') as f:
     writer = csv.writer(f)
     writer.writerows(data)
 
-conn = tinys3.Connection(S3_ACCESS_KEY,S3_SECRET_KEY,bucket='my_bucket',headers={
+conn = tinys3.Connection(os.environ('S3_ACCESS_KEY'),os.environ('S3_SECRET_KEY'),bucket=os.environ('BUCKET') ,headers={
             'x-amz-storage-class': 'REDUCED_REDUNDANCY', 'Content-Type':'application/csv'
             },tls=True)
 
