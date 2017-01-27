@@ -22,11 +22,9 @@ with open('flood_observatory.csv', 'wb') as f:
     writer = csv.writer(f)
     writer.writerows(data)
 
-conn = tinys3.Connection(os.environ('S3_ACCESS_KEY'),os.environ('S3_SECRET_KEY'),bucket=os.environ('BUCKET') ,headers={
-            'x-amz-storage-class': 'REDUCED_REDUNDANCY', 'Content-Type':'application/csv'
-            },tls=True)
+conn = tinys3.Connection(os.getenv('S3_ACCESS_KEY'),os.getenv('S3_SECRET_KEY'), tls=True)
 
 # So we could skip the bucket parameter on every request
 
 f = open('flood_observatory.csv','rb')
-conn.upload('/flood_observatory.csv',f)
+conn.upload('/flood_observatory.csv',f,os.getenv('BUCKET'))
