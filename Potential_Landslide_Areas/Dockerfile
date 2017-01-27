@@ -5,7 +5,7 @@ ENV NAME ${NAME}
 
 RUN apk update && apk upgrade && \
    apk add --no-cache --update bash git openssl-dev build-base alpine-sdk \
-   libffi-dev libxml2-dev libxslt-dev
+   libffi-dev libxml2-dev libxslt-dev 
 
 RUN addgroup $NAME && adduser -s /bin/bash -D -G $NAME $NAME
 

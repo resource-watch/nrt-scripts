@@ -50,7 +50,7 @@ for i in xrange(0,len(rows)-1):
 args['q']=baseStr + "'), ('".join(strs) + "')"
 
 response = requests.get(cartoBaseUrl, params=args)
-if response.status_code=200:
+if response.status_code==200:
     print bcolors.OKGREEN+'SUCCESS'+bcolors.ENDC
 else:
     print bcolors.WARNING+'UPLOAD PROCESS FAILURE STATUS CODE:' + response.status_code+bcolors.ENDC
