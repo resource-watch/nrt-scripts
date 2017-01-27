@@ -1,5 +1,9 @@
 #credentials
 credentials.json
-
+.DS_Store
 # Out data
 dst/*
+stand_precip_evapo_index/*.ipynb
+stand_precip_evapo_index/*.nc
+tand_precip_evapo_index/*.tif
+/.ipynb_checkpoints/
