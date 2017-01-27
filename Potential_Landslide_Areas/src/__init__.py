@@ -13,7 +13,7 @@ class bcolors:
    
 dataUrl='https://trmm.gsfc.nasa.gov/trmm_rain/Events/latest_7_day_landslide.html'
 cartoBaseUrl='https://insights.carto.com/api/v1/sql?'
-args = {'q':'', 'api_key': os.getenv('CARTO_API_KEY')} 
+args = {'q':'', 'api_key': os.getenv('CARTO_API_KEY')}
 baseStr = "INSERT INTO potential_landslide_areas (dates,hour,type,the_geom,distance_km) VALUES ('"
 rows=[]
 row=[]
@@ -29,12 +29,19 @@ for i in xrange(0,len(test)-1):
 	data.append(row[i][1])
 	# type
 	data.append(row[i][2]+' '+row[i][3])
-	# lat 1
-	data.append(row[i][6])
-	# lon 1
-	data.append(row[i][7])
-	# distance
-	data.append(row[i][9])
+	if (row[i][4]!='LIKELY'):
+		data.append(row[i][7])
+		# lon 1
+		data.append(row[i][8])
+		# distance
+		data.append(row[i][10].strip('km'))
+	else:
+		# lat 1
+		data.append(row[i][6])
+		# lon 1
+		data.append(row[i][7])
+		# distance
+		data.append(row[i][9].strip('km'))
 	# lat 2
 	data.append(row[i][-1])
 	# lon 2
@@ -44,13 +51,14 @@ for i in xrange(0,len(test)-1):
 
 strs=[]
 for i in xrange(0,len(rows)-1):
-	str_s= rows[i][0] + "', '" + rows[i][1] + "', '" + rows[i][2] + "', ST_SetSRID(ST_MakePoint(" + rows[i][4]+"," + rows[i][3]+  "), 4326), '" + rows[i][5]
+	str_s= rows[i][0] + "', '" + rows[i][1] + "', '" + rows[i][2] + "', ST_SetSRID(ST_MakePoint(" + rows[i][5]+"," + rows[i][3]+  "), 4326), '" + rows[i][5]
 	strs.append(str_s)
 
 args['q']=baseStr + "'), ('".join(strs) + "')"
 
 response = requests.get(cartoBaseUrl, params=args)
+print response.content
 if response.status_code==200:
     print bcolors.OKGREEN+'SUCCESS'+bcolors.ENDC
 else:
-    print bcolors.WARNING+'UPLOAD PROCESS FAILURE STATUS CODE:' + response.status_code+bcolors.ENDC
+    print bcolors.WARNING+'UPLOAD PROCESS FAILURE STATUS CODE:' + str(response.status_code)+bcolors.ENDC
