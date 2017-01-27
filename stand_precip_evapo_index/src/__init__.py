@@ -1,3 +1,4 @@
+
 import argparse
 import wget
 import os.path
@@ -5,8 +6,15 @@ import pandas as pd
 from netCDF4 import Dataset
 import numpy as np
 import rasterio
+import tinys3
 from rasterio.transform import from_origin
 
+class bcolors:
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    ENDC = '\033[0m'
+    UNDERLINE = '\033[4m'
 # --- CREATE A COMMAND LINE PARSER ---
 parser = argparse.ArgumentParser(description='Downloads recent SPDI data (~250m'
                                  'b), then extracts a specified timeslice, '
@@ -99,7 +107,7 @@ transform = rasterio.transform.from_bounds(west_lon, south_lat, east_lon,
                                            north_lat, Z.shape[1], Z.shape[0])
 
 # Create new dataset file object, save the array to it, and close the connection
-write_name = fname.split('.')[0] + "_" + str(enddate.date()) + ".tif"
+write_name = "spei.tif"
 new_dataset = rasterio.open(write_name, 'w',
                             driver='GTiff',
                             height=Z.shape[0],
@@ -116,3 +124,17 @@ new_dataset.write(Z, 1)
 new_dataset.close()
 
 # Add code here to push to S3 instance
+conn = tinys3.Connection(os.getenv('S3_ACCESS_KEY'),os.getenv('S3_SECRET_KEY'), tls=True)
+
+# So we could skip the bucket parameter on every request
+
+f = open(write_name,'rb')
+response = conn.upload(write_name,f,os.getenv('BUCKET'))
+
+if response.status_code==200:
+    print('\r '+bcolors.OKGREEN+'SUCCESS'+bcolors.ENDC)
+else:
+    print(bcolors.WARNING+'UPLOAD PROCESS FAILURE STATUS CODE: ' + str(response.status_code)+bcolors.ENDC)
+    print('\r '+str(response.content)
+
+
