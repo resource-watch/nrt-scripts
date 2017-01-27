@@ -62,3 +62,4 @@ if response.status_code==200:
     print bcolors.OKGREEN+'SUCCESS'+bcolors.ENDC
 else:
     print bcolors.WARNING+'UPLOAD PROCESS FAILURE STATUS CODE:' + str(response.status_code)+bcolors.ENDC
+    print response.content
