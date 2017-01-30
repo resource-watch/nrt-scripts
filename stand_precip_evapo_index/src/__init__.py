@@ -9,13 +9,6 @@ import tinys3
 from rasterio.transform import from_origin
 
 
-bcolors = {'OKBLUE': '\033[94m',
-           'OKGREEN': '\033[92m',
-           'WARNING': '\033[93m',
-           'ENDC': '\033[0m',
-           'UNDERLINE': '\033[4m'}
-
-
 def time_and_Z_index(time_index):
     """There is a diffrence between the order of the time and Z arrays. The
     time data is organised from oldest--> newest (therefore nc['time'][0]) gives
@@ -92,11 +85,11 @@ def do_work(time_slice, month_size, write_name):
     f = open(write_name, 'rb')
     response = conn.upload(write_name, f, os.getenv('BUCKET'))
     if response.status_code == 200:
-        print('\r ' + bcolors['OKGREEN'] + 'SUCCESS' + bcolors['ENDC'])
+        print(Fore.GREEN + '\r SUCCESS')
     else:
-        print(bcolors['WARNING'] + 'UPLOAD PROCESS FAILURE STATUS CODE: ' +
-              str(response.status_code) + bcolors['ENDC'])
-        print('\r ' + str(response.content))
+        print(Fore.RED + 'UPLOAD PROCESS FAILURE STATUS CODE: {0}'.format(
+            str(response.status_code)))
+        print('\r {0}'.format(str(response.content)))
     return
 
 
