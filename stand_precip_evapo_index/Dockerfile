@@ -1,20 +1,18 @@
-FROM python:2.7-alpine
+FROM vizzuality/python-gdal:1.0.0
 MAINTAINER Raul <raul.requero@vizzuality.com>
 ARG NAME=python-script
 ENV NAME ${NAME}
 
-RUN apk update && apk upgrade && \
-   apk add --no-cache --update bash git openssl-dev build-base alpine-sdk \
-   libffi-dev libxml2-dev libxslt-dev
+RUN apt-get update && apt-get install -y bash git openssl build-essential libffi-dev libxml2-dev libxslt-dev
 
-RUN addgroup $NAME && adduser -s /bin/bash -D -G $NAME $NAME
+RUN groupadd -r $NAME && useradd -r -g $NAME $NAME
 
 RUN easy_install pip && pip install --upgrade pip
-RUN pip install virtualenv
 
 RUN mkdir -p /opt/$NAME
-RUN cd /opt/$NAME && virtualenv venv && source venv/bin/activate
+RUN cd /opt/$NAME
 COPY requirements.txt /opt/$NAME/requirements.txt
+RUN pip install --upgrade pip
 RUN cd /opt/$NAME && pip install -r requirements.txt
 
 COPY main.py /opt/$NAME/main.py
@@ -30,5 +28,6 @@ USER $NAME
 
 VOLUME /opt/$NAME/data
 
+#RUN printenv
 # Launch script
 ENTRYPOINT ["python", "main.py"]
