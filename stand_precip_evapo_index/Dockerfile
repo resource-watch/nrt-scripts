@@ -30,4 +30,4 @@ VOLUME /opt/$NAME/data
 
 #RUN printenv
 # Launch script
-ENTRYPOINT ["python", "main.py"]
+CMD ["python", "main.py"]

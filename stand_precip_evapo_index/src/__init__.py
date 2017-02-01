@@ -7,6 +7,7 @@ import numpy as np
 import rasterio
 import tinys3
 from rasterio.transform import from_origin
+from colorama import Fore, Back, Style
 
 
 def time_and_Z_index(time_index):
@@ -28,7 +29,8 @@ def time_and_Z_index(time_index):
 
 
 def do_work(time_slice, month_size, write_name):
-    """Main function to download a specific netcdf file to the local folder, and extract a slice.
+    """Main function to download a specific netcdf file to the local folder,
+    and extract a slice.
     time_slice = signed integer indicating slice of array to extract
     e.g. where (-1 = last time-step).
     month_size = two digit string of time-binning in drought index (e.g. '01')
@@ -86,10 +88,12 @@ def do_work(time_slice, month_size, write_name):
     response = conn.upload(write_name, f, os.getenv('BUCKET'))
     if response.status_code == 200:
         print(Fore.GREEN + '\r SUCCESS')
+        print(Style.RESET_ALL)
     else:
         print(Fore.RED + 'UPLOAD PROCESS FAILURE STATUS CODE: {0}'.format(
             str(response.status_code)))
         print('\r {0}'.format(str(response.content)))
+        print(Style.RESET_ALL)
     return
 
 
