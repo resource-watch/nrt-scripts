@@ -31,4 +31,4 @@ USER $NAME
 VOLUME /opt/$NAME/data
 
 # Launch script
-CMD ["python", "main.py"]
+ENTRYPOINT ["python", "main.py"]
