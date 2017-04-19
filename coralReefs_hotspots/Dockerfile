@@ -1,19 +1,25 @@
-FROM python:2.7-alpine
+FROM python:2.7
 MAINTAINER Raul <raul.requero@vizzuality.com>
 ARG NAME=python-script
 ENV NAME ${NAME}
 
-RUN apk update && apk upgrade && \
-   apk add --no-cache --update bash git openssl-dev build-base alpine-sdk \
-   libffi-dev libxml2-dev libxslt-dev
+RUN apt-get update && \
+   apt-get install -y bash git openssl build-essential \
+   libffi-dev libxml2 libxslt-dev
 
-RUN addgroup $NAME && adduser -s /bin/bash -D -G $NAME $NAME
+USER root
+
+COPY install_ntcdf4.sh /opt/install_ntcdf4.sh
+RUN ls /opt
+RUN /opt/install_ntcdf4.sh
+
+
+RUN groupadd -r $NAME && useradd -r -g $NAME $NAME
 
 RUN easy_install pip && pip install --upgrade pip
 RUN pip install virtualenv
 
 RUN mkdir -p /opt/$NAME
-RUN cd /opt/$NAME && virtualenv venv && source venv/bin/activate
 COPY requirements.txt /opt/$NAME/requirements.txt
 RUN cd /opt/$NAME && pip install -r requirements.txt
 
