@@ -118,7 +118,7 @@ def main():
     
     dataDate = requests.get(url, params=args).json()['rows'][0]['date'].split('-')
     lastDate = datetime.date(int(dataDate[0]), int(dataDate[1]), int(dataDate[2]))
-    date = str(lastDate.year)+"%02d" % (lastDate.month)
+    date = str(lastDate.year)+"%02d" % (lastDate.month+4)
     pingUrl='http://shapefiles.fews.net.s3.amazonaws.com/west-africa'+ date +'.zip'
     if requests.get(pingUrl).status_code!=200:
         print('There is not new data for this date: ', date)
