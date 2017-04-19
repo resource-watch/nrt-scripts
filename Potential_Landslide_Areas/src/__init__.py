@@ -20,7 +20,7 @@ row=[]
 r = requests.get(dataUrl)
 tree = BeautifulSoup(r.content, "lxml").pre.get_text().strip()
 test=tree.split("\n")
-for i in xrange(0,len(test)-1):
+for i in xrange(0,len(test)):
 	data=[]
 	row.append(test[i].split())
 	# date
@@ -49,16 +49,17 @@ for i in xrange(0,len(test)-1):
 	
 	rows.append(data)
 
+
 strs=[]
-for i in xrange(0,len(rows)-1):
-	str_s= rows[i][0] + "', '" + rows[i][1] + "', '" + rows[i][2] + "', ST_SetSRID(ST_MakePoint(" + rows[i][5]+"," + rows[i][3]+  "), 4326), '" + rows[i][5]
+for i in xrange(0,len(rows)):
+	str_s= rows[i][0] + "', '" + rows[i][1] + "', '" + rows[i][2] + "', ST_SetSRID(ST_MakePoint(" + rows[i][4]+"," + rows[i][3]+  "), 4326), '" + rows[i][5]
 	strs.append(str_s)
 
 args['q']=baseStr + "'), ('".join(strs) + "')"
-
 response = requests.get(cartoBaseUrl, params=args)
-print response.content
+
 if response.status_code==200:
     print bcolors.OKGREEN+'SUCCESS'+bcolors.ENDC
 else:
     print bcolors.WARNING+'UPLOAD PROCESS FAILURE STATUS CODE:' + str(response.status_code)+bcolors.ENDC
+    print response.content
