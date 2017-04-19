@@ -29,12 +29,12 @@ with open('flood_observatory.csv', 'wb') as f:
     writer = csv.writer(f)
     writer.writerows(data)
 
-conn = tinys3.Connection(os.getenv('S3_ACCESS_KEY'),os.getenv('S3_SECRET_KEY'), tls=True)
+conn = tinys3.Connection(os.getenv('S3_ACCESS_KEY'),os.getenv('S3_SECRET_KEY'),default_bucket=os.getenv('BUCKET'), tls=True)
 
 # So we could skip the bucket parameter on every request
 
 f = open('flood_observatory.csv','rb')
-response = conn.upload('/flood_observatory.csv',f,os.getenv('BUCKET'))
+response = conn.upload('/flood_observatory.csv',f)
 
 if response.status_code==200:
     print bcolors.OKGREEN+'SUCCESS'+bcolors.ENDC
