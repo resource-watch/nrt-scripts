@@ -1,16 +1,12 @@
-## Standardised Precipitation and Evapotranspiration index
+## Tropical and Temperate Rainfall Dataset, Climate Hazard InfraRed Precipitation with Stations: CHIRPS (USGS, USAID, NASA, NOAA)
 
-The `spei_nc2tif.py` script downloads a NetCDF file from a server to the local folder, subsets a time slice, and uses it to create a geotif file in the local folder.
+### What is CHIRPS? 
 
+Climate Hazards Group InfraRed Precipitation with Station data (CHIRPS) is a 30+ year quasi-global rainfall dataset. Spanning 50°S-50°N (and all longitudes), starting in 1981 to near-present, CHIRPS incorporates 0.05° resolution satellite imagery with in-situ station data to create gridded rainfall time series for trend analysis and seasonal drought monitoring. As of February 12th, 2015, version 2.0 of CHIRPS is complete and available to the public. For detailed information on CHIRPS, please refer to our paper in Scientific Data.
 
-The data is a [Standardised precipitation and evapotranspiration index](http://sac.csic.es/spei/index.html). This is a multi-scalar drought index, (a measure of water deficit).
-Negative values indicate drought conditions, while positive values indicate flood
-conditions. Note that there are multiple versions of these data, with a different monthly binning, which relates to the timescale of the drought/flooding effects (and consequently the functional impact of the water deficit). I.e. A low monthly
-binning will show high-frequency water deficit conditions that impact more the soil water content, or headwater discharge of river areas, medium time scales are related to reservoir storages and discharge in the medium course of the rivers, and long time-scales are related to variations in groundwater storage.
+More information regarding CHIRPS can be found in the USGS publication (Funk et al., 2014), at the Funk et al. (2015), or at http://chg-wiki.geog.ucsb.edu/wiki/CHIRPS_FAQ.
 
-The monthly binning is  critical. A new (250mb) file will be downloaded for
-each monthly binning requested.
+### Citations
 
-The specific source of the netcdf is [http://notos.eead.csic.es/spei](http://notos.eead.csic.es/spei). These data are
-updated monthly. Each time we wish to extract the most recent update to these
-data we must download the entire dataset from the server (approximately 250mb).
+Funk, Chris, Pete Peterson, Martin Landsfeld, Diego Pedreros, James Verdin, Shraddhanand Shukla, Gregory Husak, James Rowland, Laura Harrison, Andrew Hoell & Joel Michaelsen.
+"The climate hazards infrared precipitation with stations—a new environmental record for monitoring extremes". Scientific Data 2, 150066. doi:10.1038/sdata.2015.66 2015.
