@@ -3,4 +3,4 @@ NAME=spei
 docker build -t $NAME --build-arg NAME=$NAME .
 #
 #docker run -it -v $(pwd)/data:/opt/$NAME/data --env-file .env --rm $NAME "/bin/bash"
-docker run -v $(pwd)/data:/opt/$NAME/data --env-file .env --rm $NAME
+docker run --log-opt syslog-address=$LOG --log-opt tag=$NAME -v $(pwd)/data:/opt/$NAME/data --env-file .env --rm $NAME
