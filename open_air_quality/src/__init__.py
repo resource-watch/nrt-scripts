@@ -8,6 +8,8 @@ from geopandas import GeoDataFrame
 from pandas.io.json import json_normalize
 import tinys3
 
+ee.initialize()
+
 url='https://api.openaq.org/v1/latest'
 payload = {
     'limit':10000,
