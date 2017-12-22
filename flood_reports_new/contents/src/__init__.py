@@ -78,28 +78,33 @@ def main():
     ### 1. Check if table exists and create table
     dest_ids = []
     if not carto.tableExists(CARTO_TABLE):
-        logging.info('Table {} does not exist'.format(CARTO_TABLE))
+        logging.info('Table {} does not exist, creating'.format(CARTO_TABLE))
         carto.createTable(CARTO_TABLE, CARTO_SCHEMA)
 
     ### 2. Fetch existing IDs from table
     else:
-        r = carto.getFields(UID_FIELD, CARTO_TABLE, order=TIME_FIELD, f='csv')
+        r = carto.getFields(UID_FIELD, CARTO_TABLE, order='{} desc'.format(TIME_FIELD), f='csv')
         # quick read 1-column csv to list
         dest_ids = r.split('\r\n')[1:-1]
 
     ### 3. Fetch data from source
+    logging.info('Fetching latest data')
     for dest, url in SOURCE_URLS.items():
         urllib.request.urlretrieve(url, os.path.join(DATA_DIR, dest))
 
     ### 4. Parse fetched data and generate unique ids
+    logging.info('Parsing data')
     rows = parseFloods(os.path.join(DATA_DIR, TABFILE), ENCODING, CARTO_SCHEMA.keys(), dest_ids)
 
     ### 5. Insert new observations
+    logging.info('Pushing new data')
     if len(rows):
         carto.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA, rows)
 
     ### 6. Remove old observations
-    logging.info('Row count: {}, New: {}, Max: {}'.format(len(dest_ids), len(rows), MAXROWS))
+    logging.info('Previous count: {}, New: {}, Max: {}'.format(len(dest_ids), len(rows), MAXROWS))
     if len(dest_ids) + len(rows) > MAXROWS and MAXROWS > len(rows):
         drop_ids = dest_ids[(MAXROWS - len(rows)):]
         carto.deleteRowsByIDs(CARTO_TABLE, "_UID", drop_ids)
+
+    logging.info('SUCCESS')

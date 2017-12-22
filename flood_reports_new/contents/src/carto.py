@@ -16,7 +16,7 @@ def sendSql(sql, user=CARTO_USER, key=CARTO_KEY, f='', post=True):
     }
     if len(f):
         payload['format'] = f
-    logging.info((url, payload))
+    logging.debug((url, payload))
     if post:
         r = requests.post(url, json=payload)
     else:
