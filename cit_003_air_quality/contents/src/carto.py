@@ -65,10 +65,10 @@ def _escapeValue(value, dtype):
         # assume GeoJSON and assert WKID
         if type(value) is not str:
             value = json.dumps(value)
-        return u"ST_SetSRID(ST_GeomFromGeoJSON('{}'),4326)".format(value)
+        return "ST_SetSRID(ST_GeomFromGeoJSON('{}'),4326)".format(value)
     elif dtype in ('text', 'timestamp', 'varchar'):
         # quote strings, escape quotes, and drop nbsp
-        return u"'{}'".format(str(value).replace(u'\xa0', u' ').replace(u"'", u"''"))
+        return "'{}'".format(str(value).replace('\xa0', ' ').replace("'", "''"))
     else:
         return str(value)
 
@@ -76,14 +76,14 @@ def _dumpRows(rows, dtypes):
     dumpedRows = []
     for row in rows:
         escaped = [_escapeValue(row[i], dtypes[i]) for i in range(len(dtypes))]
-        dumpedRows.append(u'({})'.format(u','.join(escaped)))
-    return u','.join(dumpedRows)
+        dumpedRows.append('({})'.format(','.join(escaped)))
+    return ','.join(dumpedRows)
 
 def insertRows(table, schema, rows, user=CARTO_USER, key=CARTO_KEY):
     fields = tuple(schema.keys())
     dtypes = tuple(schema.values())
     values = _dumpRows(rows, dtypes)
-    sql = u'INSERT INTO "{}" ({}) VALUES {}'.format(table, u', '.join(fields), values)
+    sql = 'INSERT INTO "{}" ({}) VALUES {}'.format(table, ', '.join(fields), values)
     return post(sql, user, key)
 
 def blockInsertRows(table, schema, rows, user=CARTO_USER, key=CARTO_KEY, blocksize=1000):
