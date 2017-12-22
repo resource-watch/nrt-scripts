@@ -55,7 +55,7 @@ def genUID(obs):
 def parseFloods(filepath, encoding, fields, exclude_ids):
     rows = []
     with fiona.open(filepath, 'r', encoding=encoding) as shp:
-        logging.info(shp.schema)
+        logging.debug(shp.schema)
         for obs in shp:
             uid = genUID(obs)
             # Only add new observations unless overwrite
