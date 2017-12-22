@@ -9,7 +9,7 @@ ENV NAME ${NAME}
 RUN apt-get update
 
 # install application libraries
-RUN pip install requests python-dateutil
+RUN pip install requests
 
 # Copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data
@@ -17,5 +17,9 @@ WORKDIR /opt/$NAME/
 COPY contents/ .
 COPY time.cron .
 VOLUME ./data
+
+RUN useradd $NAME
+RUN chown $NAME .
+USER $NAME
 
 CMD ["python", "main.py"]
