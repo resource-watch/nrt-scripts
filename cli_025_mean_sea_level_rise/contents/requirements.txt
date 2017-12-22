@@ -1,0 +1,8 @@
+requests
+#fiona
+#numpy
+#rasterio
+pandas
+python-dateutil
+#gsutil
+boto3
