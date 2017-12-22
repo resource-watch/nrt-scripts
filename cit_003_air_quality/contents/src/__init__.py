@@ -89,7 +89,7 @@ def main():
 
     ### 2. Fetch existing IDs from table
     else:
-        r = carto.getFields(UID_FIELD, CARTO_TABLE, order=TIME_FIELD, f='csv')
+        r = carto.getFields(UID_FIELD, CARTO_TABLE, order='{} desc'.format(TIME_FIELD), f='csv')
         # quick read 1-column csv to list
         dest_ids = r.split('\r\n')[1:-1]
 
@@ -98,6 +98,7 @@ def main():
     rows = fetchData(dest_ids)
 
     ### 5. Insert new observations
+    logging.info('Pushing new data')
     if len(rows):
         carto.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA, rows)
 
