@@ -11,7 +11,7 @@ DATA_DIR='data'
 LATEST_URL='https://api.acleddata.com/acled/read?page={}'
 
 ### asserting table structure rather than reading from input
-CARTO_TABLE = 'soc_016_conflict_protest_events'
+CARTO_TABLE = 'soc_016_conflict_protest_events_afr'
 CARTO_SCHEMA = OrderedDict([
     ("the_geom","geometry"),
     ("data_id","int"),
