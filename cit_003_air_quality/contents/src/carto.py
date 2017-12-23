@@ -26,7 +26,7 @@ def sendSql(sql, user=CARTO_USER, key=CARTO_KEY, f='', post=True):
         if STRICT:
             raise Exception(r.text)
         return False
-    return(r.text)
+    return r
 
 def get(sql, user=CARTO_USER, key=CARTO_KEY, f=''):
     return sendSql(sql, user, key, f, False)
@@ -46,7 +46,7 @@ def getFields(fields='*', table='', user=CARTO_USER, key=CARTO_KEY, where='', or
 
 def getTables():
     r = get('SELECT * FROM CDB_UserTables()', f='csv')
-    return r.split("\r\n")[1:-1]
+    return r.text.split("\r\n")[1:-1]
 
 def tableExists(table):
     return table in getTables()
@@ -55,8 +55,21 @@ def createTable(table, schema, user=CARTO_USER, key=CARTO_KEY):
     defslist = ['{} {}'.format(k, v) for k, v in schema.items()]
     sql = 'CREATE TABLE "{}" ({})'.format(table, ','.join(defslist))
     if post(sql, user, key):
-        sql = "SELECT cdb_cartodbfytable('{}','\"{}\"')".format(CARTO_USER, table)
-        return post(sql, user, key)
+        return cdbfyTable(table, user, key)
+
+def cdbfyTable(table, user=CARTO_USER, key=CARTO_KEY):
+    sql = "SELECT cdb_cartodbfytable('{}','\"{}\"')".format(user, table)
+    return post(sql, user, key)
+
+def createIndex(table, fields, unique=False, user=CARTO_USER, key=CARTO_KEY):
+    if type(fields) is str:
+        fields = (fields,)
+    f_underscore = '_'.join(fields)
+    f_comma = ','.join(fields)
+    unique = 'UNIQUE' if unique else ''
+    sql = 'CREATE {} INDEX idx_{}_{} ON {} ({})'.format(
+        unique, table, f_underscore, table, f_comma)
+    return post(sql, user, key)
 
 def _escapeValue(value, dtype):
     if value is None:
