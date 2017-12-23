@@ -7,6 +7,8 @@ import src.carto as carto
 import datetime
 import hashlib
 
+logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+
 ### Constants
 DATA_DIR = 'data'
 # max page size = 10000
@@ -47,17 +49,21 @@ CARTO_KEY = os.environ.get('CARTO_KEY')
 MAXROWS = 1000000
 MAXAGE = datetime.datetime.now() - datetime.timedelta(days=30)
 
-### Generate UID
+
+# Generate UID
 def genUID(obs):
     # location should be unique, plus measurement timestamp
     id_str = '{}_{}'.format(obs['location'], obs['date']['utc'])
     return hashlib.md5(id_str.encode('utf8')).hexdigest()
 
-### Fetch and parse OpenAQ into separate tables by parameter
-def process(exclude_ids):
+
+# Fetch and parse OpenAQ into separate tables by parameter
+def processData(old_ids):
     total_counts = dict(((param, 0) for param in PARAMS))
     page = 1
     new_count = 1
+    exclude_ids = dict(
+        ((param, old_ids[param][:]) for param in PARAMS))
     # get and parse each page
     # stop when no new results or 100 pages
     while page <= MIN_PAGES or new_count and page < 100:
@@ -110,17 +116,21 @@ def process(exclude_ids):
     return total_counts
 
 
-def getTableIds(table, id_field, order):
+def getCreateTableIDs(table):
     if carto.tableExists(table):
-        r = carto.getFields(id_field, table, order=order, f='csv')
+        logging.info('Fetching existing IDs')
+        r = carto.getFields(UID_FIELD,
+                            table,
+                            order='{} desc'.format(TIME_FIELD),
+                            f='csv')
         # quick read 1-column csv to list
         return r.text.split('\r\n')[1:-1]
     else:
         logging.info('Table {} does not exist, creating'.format(
             table))
-        carto.createTable(table, schema)
-        carto.createIndex(table, index)
-    return []
+        carto.createTable(table, CARTO_SCHEMA)
+        carto.createIndex(table, TIME_FIELD)
+        return []
 
 
 def dropOldRows(table, old_ids, new_count):
@@ -133,7 +143,7 @@ def dropOldRows(table, old_ids, new_count):
         TIME_FIELD, MAXAGE.isoformat())
     # by excess rows
     if old_count + new_count > MAXROWS:
-        drop_ids = old_ids[min(MAXROWS, MAXROWS - new_count):]
+        drop_ids = old_ids[max(0, MAXROWS - new_count):]
         delete_where = '{} OR {} in ({})'.format(
             delete_where, UID_FIELD, ','.join(drop_ids))
 
@@ -144,36 +154,22 @@ def dropOldRows(table, old_ids, new_count):
             num_dropped, table))
 
 def main():
-    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+    logging.info('BEGIN')
 
     ### 1. Get existing uids, if none create tables
-    existing_ids = {}
+    old_ids = {}
     for param in PARAMS:
-        table = CARTO_TABLES[param]
-        order = '{} desc'.format(TIME_FIELD)
-        if carto.tableExists(table):
-            r = carto.getFields(UID_FIELD,
-                                table,
-                                order=order,
-                                f='csv')
-            # quick read 1-column csv to list
-            existing_ids[param] = r.text.split('\r\n')[1:-1]
-        else:
-            logging.info('Table {} does not exist, creating'.format(
-                table))
-            carto.createTable(table, CARTO_SCHEMA)
-            carto.createIndex(table, TIME_FIELD)
-            existing_ids[param] = []
+        old_ids[param] = getCreateTableIDs(CARTO_TABLES[param])
 
     ### 2. Iterively fetch, parse and post new data
     # this is done all together because OpenAQ endpoint doesn't
     # support filtering by parameter
-    total_counts = process(existing_ids)
+    new_counts = processData(old_ids)
 
     ### 3. Remove old observations
     for param in PARAMS:
         dropOldRows(CARTO_TABLES[param],
-                    existing_ids[param],
-                    total_counts[param])
+                    old_ids[param],
+                    new_counts[param])
 
     logging.info('SUCCESS')
