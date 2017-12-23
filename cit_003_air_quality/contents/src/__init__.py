@@ -56,20 +56,66 @@ def genUID(obs):
     id_str = '{}_{}'.format(obs['location'], obs['date']['utc'])
     return hashlib.md5(id_str.encode('utf8')).hexdigest()
 
+def getCreateTableIDs(table):
+    # get ids sorted by newest
+    if carto.tableExists(table):
+        logging.info('Fetching existing IDs')
+        r = carto.getFields(UID_FIELD,
+                            table,
+                            order='{} desc'.format(TIME_FIELD),
+                            f='csv')
+        # quick read 1-column csv to list
+        return r.text.split('\r\n')[1:-1]
+    else:
+        logging.info('Table {} does not exist, creating'.format(
+            table))
+        carto.createTable(table, CARTO_SCHEMA)
+        carto.createIndex(table, TIME_FIELD)
+        return []
 
-# Fetch and parse OpenAQ into separate tables by parameter
-def processData(old_ids):
-    total_counts = dict(((param, 0) for param in PARAMS))
-    page = 1
+
+def dropOldRows(table, existing_ids, new_count):
+    existing_count = len(existing_ids)
+    logging.info('{} previous rows: {}, new: {}, max: {}'.format(
+        table, existing_count, new_count, MAXROWS))
+
+    # by max age
+    delete_where = "{} < '{}'".format(
+        TIME_FIELD, MAXAGE.isoformat())
+
+    # by excess rows
+    if existing_count > MAXROWS:
+        delete_where += ' OR {} in ({})'.format(
+            UID_FIELD, ','.join(existing_ids[MAXROWS:]))
+
+    r = carto.deleteRows(table, delete_where)
+    num_dropped = r.json()['total_rows']
+    if num_dropped > 0:
+        logging.info('Dropped {} old rows from {}'.format(
+            num_dropped, table))
+
+
+def main():
+    logging.info('BEGIN')
+
+    ### 1. Get existing uids, if none create tables
+    existing_ids = {}
+    for param in PARAMS:
+        existing_ids[param] = getCreateTableIDs(CARTO_TABLES[param])
+
+    ### 2. Iterively fetch, parse and post new data
+    # this is done all together because OpenAQ endpoint doesn't
+    # support filtering by parameter
+    new_counts = dict(((param, 0) for param in PARAMS))
     new_count = 1
-    exclude_ids = dict(
-        ((param, old_ids[param][:]) for param in PARAMS))
+    page = 1
     # get and parse each page
-    # stop when no new results or 100 pages
+    # read at least 10 pages; stop when no new results or 100 pages
     while page <= MIN_PAGES or new_count and page < 100:
         logging.info("Fetching page {}".format(page))
         r = requests.get(DATA_URL.format(page=page))
         page += 1
+        new_count = 0
 
         # separate row lists per param
         rows = dict(((param, []) for param in PARAMS))
@@ -78,11 +124,13 @@ def processData(old_ids):
         for obs in r.json()['results']:
             param = obs['parameter']
             uid = genUID(obs)
-            if uid not in exclude_ids[param] and 'coordinates' in obs:
-                exclude_ids[param].append(uid)
+            if uid not in existing_ids[param] and 'coordinates' in obs:
+                # insert new obs in top of list (oldest at end)
+                existing_ids[param].insert(0, uid)
                 row = []
                 for field in CARTO_SCHEMA.keys():
                     if field == 'the_geom':
+                        # construct geojson
                         geom = {
                             "type": "Point",
                             "coordinates": [
@@ -101,75 +149,23 @@ def processData(old_ids):
                         row.append(obs[field])
                 rows[param].append(row)
 
-        new_count = 0
-        # insert new rows
+        # insert new rows by page
         for param in PARAMS:
             count = len(rows[param])
             if count:
                 logging.info('Pushing {} new {} rows'.format(
                     count, param))
                 carto.insertRows(CARTO_TABLES[param],
-                                 CARTO_SCHEMA,
+                                 CARTO_SCHEMA.keys(),
+                                 CARTO_SCHEMA.values(),
                                  rows[param])
                 new_count += count
-            total_counts[param] += count
-    return total_counts
-
-
-def getCreateTableIDs(table):
-    if carto.tableExists(table):
-        logging.info('Fetching existing IDs')
-        r = carto.getFields(UID_FIELD,
-                            table,
-                            order='{} desc'.format(TIME_FIELD),
-                            f='csv')
-        # quick read 1-column csv to list
-        return r.text.split('\r\n')[1:-1]
-    else:
-        logging.info('Table {} does not exist, creating'.format(
-            table))
-        carto.createTable(table, CARTO_SCHEMA)
-        carto.createIndex(table, TIME_FIELD)
-        return []
-
-
-def dropOldRows(table, old_ids, new_count):
-    old_count = len(old_ids)
-    logging.info('{} previous rows: {}, new: {}, max: {}'.format(
-        table, old_count, new_count, MAXROWS))
-
-    # by max age
-    delete_where = "{} < '{}'".format(
-        TIME_FIELD, MAXAGE.isoformat())
-    # by excess rows
-    if old_count + new_count > MAXROWS:
-        drop_ids = old_ids[max(0, MAXROWS - new_count):]
-        delete_where = '{} OR {} in ({})'.format(
-            delete_where, UID_FIELD, ','.join(drop_ids))
-
-    r = carto.deleteRows(table, delete_where)
-    num_dropped = r.json()['total_rows']
-    if num_dropped > 0:
-        logging.info('Dropped {} old rows from {}'.format(
-            num_dropped, table))
-
-def main():
-    logging.info('BEGIN')
-
-    ### 1. Get existing uids, if none create tables
-    old_ids = {}
-    for param in PARAMS:
-        old_ids[param] = getCreateTableIDs(CARTO_TABLES[param])
-
-    ### 2. Iterively fetch, parse and post new data
-    # this is done all together because OpenAQ endpoint doesn't
-    # support filtering by parameter
-    new_counts = processData(old_ids)
+            new_counts[param] += count
 
     ### 3. Remove old observations
     for param in PARAMS:
         dropOldRows(CARTO_TABLES[param],
-                    old_ids[param],
+                    existing_ids[param],
                     new_counts[param])
 
     logging.info('SUCCESS')
