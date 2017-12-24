@@ -1,3 +1,5 @@
+#!/bin/sh
+
 #Change the NAME variable with the name of your script
 NAME=conflict_protest
 

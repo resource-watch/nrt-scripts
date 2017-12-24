@@ -3,12 +3,15 @@ import logging
 import sys
 import requests
 from collections import OrderedDict
-import src.carto
 import datetime
+import cartosql
+
 
 ### Constants
 DATA_DIR='data'
 LATEST_URL='https://api.acleddata.com/acled/read?page={}'
+MIN_PAGES=10
+MAX_PAGES=200
 
 ### asserting table structure rather than reading from input
 CARTO_TABLE = 'soc_016_conflict_protest_events_afr'
@@ -46,23 +49,24 @@ CARTO_KEY = os.environ.get('CARTO_KEY')
 MAXROWS = 1000000
 MAXAGE = datetime.datetime.now() - datetime.timedelta(days=3650)
 
+
 ### Generate UID
 def genUID(obs):
     return str(obs[UID_FIELD])
 
+
 def getACLEDRowBlocks(exclude_ids):
     page = 1
     newcount = 1
-    # get and parse each page; stop when no new results
-    while newcount:
+    # get and parse each page; stop when no new results or 200 pages
+    while page <= MIN_PAGES or newcount and page < MAX_PAGES:
         logging.info("Fetching page {}".format(page))
         r = requests.get(LATEST_URL.format(page))
-        data = r.json()
+        rows = []
         page += 1
 
         # parse data excluding existing observations
-        rows = []
-        for obs in data['data']:
+        for obs in r.json()['data']:
             uid = genUID(obs)
             if uid not in exclude_ids:
                 row = []
@@ -86,6 +90,7 @@ def getACLEDRowBlocks(exclude_ids):
         newcount = len(rows)
         yield rows
 
+
 # get, parse, insert
 def process(exclude_ids):
     newcount = 0
@@ -93,7 +98,10 @@ def process(exclude_ids):
     for row_block in getACLEDRowBlocks(exclude_ids):
         if len(row_block):
             logging.info('Pushing new rows')
-            carto.insertRows(CARTO_TABLE, CARTO_SCHEMA, row_block)
+            cartosql.insertRows(CARTO_TABLE,
+                                CARTO_SCHEMA.keys(),
+                                CARTO_SCHEMA.values(),
+                                row_block)
             newcount += len(row_block)
     return newcount
 
@@ -106,19 +114,20 @@ def main():
 
     ### 1. Check if table exists and create table
     existing_ids = []
-    if not carto.tableExists(CARTO_TABLE):
+    if not cartosql.tableExists(CARTO_TABLE):
         logging.info('Table {} does not exist, creating'.format(
             CARTO_TABLE))
-        carto.createTable(CARTO_TABLE, CARTO_SCHEMA)
-        carto.createIndex(CARTO_TABLE, TIME_FIELD)
+        cartosql.createTable(CARTO_TABLE, CARTO_SCHEMA)
+        cartosql.createIndex(CARTO_TABLE, TIME_FIELD)
     ### 2. Fetch existing IDs from table
     else:
-        r = carto.getFields(UID_FIELD, CARTO_TABLE, order='{} desc'.format(TIME_FIELD), f='csv')
+        r = cartosql.getFields(UID_FIELD, CARTO_TABLE,
+                               order='{} desc'.format(TIME_FIELD), f='csv')
         # quick read 1-column csv to list
         existing_ids = r.text.split('\r\n')[1:-1]
 
     ### 3. Iterively fetch, parse and post new data
-    newcount = process(existing_ids)
+    newcount = process(tuple(existing_ids))
 
     ### 4. Remove old observations
     oldcount = len(existing_ids)
@@ -130,11 +139,11 @@ def main():
         TIME_FIELD, MAXAGE.isoformat())
     # by excess rows
     if oldcount + newcount > MAXROWS:
-        drop_ids = existing_ids[min(MAXROWS, MAXROWS - newcount):]
+        drop_ids = existing_ids[max(0, MAXROWS - newcount):]
         delete_where = '{} OR {} in ({})'.format(
             delete_where, UID_FIELD, ','.join(drop_ids))
 
-    r = carto.deleteRows(CARTO_TABLE, delete_where)
+    r = cartosql.deleteRows(CARTO_TABLE, delete_where)
     numdropped = r.json()['total_rows']
     if numdropped > 0:
         logging.info('Dropped {} old rows'.format(numdropped))
