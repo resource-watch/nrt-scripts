@@ -1,5 +1,4 @@
-import pandas as pd
-import urllib.request as req
+import urllib.request
 import logging
 from datetime import datetime, timedelta
 
@@ -8,21 +7,28 @@ def genUID(obs):
 
 def fetchDataFileName(SOURCE_URL):
     # View file names on the FTP
-    df = pd.DataFrame(req.urlopen(SOURCE_URL).read().splitlines())
-    df["files"] = df[0].str.split(expand=True)[8].astype(str)
-    logging.info(df["files"])
-    df["files"] = df["files"].apply(lambda row: row[2:-1])
+    with urllib.request.urlopen(SOURCE_URL) as f:
+        ftp_contents = f.read().decode('utf-8').splitlines()
 
-    # Select the file that contains the data... i.e. ends with .txt, and has "V4" in the name
-    data_file_index = df["files"].apply(lambda row: row.endswith(".txt") & ("V4" in row))
-    logging.info(data_file_index)
+    filename = ""
+    ALREADY_FOUND=False
+    for fileline in ftp_contents:
+        fileline = fileline.split()
+        potential_filename = fileline[8]
+        if (potential_filename.endswith(".txt") and ("V4" in potential_filename)):
+            if not ALREADY_FOUND:
+                filename = potential_filename
+                ALREADY_FOUND=True
+            else:
+                logging.warning("There are multiple filenames which match criteria, passing most recent")
+                filename = potential_filename
 
-    # Pull out just the file name
-    remote_file_name = df.loc[data_file_index,"files"].values[0]
-    logging.debug(remote_file_name)
+    logging.info("Selected filename: " + filename)
+    if not ALREADY_FOUND:
+        logging.warning("No valid filename found")
 
     # Return the file name
-    return(remote_file_name)
+    return(filename)
 
 # https://stackoverflow.com/questions/20911015/decimal-years-to-datetime-in-python
 def dec_to_datetime(dec):
