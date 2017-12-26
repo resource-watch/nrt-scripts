@@ -86,7 +86,7 @@ def processData(SOURCE_URL, filename, existing_ids):
                 date = decimalToDatetime(float(potential_row[DATETIME_INDEX]))
                 if date not in existing_ids:
                     potential_row[DATETIME_INDEX] = date
-                    deduped_formatted_rows.append(row)
+                    deduped_formatted_rows.append(potential_row)
 
     logging.debug("First ten deduped, formatted rows from ftp: " + str(deduped_formatted_rows[:10]))
 
@@ -100,12 +100,16 @@ def processData(SOURCE_URL, filename, existing_ids):
 ###
 
 # https://stackoverflow.com/questions/20911015/decimal-years-to-datetime-in-python
-def decimalToDatetime(dec):
+def decimalToDatetime(dec, date_pattern="%Y-%m-%d %H:%M:%S"):
+    """
+    Convert a decimal representation of a year to a desired string representation
+    I.e. 2016.5 -> 2016-06-01 00:00:00
+    """
     year = int(dec)
     rem = dec - year
     base = datetime(year, 1, 1)
     dt = base + timedelta(seconds=(base.replace(year=base.year + 1) - base).total_seconds() * rem)
-    result = dt.strftime("%Y-%m-%d %H:%M:%S")
+    result = dt.strftime(date_pattern)
     return(result)
 
 ###
