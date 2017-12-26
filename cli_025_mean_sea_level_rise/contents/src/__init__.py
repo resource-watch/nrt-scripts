@@ -110,6 +110,7 @@ def main():
     ### 6. Upload new data to Carto
     uploadData(new_rows)
 
+    logging.info("SUCCESS")
     ### 7. Write data to s3
     # Need to reconsider this... we want to avoid writing large amounts of repeat data
     # misc.write_to_S3(rows, "resourcewatch/cli_025_mean_sea_level_rise.csv")
