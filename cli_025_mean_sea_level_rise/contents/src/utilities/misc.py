@@ -1,37 +1,11 @@
 import boto3
 import io
-import pandas as pd
 import numpy as np
 import os
 
 from dateutil import parser
 import pytz
 import datetime
-
-### Functions for reading and uploading data to/from S3
-
-ACCESS_KEY = os.environ.get('aws_access_key_id')
-SECRET_KEY = os.environ.get('aws_secret_access_key')
-
-s3_bucket = "wri-public-data"
-s3_client = boto3.client('s3')
-
-client = boto3.client(
-    's3',
-    aws_access_key_id=ACCESS_KEY,
-    aws_secret_access_key=SECRET_KEY
-    )
-
-s3_resource = boto3.resource(
-    's3',
-    aws_access_key_id=ACCESS_KEY,
-    aws_secret_access_key=SECRET_KEY
-    )
-
-def read_from_S3(bucket, key, index_col=0):
-    obj = s3_client.get_object(Bucket=bucket, Key=key)
-    df = pd.read_csv(io.BytesIO(obj['Body'].read()), index_col=[index_col], encoding="utf8")
-    return(df)
 
 # Update this to allow for passing
 def write_to_S3(df, key, bucket=s3_bucket, ftype="df"):
