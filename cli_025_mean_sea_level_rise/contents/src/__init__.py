@@ -80,13 +80,16 @@ def processData(SOURCE_URL, filename, existing_ids):
     # Do not keep header rows, or data observations marked 999
     deduped_formatted_rows = []
     for row in res_rows:
-        if not (row.startswith("HDR") or row.startswith("999")):
+        if not (row.startswith("HDR")):
             potential_row = row.split()
             if len(potential_row)==len(CARTO_SCHEMA):
                 date = decimalToDatetime(float(potential_row[DATETIME_INDEX]))
                 if date not in existing_ids:
                     potential_row[DATETIME_INDEX] = date
                     deduped_formatted_rows.append(potential_row)
+                    logging.debug("Adding " + date + " to table")
+                else:
+                    logging.debug(date + " already in table")
 
     logging.debug("First ten deduped, formatted rows from ftp: " + str(deduped_formatted_rows[:10]))
 
@@ -117,7 +120,7 @@ def decimalToDatetime(dec, date_pattern="%Y-%m-%d %H:%M:%S"):
 ###
 
 def main():
-    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+    logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
     ### 1. Check if table exists, if so, retrieve UIDs
     ## Q: If not getting the field for TIME_FIELD, can you still order by it?
