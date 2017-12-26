@@ -1,7 +1,7 @@
 import logging
 import sys
 import os
-logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 import urllib.request
 
@@ -82,7 +82,7 @@ def main():
         carto.createTable(CARTO_TABLE, CARTO_SCHEMA)
         ids_already_in_table = []
 
-    logging.debug(ids_already_in_table)
+    logging.debug("First 10 IDs already in table: " + str(ids_already_in_table[:10]))
 
     ### 3. Fetch data from FTP
     rows = fetchData(SOURCE_URL)
