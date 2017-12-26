@@ -1,26 +1,6 @@
-import boto3
-import io
-import numpy as np
-import os
-
 from dateutil import parser
 import pytz
 import datetime
-
-# Update this to allow for passing
-def write_to_S3(df, key, bucket=s3_bucket, ftype="df"):
-    """ Allowable types:
-    df: pandas DataFrame
-    lol: list of lists
-    """
-    if ftype=="df":
-        csv_buffer = io.StringIO()
-        df.to_csv(csv_buffer)
-        s3_resource.Object(bucket, key).put(Body=csv_buffer.getvalue())
-    elif ftype=="lol":
-        logging.info("Converted data to a list of lists")
-        # TO DO: implement
-
 
 ### Standardizing datetimes
 

@@ -5,4 +5,5 @@ requests
 #pandas
 python-dateutil
 #gsutil
-boto3
+#boto3
+pytz
