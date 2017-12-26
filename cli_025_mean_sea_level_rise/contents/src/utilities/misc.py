@@ -33,10 +33,20 @@ def read_from_S3(bucket, key, index_col=0):
     df = pd.read_csv(io.BytesIO(obj['Body'].read()), index_col=[index_col], encoding="utf8")
     return(df)
 
-def write_to_S3(df, key, bucket=s3_bucket):
-    csv_buffer = io.StringIO()
-    df.to_csv(csv_buffer)
-    s3_resource.Object(bucket, key).put(Body=csv_buffer.getvalue())
+# Update this to allow for passing
+def write_to_S3(df, key, bucket=s3_bucket, ftype="df"):
+    """ Allowable types:
+    df: pandas DataFrame
+    lol: list of lists
+    """
+    if ftype=="df":
+        csv_buffer = io.StringIO()
+        df.to_csv(csv_buffer)
+        s3_resource.Object(bucket, key).put(Body=csv_buffer.getvalue())
+    elif ftype=="lol":
+        logging.info("Converted data to a list of lists")
+        # TO DO: implement
+
 
 ### Standardizing datetimes
 
