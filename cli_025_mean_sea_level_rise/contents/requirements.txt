@@ -2,7 +2,7 @@ requests
 #fiona
 #numpy
 #rasterio
-pandas
+#pandas
 python-dateutil
 #gsutil
 boto3
