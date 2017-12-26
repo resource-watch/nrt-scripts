@@ -25,9 +25,9 @@ COPY time.cron .
 VOLUME ./data
 
 # Set user for container security
-#RUN adduser -D $NAME
-#RUN chown $NAME .
-#USER $NAME
+RUN useradd $NAME
+RUN chown -R $NAME:$NAME .
+USER $NAME
 
 # Launch script
 CMD ["python", "main.py"]
