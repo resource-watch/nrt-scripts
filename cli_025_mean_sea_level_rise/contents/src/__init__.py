@@ -1,19 +1,17 @@
 import logging
 import sys
 import os
-logging.basicConfig(stream=sys.stderr, level=logging.INFO)
-
 import urllib.request
-
-# If not running in nrt-container, then .env variables must be symlinked
-import src.utilities.carto as carto
-import src.utilities.misc as misc
-import src.utilities.cli_025 as cli_025
-
 from collections import OrderedDict
+from datetime import datetime, timedelta
+import cartosql
 
-# SOURCE_URL = "ftp://podaac.jpl.nasa.gov/allData/merged_alt/L2/TP_J1_OSTM/global_mean_sea_level/"
+### Constants
+SOURCE_URL = "ftp://podaac.jpl.nasa.gov/allData/merged_alt/L2/TP_J1_OSTM/global_mean_sea_level/"
+FILENAME_INDEX = 8
+DATETIME_INDEX = 2
 
+### Table name and structure
 CARTO_TABLE = 'cli_025_mean_sea_level_rise'
 CARTO_SCHEMA = OrderedDict([
     ('altimeter_type', 'numeric'),
@@ -29,86 +27,132 @@ CARTO_SCHEMA = OrderedDict([
     ('gauss_filt_gmsl_gia', 'numeric'),
     ('gauss_filt_gmsl_gia_ann_signal_removed', 'numeric')
 ])
-
 UID_FIELD = 'date'
 TIME_FIELD = 'date'
 
-MAX_ROWS = 1000000
-SOURCE_URL = "ftp://podaac.jpl.nasa.gov/allData/merged_alt/L2/TP_J1_OSTM/global_mean_sea_level/"
+CARTO_USER = os.environ.get('CARTO_USER')
+CARTO_KEY = os.environ.get('CARTO_KEY')
 
-def fetchData(SOURCE_URL):
-    # Read the files that are on the FTP
-    file_name = cli_025.fetchDataFileName(SOURCE_URL)
-    with urllib.request.urlopen(os.path.join(SOURCE_URL, file_name)) as f:
+# Table limits
+MAX_ROWS = 1000000
+
+###
+## Accessing remote data
+###
+
+def fetchDataFileName(SOURCE_URL):
+    """
+    Select the appropriate file from FTP to download data from
+    """
+    with urllib.request.urlopen(SOURCE_URL) as f:
+        ftp_contents = f.read().decode('utf-8').splitlines()
+
+    filename = ""
+    ALREADY_FOUND=False
+    for fileline in ftp_contents:
+        fileline = fileline.split()
+        potential_filename = fileline[FILENAME_INDEX]
+        # This is specific to this FTP
+        if (potential_filename.endswith(".txt") and ("V4" in potential_filename)):
+            if not ALREADY_FOUND:
+                filename = potential_filename
+                ALREADY_FOUND=True
+            else:
+                logging.warning("There are multiple filenames which match criteria, passing most recent")
+                filename = potential_filename
+
+    logging.info("Selected filename: " + filename)
+    if not ALREADY_FOUND:
+        logging.warning("No valid filename found")
+
+    # Return the file name
+    return(filename)
+
+def processData(SOURCE_URL, filename, existing_ids):
+    """
+    Inputs: FTP SOURCE_URL and filename where data is stored, existing_ids not to duplicate
+    Actions: Retrives data, dedupes and formats it, and adds to Carto table
+    Output: Number of new rows added
+    """
+    with urllib.request.urlopen(os.path.join(SOURCE_URL, filename)) as f:
         res_rows = f.read().decode('utf-8').splitlines()
 
     # Do not keep header rows, or data observations marked 999
-    rows = []
+    deduped_formatted_rows = []
     for row in res_rows:
         if not (row.startswith("HDR") or row.startswith("999")):
             potential_row = row.split()
             if len(potential_row)==len(CARTO_SCHEMA):
-                rows.append(potential_row)
+                date = decimalToDatetime(float(potential_row[DATETIME_INDEX]))
+                if date not in existing_ids:
+                    potential_row[DATETIME_INDEX] = date
+                    deduped_formatted_rows.append(row)
 
-    logging.debug("First ten rows from ftp: " + str(rows[:10]))
-    return(rows)
+    logging.debug("First ten deduped, formatted rows from ftp: " + str(deduped_formatted_rows[:10]))
 
-def parseData(rows, ids_already_in_table):
-    deduped_rows = []
-    for row in rows:
-        # Reformat date information, in index 2 for each row
-        date = cli_025.dec_to_datetime(float(row[2]))
-        if date not in ids_already_in_table:
-            row[2] = date
-            deduped_rows.append(row)
-    logging.debug("First ten deduped, date formatted rows: " + str(deduped_rows[:10]))
-    return(deduped_rows)
+    if len(deduped_formatted_rows):
+        cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA, deduped_formatted_rows)
 
-def uploadData(rows):
-    if len(rows):
-        carto.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA, rows)
+    return(len(deduped_formatted_rows))
+
+###
+## Processing data for Carto
+###
+
+# https://stackoverflow.com/questions/20911015/decimal-years-to-datetime-in-python
+def decimalToDatetime(dec):
+    year = int(dec)
+    rem = dec - year
+    base = datetime(year, 1, 1)
+    dt = base + timedelta(seconds=(base.replace(year=base.year + 1) - base).total_seconds() * rem)
+    result = dt.strftime("%Y-%m-%d %H:%M:%S")
+    return(result)
+
+###
+## Application code
+###
 
 def main():
+    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+
     ### 1. Check if table exists, if so, retrieve UIDs
     ## Q: If not getting the field for TIME_FIELD, can you still order by it?
-    if carto.tableExists(CARTO_TABLE):
-        r = carto.getFields(UID_FIELD, CARTO_TABLE, order=TIME_FIELD, f='csv')
+    if cartosql.tableExists(CARTO_TABLE):
+        r = cartosql.getFields(UID_FIELD, CARTO_TABLE, order='{} desc'.format(TIME_FIELD), f='csv')
         # quick read 1-column csv to list
-        ids_already_in_table = r.split('\r\n')[1:-1]
+        logging.debug("Table detected")
+        logging.debug(r.text)
+        existing_ids = r.text.split('\r\n')[1:-1]
 
     ### 2. If not, create table
     else:
         logging.info('Table {} does not exist'.format(CARTO_TABLE))
-        carto.createTable(CARTO_TABLE, CARTO_SCHEMA)
-        ids_already_in_table = []
+        cartosql.createTable(CARTO_TABLE, CARTO_SCHEMA)
+        existing_ids = []
 
-    logging.debug("First 10 IDs already in table: " + str(ids_already_in_table[:10]))
+    logging.debug("First 10 IDs already in table: " + str(existing_ids[:10]))
 
-    ### 3. Fetch data from FTP
-    rows = fetchData(SOURCE_URL)
+    ### 3. Fetch data from FTP, dedupe, process
+    filename = fetchDataFileName(SOURCE_URL)
+    num_new_rows = processData(SOURCE_URL, filename, existing_ids)
 
-    ### 4. Parse data into correct format, dedupe rows
-    new_rows = parseData(rows, ids_already_in_table)
+    ### 4. Remove old to make room for new
+    oldcount = len(existing_ids)
+    logging.info('Previous rows: {}, New rows: {}, Max: {}'.format(oldcount, num_new_rows, MAX_ROWS))
 
-    ### 5. Remove old to make room for new
-    logging.info('Existing rows count: {}, New rows: {}, Max: {}'.format(len(ids_already_in_table), len(new_rows), MAX_ROWS))
-    if len(ids_already_in_table) + len(new_rows) > MAX_ROWS:
+    if oldcount + num_new_rows > MAX_ROWS:
         if MAX_ROWS > len(new_rows):
             # ids_already_in_table are arranged in increasing order
             # Drop all except the most recent ones we have room to keep
-            drop_ids = ids_already_in_table[:-(MAX_ROWS - len(new_rows))]
-            carto.deleteRowsByIDs(CARTO_TABLE, UID_FIELD, drop_ids)
-            logging.debug("Deleted obsevations by id:")
-            logging.debug(drop_ids)
-            logging.info("Deleted " + str(len(drop_ids)) + " rows from table.")
+            drop_ids = existing_ids[(MAX_ROWS - len(new_rows)):]
+            drop_response = cartosql.deleteRowsByIDs(CARTO_TABLE, UID_FIELD, drop_ids)
         else:
-            carto.truncateTable(CARTO_TABLE)
-            logging.warning("There are more new rows than can be accommodated in the table")
-            logging.warning("Only MAX_ROWS number of rows will be kept")
-            new_rows = new_rows[:MAX_ROWS]
+            logging.warning("There are more new rows than can be accommodated in the table. All existing_ids were dropped")
+            drop_response = cartosql.deleteRowsByIDs(CARTO_TABLE, UID_FIELD, existing_ids)
 
-    ### 6. Upload new data to Carto
-    uploadData(new_rows)
+        numdropped = drop_response.json()['total_rows']
+        if numdropped > 0:
+            logging.info('Dropped {} old rows'.format(numdropped))
 
     ###
     logging.info("SUCCESS")
