@@ -151,10 +151,10 @@ def main():
     logging.info('Previous rows: {}, New rows: {}, Max: {}'.format(oldcount, num_new_rows, MAX_ROWS))
 
     if oldcount + num_new_rows > MAX_ROWS:
-        if MAX_ROWS > len(new_rows):
+        if MAX_ROWS > num_new_rows:
             # ids_already_in_table are arranged in increasing order
             # Drop all except the most recent ones we have room to keep
-            drop_ids = existing_ids[(MAX_ROWS - len(new_rows)):]
+            drop_ids = existing_ids[(MAX_ROWS - num_new_rows):]
             drop_response = cartosql.deleteRowsByIDs(CARTO_TABLE, UID_FIELD, drop_ids)
         else:
             logging.warning("There are more new rows than can be accommodated in the table. All existing_ids were dropped")
