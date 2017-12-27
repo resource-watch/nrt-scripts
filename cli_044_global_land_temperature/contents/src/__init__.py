@@ -16,7 +16,7 @@ CARTO_SCHEMA = OrderedDict([
         ('UID', 'text'),
         ('date', 'timestamp'),
         ('value', 'numeric'),
-        ('value_type', 'numeric')
+        ('value_type', 'text')
     ])
 UID_FIELD = 'UID'
 TIME_FIELD = 'date'
@@ -26,6 +26,7 @@ CARTO_KEY = os.environ.get('CARTO_KEY')
 
 # Table limits
 MAX_ROWS = 1000000
+CLEAR_TABLE_FIRST = False
 
 ###
 ## Accessing remote data
@@ -72,19 +73,17 @@ def processData(SOURCE_URL, filename, existing_ids):
     with urllib.request.urlopen(os.path.join(SOURCE_URL, filename)) as f:
         logging.debug(f.headers)
         # Needed to remove "utf-8" from decode function, even though this is the content-type in the header
+        logging.debug("".join(["This decode sometimes throws an error, ",
+                                "consider adding a while-try loop to continue",
+                                "attempting to ping the server until a success goes through."]))
         res_rows = f.read().decode().splitlines()
 
-    # Do not keep header rows, or data observations marked 999
+    # Do not keep header rows
     deduped_formatted_rows = []
+    new_ids = []
     for row in res_rows:
-        ###
-        ## CHANGE TO REFLECT CRITERIA FOR KEEPING ROWS FROM THIS DATA SOURCE
-        ###
         if not (row.startswith("HDR")):
             row = row.split()
-            ###
-            ## CHANGE TO REFLECT CRITERIA FOR KEEPING ROWS FROM THIS DATA SOURCE
-            ###
             if len(row)==3:
                 logging.debug("Processing row: {}".format(row))
                 # Pull data available in each line
@@ -98,20 +97,23 @@ def processData(SOURCE_URL, filename, existing_ids):
                     "year_ix":0
                 }
 
-                date = fix_datetime_UTC(row, dttm_elems)
+                date = fix_datetime_UTC(row, dttm_elems = dttm_elems)
 
                 annualUID = genUID('annual_mean', date)
                 fiveyearUID = genUID('five_year_mean', date)
 
-                if annualUID not in existing_ids:
+                seen_ids = existing_ids + new_ids
+                if annualUID not in seen_ids:
                     deduped_formatted_rows.append([annualUID, date, annual_mean_value, "annual_mean"])
                     logging.debug("Adding {} annual mean data to table".format(date))
+                    new_ids.append(annualUID)
                 else:
                     logging.debug("{} annual mean data already in table".format(date))
 
-                if fiveyearUID not in existing_ids:
+                if fiveyearUID not in seen_ids:
                     deduped_formatted_rows.append([fiveyearUID, date, five_year_mean_value, "five_year_mean"])
                     logging.debug("Adding {} annual mean data to table".format(date))
+                    new_ids.append(fiveyearUID)
                 else:
                     logging.debug("{} annual mean data already in table".format(date))
             else:
@@ -119,7 +121,7 @@ def processData(SOURCE_URL, filename, existing_ids):
     logging.debug("First ten deduped, formatted rows from ftp: {}".format(deduped_formatted_rows[:10]))
 
     if len(deduped_formatted_rows):
-        cartosql.blockInsertRows(deduped_formatted_rows, CARTO_TABLE, list(CARTO_SCHEMA.keys()), list(CARTO_SCHEMA.values()))
+        cartosql.blockInsertRows(CARTO_TABLE, list(CARTO_SCHEMA.keys()), list(CARTO_SCHEMA.values()), deduped_formatted_rows)
 
     return(len(deduped_formatted_rows))
 
@@ -237,6 +239,9 @@ def decimalToDatetime(dec, date_pattern="%Y-%m-%d %H:%M:%S"):
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+
+    if CLEAR_TABLE_FIRST:
+        cartosql.dropTable(CARTO_TABLE)
 
     ### 1. Check if table exists, if so, retrieve UIDs
     ## Q: If not getting the field for TIME_FIELD, can you still order by it?
