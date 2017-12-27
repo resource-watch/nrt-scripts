@@ -70,7 +70,7 @@ def processData(SOURCE_URL, filename, existing_ids):
     with urllib.request.urlopen(os.path.join(SOURCE_URL, filename)) as f:
         res_rows = f.read().decode('utf-8').splitlines()
 
-    # Do not keep header rows, or data observations marked 999
+    # Only process rows of the right length and with first element matching expected data type
     deduped_formatted_rows = []
     for row in res_rows:
         row = row.split()
