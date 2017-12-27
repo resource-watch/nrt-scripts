@@ -54,7 +54,7 @@ def fetchDataFileName(SOURCE_URL):
                 logging.warning("There are multiple filenames which match criteria, passing most recent")
                 filename = potential_filename
 
-    logging.info("Selected filename: " + filename)
+    logging.info("Selected filename: {}".format(filename))
     if not ALREADY_FOUND:
         logging.warning("No valid filename found")
 
@@ -74,7 +74,7 @@ def processData(SOURCE_URL, filename, existing_ids):
     deduped_formatted_rows = []
     for row in res_rows:
         row = row.split()
-        logging.debug("Potential row: " + str(row))
+        logging.debug("Potential row: {}".format(row))
         # Ensure that this is a full data row
         if (len(row) == 8) and (type(row[0]==int)):
 
@@ -116,7 +116,7 @@ def processData(SOURCE_URL, filename, existing_ids):
 
 
 
-    logging.debug("First ten deduped, formatted rows from ftp: " + str(deduped_formatted_rows[:10]))
+    logging.debug("First ten deduped, formatted rows from ftp: {}".format(deduped_formatted_rows[:10]))
 
     if len(deduped_formatted_rows):
         cartosql.blockInsertRows(CARTO_TABLE, list(CARTO_SCHEMA.keys()), list(CARTO_SCHEMA.values()), deduped_formatted_rows)
@@ -224,9 +224,9 @@ def main():
         r = cartosql.getFields(UID_FIELD, CARTO_TABLE, order='{} desc'.format(TIME_FIELD), f='csv')
         # quick read 1-column csv to list
         logging.debug("Table detected")
-        logging.debug("Carto response: " + r.text)
+        logging.debug("Carto response: {}".format(r.text))
         existing_ids = r.text.split('\r\n')[1:-1]
-        logging.debug("Existing IDs: " +str(existing_ids))
+        logging.debug("Existing IDs: {}".format(existing_ids))
 
     ### 2. If not, create table
     else:
@@ -234,7 +234,7 @@ def main():
         cartosql.createTable(CARTO_TABLE, CARTO_SCHEMA)
         existing_ids = []
 
-    logging.debug("First 10 IDs already in table: " + str(existing_ids[:10]))
+    logging.debug("First 10 IDs already in table: {}".format(existing_ids[:10]))
 
     ### 3. Fetch data from FTP, dedupe, process
     #filename = fetchDataFileName(SOURCE_URL)
