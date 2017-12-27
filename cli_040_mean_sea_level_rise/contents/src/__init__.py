@@ -161,13 +161,13 @@ def main():
             drop_ids = existing_ids[(MAX_ROWS - num_new_rows):]
             drop_response = cartosql.deleteRowsByIDs(CARTO_TABLE, drop_ids, id_field=UID_FIELD, dtype=CARTO_SCHEMA[UID_FIELD])
         else:
-            sorted_new_ids = new_ids.sort(reverse=True)
-            stored_ids = existing_ids + sorted_new_ids
-            drop_ids = stored_ids[(len(stored_ids)-MAX_ROWS):]
-            drop_response = cartosql.deleteRowsByIDs(CARTO_TABLE, drop_ids, id_field=UID_FIELD, dtype=CARTO_SCHEMA[UID_FIELD])
+            num_lost_new_data = num_new_rows - MAX_ROWS
+            logging.warning("Drop all existing_ids, and enough oldest new ids to have MAX_ROWS number of final entries in the table.")
+            logging.warning("{} new data values were lost.".format(num_lost_new_data))
 
-            num_lost_new_data = MAX_ROWS - oldcount
-            logging.warning("There are more new rows than can be accommodated in the table. All existing_ids were dropped, and {} new data values were lost.".format(num_lost_new_data))
+            new_ids.sort(reverse=True)
+            drop_ids = existing_ids + new_ids[MAX_ROWS:]
+            drop_response = cartosql.deleteRowsByIDs(CARTO_TABLE, drop_ids, id_field=UID_FIELD, dtype=CARTO_SCHEMA[UID_FIELD])
 
         numdropped = drop_response.json()['total_rows']
         if numdropped > 0:
