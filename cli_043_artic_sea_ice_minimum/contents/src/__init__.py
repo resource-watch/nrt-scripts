@@ -15,14 +15,14 @@ FILENAME_INDEX = 0
 ### Table name and structure
 CARTO_TABLE = 'cli_043_arctic_sea_ice_minimum'
 CARTO_SCHEMA = OrderedDict([
-    ('area', 'numeric'),
-    ('date_area', 'timestamp'),
-    ('extent', 'numeric'),
-    ('date_extent', 'timestamp')])
-UID_FIELD_AREA = 'date_area'
-TIME_FIELD_AREA = 'date_area'
-UID_FIELD_EXTENT = 'date_extent'
-TIME_FIELD_EXTENT = 'date_extent'
+        ('UID', 'text'),
+        ('date', 'timestamp'),
+        ('value_type', 'text'),
+        ('value', 'numeric')
+    ])
+
+UID_FIELD = 'UID'
+TIME_FIELD = 'date'
 
 CARTO_USER = os.environ.get('CARTO_USER')
 CARTO_KEY = os.environ.get('CARTO_KEY')
@@ -74,22 +74,45 @@ def processData(SOURCE_URL, filename, existing_ids):
     # Do not keep header rows, or data observations marked 999
     deduped_formatted_rows = []
     for row in res_rows:
-
-        ###
-        ## CHANGE TO REFLECT CRITERIA FOR KEEPING ROWS FROM THIS DATA SOURCE
-        ###
         if not (row.startswith("HDR")):
             potential_row = row.split()
             if len(potential_row)==len(CARTO_SCHEMA):
 
-                ###
-                ## ENSURE UPDATE DATE FUNCTION
-                ###
+            # Pull data available in each line
+            AREA_VALUE_INDEX = 3
+            area_value = potential_row[AREA_VALUE_INDEX]
+            EXTENT_VALUE_INDEX = 7
+            extent_value = potential_row[EXTENT_VALUE_INDEX]
 
-                date = formatDateFunction(float(potential_row[DATETIME_INDEX]))
-                if date not in existing_ids:
-                    potential_row[DATETIME_INDEX] = date
-                    deduped_formatted_rows.append(potential_row)
+            # Pull times associated with those data
+            dttm_elems_area = {
+                "year_ix":0,
+                "month_ix":1,
+                "day_ix":2
+            }
+            dttm_elems_extent = {
+                "year_ix":4,
+                "month_ix":5,
+                "day_ix":6
+            }
+
+            area_date = fix_datetime_UTC(potential_row, dttm_elems_area)
+            extent_date = fix_datetime_UTC(potential_row, dttm_elems_extent)
+
+            area_uid = genUID("area", area_date)
+            extent_uid = genUID("extent", extent_date)
+
+            if area_date not in existing_ids:
+                deduped_formatted_rows.append([areaUID, area_date, "minimum_area_measurement", area_value])
+                logging.debug("Adding " + area_date + " area data to table")
+            else:
+                logging.debug(area_date + " area data already in table")
+
+            if extent_date not in existing_ids:
+                deduped_formatted_rows.append([extentUID, extent_date, "minimum_extent_measurement", extent_value])
+                logging.debug("Adding " + extent_date + " extent data to table")
+            else:
+                logging.debug(date_area + " extent data already in table")
 
     logging.debug("First ten deduped, formatted rows from ftp: " + str(deduped_formatted_rows[:10]))
 
@@ -102,27 +125,89 @@ def processData(SOURCE_URL, filename, existing_ids):
 ## Processing data for Carto
 ###
 
-def formatDateFunction(unformatteddate):
-    # DO STUFF
-    formatted_date = unformatteddate
+def genUID(value_type, value_date):
+    return("_".join([str(value_type), str(value_date)].replace(" ", "_")))
+
+def fix_datetime_UTC(row, construct_datetime_manually=True,
+                     dttm_elems={},
+                     dttm_columnz=None,
+                     dttm_pattern="%Y-%m-%d %H:%M:%S"):
+    """
+    Desired datetime format: 2017-12-08T15:16:03Z
+    Corresponding date_pattern for strftime: %Y-%m-%dT%H:%M:%SZ
+
+    If date_elems_in_sep_columns=True, then there will be a dictionary date_elems
+    That at least contains the following elements:
+    date_elems = {"year_col":`int or string`,"month_col":`int or string`,"day_col":`int or string`}
+    OPTIONAL KEYS IN date_elems:
+    * hour_col
+    * min_col
+    * sec_col
+    * milli_col
+    * micro_col
+    * tz_col
+
+    Depends on:
+    from dateutil import parser
+    """
+    default_date = parser.parse("January 1 1900 00:00:00")
+
+    # Mutually exclusive to provide broken down datetime factors,
+    # and either a date, time, or datetime object
+    if construct_datetime_manually:
+        assert(type(dttm_elems)==dict)
+        assert(dttm_columnz==None)
+
+        if "year_ix" in dttm_elems:
+            year = int(row[dttm_elems["year_ix"]])
+        else:
+            year = 1900
+            logging.warning("Default year set to 1900")
+
+        if "month_ix" in dttm_elems:
+            month = int(row[dttm_elems["month_ix"]])
+        else:
+            month = 1900
+            logging.warning("Default mon set to January")
+
+        if "day_ix" not in dttm_elems:
+            day = int(row[dttm_elems["day_ix"]])
+        else:
+            day = 1
+            logging.warning("Default day set to first of month")
+
+        dt = datetime.datetime(year=year,month=month,day=day)
+        if "hour_ix" in dttm_elems:
+            dt = dt.replace(hour=int(row[dttm_elems["hour_ix"]]))
+        if "min_ix" in dttm_elems:
+            dt = dt.replace(minute=int(row[dttm_elems["min_ix"]]))
+        if "sec_ix" in dttm_elems:
+            dt = dt.replace(second=int(row[dttm_elems["sec_ix"]]))
+        if "milli_ix" in dttm_elems:
+            dt = dt.replace(milliseconds=int(row[dttm_elems["milli_ix"]]))
+        if "micro_ix" in dttm_elems:
+            dt = dt.replace(microseconds=int(row[dttm_elems["micro_ix"]]))
+        if "tzinfo_ix" in dttm_elems:
+            timezone = pytz.timezone(str(row[dttm_elems["tzinfo_ix"]]))
+            dt = timezone.localize(dt)
+
+        formatted_date = dt.strftime(dttm_pattern)
+    else:
+        # Make sure dttm_columnz was provided
+        assert(dttm_columnz!=None)
+        default_date = datetime.datetime(year=1990, month=1, day=1)
+        # If dttm_columnz is not a list, it must be a single list index, type int
+        if type(dttm_columnz) != list:
+            assert(type(dttm_columns) == int)
+            formatted_date = parser.parse(row[dttm_columnz], default=default_date).strftime(dttm_pattern)
+            # Need to provide the default parameter to parser.parse so that missing entries don't default to current date
+
+        elif len(dttm_columnz)>1:
+            # Concatenate these entries with a space in between, use dateutil.parser
+            dttm_contents = " ".join(row[dttm_columnz])
+            formatted_date = parser.parse(dttm_contents, default=default_date).strftime(dttm_pattern))
+
     return(formatted_date)
-
-'''
-Options include:
-
-# https://stackoverflow.com/questions/20911015/decimal-years-to-datetime-in-python
-def decimalToDatetime(dec, date_pattern="%Y-%m-%d %H:%M:%S"):
-    """
-    Convert a decimal representation of a year to a desired string representation
-    I.e. 2016.5 -> 2016-06-01 00:00:00
-    """
-    year = int(dec)
-    rem = dec - year
-    base = datetime(year, 1, 1)
-    dt = base + timedelta(seconds=(base.replace(year=base.year + 1) - base).total_seconds() * rem)
-    result = dt.strftime(date_pattern)
-    return(result)
-'''
 
 ###
 ## Application code
@@ -149,7 +234,8 @@ def main():
     logging.debug("First 10 IDs already in table: " + str(existing_ids[:10]))
 
     ### 3. Fetch data from FTP, dedupe, process
-    filename = fetchDataFileName(SOURCE_URL)
+    #filename = fetchDataFileName(SOURCE_URL)
+    filename = "1270_minimum_extents_and_area_north_SBA_reg_20171001_2_.txt"
     num_new_rows = processData(SOURCE_URL, filename, existing_ids)
 
     ### 4. Remove old to make room for new
