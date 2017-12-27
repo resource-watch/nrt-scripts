@@ -206,7 +206,7 @@ def fix_datetime_UTC(row, construct_datetime_manually=True,
         elif len(dttm_columnz)>=1:
             # Concatenate these entries with a space in between, use dateutil.parser
             dttm_contents = " ".join([row[col] for col in dttm_columnz])
-            formatted_date = parser.parse(dttm_contents, default=default_date).strftime(dttm_pattern))
+            formatted_date = parser.parse(dttm_contents, default=default_date).strftime(dttm_pattern)
 
     return(formatted_date)
 
@@ -215,7 +215,7 @@ def fix_datetime_UTC(row, construct_datetime_manually=True,
 ###
 
 def main():
-    logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
     ### 1. Check if table exists, if so, retrieve UIDs
     ## Q: If not getting the field for TIME_FIELD, can you still order by it?
