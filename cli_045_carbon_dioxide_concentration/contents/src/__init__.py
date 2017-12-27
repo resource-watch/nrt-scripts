@@ -117,7 +117,7 @@ def processData(SOURCE_URL, filename, existing_ids):
     if len(deduped_formatted_rows):
         cartosql.blockInsertRows(CARTO_TABLE, list(CARTO_SCHEMA.keys()), list(CARTO_SCHEMA.values()), deduped_formatted_rows)
 
-    return(len(deduped_formatted_rows))
+    return(new_ids)
 
 ###
 ## Processing data for Carto
@@ -169,21 +169,27 @@ def main():
 
     ### 3. Fetch data from FTP, dedupe, process
     filename = fetchDataFileName(SOURCE_URL)
-    num_new_rows = processData(SOURCE_URL, filename, existing_ids)
+    new_ids = processData(SOURCE_URL, filename, existing_ids)
 
     ### 4. Remove old to make room for new
     oldcount = len(existing_ids)
+    num_new_rows = len(new_ids)
     logging.info('Previous rows: {}, New rows: {}, Max: {}'.format(oldcount, num_new_rows, MAX_ROWS))
 
     if oldcount + num_new_rows > MAX_ROWS:
-        if MAX_ROWS > len(new_rows):
+        if MAX_ROWS > num_new_rows:
             # ids_already_in_table are arranged in increasing order
             # Drop all except the most recent ones we have room to keep
-            drop_ids = existing_ids[(MAX_ROWS - len(new_rows)):]
-            drop_response = cartosql.deleteRowsByIDs(CARTO_TABLE, UID_FIELD, drop_ids)
+            drop_ids = existing_ids[(MAX_ROWS - num_new_rows):]
+            drop_response = cartosql.deleteRowsByIDs(CARTO_TABLE, drop_ids, id_field=UID_FIELD, dtype=CARTO_SCHEMA[UID_FIELD])
         else:
-            logging.warning("There are more new rows than can be accommodated in the table. All existing_ids were dropped")
-            drop_response = cartosql.deleteRowsByIDs(CARTO_TABLE, UID_FIELD, existing_ids)
+            num_lost_new_data = num_new_rows - MAX_ROWS
+            logging.warning("Drop all existing_ids, and enough oldest new ids to have MAX_ROWS number of final entries in the table.")
+            logging.warning("{} new data values were lost.".format(num_lost_new_data))
+
+            new_ids.sort(reverse=True)
+            drop_ids = existing_ids + new_ids[MAX_ROWS:]
+            drop_response = cartosql.deleteRowsByIDs(CARTO_TABLE, drop_ids, id_field=UID_FIELD, dtype=CARTO_SCHEMA[UID_FIELD])
 
         numdropped = drop_response.json()['total_rows']
         if numdropped > 0:
