@@ -20,7 +20,7 @@ COPY contents/ .
 VOLUME ./data
 
 RUN adduser -D $NAME
-RUN chown $NAME .
+RUN chown $NAME:$NAME .
 USER $NAME
 
 CMD ["python", "main.py"]
