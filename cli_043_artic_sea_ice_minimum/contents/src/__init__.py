@@ -73,16 +73,16 @@ def processData(SOURCE_URL, filename, existing_ids):
     # Do not keep header rows, or data observations marked 999
     deduped_formatted_rows = []
     for row in res_rows:
-        potential_row = row.split()
-        logging.debug(potential_row)
+        row = row.split()
+        logging.debug("Potential row: " + str(row))
         # Ensure that this is a full data row
-        if (len(potential_row) == 8) and (type(potential_row[0]==int)):
+        if (len(row) == 8) and (type(row[0]==int)):
 
             # Pull data available in each line
             AREA_VALUE_INDEX = 3
-            area_value = potential_row[AREA_VALUE_INDEX]
+            area_value = row[AREA_VALUE_INDEX]
             EXTENT_VALUE_INDEX = 7
-            extent_value = potential_row[EXTENT_VALUE_INDEX]
+            extent_value = row[EXTENT_VALUE_INDEX]
 
             # Pull times associated with those data
             dttm_elems_area = {
@@ -96,23 +96,25 @@ def processData(SOURCE_URL, filename, existing_ids):
                 "day_ix":6
             }
 
-            area_date = fix_datetime_UTC(potential_row, dttm_elems = dttm_elems_area)
-            extent_date = fix_datetime_UTC(potential_row,  dttm_elems = dttm_elems_extent)
+            area_date = fix_datetime_UTC(row, dttm_elems = dttm_elems_area)
+            extent_date = fix_datetime_UTC(row,  dttm_elems = dttm_elems_extent)
 
             areaUID = genUID("area", area_date)
             extentUID = genUID("extent", extent_date)
 
-            if area_date not in existing_ids:
+            if areaUID in existing_ids:
+                logging.debug(area_date + " area data already in table")
+            else:
                 deduped_formatted_rows.append([areaUID, area_date, "minimum_area_measurement", area_value])
                 logging.debug("Adding " + area_date + " area data to table")
-            else:
-                logging.debug(area_date + " area data already in table")
 
-            if extent_date not in existing_ids:
+            if extentUID in existing_ids:
+                logging.debug(extent_date+ " extent data already in table")
+            else:
                 deduped_formatted_rows.append([extentUID, extent_date, "minimum_extent_measurement", extent_value])
                 logging.debug("Adding " + extent_date + " extent data to table")
-            else:
-                logging.debug(date_area + " extent data already in table")
+
+
 
     logging.debug("First ten deduped, formatted rows from ftp: " + str(deduped_formatted_rows[:10]))
 
@@ -222,8 +224,9 @@ def main():
         r = cartosql.getFields(UID_FIELD, CARTO_TABLE, order='{} desc'.format(TIME_FIELD), f='csv')
         # quick read 1-column csv to list
         logging.debug("Table detected")
-        logging.debug(r.text)
+        logging.debug("Carto response: " + r.text)
         existing_ids = r.text.split('\r\n')[1:-1]
+        logging.debug("Existing IDs: " +str(existing_ids))
 
     ### 2. If not, create table
     else:
