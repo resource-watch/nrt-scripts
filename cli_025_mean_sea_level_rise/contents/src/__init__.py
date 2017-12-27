@@ -77,7 +77,7 @@ def processData(SOURCE_URL, filename, existing_ids):
     with urllib.request.urlopen(os.path.join(SOURCE_URL, filename)) as f:
         res_rows = f.read().decode('utf-8').splitlines()
 
-    # Do not keep header rows, or data observations marked 999
+    # Do not keep header rows, and only consider rows of the correct length
     deduped_formatted_rows = []
     for row in res_rows:
         if not (row.startswith("HDR")):
