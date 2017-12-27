@@ -111,10 +111,11 @@ def processNewData(existing_dates):
 
         # 4. Upload new files
         logging.info('Uploading files')
-        dates = [datetime.datetime.strptime(getDate(tif), DATE_FORMAT)
-                 for tif in tifs]
+        dates = [getDate(tif) for tif in tifs]
+        datestamps = [datetime.datetime.strptime(date, DATE_FORMAT)
+                      for date in dates]
         assets = [getAssetName(date) for date in dates]
-        eeUtil.uploadAssets(tifs, assets, GS_FOLDER, dates)
+        eeUtil.uploadAssets(tifs, assets, GS_FOLDER, datestamps)
 
         # 5. Delete local files
         logging.info('Cleaning local files')
