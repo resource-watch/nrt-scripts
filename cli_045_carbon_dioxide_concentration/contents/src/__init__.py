@@ -10,6 +10,7 @@ import cartosql
 ### Constants
 SOURCE_URL = 'ftp://aftp.cmdl.noaa.gov/products/trends/co2/'
 DATE_INDEX = 2
+FILENAME_INDEX = -1
 
 ### Table name and structure
 CARTO_TABLE = 'cli_045_carbon_dioxide_concentration'
@@ -44,13 +45,15 @@ def fetchDataFileName(SOURCE_URL):
     ALREADY_FOUND=False
     for fileline in ftp_contents:
         fileline = fileline.split()
+        logging.debug("Fileline as formatted on server: {}".format(fileline))
         potential_filename = fileline[FILENAME_INDEX]
 
         ###
         ## Set conditions for finding correct file name for this FTP
         ###
-        # Current: "co2_mm_mlo.txt"
-        if (potential_filename.endswith(".txt") and ("co2_mm" in potential_filename)):
+        # Current: "co2_mm_mlo.txt". There are multiple files on this server -
+        # Liz: we're sure this is the one we want? Are there others?
+        if (potential_filename.endswith(".txt") and ("co2_mm_mlo" in potential_filename)):
             if not ALREADY_FOUND:
                 filename = potential_filename
                 ALREADY_FOUND=True
@@ -128,6 +131,7 @@ def decimalToDatetime(dec, date_pattern="%Y-%m-%d %H:%M:%S"):
     Convert a decimal representation of a year to a desired string representation
     I.e. 2016.5 -> 2016-06-01 00:00:00
     """
+    dec = float(dec)
     year = int(dec)
     rem = dec - year
     base = datetime(year, 1, 1)

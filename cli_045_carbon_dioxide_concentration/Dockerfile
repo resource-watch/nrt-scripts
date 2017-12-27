@@ -1,6 +1,6 @@
 FROM python:3.6
 MAINTAINER Nathan Suberi <nathan.suberi@wri.org>
-ARG NAME=cli_045_carbon_dioxide_concentration
+ARG NAME=cli_045
 ENV NAME ${NAME}
 
 # install core libraries
