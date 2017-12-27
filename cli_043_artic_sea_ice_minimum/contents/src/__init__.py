@@ -74,10 +74,9 @@ def processData(SOURCE_URL, filename, existing_ids):
     deduped_formatted_rows = []
     for row in res_rows:
         row = row.split()
-        logging.debug("Potential row: {}".format(row))
         # Ensure that this is a full data row
         if (len(row) == 8) and (type(row[0]==int)):
-
+            logging.debug("Processing Row: {}".format(row))
             # Pull data available in each line
             AREA_VALUE_INDEX = 3
             area_value = row[AREA_VALUE_INDEX]
@@ -103,18 +102,18 @@ def processData(SOURCE_URL, filename, existing_ids):
             extentUID = genUID("extent", extent_date)
 
             if areaUID in existing_ids:
-                logging.debug(area_date + " area data already in table")
+                logging.debug("{} area data already in table".format(area_date))
             else:
                 deduped_formatted_rows.append([areaUID, area_date, "minimum_area_measurement", area_value])
-                logging.debug("Adding " + area_date + " area data to table")
+                logging.debug("Adding {} area data to table".format(area_date))
 
             if extentUID in existing_ids:
-                logging.debug(extent_date+ " extent data already in table")
+                logging.debug("{} extent data already in table".format(extent_date))
             else:
                 deduped_formatted_rows.append([extentUID, extent_date, "minimum_extent_measurement", extent_value])
-                logging.debug("Adding " + extent_date + " extent data to table")
-
-
+                logging.debug("Adding {} extent data to table".format(extent_date))
+        else:
+            logging.debug("Skipping row: {}".format(row))
 
     logging.debug("First ten deduped, formatted rows from ftp: {}".format(deduped_formatted_rows[:10]))
 
