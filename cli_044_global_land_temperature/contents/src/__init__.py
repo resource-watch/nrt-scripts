@@ -215,24 +215,6 @@ def fix_datetime_UTC(row, construct_datetime_manually=True,
 
     return(formatted_date)
 
-
-'''
-Options include:
-
-# https://stackoverflow.com/questions/20911015/decimal-years-to-datetime-in-python
-def decimalToDatetime(dec, date_pattern="%Y-%m-%d %H:%M:%S"):
-    """
-    Convert a decimal representation of a year to a desired string representation
-    I.e. 2016.5 -> 2016-06-01 00:00:00
-    """
-    year = int(dec)
-    rem = dec - year
-    base = datetime(year, 1, 1)
-    dt = base + timedelta(seconds=(base.replace(year=base.year + 1) - base).total_seconds() * rem)
-    result = dt.strftime(date_pattern)
-    return(result)
-'''
-
 ###
 ## Application code
 ###
