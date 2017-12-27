@@ -9,6 +9,7 @@ import cartosql
 
 ### Constants
 SOURCE_URL = 'ftp://podaac-ftp.jpl.nasa.gov/allData/tellus/L3/mascon/RL05/JPL/CRI/mass_variability_time_series/'
+DATE_INDEX = 0
 FILENAME_INDEX = -1
 
 ### Table name and structure
@@ -18,7 +19,7 @@ CARTO_SCHEMA = OrderedDict([
         ('mass', 'numeric'),
         ('uncertainty', 'text')
     ])
-UID_FIELD = 'UID'
+UID_FIELD = 'date'
 TIME_FIELD = 'date'
 
 CARTO_USER = os.environ.get('CARTO_USER')
