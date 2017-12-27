@@ -102,14 +102,15 @@ def processData(SOURCE_URL, filename, existing_ids):
             areaUID = genUID("area", area_date)
             extentUID = genUID("extent", extent_date)
 
-            if areaUID in existing_ids:
+            seen_ids = existing_ids + new_ids
+            if areaUID in seen_ids:
                 logging.debug("{} area data already in table".format(area_date))
             else:
                 deduped_formatted_rows.append([areaUID, area_date, "minimum_area_measurement", area_value])
                 logging.debug("Adding {} area data to table".format(area_date))
                 new_ids.append(areaUID)
 
-            if extentUID in existing_ids:
+            if extentUID in seen_ids:
                 logging.debug("{} extent data already in table".format(extent_date))
             else:
                 deduped_formatted_rows.append([extentUID, extent_date, "minimum_extent_measurement", extent_value])
