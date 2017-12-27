@@ -81,16 +81,18 @@ def processData(SOURCE_URL, filename, existing_ids):
     deduped_formatted_rows = []
     for row in res_rows:
         if not (row.startswith("HDR")):
-            potential_row = row.split()
+            row = row.split()
             if len(potential_row)==len(CARTO_SCHEMA):
-                date = decimalToDatetime(float(potential_row[DATETIME_INDEX]))
+                logging.debug("Processing row: {}".format(row))
+                date = decimalToDatetime(float(row[DATETIME_INDEX]))
                 if date not in existing_ids:
-                    potential_row[DATETIME_INDEX] = date
-                    deduped_formatted_rows.append(potential_row)
+                    row[DATETIME_INDEX] = date
+                    deduped_formatted_rows.append(row)
                     logging.debug("Adding {} data to table".format(date))
                 else:
                     logging.debug("{} data already in table".format(date))
-
+            else:
+                logging.debug("Skipping row: {}".format(row))
     logging.debug("First ten deduped, formatted rows from ftp: {}".format(deduped_formatted_rows[:10]))
 
     if len(deduped_formatted_rows):
@@ -128,7 +130,7 @@ def main():
         r = cartosql.getFields(UID_FIELD, CARTO_TABLE, order='{} desc'.format(TIME_FIELD), f='csv')
         # quick read 1-column csv to list
         logging.debug("Table detected")
-        logging.debug(r.text)
+        logging.debug("Carto's response: {}".format(r.text))
         existing_ids = r.text.split('\r\n')[1:-1]
 
     ### 2. If not, create table
