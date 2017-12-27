@@ -53,6 +53,7 @@ def fetchDataFileName(SOURCE_URL):
         ###
         # Current: "co2_mm_mlo.txt". There are multiple files on this server -
         # Liz: we're sure this is the one we want? Are there others?
+        # Weekly data available at co2_weekly_mlo.txt
         if (potential_filename.endswith(".txt") and ("co2_mm_mlo" in potential_filename)):
             if not ALREADY_FOUND:
                 filename = potential_filename
