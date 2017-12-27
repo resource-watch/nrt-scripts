@@ -204,10 +204,10 @@ def fix_datetime_UTC(row, construct_datetime_manually=True,
             formatted_date = parser.parse(row[dttm_columnz], default=default_date).strftime(dttm_pattern)
             # Need to provide the default parameter to parser.parse so that missing entries don't default to current date
 
-        elif len(dttm_columnz)>1:
+        elif len(dttm_columnz)>=1:
             # Concatenate these entries with a space in between, use dateutil.parser
-            dttm_contents = " ".join(row[dttm_columnz])
-            formatted_date = parser.parse(dttm_contents, default=default_date).strftime(dttm_pattern)
+            dttm_contents = " ".join([row[col] for col in dttm_columnz])
+            formatted_date = parser.parse(dttm_contents, default=default_date).strftime(dttm_pattern))
 
     return(formatted_date)
 
