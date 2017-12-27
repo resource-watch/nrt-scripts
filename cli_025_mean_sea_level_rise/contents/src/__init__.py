@@ -61,7 +61,7 @@ def fetchDataFileName(SOURCE_URL):
                 logging.warning("There are multiple filenames which match criteria, passing most recent")
                 filename = potential_filename
 
-    logging.info("Selected filename: " + filename)
+    logging.info("Selected filename: {}".format(filename))
     if not ALREADY_FOUND:
         logging.warning("No valid filename found")
 
@@ -87,11 +87,11 @@ def processData(SOURCE_URL, filename, existing_ids):
                 if date not in existing_ids:
                     potential_row[DATETIME_INDEX] = date
                     deduped_formatted_rows.append(potential_row)
-                    logging.debug("Adding " + date + " to table")
+                    logging.debug("Adding {} data to table".format(date))
                 else:
-                    logging.debug(date + " already in table")
+                    logging.debug("{} data already in table".format(date))
 
-    logging.debug("First ten deduped, formatted rows from ftp: " + str(deduped_formatted_rows[:10]))
+    logging.debug("First ten deduped, formatted rows from ftp: {}".format(deduped_formatted_rows[:10]))
 
     if len(deduped_formatted_rows):
         cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA, deduped_formatted_rows)
@@ -133,11 +133,11 @@ def main():
 
     ### 2. If not, create table
     else:
-        logging.info('Table {} does not exist'.format(CARTO_TABLE))
+        logging.info('Table {} does not exist, creating now.'.format(CARTO_TABLE))
         cartosql.createTable(CARTO_TABLE, CARTO_SCHEMA)
         existing_ids = []
 
-    logging.debug("First 10 IDs already in table: " + str(existing_ids[:10]))
+    logging.debug("First 10 IDs already in table: {}".format(existing_ids[:10]))
 
     ### 3. Fetch data from FTP, dedupe, process
     filename = fetchDataFileName(SOURCE_URL)
