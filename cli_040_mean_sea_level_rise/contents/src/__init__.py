@@ -12,7 +12,7 @@ FILENAME_INDEX = 8
 DATETIME_INDEX = 2
 
 ### Table name and structure
-CARTO_TABLE = 'cli_025_mean_sea_level_rise'
+CARTO_TABLE = 'cli_040_mean_sea_level_rise'
 CARTO_SCHEMA = OrderedDict([
     ('altimeter_type', 'numeric'),
     ('merged_file_cycle', 'numeric'),
@@ -82,7 +82,7 @@ def processData(SOURCE_URL, filename, existing_ids):
     for row in res_rows:
         if not (row.startswith("HDR")):
             row = row.split()
-            if len(potential_row)==len(CARTO_SCHEMA):
+            if len(row)==len(CARTO_SCHEMA):
                 logging.debug("Processing row: {}".format(row))
                 date = decimalToDatetime(float(row[DATETIME_INDEX]))
                 # For this data set, date works as a UID, and so there is no genUID function
@@ -97,7 +97,7 @@ def processData(SOURCE_URL, filename, existing_ids):
     logging.debug("First ten deduped, formatted rows from ftp: {}".format(deduped_formatted_rows[:10]))
 
     if len(deduped_formatted_rows):
-        cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA, deduped_formatted_rows)
+        cartosql.blockInsertRows(CARTO_TABLE, list(CARTO_SCHEMA.keys()), list(CARTO_SCHEMA.values()), deduped_formatted_rows)
 
     return(len(deduped_formatted_rows))
 
