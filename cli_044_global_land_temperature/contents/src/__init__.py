@@ -70,7 +70,9 @@ def processData(SOURCE_URL, filename, existing_ids):
     Output: Number of new rows added
     """
     with urllib.request.urlopen(os.path.join(SOURCE_URL, filename)) as f:
-        res_rows = f.read().decode('utf-8').splitlines()
+        logging.debug(f.headers)
+        # Needed to remove "utf-8" from decode function, even though this is the content-type in the header
+        res_rows = f.read().decode().splitlines()
 
     # Do not keep header rows, or data observations marked 999
     deduped_formatted_rows = []
@@ -83,7 +85,7 @@ def processData(SOURCE_URL, filename, existing_ids):
             ###
             ## CHANGE TO REFLECT CRITERIA FOR KEEPING ROWS FROM THIS DATA SOURCE
             ###
-            if (len(row)==3) and (type(row[0])==int):
+            if len(row)==3:
                 logging.debug("Processing row: {}".format(row))
                 # Pull data available in each line
                 ANNUAL_MEAN_VALUE_INDEX = 1
@@ -112,11 +114,12 @@ def processData(SOURCE_URL, filename, existing_ids):
                     logging.debug("Adding {} annual mean data to table".format(date))
                 else:
                     logging.debug("{} annual mean data already in table".format(date))
-
+            else:
+                logging.debug("Skipping row: {}".format(row))
     logging.debug("First ten deduped, formatted rows from ftp: {}".format(deduped_formatted_rows[:10]))
 
     if len(deduped_formatted_rows):
-        cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA, deduped_formatted_rows)
+        cartosql.blockInsertRows(deduped_formatted_rows, CARTO_TABLE, list(CARTO_SCHEMA.keys()), list(CARTO_SCHEMA.values()))
 
     return(len(deduped_formatted_rows))
 
@@ -126,11 +129,6 @@ def processData(SOURCE_URL, filename, existing_ids):
 
 def genUID(value_type, value_date):
     return("_".join([str(value_type), str(value_date)]).replace(" ", "_"))
-
-def formatDateFunction(unformatteddate):
-    # DO STUFF
-    formatted_date = unformatteddate
-    return(formatted_date)
 
 ### Standardizing datetimes
 
@@ -173,10 +171,10 @@ def fix_datetime_UTC(row, construct_datetime_manually=True,
         if "month_ix" in dttm_elems:
             month = int(row[dttm_elems["month_ix"]])
         else:
-            month = 1900
+            month = 1
             logging.warning("Default mon set to January")
 
-        if "day_ix" not in dttm_elems:
+        if "day_ix" in dttm_elems:
             day = int(row[dttm_elems["day_ix"]])
         else:
             day = 1
@@ -211,7 +209,7 @@ def fix_datetime_UTC(row, construct_datetime_manually=True,
         elif len(dttm_columnz)>=1:
             # Concatenate these entries with a space in between, use dateutil.parser
             dttm_contents = " ".join([row[col] for col in dttm_columnz])
-            formatted_date = parser.parse(dttm_contents, default=default_date).strftime(dttm_pattern))
+            formatted_date = parser.parse(dttm_contents, default=default_date).strftime(dttm_pattern)
 
     return(formatted_date)
 
@@ -238,7 +236,7 @@ def decimalToDatetime(dec, date_pattern="%Y-%m-%d %H:%M:%S"):
 ###
 
 def main():
-    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+    logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
     ### 1. Check if table exists, if so, retrieve UIDs
     ## Q: If not getting the field for TIME_FIELD, can you still order by it?
