@@ -43,14 +43,18 @@ _gsBucket = None
 _home = ''
 
 
-def init(account=GEE_SERVICE_ACCOUNT,
+def init(service_account=GEE_SERVICE_ACCOUNT,
          credential_path=GOOGLE_APPLICATION_CREDENTIALS,
          project=GCS_PROJECT, bucket=GEE_STAGING_BUCKET):
     '''
-    Initialize EE and GS bucket connection with service credentials.
+    Initialize Earth Engine and Google Storage bucket connection.
 
     Defaults to read from environment.
-    `account`         Service account name. Will need access to both GEE and
+
+    If no service_account is provided, will use default credentials from
+    `earthengine authenticate` utility.
+
+    `service_account` Service account name. Will need access to both GEE and
                       storage
     `credential_path` Path to json file containing private key
     `project`         GCS project containing bucket
@@ -59,14 +63,26 @@ def init(account=GEE_SERVICE_ACCOUNT,
     https://developers.google.com/earth-engine/service_account
     '''
     global _gsBucket
-    auth = ee.ServiceAccountCredentials(account, credential_path)
-    ee.Initialize(auth)
+    if service_account:
+        auth = ee.ServiceAccountCredentials(service_account, credential_path)
+        ee.Initialize(auth)
+    else:
+        ee.Initialize()
     # GCS auth prefers to read from environment
     os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credential_path
-    _gsBucket = storage.Client(project).bucket(bucket)
+    if not bucket:
+        bucket = _getDefaultBucket()
+        logging.warning('No bucket provided, using default {}'.format(bucket))
+    gsClient = storage.Client(project) if project else storage.Client()
+    _gsBucket = gsClient.bucket(bucket)
     if not _gsBucket.exists():
         logging.info('Bucket {} does not exist, creating'.format(bucket))
         _gsBucket.create()
+
+
+def _getDefaultBucket():
+    '''Generate new bucket name'''
+    return 'eeUtil_{}'.format(hash(getHome()))
 
 
 def getHome():
@@ -85,7 +101,9 @@ def _getHome():
 def _path(path):
     '''Add user root directory to path if not already existing'''
     if path:
-        if len(path) > 6 and path[:6] == 'users/':
+        if path[0] == '/':
+            return path[1:]
+        elif len(path) > 6 and path[:6] == 'users/':
             return path
         else:
             return os.path.join(_getHome(), path)
@@ -122,19 +140,21 @@ def getAcl(asset):
     return ee.data.getAssetAcl(_path(asset))
 
 
-def setAcl(asset, acl='public'):
+def setAcl(asset, acl={}, overwrite=False):
     '''Set ACL of asset
 
-    `acl` ('public'|'private'|json ACL specification)
+    `acl`       ('public'|'private'| ACL specification )
+    `overwrite` If false, only change specified values
     '''
+    _acl = {} if overwrite else getAcl(asset)
     if acl == 'public':
-        acl = json.parse(getAcl(asset))
-        acl["all_users_can_read"] = True
-        acl = json.dumps(acl)
+        _acl["all_users_can_read"] = True
     elif acl == 'private':
-        acl = json.parse(getAcl(asset))
-        acl["all_users_can_read"] = False
-        acl = json.dumps(acl)
+        _acl["all_users_can_read"] = False
+    else:
+        for key in acl:
+            _acl[key] = acl[key]
+    acl = json.dumps(_acl)
     logging.debug('Setting ACL to {} on {}'.format(acl, asset))
     ee.data.setAssetAcl(_path(asset), acl)
 
@@ -151,7 +171,7 @@ def createFolder(path, imageCollection=False, overwrite=False,
              else ee.data.ASSET_TYPE_FOLDER)
     ee.data.createAsset({'type': ftype}, _path(path), overwrite)
     if public:
-        setAcl(path)
+        setAcl(path, 'public')
 
 
 def _checkTaskCompleted(task_id):
@@ -204,12 +224,15 @@ def waitForTask(task_id, timeout=300):
     return False
 
 
-def formatDate(date, dateformat='%Y%m%d'):
+def copy(src, dest):
+    '''Copy asset'''
+    return ee.data.copyAsset(_path(src), _path(dest))
+
+
+def formatDate(date):
     '''Format date as ms since last epoch'''
     if isinstance(date, int):
         return date
-    if isinstance(date, str):
-        date = datetime.datetime.strptime(date, dateformat)
     seconds = (date - datetime.datetime.utcfromtimestamp(0)).total_seconds()
     return int(seconds * 1000)
 

@@ -111,7 +111,8 @@ def processNewData(existing_dates):
 
         # 4. Upload new files
         logging.info('Uploading files')
-        dates = [getDate(tif) for tif in tifs]
+        dates = [datetime.datetime.strptime(getDate(tif), DATE_FORMAT)
+                 for tif in tifs]
         assets = [getAssetName(date) for date in dates]
         eeUtil.uploadAssets(tifs, assets, GS_FOLDER, dates)
 
