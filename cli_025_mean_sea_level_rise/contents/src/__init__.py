@@ -85,6 +85,7 @@ def processData(SOURCE_URL, filename, existing_ids):
             if len(potential_row)==len(CARTO_SCHEMA):
                 logging.debug("Processing row: {}".format(row))
                 date = decimalToDatetime(float(row[DATETIME_INDEX]))
+                # For this data set, date works as a UID, and so there is no genUID function
                 if date not in existing_ids:
                     row[DATETIME_INDEX] = date
                     deduped_formatted_rows.append(row)
