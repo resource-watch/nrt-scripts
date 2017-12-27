@@ -3,14 +3,13 @@ import sys
 import os
 import urllib.request
 from collections import OrderedDict
-from datetime import datetime, timedelta
+from datetime import datetime
+
 import cartosql
+from dateutil import parser
 
 ### Constants
 SOURCE_URL = 'https://climate.nasa.gov/system/internal_resources/details/original/'
-# One or both of these may not be needed
-DATETIME_INDEX = 0
-FILENAME_INDEX = 0
 
 ### Table name and structure
 CARTO_TABLE = 'cli_043_arctic_sea_ice_minimum'
@@ -74,9 +73,10 @@ def processData(SOURCE_URL, filename, existing_ids):
     # Do not keep header rows, or data observations marked 999
     deduped_formatted_rows = []
     for row in res_rows:
-        if not (row.startswith("HDR")):
-            potential_row = row.split()
-            if len(potential_row)==len(CARTO_SCHEMA):
+        potential_row = row.split()
+        logging.debug(potential_row)
+        # Ensure that this is a full data row
+        if (len(potential_row) == 8) and (type(potential_row[0]==int)):
 
             # Pull data available in each line
             AREA_VALUE_INDEX = 3
@@ -96,11 +96,11 @@ def processData(SOURCE_URL, filename, existing_ids):
                 "day_ix":6
             }
 
-            area_date = fix_datetime_UTC(potential_row, dttm_elems_area)
-            extent_date = fix_datetime_UTC(potential_row, dttm_elems_extent)
+            area_date = fix_datetime_UTC(potential_row, dttm_elems = dttm_elems_area)
+            extent_date = fix_datetime_UTC(potential_row,  dttm_elems = dttm_elems_extent)
 
-            area_uid = genUID("area", area_date)
-            extent_uid = genUID("extent", extent_date)
+            areaUID = genUID("area", area_date)
+            extentUID = genUID("extent", extent_date)
 
             if area_date not in existing_ids:
                 deduped_formatted_rows.append([areaUID, area_date, "minimum_area_measurement", area_value])
@@ -117,7 +117,7 @@ def processData(SOURCE_URL, filename, existing_ids):
     logging.debug("First ten deduped, formatted rows from ftp: " + str(deduped_formatted_rows[:10]))
 
     if len(deduped_formatted_rows):
-        cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA, deduped_formatted_rows)
+        cartosql.blockInsertRows(CARTO_TABLE, list(CARTO_SCHEMA.keys()), list(CARTO_SCHEMA.values()), deduped_formatted_rows)
 
     return(len(deduped_formatted_rows))
 
@@ -126,7 +126,7 @@ def processData(SOURCE_URL, filename, existing_ids):
 ###
 
 def genUID(value_type, value_date):
-    return("_".join([str(value_type), str(value_date)].replace(" ", "_")))
+    return("_".join([str(value_type), str(value_date)]).replace(" ", "_"))
 
 def fix_datetime_UTC(row, construct_datetime_manually=True,
                      dttm_elems={},
@@ -167,16 +167,16 @@ def fix_datetime_UTC(row, construct_datetime_manually=True,
         if "month_ix" in dttm_elems:
             month = int(row[dttm_elems["month_ix"]])
         else:
-            month = 1900
+            month = 1
             logging.warning("Default mon set to January")
 
-        if "day_ix" not in dttm_elems:
+        if "day_ix" in dttm_elems:
             day = int(row[dttm_elems["day_ix"]])
         else:
             day = 1
             logging.warning("Default day set to first of month")
 
-        dt = datetime.datetime(year=year,month=month,day=day)
+        dt = datetime(year=year,month=month,day=day)
         if "hour_ix" in dttm_elems:
             dt = dt.replace(hour=int(row[dttm_elems["hour_ix"]]))
         if "min_ix" in dttm_elems:
@@ -195,7 +195,7 @@ def fix_datetime_UTC(row, construct_datetime_manually=True,
     else:
         # Make sure dttm_columnz was provided
         assert(dttm_columnz!=None)
-        default_date = datetime.datetime(year=1990, month=1, day=1)
+        default_date = datetime(year=1990, month=1, day=1)
         # If dttm_columnz is not a list, it must be a single list index, type int
         if type(dttm_columnz) != list:
             assert(type(dttm_columns) == int)
@@ -205,7 +205,7 @@ def fix_datetime_UTC(row, construct_datetime_manually=True,
         elif len(dttm_columnz)>1:
             # Concatenate these entries with a space in between, use dateutil.parser
             dttm_contents = " ".join(row[dttm_columnz])
-            formatted_date = parser.parse(dttm_contents, default=default_date).strftime(dttm_pattern))
+            formatted_date = parser.parse(dttm_contents, default=default_date).strftime(dttm_pattern)
 
     return(formatted_date)
 
@@ -214,7 +214,7 @@ def fix_datetime_UTC(row, construct_datetime_manually=True,
 ###
 
 def main():
-    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+    logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
     ### 1. Check if table exists, if so, retrieve UIDs
     ## Q: If not getting the field for TIME_FIELD, can you still order by it?
