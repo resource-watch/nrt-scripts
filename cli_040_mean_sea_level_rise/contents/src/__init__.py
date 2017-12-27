@@ -34,7 +34,7 @@ CARTO_USER = os.environ.get('CARTO_USER')
 CARTO_KEY = os.environ.get('CARTO_KEY')
 
 # Table limits
-MAX_ROWS = 1000000
+MAX_ROWS = 100
 
 ###
 ## Accessing remote data
@@ -79,6 +79,7 @@ def processData(SOURCE_URL, filename, existing_ids):
 
     # Do not keep header rows, and only consider rows of the correct length
     deduped_formatted_rows = []
+    new_ids = []
     for row in res_rows:
         if not (row.startswith("HDR")):
             row = row.split()
@@ -86,10 +87,12 @@ def processData(SOURCE_URL, filename, existing_ids):
                 logging.debug("Processing row: {}".format(row))
                 date = decimalToDatetime(float(row[DATETIME_INDEX]))
                 # For this data set, date works as a UID, and so there is no genUID function
-                if date not in existing_ids:
+                seen_ids = existing_ids + new_ids
+                if date not in seen_ids:
                     row[DATETIME_INDEX] = date
                     deduped_formatted_rows.append(row)
                     logging.debug("Adding {} data to table".format(date))
+                    new_ids.append(date)
                 else:
                     logging.debug("{} data already in table".format(date))
             else:
@@ -99,7 +102,7 @@ def processData(SOURCE_URL, filename, existing_ids):
     if len(deduped_formatted_rows):
         cartosql.blockInsertRows(CARTO_TABLE, list(CARTO_SCHEMA.keys()), list(CARTO_SCHEMA.values()), deduped_formatted_rows)
 
-    return(len(deduped_formatted_rows))
+    return(new_ids)
 
 ###
 ## Processing data for Carto
@@ -144,10 +147,11 @@ def main():
 
     ### 3. Fetch data from FTP, dedupe, process
     filename = fetchDataFileName(SOURCE_URL)
-    num_new_rows = processData(SOURCE_URL, filename, existing_ids)
+    new_ids = processData(SOURCE_URL, filename, existing_ids)
 
     ### 4. Remove old to make room for new
     oldcount = len(existing_ids)
+    num_new_rows = len(new_ids)
     logging.info('Previous rows: {}, New rows: {}, Max: {}'.format(oldcount, num_new_rows, MAX_ROWS))
 
     if oldcount + num_new_rows > MAX_ROWS:
@@ -155,10 +159,15 @@ def main():
             # ids_already_in_table are arranged in increasing order
             # Drop all except the most recent ones we have room to keep
             drop_ids = existing_ids[(MAX_ROWS - num_new_rows):]
-            drop_response = cartosql.deleteRowsByIDs(CARTO_TABLE, UID_FIELD, drop_ids)
+            drop_response = cartosql.deleteRowsByIDs(CARTO_TABLE, drop_ids, id_field=UID_FIELD, dtype=CARTO_SCHEMA[UID_FIELD])
         else:
-            logging.warning("There are more new rows than can be accommodated in the table. All existing_ids were dropped")
-            drop_response = cartosql.deleteRowsByIDs(CARTO_TABLE, UID_FIELD, existing_ids)
+            sorted_new_ids = new_ids.sort(reverse=True)
+            stored_ids = existing_ids + sorted_new_ids
+            drop_ids = stored_ids[(len(stored_ids)-MAX_ROWS):]
+            drop_response = cartosql.deleteRowsByIDs(CARTO_TABLE, drop_ids, id_field=UID_FIELD, dtype=CARTO_SCHEMA[UID_FIELD])
+
+            num_lost_new_data = MAX_ROWS - oldcount
+            logging.warning("There are more new rows than can be accommodated in the table. All existing_ids were dropped, and {} new data values were lost.".format(num_lost_new_data))
 
         numdropped = drop_response.json()['total_rows']
         if numdropped > 0:
