@@ -102,7 +102,7 @@ def processData(SOURCE_URL, filename, existing_ids):
                             row[TREND_INDEX], row[NUM_DAYS_INDEX]]
 
                 seen_ids = existing_ids + new_ids
-                if date not in existing_ids:
+                if date not in seen_ids:
                     deduped_formatted_rows.append(values)
                     logging.debug("Adding {} data to table".format(date))
                     new_ids.append(date)
