@@ -27,6 +27,7 @@ import ee
 import logging
 import time
 import datetime
+import json
 from google.cloud import storage
 
 STRICT = True
@@ -127,9 +128,13 @@ def setAcl(asset, acl='public'):
     `acl` ('public'|'private'|json ACL specification)
     '''
     if acl == 'public':
-        acl = '{"all_users_can_read": true}'
+        acl = json.parse(getAcl(asset))
+        acl["all_users_can_read"] = True
+        acl = json.dumps(acl)
     elif acl == 'private':
-        acl = '{"all_users_can_read": false}'
+        acl = json.parse(getAcl(asset))
+        acl["all_users_can_read"] = False
+        acl = json.dumps(acl)
     logging.debug('Setting ACL to {} on {}'.format(acl, asset))
     ee.data.setAssetAcl(_path(asset), acl)
 
@@ -288,7 +293,7 @@ def removeAsset(asset, recursive=False):
     if recursive:
         if info(asset)['type'] in (ee.data.ASSET_TYPE_FOLDER,
                                    ee.data.ASSET_TYPE_IMAGE_COLL):
-            for child in ls(asset):
+            for child in ls(asset, abspath=True):
                 removeAsset(child)
     logging.debug('Deleting asset {}'.format(asset))
     ee.data.deleteAsset(_path(asset))

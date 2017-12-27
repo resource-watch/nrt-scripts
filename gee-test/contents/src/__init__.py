@@ -15,7 +15,7 @@ FILENAME = 'bio_005_{date}'
 NODATA_VALUE = None
 
 DATA_DIR = 'data'
-GS_PREFIX = 'bio_005_bleaching_alerts'
+GS_FOLDER = 'bio_005_bleaching_alerts'
 EE_COLLECTION = 'bio_005_bleaching_alerts'
 
 MAX_ASSETS = 31
@@ -70,8 +70,8 @@ def convert(files):
         # extract subdataset by name
         sds_path = SDS_NAME.format(fname=f)
         tif = '{}.tif'.format(os.path.splitext(f)[0])
-        # set nodata to none since default (-5) is out of range of Byte type
-        cmd = ['gdal_translate', '-q', '-a_nodata', 'none', sds_path, tif]
+        # nodata value -5 equals 251 for Byte type?
+        cmd = ['gdal_translate', '-q', '-a_nodata', '251', sds_path, tif]
         logging.debug('Converting {} to {}'.format(f, tif))
         subprocess.call(cmd)
         tifs.append(tif)
@@ -113,7 +113,7 @@ def processNewData(existing_dates):
         logging.info('Uploading files')
         dates = [getDate(tif) for tif in tifs]
         assets = [getAssetName(date) for date in dates]
-        eeUtil.uploadAssets(tifs, assets, '', GS_PREFIX, dates)
+        eeUtil.uploadAssets(tifs, assets, GS_FOLDER, dates)
 
         # 5. Delete local files
         logging.info('Cleaning local files')
@@ -132,7 +132,7 @@ def checkCreateCollection(collection):
         return eeUtil.ls(collection)
     else:
         logging.info('{} does not exist, creating'.format(collection))
-        eeUtil.createFolder(collection, '', True, public=True)
+        eeUtil.createFolder(collection, True, public=True)
         return []
 
 
