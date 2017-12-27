@@ -8,13 +8,17 @@ See: https://developers.google.com/earth-engine/service_account
 
 ```
 import eeUtil
+
+# initialize from environment variables
 eeUtil.init()
 
+# create image collection
 eeUtil.createFolder('mycollection', imageCollection=True)
 
 # upload image to collection
 eeUtil.upload('image.tif', 'mycollection/myasset')
-eeUtil.ls()
+eeUtil.setAcl('mycollection/myasset', 'public')
+eeUtil.ls('mycollection')
 ```
 '''
 from __future__ import unicode_literals
@@ -40,7 +44,7 @@ _home = ''
 
 def init(account=GEE_SERVICE_ACCOUNT,
          credential_path=GOOGLE_APPLICATION_CREDENTIALS,
-         gs_project=GCS_PROJECT, gs_bucket=GEE_STAGING_BUCKET):
+         project=GCS_PROJECT, bucket=GEE_STAGING_BUCKET):
     '''
     Initialize EE and GS bucket connection with service credentials.
 
@@ -48,8 +52,8 @@ def init(account=GEE_SERVICE_ACCOUNT,
     `account`         Service account name. Will need access to both GEE and
                       storage
     `credential_path` Path to json file containing private key
-    `gs_project`      GCS project containing bucket
-    `gs_bucket`       Storage bucket for staging assets for ingestion
+    `project`         GCS project containing bucket
+    `bucket`          Storage bucket for staging assets for ingestion
 
     https://developers.google.com/earth-engine/service_account
     '''
@@ -58,9 +62,9 @@ def init(account=GEE_SERVICE_ACCOUNT,
     ee.Initialize(auth)
     # GCS auth prefers to read from environment
     os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credential_path
-    _gsBucket = storage.Client(gs_project).bucket(gs_bucket)
+    _gsBucket = storage.Client(project).bucket(bucket)
     if not _gsBucket.exists():
-        logging.info('Bucket {} does not exist, creating'.format(gs_bucket))
+        logging.info('Bucket {} does not exist, creating'.format(bucket))
         _gsBucket.create()
 
 
@@ -77,10 +81,14 @@ def _getHome():
     return _home if _home else getHome()
 
 
-def _path(path, home):
-    '''Add user root directory to path'''
-    home = home if home else _getHome()
-    return os.path.join(home, path)
+def _path(path):
+    '''Add user root directory to path if not already existing'''
+    if path:
+        if len(path) > 6 and path[:6] == 'users/':
+            return path
+        else:
+            return os.path.join(_getHome(), path)
+    return _getHome()
 
 
 def getQuota():
@@ -88,22 +96,32 @@ def getQuota():
     return ee.data.getAssetRootQuota(_getHome())
 
 
-def info(asset, home=''):
+def info(asset=''):
     '''Get asset info'''
-    return ee.data.getInfo(_path(asset, home))
+    return ee.data.getInfo(_path(asset))
 
 
-def exists(asset, home=''):
+def exists(asset):
     '''Check if asset exists'''
-    return True if info(asset, home) else False
+    return True if info(asset) else False
 
 
-def ls(path='', home=''):
+def ls(path='', abspath=False):
     '''List assets in path'''
-    return [a['id'] for a in ee.data.getList({'id': _path(path, home)})]
+    if abspath:
+        return [a['id']
+                for a in ee.data.getList({'id': _path(path)})]
+    else:
+        return [os.path.basename(a['id'])
+                for a in ee.data.getList({'id': _path(path)})]
 
 
-def setAcl(asset, home='', acl='public'):
+def getAcl(asset):
+    '''Get ACL of asset or folder'''
+    return ee.data.getAssetAcl(_path(asset))
+
+
+def setAcl(asset, acl='public'):
     '''Set ACL of asset
 
     `acl` ('public'|'private'|json ACL specification)
@@ -113,23 +131,22 @@ def setAcl(asset, home='', acl='public'):
     elif acl == 'private':
         acl = '{"all_users_can_read": false}'
     logging.debug('Setting ACL to {} on {}'.format(acl, asset))
-    ee.data.setAssetAcl(_path(asset, home), acl)
+    ee.data.setAssetAcl(_path(asset), acl)
 
 
-def getAcl(path, home=''):
-    '''Get ACL of asset or folder'''
-    home = home if home else getHome()
-    return ee.data.getAssetAcl(os.path.join(home, path))
+def setProperties(asset, properties={}):
+    '''Set asset properties'''
+    return ee.data.setAssetProperties(_path(asset), properties)
 
 
-def createFolder(path, home='', imageCollection=False, overwrite=False,
+def createFolder(path, imageCollection=False, overwrite=False,
                  public=False):
     '''Create folder or image collection'''
     ftype = (ee.data.ASSET_TYPE_IMAGE_COLL if imageCollection
              else ee.data.ASSET_TYPE_FOLDER)
-    ee.data.createAsset({'type': ftype}, _path(path, home), overwrite)
+    ee.data.createAsset({'type': ftype}, _path(path), overwrite)
     if public:
-        setAcl(path, home)
+        setAcl(path)
 
 
 def _checkTaskCompleted(task_id):
@@ -192,18 +209,17 @@ def formatDate(date, dateformat='%Y%m%d'):
     return int(seconds * 1000)
 
 
-def ingestAsset(gs_uri, asset, home='', date='', wait_timeout=0):
+def ingestAsset(gs_uri, asset, date='', wait_timeout=0):
     '''
     Upload asset from GS to EE
 
     `gs_uri`       should be formatted `gs://<bucket>/<blob>`
     `asset`        destination path
-    `home`         EE home directory, if empty defaults to `users/<username>`
     `date`         optional date tag (datetime.datetime or int ms since epoch)
     `wait_timeout` if non-zero, wait timeout secs for task completion
     '''
     task_id = ee.data.newTaskId()[0]
-    params = {'id': _path(asset, home),
+    params = {'id': _path(asset),
               'tilesets': [{'sources': [{'primaryPath': gs_uri}]}]}
     if date:
         params['properties'] = {'system:time_start': formatDate(date),
@@ -215,14 +231,13 @@ def ingestAsset(gs_uri, asset, home='', date='', wait_timeout=0):
     return task_id
 
 
-def uploadAsset(filename, asset, home='', gs_prefix='', date='', public=False,
+def uploadAsset(filename, asset, gs_prefix='', date='', public=False,
                 timeout=300, clean=True):
     '''
     Stage file to GS and ingest to EE
 
     `file`         local file paths
     `asset`        destination path
-    `home`         EE home directory, if empty defaults to `users/<username>`
     `gs_prefix`    GS folder for staging (else files are staged to bucket root)
     `date`         Optional date tag (datetime.datetime or int ms since epoch)
     `public`       set acl public if True
@@ -231,23 +246,22 @@ def uploadAsset(filename, asset, home='', gs_prefix='', date='', public=False,
     '''
     gs_uris = gsStage(filename, gs_prefix)
     try:
-        ingestAsset(gs_uris[0], asset, home, date, public, timeout)
+        ingestAsset(gs_uris[0], asset, date, public, timeout)
         if public:
-            setAcl(asset, home, 'public')
+            setAcl(asset, 'public')
     except Exception as e:
         logging.error(e)
     if clean:
         gsRemove(gs_uris)
 
 
-def uploadAssets(files, assets, home='', gs_prefix='', dates='', public=False,
+def uploadAssets(files, assets, gs_prefix='', dates='', public=False,
                  timeout=300, clean=True):
     '''
     Stage files to GS and ingest to EE
 
     `files`        local file paths
-    `assets`       destination path
-    `home`         EE home directory, if empty defaults to `users/<username>`
+    `assets`       destination paths
     `gs_prefix`    GS folder for staging (else files are staged to bucket root)
     `dates`        Optional date tags (datetime.datetime or int ms since epoch)
     `public`       set acl public if True
@@ -255,13 +269,13 @@ def uploadAssets(files, assets, home='', gs_prefix='', dates='', public=False,
     `clean`        delete files from GS after completion
     '''
     gs_uris = gsStage(files, gs_prefix)
-    task_ids = [ingestAsset(gs_uris[i], assets[i], home, dates[i], public)
+    task_ids = [ingestAsset(gs_uris[i], assets[i], dates[i], public)
                 for i in range(len(files))]
     try:
         waitForTasks(task_ids, timeout)
         if public:
             for asset in assets:
-                setAcl(asset, home, 'public')
+                setAcl(asset, 'public')
     except Exception as e:
         logging.error(e)
     if clean:
@@ -269,15 +283,15 @@ def uploadAssets(files, assets, home='', gs_prefix='', dates='', public=False,
     return assets
 
 
-def removeAsset(asset, home='', recursive=False):
+def removeAsset(asset, recursive=False):
     '''Delete asset from GEE'''
     if recursive:
-        if info(asset, home)['type'] in (ee.data.ASSET_TYPE_FOLDER,
-                                         ee.data.ASSET_TYPE_IMAGE_COLL):
-            for child in ls(asset, home):
+        if info(asset)['type'] in (ee.data.ASSET_TYPE_FOLDER,
+                                   ee.data.ASSET_TYPE_IMAGE_COLL):
+            for child in ls(asset):
                 removeAsset(child)
     logging.debug('Deleting asset {}'.format(asset))
-    ee.data.deleteAsset(_path(asset, home))
+    ee.data.deleteAsset(_path(asset))
 
 
 def gsStage(files, prefix=''):
