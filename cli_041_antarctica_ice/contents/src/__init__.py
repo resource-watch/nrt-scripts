@@ -112,11 +112,6 @@ def fetchDataFileName(SOURCE_URL):
         fileline = fileline.split()
         logging.debug("Fileline as formatted on server: {}".format(fileline))
         potential_filename = fileline[FILENAME_INDEX]
-
-        ###
-        ## Set conditions for finding correct file name for this FTP
-        ###
-
         if (potential_filename.endswith(".txt") and ("antarctica" in potential_filename)):
             if not ALREADY_FOUND:
                 filename = potential_filename
@@ -129,11 +124,9 @@ def fetchDataFileName(SOURCE_URL):
     if not ALREADY_FOUND:
         logging.warning("No valid filename found")
 
-    # Return the file name
     return(filename)
 
 def tryRetrieveData(SOURCE_URL, filename, TIMEOUT, ENCODING):
-    # Optional logic in case this request fails with "unable to decode" response
     start = time.time()
     elapsed = 0
     resource_location = os.path.join(SOURCE_URL, filename)
@@ -148,7 +141,7 @@ def tryRetrieveData(SOURCE_URL, filename, TIMEOUT, ENCODING):
             logging.error("Unable to retrieve resource on this attempt.")
             time.sleep(5)
 
-    logging.error("Unable to retrive resource before timeout of {} seconds".format(TIMEOUT))
+    logging.error("Unable to retrieve resource before timeout of {} seconds".format(TIMEOUT))
     if STRICT:
         raise Exception("Unable to retrieve data from {}".format(resource_locations))
     return([])
@@ -192,11 +185,6 @@ def processData(SOURCE_URL, filename, existing_ids):
     Output: Number of new rows added
     """
 
-    # Totals, persist throughout any pagination in next step
-    num_new = 0
-
-    ### Specific to each page/chunk in data processing
-
     res_rows = tryRetrieveData(SOURCE_URL, filename, TIMEOUT, ENCODING)
     new_data = {}
     for row in res_rows:
@@ -215,12 +203,9 @@ def processData(SOURCE_URL, filename, existing_ids):
                 logging.debug("Skipping row: {}".format(row))
 
     if len(new_data):
-        # Check whether should delete to make room
-        num_new += len(new_data)
+        num_new = len(new_data)
         new_data = list(new_data.values())
         cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), new_data)
-
-    ### End page/chunk processing
 
     return(num_new)
 
