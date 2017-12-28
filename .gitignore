@@ -1,9 +1,19 @@
-#credentials
-credentials.json
-.DS_Store
-# Out data
-dst/*
-stand_precip_evapo_index/*.ipynb
-stand_precip_evapo_index/*.nc
-tand_precip_evapo_index/*.tif
-/.ipynb_checkpoints/
+# Mac organization details
+*.DS_Store*
+
+# Data files
+*dst/*
+*.nc
+*.tif
+*.csv
+
+# Python files/folders
+*.ipynb_checkpoints*
+*.ipynb
+*__pychache__*
+*.pyc
+
+# Environmental variables
+*.env
+*credentials.json
+
