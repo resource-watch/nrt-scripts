@@ -256,6 +256,6 @@ def main():
     ### 5. Delete data to get back to MAX_ROWS
     num_deleted = deleteExcessRows(CARTO_TABLE, MAX_ROWS, TIME_FIELD)
 
-    ### 5. Notify results
+    ### 6. Notify results
     logging.info('Expired rows: {}, Previous rows: {},  New rows: {}, Dropped rows: {}, Max: {}'.format(num_expired, num_existing, num_new, num_deleted, MAX_ROWS))
     logging.info("SUCCESS")
