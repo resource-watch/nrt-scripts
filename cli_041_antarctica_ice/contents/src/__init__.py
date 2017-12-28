@@ -230,7 +230,7 @@ def processData(SOURCE_URL, filename, existing_ids):
 ###
 
 def main():
-    logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
     if CLEAR_TABLE_FIRST:
         cartosql.dropTable(CARTO_TABLE)
