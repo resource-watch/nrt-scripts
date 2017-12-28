@@ -3,7 +3,7 @@ import logging
 import sys
 import requests
 from collections import OrderedDict
-import src.carto as carto
+import cartosql
 import datetime
 import hashlib
 
@@ -15,9 +15,10 @@ DATA_DIR = 'data'
 DATA_URL = 'https://api.openaq.org/v1/measurements?limit=10000&include_fields=attribution&page={page}'
 # always check first 10 pages
 MIN_PAGES = 10
+MAX_PAGES = 200
 
-### asserting table structure rather than reading from input
-PARAMS = ['pm25','pm10','so2','no2','o3','co','bc']
+# asserting table structure rather than reading from input
+PARAMS = ('pm25', 'pm10', 'so2', 'no2', 'o3', 'co', 'bc')
 CARTO_TABLES = {
     'pm25':'cit_003a_air_quality_pm25',
     'pm10':'cit_003b_air_quality_pm10',
@@ -28,16 +29,16 @@ CARTO_TABLES = {
     'bc':'cit_003g_air_quality_bc',
 }
 CARTO_SCHEMA = OrderedDict([
-    ("the_geom","geometry"),
-    ("_UID","text"),
-    ("utc","timestamp"),
-    ("value","numeric"),
-    ("parameter","text"),
-    ("location","text"),
-    ("city","text"),
-    ("country","text"),
-    ("unit","text"),
-    ("attribution","text")
+    ("the_geom", "geometry"),
+    ("_UID", "text"),
+    ("utc", "timestamp"),
+    ("value", "numeric"),
+    ("parameter", "text"),
+    ("location", "text"),
+    ("city", "text"),
+    ("country", "text"),
+    ("unit", "text"),
+    ("attribution", "text")
 ])
 UID_FIELD = '_UID'
 TIME_FIELD = 'utc'
@@ -45,7 +46,7 @@ TIME_FIELD = 'utc'
 CARTO_USER = os.environ.get('CARTO_USER')
 CARTO_KEY = os.environ.get('CARTO_KEY')
 
-# Carto limit at 10M?
+# Limit to 1M rows / 30 days
 MAXROWS = 1000000
 MAXAGE = datetime.datetime.now() - datetime.timedelta(days=30)
 
@@ -56,62 +57,65 @@ def genUID(obs):
     id_str = '{}_{}'.format(obs['location'], obs['date']['utc'])
     return hashlib.md5(id_str.encode('utf8')).hexdigest()
 
-def getCreateTableIDs(table):
-    # get ids sorted by newest
-    if carto.tableExists(table):
+
+def checkCreateTable(table, schema, id_field, time_field):
+    '''Get existing ids or create table'''
+    if cartosql.tableExists(table):
         logging.info('Fetching existing IDs')
-        r = carto.getFields(UID_FIELD,
-                            table,
-                            order='{} desc'.format(TIME_FIELD),
-                            f='csv')
-        # quick read 1-column csv to list
+        r = cartosql.getFields(id_field, table, f='csv')
         return r.text.split('\r\n')[1:-1]
     else:
-        logging.info('Table {} does not exist, creating'.format(
-            table))
-        carto.createTable(table, CARTO_SCHEMA)
-        carto.createIndex(table, TIME_FIELD)
-        return []
+        logging.info('Table {} does not exist, creating'.format(table))
+        cartosql.createTable(table, schema)
+        cartosql.createIndex(table, id_field, unique=True)
+        cartosql.createIndex(table, time_field)
+    return []
 
 
-def dropOldRows(table, existing_ids, new_count):
-    existing_count = len(existing_ids)
-    logging.info('{} previous rows: {}, new: {}, max: {}'.format(
-        table, existing_count, new_count, MAXROWS))
+def deleteExcessRows(table, max_rows, time_field, id_field='cartodb_id',
+                     max_age=''):
+    '''Delete excess rows by age or count'''
+    num_dropped = 0
+    if isinstance(max_age, datetime.datetime):
+        max_age = max_age.isoformat()
 
-    # by max age
-    delete_where = "{} < '{}'".format(
-        TIME_FIELD, MAXAGE.isoformat())
+    # 1. delete by age
+    if max_age:
+        r = cartosql.deleteRows(table, "{} < '{}'".format(time_field, max_age))
+        num_dropped = r.json()['total_rows']
 
-    # by excess rows
-    if existing_count > MAXROWS:
-        delete_where += ' OR {} in ({})'.format(
-            UID_FIELD, ','.join(existing_ids[MAXROWS:]))
+    # 2. get sorted ids (old->new)
+    r = cartosql.getFields(id_field, table, order='{}'.format(time_field),
+                           f='csv')
+    ids = r.text.split('\r\n')[1:-1]
 
-    r = carto.deleteRows(table, delete_where)
-    num_dropped = r.json()['total_rows']
-    if num_dropped > 0:
-        logging.info('Dropped {} old rows from {}'.format(
-            num_dropped, table))
+    # 3. delete excess
+    if len(ids) > max_rows:
+        r = cartosql.deleteRowsByIds(table, ids[:-max_rows])
+        num_dropped += r.json()['total_rows']
+    if num_dropped:
+        logging.info('Dropped {} old rows from {}'.format(num_dropped, table))
 
 
 def main():
     logging.info('BEGIN')
 
-    ### 1. Get existing uids, if none create tables
+    # 1. Get existing uids, if none create tables
     existing_ids = {}
     for param in PARAMS:
-        existing_ids[param] = getCreateTableIDs(CARTO_TABLES[param])
+        existing_ids[param] = checkCreateTable(CARTO_TABLES[param],
+                                               CARTO_SCHEMA, UID_FIELD,
+                                               TIME_FIELD)
 
-    ### 2. Iterively fetch, parse and post new data
-    # this is done all together because OpenAQ endpoint doesn't
-    # support filtering by parameter
+    # 2. Iterively fetch, parse and post new data
+    # this is done all together because OpenAQ endpoint filter by parameter
+    # doesn't work
     new_counts = dict(((param, 0) for param in PARAMS))
     new_count = 1
     page = 1
     # get and parse each page
     # read at least 10 pages; stop when no new results or 100 pages
-    while page <= MIN_PAGES or new_count and page < 100:
+    while page <= MIN_PAGES or new_count and page < MAX_PAGES:
         logging.info("Fetching page {}".format(page))
         r = requests.get(DATA_URL.format(page=page))
         page += 1
@@ -125,8 +129,8 @@ def main():
             param = obs['parameter']
             uid = genUID(obs)
             if uid not in existing_ids[param] and 'coordinates' in obs:
-                # insert new obs in top of list (oldest at end)
-                existing_ids[param].insert(0, uid)
+                # OpenAQ may contain duplicate obs
+                existing_ids[param].append(uid)
                 row = []
                 for field in CARTO_SCHEMA.keys():
                     if field == 'the_geom':
@@ -149,23 +153,21 @@ def main():
                         row.append(obs[field])
                 rows[param].append(row)
 
-        # insert new rows by page
+        # insert new rows
         for param in PARAMS:
             count = len(rows[param])
             if count:
-                logging.info('Pushing {} new {} rows'.format(
-                    count, param))
-                carto.insertRows(CARTO_TABLES[param],
-                                 CARTO_SCHEMA.keys(),
-                                 CARTO_SCHEMA.values(),
-                                 rows[param])
+                logging.info('Pushing {} new {} rows'.format(count, param))
+                cartosql.insertRows(CARTO_TABLES[param], CARTO_SCHEMA.keys(),
+                                    CARTO_SCHEMA.values(), rows[param])
                 new_count += count
             new_counts[param] += count
 
-    ### 3. Remove old observations
+    # 3. Remove old observations
     for param in PARAMS:
-        dropOldRows(CARTO_TABLES[param],
-                    existing_ids[param],
-                    new_counts[param])
+        logging.info('Total rows: {}, New: {}, Max: {}'.format(
+            len(existing_ids[param]), new_counts[param], MAXROWS))
+        deleteExcessRows(CARTO_TABLES[param], MAXROWS, TIME_FIELD, UID_FIELD,
+                         MAXAGE)
 
     logging.info('SUCCESS')
