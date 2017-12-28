@@ -119,8 +119,7 @@ def checkCreateTable(table, schema, id_field, time_field):
     return []
 
 
-def deleteExcessRows(table, max_rows, time_field, id_field='cartodb_id',
-                     max_age=''):
+def deleteExcessRows(table, max_rows, time_field, max_age=''):
     '''Delete excess rows by age or count'''
     num_dropped = 0
     if isinstance(max_age, datetime.datetime):
@@ -132,13 +131,13 @@ def deleteExcessRows(table, max_rows, time_field, id_field='cartodb_id',
         num_dropped = r.json()['total_rows']
 
     # 2. get sorted ids (old->new)
-    r = cartosql.getFields(id_field, table, order='{}'.format(time_field),
+    r = cartosql.getFields('cartodb_id', table, order='{}'.format(time_field),
                            f='csv')
     ids = r.text.split('\r\n')[1:-1]
 
     # 3. delete excess
     if len(ids) > max_rows:
-        r = cartosql.deleteRowsByIds(table, ids[:-max_rows])
+        r = cartosql.deleteRowsByIDs(table, ids[:-max_rows])
         num_dropped += r.json()['total_rows']
     if num_dropped:
         logging.info('Dropped {} old rows from {}'.format(num_dropped, table))
@@ -161,6 +160,6 @@ def main():
         existing_count, new_count, MAXROWS))
 
     # 3. Remove old observations
-    deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD, UID_FIELD, MAXAGE)
+    deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD, MAXAGE)
 
     logging.info('SUCCESS')
