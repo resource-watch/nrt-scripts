@@ -234,7 +234,6 @@ def main():
 
     if CLEAR_TABLE_FIRST:
         cartosql.dropTable(CARTO_TABLE)
-        #deleteIndices(CARTO_TABLE)
 
     ### 1. Check if table exists, if not, create it
     checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, TIME_FIELD)
