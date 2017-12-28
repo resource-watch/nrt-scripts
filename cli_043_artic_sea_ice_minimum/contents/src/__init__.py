@@ -72,7 +72,6 @@ def processData(SOURCE_URL, filename, existing_ids):
 
     # Only process rows of the right length and with first element matching expected data type
     deduped_formatted_rows = []
-    new_ids = []
     for row in res_rows:
         row = row.split()
         # Ensure that this is a full data row
