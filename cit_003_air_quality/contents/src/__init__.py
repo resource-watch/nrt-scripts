@@ -26,7 +26,7 @@ CARTO_TABLES = {
     'no2':'cit_003d_air_quality_no2',
     'o3':'cit_003e_air_quality_o3',
     'co':'cit_003f_air_quality_co',
-    'bc':'cit_003g_air_quality_bc',
+    'bc':'cit_003g_air_quality_bc'
 }
 CARTO_SCHEMA = OrderedDict([
     ("the_geom", "geometry"),
@@ -40,6 +40,15 @@ CARTO_SCHEMA = OrderedDict([
     ("unit", "text"),
     ("attribution", "text")
 ])
+CARTO_GEOM_TABLE = 'cit_003loc_air_quality'
+CARTO_GEOM_SCHEMA = OrderedDict([
+    ("the_geom", "geometry"),
+    ("_UID", "text"),
+    ("location", "text"),
+    ("city", "text"),
+    ("country", "text")
+])
+
 UID_FIELD = '_UID'
 TIME_FIELD = 'utc'
 
@@ -58,7 +67,40 @@ def genUID(obs):
     return hashlib.md5(id_str.encode('utf8')).hexdigest()
 
 
-def checkCreateTable(table, schema, id_field, time_field):
+# Generate UID for location
+def genLocID(obs):
+    return hashlib.md5(obs['location'].encode('utf8')).hexdigest()
+
+
+# Parse OpenAQ fields
+def parseFields(obs, uid, fields):
+    row = []
+    for field in fields:
+        if field == 'the_geom':
+            # construct geojson
+            if 'coordinates' in obs:
+                geom = {
+                    "type": "Point",
+                    "coordinates": [
+                        obs['coordinates']['longitude'],
+                        obs['coordinates']['latitude']
+                    ]
+                }
+                row.append(geom)
+            else:
+                row.append(None)
+        elif field == UID_FIELD:
+            row.append(uid)
+        elif field == TIME_FIELD:
+            row.append(obs['date'][TIME_FIELD])
+        elif field == 'attribution':
+            row.append(str(obs['attribution']))
+        else:
+            row.append(obs[field])
+    return row
+
+
+def checkCreateTable(table, schema, id_field, time_field=''):
     '''Get existing ids or create table'''
     if cartosql.tableExists(table):
         logging.info('Fetching existing IDs')
@@ -68,7 +110,8 @@ def checkCreateTable(table, schema, id_field, time_field):
         logging.info('Table {} does not exist, creating'.format(table))
         cartosql.createTable(table, schema)
         cartosql.createIndex(table, id_field, unique=True)
-        cartosql.createIndex(table, time_field)
+        if time_field:
+            cartosql.createIndex(table, time_field)
     return []
 
 
@@ -105,6 +148,8 @@ def main():
         existing_ids[param] = checkCreateTable(CARTO_TABLES[param],
                                                CARTO_SCHEMA, UID_FIELD,
                                                TIME_FIELD)
+    # 1.1 Get separate location table uids
+    loc_ids = checkCreateTable(CARTO_GEOM_TABLE, CARTO_GEOM_SCHEMA, UID_FIELD)
 
     # 2. Iterively fetch, parse and post new data
     # this is done all together because OpenAQ endpoint filter by parameter
@@ -122,37 +167,30 @@ def main():
 
         # separate row lists per param
         rows = dict(((param, []) for param in PARAMS))
+        loc_rows = []
 
-        # parse data excluding existing observations
+        # 2.1 parse data excluding existing observations
         for obs in r.json()['results']:
             param = obs['parameter']
             uid = genUID(obs)
-            if uid not in existing_ids[param] and 'coordinates' in obs:
-                # OpenAQ may contain duplicate obs
+            if uid not in existing_ids[param]:
                 existing_ids[param].append(uid)
-                row = []
-                for field in CARTO_SCHEMA.keys():
-                    if field == 'the_geom':
-                        # construct geojson
-                        geom = {
-                            "type": "Point",
-                            "coordinates": [
-                                obs['coordinates']['longitude'],
-                                obs['coordinates']['latitude']
-                            ]
-                        }
-                        row.append(geom)
-                    elif field == UID_FIELD:
-                        row.append(uid)
-                    elif field == TIME_FIELD:
-                        row.append(obs['date'][TIME_FIELD])
-                    elif field == 'attribution':
-                        row.append(str(obs['attribution']))
-                    else:
-                        row.append(obs[field])
-                rows[param].append(row)
+                rows[param].append(parseFields(obs, uid, CARTO_SCHEMA.keys()))
 
-        # insert new rows
+                # 2.2 Check if new locations
+                loc_id = genLocID(obs)
+                if loc_id not in loc_ids and 'coordinates' in obs:
+                    loc_ids.append(loc_id)
+                    loc_rows.append(parseFields(obs, loc_id,
+                                                CARTO_GEOM_SCHEMA.keys()))
+
+        # 2.3 insert new locations
+        if len(loc_rows):
+            logging.info('Pushing {} new locations'.format(len(loc_rows)))
+            cartosql.insertRows(CARTO_GEOM_TABLE, CARTO_GEOM_SCHEMA.keys(),
+                                CARTO_GEOM_SCHEMA.values(), loc_rows)
+
+        # 2.4 insert new rows
         for param in PARAMS:
             count = len(rows[param])
             if count:
