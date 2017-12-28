@@ -35,7 +35,7 @@ TIME_FIELD = 'date'
 CARTO_USER = os.environ.get('CARTO_USER')
 CARTO_KEY = os.environ.get('CARTO_KEY')
 
-MAX_ROWS = 100
+MAX_ROWS = 10000000
 MAX_AGE = datetime.today() - timedelta(days=365*20)
 
 ###
