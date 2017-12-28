@@ -32,7 +32,7 @@ CARTO_KEY = os.environ.get('CARTO_KEY')
 # Table limits
 MAX_ROWS = 100
 MAX_AGE = datetime.today() - timedelta(days=365*20)
-CLEAR_TABLE_FIRST = False
+CLEAR_TABLE_FIRST = True
 
 ###
 ## Carto code
@@ -40,8 +40,7 @@ CLEAR_TABLE_FIRST = False
 
 def checkCreateTable(table, schema, id_field, time_field):
     '''
-    Get existing ids or create table
-    Return a list of existing ids in time order
+    Create table if it doesn't already exist
     '''
     if cartosql.tableExists(table):
         logging.info('Table {} already exists'.format(table))
@@ -51,7 +50,6 @@ def checkCreateTable(table, schema, id_field, time_field):
         cartosql.createIndex(table, id_field, unique=True)
         if id_field != time_field:
             cartosql.createIndex(table, time_field)
-    return []
 
 def deleteIndices(CARTO_TABLE):
     r = cartosql.sendSql("select * from pg_indexes where tablename='{}'".format(CARTO_TABLE))
@@ -284,7 +282,7 @@ def main():
 
     if CLEAR_TABLE_FIRST:
         cartosql.dropTable(CARTO_TABLE)
-        deleteIndices(CARTO_TABLE)
+        #deleteIndices(CARTO_TABLE)
 
     ### 1. Check if table exists, if not, create it
     checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, TIME_FIELD)
