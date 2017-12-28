@@ -192,7 +192,6 @@ def processData(SOURCE_URL, filename, existing_ids):
             row = row.split()
             if len(row)==len(CARTO_SCHEMA):
                 logging.debug("Processing row: {}".format(row))
-                # Pull data available in each line
                 date = decimalToDatetime(row[DATE_INDEX])
                 if recentEnough(date, MAX_AGE):
                     MASS_INDEX = 1
