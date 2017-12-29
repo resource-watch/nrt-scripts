@@ -8,23 +8,26 @@ from datetime import datetime, timedelta
 from dateutil import parser
 import cartosql
 
-### Constants
-SOURCE_URL = 'ftp://aftp.cmdl.noaa.gov/products/trends/co2/'
-DATE_INDEX = 2
+###
+## Constants
+###
+
+SOURCE_URL = 'ftp://podaac-ftp.jpl.nasa.gov/allData/tellus/L3/mascon/RL05/JPL/CRI/mass_variability_time_series/'
+DATE_INDEX = 0
 FILENAME_INDEX = -1
-TIMEOUT = 300
 ENCODING = 'utf-8'
 STRICT = False
-CLEAR_TABLE_FIRST = False
+TIMEOUT = 300
 
-### Table name and structure
-CARTO_TABLE = 'cli_045_carbon_dioxide_concentration'
+###
+## Table name, structure, and limits
+###
+
+CARTO_TABLE = 'cli_041_antarctic_ice'
 CARTO_SCHEMA = OrderedDict([
         ('date', 'timestamp'),
-        ('average', 'numeric'),
-        ('interpolated', 'numeric'),
-        ('season_adjusted_trend', 'numeric'),
-        ('num_days', 'numeric')
+        ('mass', 'numeric'),
+        ('uncertainty', 'text')
     ])
 UID_FIELD = 'date'
 TIME_FIELD = 'date'
@@ -32,18 +35,18 @@ TIME_FIELD = 'date'
 CARTO_USER = os.environ.get('CARTO_USER')
 CARTO_KEY = os.environ.get('CARTO_KEY')
 
-# Table limits
-MAX_ROWS = 1000000
-MAX_AGE = datetime.today() - timedelta(days=365*150)
+MAX_ROWS = 10000000
+MAX_AGE = datetime.today() - timedelta(days=365*20)
 
 ###
-## Carto code
+## Carto interactions
 ###
+
+CLEAR_TABLE_FIRST = False
 
 def checkCreateTable(table, schema, id_field, time_field):
     '''
-    Get existing ids or create table
-    Return a list of existing ids in time order
+    Create table if it doesn't already exist
     '''
     if cartosql.tableExists(table):
         logging.info('Table {} already exists'.format(table))
@@ -64,7 +67,7 @@ def cleanOldRows(table, time_field, max_age, date_format='%Y-%m-%d %H:%M:%S'):
     if cartosql.tableExists(table):
         if isinstance(max_age, datetime):
             max_age = max_age.strftime(date_format)
-        elif isinstance(max_age, str):
+        else:
             logging.error('Max age must be expressed as a datetime.datetime object')
 
         r = cartosql.deleteRows(table, "{} < '{}'".format(time_field, max_age))
@@ -91,6 +94,7 @@ def deleteExcessRows(table, max_rows, time_field):
 
     return(num_dropped)
 
+
 ###
 ## Accessing remote data
 ###
@@ -108,11 +112,7 @@ def fetchDataFileName(SOURCE_URL):
         fileline = fileline.split()
         logging.debug("Fileline as formatted on server: {}".format(fileline))
         potential_filename = fileline[FILENAME_INDEX]
-
-        # Current: "co2_mm_mlo.txt". There are multiple files on this server -
-        # Liz: we're sure this is the one we want? Are there others?
-        # Weekly data available at co2_weekly_mlo.txt
-        if (potential_filename.endswith(".txt") and ("co2_mm_mlo" in potential_filename)):
+        if (potential_filename.endswith(".txt") and ("antarctica" in potential_filename)):
             if not ALREADY_FOUND:
                 filename = potential_filename
                 ALREADY_FOUND=True
@@ -127,7 +127,6 @@ def fetchDataFileName(SOURCE_URL):
     return(filename)
 
 def tryRetrieveData(SOURCE_URL, filename, TIMEOUT, ENCODING):
-    # Optional logic in case this request fails with "unable to decode" response
     start = time.time()
     elapsed = 0
     resource_location = os.path.join(SOURCE_URL, filename)
@@ -142,13 +141,10 @@ def tryRetrieveData(SOURCE_URL, filename, TIMEOUT, ENCODING):
             logging.error("Unable to retrieve resource on this attempt.")
             time.sleep(5)
 
-    logging.error("Unable to retrive resource before timeout of {} seconds".format(TIMEOUT))
+    logging.error("Unable to retrieve resource before timeout of {} seconds".format(TIMEOUT))
     if STRICT:
         raise Exception("Unable to retrieve data from {}".format(resource_locations))
     return([])
-
-def genUID(value_type, value_date):
-    return("_".join([str(value_type), str(value_date)]).replace(" ", "_"))
 
 # https://stackoverflow.com/questions/20911015/decimal-years-to-datetime-in-python
 def decimalToDatetime(dec, date_pattern="%Y-%m-%d %H:%M:%S"):
@@ -163,6 +159,10 @@ def decimalToDatetime(dec, date_pattern="%Y-%m-%d %H:%M:%S"):
     dt = base + timedelta(seconds=(base.replace(year=base.year + 1) - base).total_seconds() * rem)
     result = dt.strftime(date_pattern)
     return(result)
+
+def recentEnough(date, MAX_AGE):
+    '''Assume date is a string, MAX_AGE a datetime'''
+    return(parser.parse(date) > MAX_AGE)
 
 def insertIfNew(newUID, newValues, existing_ids, new_data):
     '''
@@ -184,34 +184,30 @@ def processData(SOURCE_URL, filename, existing_ids):
     Actions: Retrives data, dedupes and formats it, and adds to Carto table
     Output: Number of new rows added
     """
-    num_new = 0
 
     res_rows = tryRetrieveData(SOURCE_URL, filename, TIMEOUT, ENCODING)
     new_data = {}
     for row in res_rows:
-        if not (row.startswith("#")):
+        if not (row.startswith("HDR")):
             row = row.split()
-            if len(row)==7:
+            if len(row)==len(CARTO_SCHEMA):
                 logging.debug("Processing row: {}".format(row))
-
                 date = decimalToDatetime(row[DATE_INDEX])
-                AVERAGE_INDEX = 3
-                INTERPOLATED_INDEX = 4
-                TREND_INDEX = 5
-                NUM_DAYS_INDEX = 6
-                values = [date, row[AVERAGE_INDEX], row[INTERPOLATED_INDEX],
-                            row[TREND_INDEX], row[NUM_DAYS_INDEX]]
-
-                new_data = insertIfNew(date, values, existing_ids, new_data)
+                if recentEnough(date, MAX_AGE):
+                    MASS_INDEX = 1
+                    UNCERTAINTY_INDEX = 2
+                    values = [date, row[MASS_INDEX], row[UNCERTAINTY_INDEX]]
+                    new_data = insertIfNew(date, values, existing_ids, new_data)
             else:
                 logging.debug("Skipping row: {}".format(row))
 
     if len(new_data):
-        num_new += len(new_data)
+        num_new = len(new_data)
         new_data = list(new_data.values())
         cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), new_data)
 
     return(num_new)
+
 
 ###
 ## Application code
@@ -221,7 +217,6 @@ def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
     if CLEAR_TABLE_FIRST:
-        logging.info("clearing table")
         cartosql.dropTable(CARTO_TABLE)
 
     ### 1. Check if table exists, if not, create it
@@ -231,7 +226,7 @@ def main():
     num_expired = cleanOldRows(CARTO_TABLE, TIME_FIELD, MAX_AGE)
 
     ### 3. Retrieve existing data
-    r = cartosql.getFields(UID_FIELD, CARTO_TABLE, order='{} desc'.format(TIME_FIELD), f='csv')
+    r = cartosql.getFields(UID_FIELD, CARTO_TABLE, f='csv')
     existing_ids = r.text.split('\r\n')[1:-1]
     num_existing = len(existing_ids)
 

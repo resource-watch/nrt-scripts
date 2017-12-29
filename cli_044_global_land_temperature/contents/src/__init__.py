@@ -9,41 +9,36 @@ from dateutil import parser
 import cartosql
 
 ### Constants
-SOURCE_URL = 'ftp://aftp.cmdl.noaa.gov/products/trends/co2/'
-DATE_INDEX = 2
-FILENAME_INDEX = -1
+SOURCE_URL = 'https://climate.nasa.gov/system/internal_resources/details/original/'
 TIMEOUT = 300
 ENCODING = 'utf-8'
 STRICT = False
-CLEAR_TABLE_FIRST = False
 
 ### Table name and structure
-CARTO_TABLE = 'cli_045_carbon_dioxide_concentration'
+CARTO_TABLE = 'cli_044_global_land_temperature'
 CARTO_SCHEMA = OrderedDict([
+        ('UID', 'text'),
         ('date', 'timestamp'),
-        ('average', 'numeric'),
-        ('interpolated', 'numeric'),
-        ('season_adjusted_trend', 'numeric'),
-        ('num_days', 'numeric')
+        ('value', 'numeric'),
+        ('value_type', 'text')
     ])
-UID_FIELD = 'date'
+UID_FIELD = 'UID'
 TIME_FIELD = 'date'
 
 CARTO_USER = os.environ.get('CARTO_USER')
 CARTO_KEY = os.environ.get('CARTO_KEY')
 
-# Table limits
+###
+## CARTO
+###
+
 MAX_ROWS = 1000000
 MAX_AGE = datetime.today() - timedelta(days=365*150)
-
-###
-## Carto code
-###
+CLEAR_TABLE_FIRST = False
 
 def checkCreateTable(table, schema, id_field, time_field):
     '''
-    Get existing ids or create table
-    Return a list of existing ids in time order
+    Create table if it doesn't already exist
     '''
     if cartosql.tableExists(table):
         logging.info('Table {} already exists'.format(table))
@@ -106,13 +101,8 @@ def fetchDataFileName(SOURCE_URL):
     ALREADY_FOUND=False
     for fileline in ftp_contents:
         fileline = fileline.split()
-        logging.debug("Fileline as formatted on server: {}".format(fileline))
         potential_filename = fileline[FILENAME_INDEX]
-
-        # Current: "co2_mm_mlo.txt". There are multiple files on this server -
-        # Liz: we're sure this is the one we want? Are there others?
-        # Weekly data available at co2_weekly_mlo.txt
-        if (potential_filename.endswith(".txt") and ("co2_mm_mlo" in potential_filename)):
+        if (potential_filename.endswith(".txt") and ("V4" in potential_filename)):
             if not ALREADY_FOUND:
                 filename = potential_filename
                 ALREADY_FOUND=True
@@ -124,10 +114,10 @@ def fetchDataFileName(SOURCE_URL):
     if not ALREADY_FOUND:
         logging.warning("No valid filename found")
 
+    # Return the file name
     return(filename)
 
 def tryRetrieveData(SOURCE_URL, filename, TIMEOUT, ENCODING):
-    # Optional logic in case this request fails with "unable to decode" response
     start = time.time()
     elapsed = 0
     resource_location = os.path.join(SOURCE_URL, filename)
@@ -142,27 +132,13 @@ def tryRetrieveData(SOURCE_URL, filename, TIMEOUT, ENCODING):
             logging.error("Unable to retrieve resource on this attempt.")
             time.sleep(5)
 
-    logging.error("Unable to retrive resource before timeout of {} seconds".format(TIMEOUT))
+    logging.error("Unable to retrieve resource before timeout of {} seconds".format(TIMEOUT))
     if STRICT:
         raise Exception("Unable to retrieve data from {}".format(resource_locations))
     return([])
 
 def genUID(value_type, value_date):
     return("_".join([str(value_type), str(value_date)]).replace(" ", "_"))
-
-# https://stackoverflow.com/questions/20911015/decimal-years-to-datetime-in-python
-def decimalToDatetime(dec, date_pattern="%Y-%m-%d %H:%M:%S"):
-    """
-    Convert a decimal representation of a year to a desired string representation
-    I.e. 2016.5 -> 2016-06-01 00:00:00
-    """
-    dec = float(dec)
-    year = int(dec)
-    rem = dec - year
-    base = datetime(year, 1, 1)
-    dt = base + timedelta(seconds=(base.replace(year=base.year + 1) - base).total_seconds() * rem)
-    result = dt.strftime(date_pattern)
-    return(result)
 
 def insertIfNew(newUID, newValues, existing_ids, new_data):
     '''
@@ -189,25 +165,31 @@ def processData(SOURCE_URL, filename, existing_ids):
     res_rows = tryRetrieveData(SOURCE_URL, filename, TIMEOUT, ENCODING)
     new_data = {}
     for row in res_rows:
-        if not (row.startswith("#")):
+        if not (row.startswith("HDR")):
             row = row.split()
-            if len(row)==7:
+            if len(row)==3:
                 logging.debug("Processing row: {}".format(row))
+                # Pull data available in each line
+                ANNUAL_MEAN_VALUE_INDEX = 1
+                annual_mean_value = row[ANNUAL_MEAN_VALUE_INDEX]
+                FIVE_YEAR_MEAN_VALUE_INDEX = 2
+                five_year_mean_value = row[FIVE_YEAR_MEAN_VALUE_INDEX]
 
-                date = decimalToDatetime(row[DATE_INDEX])
-                AVERAGE_INDEX = 3
-                INTERPOLATED_INDEX = 4
-                TREND_INDEX = 5
-                NUM_DAYS_INDEX = 6
-                values = [date, row[AVERAGE_INDEX], row[INTERPOLATED_INDEX],
-                            row[TREND_INDEX], row[NUM_DAYS_INDEX]]
+                date = datetime(year=int(row[0]),month=1,day=1).strftime("%Y-%m-%d")
 
-                new_data = insertIfNew(date, values, existing_ids, new_data)
+                annualUID = genUID('annual_mean', date)
+                fiveyearUID = genUID('five_year_mean', date)
+                annualValues = [annualUID, date, annual_mean_value, "annual_mean"]
+                fiveyearValues = [fiveyearUID, date, five_year_mean_value, "five_year_mean"]
+
+                new_data = insertIfNew(annualUID, annualValues, existing_ids, new_data)
+                new_data = insertIfNew(fiveyearUID, fiveyearValues, existing_ids, new_data)
+
             else:
                 logging.debug("Skipping row: {}".format(row))
 
     if len(new_data):
-        num_new += len(new_data)
+        num_new = len(new_data)
         new_data = list(new_data.values())
         cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), new_data)
 
@@ -221,7 +203,6 @@ def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
     if CLEAR_TABLE_FIRST:
-        logging.info("clearing table")
         cartosql.dropTable(CARTO_TABLE)
 
     ### 1. Check if table exists, if not, create it
@@ -238,7 +219,8 @@ def main():
     logging.debug("First 10 IDs already in table: {}".format(existing_ids[:10]))
 
     ### 4. Fetch data from FTP, dedupe, process
-    filename = fetchDataFileName(SOURCE_URL)
+    #filename = fetchDataFileName(SOURCE_URL)
+    filename = "647_Global_Temperature_Data_File.txt"
     num_new = processData(SOURCE_URL, filename, existing_ids)
 
     ### 5. Delete data to get back to MAX_ROWS
