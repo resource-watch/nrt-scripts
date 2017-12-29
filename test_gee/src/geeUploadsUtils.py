@@ -48,6 +48,7 @@ class assetManagement(object):
         getJsonEnv()
         self.meta=imageObject
         self.imageNames=self.getImageName()
+        self.gcsBucket=self.setUpCredentials()
         self.sources = []
         
     def getImageName(self):
@@ -78,11 +79,19 @@ class assetManagement(object):
         """Sets up the credentials"""
         credentials = ee.ServiceAccountCredentials(os.getenv('GEE_SACCOUNT'), 'geePrivatekey.json')
         ee.Initialize(credentials)
-        #ee.data.createAssetHome('users/test-api')
-        #ee.data.setAssetAcl('users/test-api/testcollection', '{"writers": ["alicia.arenzana@gmail.com"], "all_users_can_read" : true}')
-        #ee.data.createAsset({'type': 'ImageCollection'}, 'users/test-api/testcollection')
         storage_client=storage.Client.from_service_account_json('gcsPrivatekey.json')
         return storage_client.get_bucket(self.meta['gcsBucket'])
+
+    def setUpGeeAsset(self):
+        aclSet='{"all_users_can_read" : true}'
+        collectionAsset=self.meta['collectionAsset'].split('/')
+        assetHome ="{0}/{1}".format(collectionAsset[0],collectionAsset[1])
+        if ee.data.getInfo(assetHome) == None:
+            ee.data.createAssetHome(assetHome)
+        if ee.data.getInfo(self.meta['collectionAsset']) == None:
+            ee.data.createAsset({'type': 'ImageCollection'}, self.meta['collectionAsset'])
+            ee.data.setAssetAcl(self.meta['collectionAsset'],aclSet)
+       
     
     def uploadGCS(self, imageName):
         """Upload the image to google cloud storage"""
@@ -96,6 +105,10 @@ class assetManagement(object):
     def transferGEE(self):
         """Transfers the images from google cloud storage to gee asset"""
         task_id = ee.data.newTaskId()[0]
+        time = self.meta['properties']['system:time_start']
+        
+        self.meta['properties']['system:time_start'] = ee.Date(time).getInfo()['value']
+        
         request = {
             'id':'{collectionAsset}/{assetName}'.format(collectionAsset= self.meta['collectionAsset'],assetName =self.meta['assetName']),
             'properties':self.meta['properties'],
@@ -103,14 +116,11 @@ class assetManagement(object):
             'pyramidingPolicy':self.meta['pyramidingPolicy'].upper(),
             'bands':self.meta['bandNames']
         }
-        print('______________________________________')
-        print(request)
-        print('______________________________________')
         ee.data.startIngestion(task_id, request, True)
         return task_id
     
     def taskStatus(self, task_id, timeout=90, log_progress=True):
-        """Waits for the specified task to finish, or a timeout to occur."""
+        """Waits for the specified task to finish, or a timeout to occur. (thanks to gee cli)"""
         start = time.time()
         elapsed = 0
         last_check = 0
@@ -123,8 +133,7 @@ class assetManagement(object):
               print('Task %s ended at state: %s after %.2f seconds'
                     % (task_id, state, elapsed))
               if error_message:
-                print('Error: %s' % error_message)
-                raise
+                raise ValueError(error_message)
               return
             if log_progress and elapsed - last_check >= 30:
               print('[{:%H:%M:%S}] Current state for task {}: {}'
@@ -137,16 +146,13 @@ class assetManagement(object):
               break
         print('Wait for task %s timed out after %.2f seconds' % (task_id, elapsed))
 
-
-
-
-
     def execute(self):
         #Checks if the images are correct
         self.checksImages()
         
-        #sets up credentials
-        self.gcsBucket=self.setUpCredentials()
+        #sets up credentials and assets
+        
+        self.setUpGeeAsset()
         
         #Uploads file/s to GCS
         self.sources = list(map(self.uploadGCS, self.imageNames))

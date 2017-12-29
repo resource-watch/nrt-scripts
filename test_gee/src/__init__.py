@@ -58,12 +58,12 @@ def netcdf2tif(dst,outFile):
 
     return { 'sources':[os.getcwd()+'/'+outFile],
     'gcsBucket':os.getenv('GCS_BUCKET'),
-    'collectionAsset':'users/Aliciaarenzana/testcollection',
-    #'collectionAsset':'users/test-api/testcollection',
+    'collectionAsset':os.getenv('COLLECTIONID'),
     'assetName':outFile.split('.')[0],
     'bandNames':[{'id': 'temp'}],
     'pyramidingPolicy':'MODE',
     'properties':{
+        'system:time_start': '1994-11-05T13:15:30',#----------------- this is mandatory as gee will use it for date filtering it could be i n iso format or in epoch format
         'my_imageProperties':'to add to the collection'
         }   
     }
