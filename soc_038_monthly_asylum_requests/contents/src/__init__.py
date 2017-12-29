@@ -91,12 +91,12 @@ def processNewData(existing_ids):
             for month in months:
                 asylums[cntry][month] = -9999
 
-        # 3. Create Unique IDs, parse rows
+        # 3. Create Unique IDs, create new rows
         new_rows = []
         insertIfNewNonZero(origins,year,'country_of_origin',existing_ids,new_ids,new_rows)
         insertIfNewNonZero(asylums,year,'country_of_asylum',existing_ids,new_ids,new_rows)
 
-        # 4. If new, insert
+        # 4. Insert new rows
         new_count = len(new_rows)
         if new_count:
             logging.info('Pushing {} new rows'.format(new_count))
