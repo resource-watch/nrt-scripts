@@ -17,7 +17,7 @@ FILENAME = 'hms_smoke{date}'
 TIMESTEP = {'days': 1}
 DATE_FORMAT = '%Y%m%d'
 DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
-CLEAR_TABLE_FIRST = True
+CLEAR_TABLE_FIRST = False
 
 # asserting table structure rather than reading from input
 CARTO_TABLE = 'cli_037_smoke_plumes'
@@ -34,15 +34,15 @@ CARTO_SCHEMA = OrderedDict([
 UID_FIELD = '_UID'
 TIME_FIELD = 'date'
 
-LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.INFO
 MAXROWS = 10000
 MAXAGE = datetime.today() - timedelta(days=365*10)
 MAXAGE_UPLOAD = datetime.today() - timedelta(days=10)
 
 
 # Generate UID
-def genUID(date, start, pos_in_shp):
-    return str('{}_{}_{}'.format(date, start, pos_in_shp))
+def genUID(date, pos_in_shp):
+    return str('{}_{}'.format(date, pos_in_shp))
 
 def getDate(uid):
     '''first 8 chr of ID'''
@@ -51,14 +51,14 @@ def getDate(uid):
 def formatObservationDatetime(start, end, datetime_format=DATETIME_FORMAT):
     date, time = start.split(' ')
     year = int(date[:4])
-    day = int(date[4:])
+    day = int(date[4:])-1 # Account for fact that we're initiating from day 1
     hour = int(time[:-2])
     minute = int(time[-2:])
     start_dt = datetime(year=year,month=1,day=1) + timedelta(days=day, hours=hour, minutes=minute)
 
     date, time = start.split(' ')
     year = int(date[:4])
-    day = int(date[4:])
+    day = int(date[4:])-1 # Account for fact that we're initiating from day 1
     hour = int(time[:-2])
     minute = int(time[-2:])
     end_dt = datetime(year=year,month=1,day=1) + timedelta(days=day, hours=hour, minutes=minute)
@@ -82,8 +82,11 @@ def getNewDates(exclude_dates):
     while date > MAXAGE_UPLOAD:
         date -= timedelta(**TIMESTEP)
         datestr = date.strftime(DATE_FORMAT)
+        logging.debug(datestr)
         if datestr not in exclude_dates:
             new_dates.append(datestr)
+        else:
+            logging.debug(datestr + "already in table")
     return new_dates
 
 
@@ -124,7 +127,7 @@ def processNewData(exclude_ids):
                 obs['properties']['_end'] = end
                 obs['properties']['duration'] = duration
 
-                uid = genUID(date, start, pos_in_shp)
+                uid = genUID(date, pos_in_shp)
 
                 new_ids.append(uid)
                 row = []
