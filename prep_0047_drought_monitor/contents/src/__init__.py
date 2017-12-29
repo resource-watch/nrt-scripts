@@ -33,7 +33,7 @@ TIME_FIELD = 'date'
 
 LOG_LEVEL = logging.INFO
 MAXROWS = 10000
-MAXAGE = datetime.datetime.today() - datetime.timedelta(days=3650)
+MAXAGE = datetime.datetime.today() - datetime.timedelta(days=365*10)
 
 
 # Generate UID
@@ -53,6 +53,7 @@ def findShp(zfile):
                 return f
     return False
 
+
 def getNewDates(exclude_dates):
     '''Get new dates excluding existing'''
     new_dates = []
@@ -68,14 +69,13 @@ def getNewDates(exclude_dates):
 
 def processNewData(exclude_ids):
     new_ids = []
-    rows = []
 
     # get non-existing dates
     dates = set([getDate(uid) for uid in exclude_ids])
     new_dates = getNewDates(dates)
     for date in new_dates:
-
         # 1. Fetch data from source
+
         url = SOURCE_URL.format(date=date)
         tmpfile = '{}.zip'.format(os.path.join(DATA_DIR,
                                                FILENAME.format(date=date)))
@@ -91,6 +91,7 @@ def processNewData(exclude_ids):
         logging.info('Parsing data')
         shpfile = '/{}'.format(findShp(tmpfile))
         zfile = 'zip://{}'.format(tmpfile)
+        rows = []
         with fiona.open(shpfile, 'r', vfs=zfile) as shp:
             logging.debug(shp.schema)
             for obs in shp:
@@ -107,13 +108,16 @@ def processNewData(exclude_ids):
                     else:
                         row.append(obs['properties'][field])
                 rows.append(row)
+        # 3. Delete local files
+        os.remove(tmpfile)
 
-    # 3. Insert new observations
-    new_count = len(rows)
-    if new_count:
-        logging.info('Pushing new rows')
-        cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
-                            CARTO_SCHEMA.values(), rows)
+        # 4. Insert new observations
+        new_count = len(rows)
+        if new_count:
+            logging.info('Pushing new rows')
+            cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
+                                CARTO_SCHEMA.values(), rows)
+
     return new_ids
 
 
