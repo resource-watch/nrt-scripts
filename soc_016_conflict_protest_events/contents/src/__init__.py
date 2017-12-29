@@ -105,18 +105,18 @@ def processNewData(exclude_ids):
 # should be the same for most tabular datasets
 ##############################################################
 
-def checkCreateTable(table, schema, id_field, time_field):
+def createTableWithIndex(table, schema, id_field, time_field=''):
     '''Get existing ids or create table'''
-    if cartosql.tableExists(table):
-        logging.info('Fetching existing IDs')
-        r = cartosql.getFields(id_field, table, f='csv')
-        return r.text.split('\r\n')[1:-1]
-    else:
-        logging.info('Table {} does not exist, creating'.format(table))
-        cartosql.createTable(table, schema)
-        cartosql.createIndex(table, id_field, unique=True)
+    cartosql.createTable(table, schema)
+    cartosql.createIndex(table, id_field, unique=True)
+    if time_field:
         cartosql.createIndex(table, time_field)
-    return []
+
+
+def getIds(table, id_field):
+    '''get ids from table'''
+    r = cartosql.getFields(id_field, table, f='csv')
+    return r.text.split('\r\n')[1:-1]
 
 
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
@@ -148,8 +148,13 @@ def main():
     logging.info('STARTING')
 
     # 1. Check if table exists and create table
-    existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD,
-                                    TIME_FIELD)
+    existing_ids = []
+    if cartosql.tableExists(CARTO_TABLE):
+        logging.info('Fetching existing ids')
+        existing_ids = getIds(CARTO_TABLE, UID_FIELD)
+    else:
+        logging.info('Table {} does not exist, creating'.format(table))
+        createTableWithIndex(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, TIME_FIELD)
 
     # 2. Iterively fetch, parse and post new data
     new_ids = processNewData(existing_ids)
