@@ -20,7 +20,7 @@ DATE_FORMAT = '%Y%m%d'
 WEEKDAY = 1
 
 # asserting table structure rather than reading from input
-CARTO_TABLE = 'wat_040_flood_events'
+CARTO_TABLE = 'prep_0047_drought_monitor'
 CARTO_SCHEMA = OrderedDict([
     ('the_geom', 'geometry'),
     ('_UID', 'text'),
