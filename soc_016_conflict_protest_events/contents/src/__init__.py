@@ -3,8 +3,9 @@ import logging
 import sys
 import requests
 from collections import OrderedDict
-from datetime import datetime, timedelta
+import datetime
 import cartosql
+
 
 # Constants
 LATEST_URL = 'https://api.acleddata.com/acled/read?page={page}'
@@ -43,7 +44,7 @@ LOG_LEVEL = logging.INFO
 
 # Limit 1M rows, drop older than 10yrs
 MAXROWS = 1000000
-MAXAGE = datetime.today() - timedelta(days=365*10)
+MAXAGE = datetime.datetime.today() - datetime.timedelta(days=3650)
 
 
 def genUID(obs):
@@ -93,10 +94,10 @@ def processNewData(exclude_ids):
         # 3. Insert new rows
         new_count = len(new_rows)
         if new_count:
-            logging.info('Pushing {} new rows'.format(new_count))
+            logging.info('Pushing new rows')
             cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
                                 CARTO_SCHEMA.values(), new_rows)
-    return(len(new_ids))
+    return new_ids
 
 
 ##############################################################
@@ -105,79 +106,60 @@ def processNewData(exclude_ids):
 ##############################################################
 
 def checkCreateTable(table, schema, id_field, time_field):
-    '''
-    Create table if it doesn't already exist
-    '''
+    '''Get existing ids or create table'''
     if cartosql.tableExists(table):
-        logging.info('Table {} already exists'.format(table))
+        logging.info('Fetching existing IDs')
+        r = cartosql.getFields(id_field, table, f='csv')
+        return r.text.split('\r\n')[1:-1]
     else:
-        logging.info('Creating Table {}'.format(table))
+        logging.info('Table {} does not exist, creating'.format(table))
         cartosql.createTable(table, schema)
         cartosql.createIndex(table, id_field, unique=True)
-        if id_field != time_field:
-            cartosql.createIndex(table, time_field)
+        cartosql.createIndex(table, time_field)
+    return []
 
-def cleanOldRows(table, time_field, maxage, date_format='%Y-%m-%d %H:%M:%S'):
-    '''
-    Delete excess rows by age
-    maxage should be a datetime object or string
-    Return number of dropped rows
-    '''
-    num_expired = 0
-    if cartosql.tableExists(table):
-        if isinstance(maxage, datetime):
-            maxage = maxage.strftime(date_format)
-        else:
-            logging.error('Max age must be expressed as a datetime.datetime object')
 
-        r = cartosql.deleteRows(table, "{} < '{}'".format(time_field, maxage))
-        num_expired = r.json()['total_rows']
-    else:
-        logging.error("{} table does not exist yet".format(table))
+def deleteExcessRows(table, max_rows, time_field, max_age=''):
+    '''Delete excess rows by age or count'''
+    num_dropped = 0
+    if isinstance(max_age, datetime.datetime):
+        max_age = max_age.isoformat()
 
-    return(num_expired)
+    # 1. delete by age
+    if max_age:
+        r = cartosql.deleteRows(table, "{} < '{}'".format(time_field, max_age))
+        num_dropped = r.json()['total_rows']
 
-def deleteExcessRows(table, maxrows, time_field):
-    '''Delete rows to bring count down to maxrows'''
-    num_dropped=0
-    # 1. get sorted ids (old->new)
-    r = cartosql.getFields('cartodb_id', table, order='{} desc'.format(time_field),
+    # 2. get sorted ids (old->new)
+    r = cartosql.getFields('cartodb_id', table, order='{}'.format(time_field),
                            f='csv')
     ids = r.text.split('\r\n')[1:-1]
 
-    # 2. delete excess
-    if len(ids) > maxrows:
-        r = cartosql.deleteRowsByIDs(table, ids[maxrows:])
+    # 3. delete excess
+    if len(ids) > max_rows:
+        r = cartosql.deleteRowsByIDs(table, ids[:-max_rows])
         num_dropped += r.json()['total_rows']
     if num_dropped:
         logging.info('Dropped {} old rows from {}'.format(num_dropped, table))
-
-    return(num_dropped)
 
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
     logging.info('STARTING')
 
-    ### 1. Check if table exists, if not, create it
-    checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, TIME_FIELD)
+    # 1. Check if table exists and create table
+    existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD,
+                                    TIME_FIELD)
 
-    ### 2. Delete old rows
-    num_expired = cleanOldRows(CARTO_TABLE, TIME_FIELD, MAXAGE)
+    # 2. Iterively fetch, parse and post new data
+    new_ids = processNewData(existing_ids)
 
-    ### 3. Retrieve existing data
-    r = cartosql.getFields(UID_FIELD, CARTO_TABLE, f='csv')
-    existing_ids = r.text.split('\r\n')[1:-1]
-    num_existing = len(existing_ids)
+    new_count = len(new_ids)
+    existing_count = new_count + len(existing_ids)
+    logging.info('Total rows: {}, New: {}, Max: {}'.format(
+        existing_count, new_count, MAXROWS))
 
-    logging.debug("First 10 IDs already in table: {}".format(existing_ids[:10]))
+    # 3. Remove old observations
+    deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD, MAXAGE)
 
-    ### 4. Iterively fetch, parse and post new data
-    num_new = processNewData(existing_ids)
-
-    ### 5. Remove excess rows until MAXROWS reached
-    num_deleted = deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD)
-
-    ### 6. Notify results
-    logging.info('Expired rows: {}, Previous rows: {},  New rows: {}, Dropped rows: {}, Max: {}'.format(num_expired, num_existing, num_new, num_deleted, MAXROWS))
-    logging.info("SUCCESS")
+    logging.info('SUCCESS')
