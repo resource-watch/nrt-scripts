@@ -58,7 +58,7 @@ def netcdf2tif(dst,outFile):
 
     return { 'sources':[os.getcwd()+'/'+outFile],
     'gcsBucket':os.getenv('GCS_BUCKET'),
-    'collectionAsset':os.getenv('COLLECTIONID'),
+    'collectionAsset':'users/test-api/testcollection',
     'assetName':outFile.split('.')[0],
     'bandNames':[{'id': 'temp'}],
     'pyramidingPolicy':'MODE',
