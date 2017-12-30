@@ -11,11 +11,12 @@ LATEST_URL = 'http://popdata.unhcr.org/api/stats/asylum_seekers_monthly.json?yea
 
 CARTO_TABLE = 'soc_038_monthly_asylum_requests'
 CARTO_SCHEMA = OrderedDict([
-    ("_UID", "text"),
-    ("date", "timestamp"),
-    ("country", "text"),
-    ("value_type", "text"),
-    ("num_people", "numeric")
+    ('_UID', 'text'),
+    ('date', 'timestamp'),
+    ('country', 'text'),
+    ('value_type', 'text'),
+    ('num_people', 'numeric'),
+    ('some_stats_confidential', 'text')
 ])
 UID_FIELD = '_UID'
 TIME_FIELD = 'date'
@@ -28,27 +29,28 @@ CLEAR_TABLE_FIRST = False
 MAXROWS = 1000000
 MAXAGE = datetime.today().year - 20
 
-def init_months():
-    _init_months = defaultdict(int)
-    [_init_months[i] for i in range(1,13)]
-    return(_init_months)
-
 def genUID(date, country, valuetype):
     '''Generate unique id'''
     return '{}_{}_{}'.format(country, date, valuetype)
 
-def insertIfNewNonZero(data, year, valuetype, existing_ids, new_ids, new_rows, date_format=DATE_FORMAT):
+def insertIfNew(data, year, valuetype,
+                existing_ids, new_ids, new_rows,
+                unknown_vals, date_format=DATE_FORMAT):
     '''Loop over months in the data, add to new rows if new'''
     last_day = [31,28,31,30,31,30,31,31,30,31,30,31]
     for cntry in data:
         for month, val in data[cntry].items():
-            if val != 0:
-                date = datetime(year=year, month=month, day=last_day[month-1]).strftime(date_format)
-                UID = genUID(date, cntry, valuetype)
-                if UID not in existing_ids + new_ids:
-                    new_ids.append(UID)
-                    values = [UID, date, cntry, valuetype, val]
-                    new_rows.append(values)
+            date = datetime(year=year, month=month, day=last_day[month-1]).strftime(date_format)
+            UID = genUID(date, cntry, valuetype)
+            if UID not in existing_ids + new_ids:
+                new_ids.append(UID)
+                if month in unknown_vals[cntry]:
+                    logging.debug('Some stats confidental for {} in {}-{}'.format(cntry, year, month))
+                    values = [UID, date, cntry, valuetype, val, True]
+                else:
+                    logging.debug('All known stats released for {} in {}-{}'.format(cntry, year, month))
+                    values = [UID, date, cntry, valuetype, val, False]
+                new_rows.append(values)
 
 def processNewData(existing_ids):
     '''
@@ -67,34 +69,41 @@ def processNewData(existing_ids):
         logging.debug('data: {}'.format(data))
 
         # 2. Collect Totals
-        origins = defaultdict(init_months)
-        asylums = defaultdict(init_months)
-        off_limits_origins = defaultdict(list)
-        off_limits_asylums = defaultdict(list)
+        origins = defaultdict(lambda: defaultdict(int))
+        asylums = defaultdict(lambda: defaultdict(int))
+        unknown_vals_origins = defaultdict(list)
+        unknown_vals_asylums = defaultdict(list)
 
         for obs in data:
             try:
                 origins[obs['country_of_origin']][obs['month']] += obs['value']
             except Exception as e:
                 logging.error("Error processing value {} for country of origin {} in {}-{}. Value set to -9999. Error: {}".format(obs['value'],obs['country_of_origin'],year,obs['month'],e))
-                off_limits_origins[obs['country_of_origin']].append(obs['month'])
+                unknown_vals_origins[obs['country_of_origin']].append(obs['month'])
+                origins[obs['country_of_origin']][obs['month']] += 0
             try:
                 asylums[obs['country_of_asylum']][obs['month']] += obs['value']
             except Exception as e:
                 logging.error("Error processing value {} for country of asylum {} in {}-{}. Value set to -9999. Error: {}".format(obs['value'],obs['country_of_asylum'],year,obs['month'],e))
-                off_limits_asylums[obs['country_of_asylum']].append(obs['month'])
-
-        for cntry, months in off_limits_origins.items():
-            for month in months:
-                origins[cntry][month] = -9999
-        for cntry, months in off_limits_asylums.items():
-            for month in months:
-                asylums[cntry][month] = -9999
+                unknown_vals_asylums[obs['country_of_asylum']].append(obs['month'])
+                asylums[obs['country_of_asylum']][obs['month']] += 0
 
         # 3. Create Unique IDs, create new rows
         new_rows = []
-        insertIfNewNonZero(origins,year,'country_of_origin',existing_ids,new_ids,new_rows)
-        insertIfNewNonZero(asylums,year,'country_of_asylum',existing_ids,new_ids,new_rows)
+
+        logging.debug('Create data about places of origin for year {}'.format(year))
+        insert_kwargs = {
+            'data':origins,'year':year,'valuetype':'country_of_origin',
+            'existing_ids':existing_ids,'new_ids':new_ids,'new_rows':new_rows,
+            'unknown_vals':unknown_vals_origins
+        }
+        insertIfNew(**insert_kwargs)
+
+        logging.debug('Create data about places of asylum for year {}'.format(year))
+        insert_kwargs.update(data=asylums,
+                             valuetype='country_of_asylum',
+                             unknown_vals=unknown_vals_asylums)
+        insertIfNew(**insert_kwargs)
 
         # 4. Insert new rows
         new_count = len(new_rows)
