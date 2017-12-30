@@ -3,7 +3,7 @@ requests==2.18.4
 #numpy==1.13.3
 #rasterio==1.0a9
 #pandas==0.20.3
-python-dateutil==2.6.1
+#python-dateutil==2.6.1
 #gsutil==4.28
 #boto3==1.4.4
-pytz==2017.3
+#pytz==2017.3
