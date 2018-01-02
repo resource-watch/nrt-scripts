@@ -235,7 +235,7 @@ def uploadAsset(filename, asset, gs_prefix='', date='', public=False,
     '''
     gs_uris = gsStage(filename, gs_prefix)
     try:
-        ingestAsset(gs_uris[0], asset, date, public, timeout)
+        ingestAsset(gs_uris[0], asset, date, timeout)
         if public:
             setAcl(asset, 'public')
     except Exception as e:
@@ -257,7 +257,7 @@ def uploadAssets(files, assets, gs_prefix='', dates='', public=False,
     `clean`        delete files from GS after completion
     '''
     gs_uris = gsStage(files, gs_prefix)
-    task_ids = [ingestAsset(gs_uris[i], assets[i], dates[i], public)
+    task_ids = [ingestAsset(gs_uris[i], assets[i], dates[i], timeout)
                 for i in range(len(files))]
     try:
         waitForTasks(task_ids, timeout)
