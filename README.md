@@ -4,13 +4,13 @@ A collection of tools to automatically handle a variety of datasets.
 
 ### Develop
 
-Each job should be in it's own folder with `cron.time` and `start.sh` files, as follows. A deploy script constructs a crontab with an entry for each folder with a `cron.time` and `start.sh`.
+Each job should be in it's own folder with `time.cron` and `start.sh` files, as follows. A deploy script constructs a crontab with an entry for each folder with a `time.cron` and `start.sh`.
 
 ```
 Repository
 |
 |-Script 1 folder
-| |-cron.time  # single line containing crontab frequency
+| |-time.cron  # single line containing crontab frequency
 | |-start.sh   # shell script to start job in new container
 | |-Dockefile  # container to build
 | |-.env       # this repo's .env file will be copied here
@@ -35,7 +35,7 @@ docker build -t $NAME --build-arg NAME=$NAME .
 docker run --log-driver=syslog --log-opt syslog-address=$LOG --log-opt tag=$NAME -v $(pwd)/data:/opt/$NAME/data --env-file .env --rm $NAME
 ```
 
-Standard `cron.time` should be one line without commands or breaks. E.g. run daily at 1:15am.
+Standard `time.cron` should be one line without commands or breaks. E.g. run daily at 1:15am.
 
 ```
 15 1 * * *

@@ -1,0 +1,4 @@
+.env
+*.nc
+*.tif
+*.DS_Store

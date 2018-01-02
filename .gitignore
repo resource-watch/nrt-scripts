@@ -14,5 +14,5 @@
 *.pyc
 
 # Environmental variables
-*.env*
-*credentials*
+*.env
+*credentials.json
