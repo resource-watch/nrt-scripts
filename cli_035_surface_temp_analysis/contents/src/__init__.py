@@ -14,7 +14,8 @@ from netCDF4 import Dataset
 import rasterio as rio
 from . import eeUtil
 
-LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.INFO
+CLEAR_COLLECTION_FIRST = False
 
 # constants for bleaching alerts
 SOURCE_URL = 'https://data.giss.nasa.gov/pub/gistemp/{target_file}'
@@ -31,7 +32,7 @@ DATA_DIR = 'data'
 GS_PREFIX = 'cli_035_surface_temp_analysis'
 EE_COLLECTION = 'cli_035_surface_temp_analysis'
 
-MAX_ASSETS = 31
+MAX_ASSETS = 36
 DATE_FORMAT = '%Y%m15'
 TIMESTEP = {'days': 30}
 
@@ -73,10 +74,10 @@ def fetch(url, target_file, filename):
                 with open(filename, 'wb') as f:
                     shutil.copyfileobj(unzipped, f)
         #urllib.request.urlretrieve(_file, filename)
-        cmd = ['head', filename]
-        subprocess.call(cmd)
-        cmd = ['gdalinfo', filename]
-        subprocess.call(cmd)
+        #cmd = ['head', filename]
+        #subprocess.call(cmd)
+        #cmd = ['gdalinfo', filename]
+        #subprocess.call(cmd)
     except Exception as e:
         logging.warning('Could not fetch {}'.format(_file))
         logging.error(e)
@@ -106,9 +107,9 @@ def retrieve_formatted_dates(nc, time_var_name, date_pattern=DATE_FORMAT):
     # Identify time units
     # fuzzy=True allows the parser to pick the date out from a string with other text
     time_units = time_displacements.getncattr('units')
-    logging.info(time_units)
+    logging.debug("Time units: {}".format(time_units))
     ref_time = parser.parse(time_units, fuzzy=True)
-    logging.info(ref_time)
+    logging.debug("Reference time: {}".format(ref_time))
 
     # Format times to DATE_FORMAT
     formatted_dates = [(ref_time + datetime.timedelta(days=int(time_disp))).strftime(date_pattern) for time_disp in time_displacements]
@@ -223,6 +224,9 @@ def main():
     # Initialize eeUtil
     eeUtil.init(GEE_SERVICE_ACCOUNT, GOOGLE_APPLICATION_CREDENTIALS,
                 GCS_PROJECT, GEE_STAGING_BUCKET)
+
+    if CLEAR_COLLECTION_FIRST:
+        eeUtil.removeAsset(EE_COLLECTION, recursive=True)
 
     # 1. Check if collection exists and create
     existing_assets = checkCreateCollection(EE_COLLECTION)

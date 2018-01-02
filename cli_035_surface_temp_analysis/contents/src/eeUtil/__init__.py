@@ -64,14 +64,13 @@ def getHome():
     '''Get user root directory'''
     global _home
     _home = ee.data.getAssetRoots()[0]['id']
+    logging.debug("Home: {}".format(_home))
     return _home
-
 
 def _getHome():
     '''Cached get user root directory'''
     global _home
     return _home if _home else getHome()
-
 
 def _path(path):
     '''Add user root directory to path if not already existing'''
@@ -273,14 +272,17 @@ def uploadAssets(files, assets, gs_prefix='', dates='', public=False,
 
 def removeAsset(asset, recursive=False):
     '''Delete asset from GEE'''
+    logging.debug("Attempting to delete {}".format(asset))
     if recursive:
         if info(asset)['type'] in (ee.data.ASSET_TYPE_FOLDER,
                                    ee.data.ASSET_TYPE_IMAGE_COLL):
-            for child in ls(asset):
+            sub_assets = ls(asset)
+            logging.debug(sub_assets)
+            for child in sub_assets:
                 removeAsset(child)
-    logging.debug('Deleting asset {}'.format(asset))
-    ee.data.deleteAsset(_path(asset))
-
+    asset_path = _path(asset)
+    logging.debug('Deleting asset {}'.format(asset_path))
+    ee.data.deleteAsset(asset_path)
 
 def gsStage(files, prefix=''):
     '''Upload files to GS with prefix'''
