@@ -203,7 +203,7 @@ def checkCreateCollection(collection):
         return eeUtil.ls(collection)
     else:
         logging.info('{} does not exist, creating'.format(collection))
-        eeUtil.createFolder(collection, '', True, public=True)
+        eeUtil.createFolder(collection, ImageCollection=True, public=True)
         return []
 
 

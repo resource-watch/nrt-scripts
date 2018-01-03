@@ -272,12 +272,11 @@ def uploadAssets(files, assets, gs_prefix='', dates='', public=False,
 
 def removeAsset(asset, recursive=False):
     '''Delete asset from GEE'''
-    logging.debug("Attempting to delete {}".format(asset))
     if recursive:
         if info(asset)['type'] in (ee.data.ASSET_TYPE_FOLDER,
                                    ee.data.ASSET_TYPE_IMAGE_COLL):
-            sub_assets = ls(asset)
-            logging.debug(sub_assets)
+            sub_assets = ls(asset, abspath=True)
+            logging.debug("Sub assets of {}: {}".format(asset, sub_assets))
             for child in sub_assets:
                 removeAsset(child)
     asset_path = _path(asset)
