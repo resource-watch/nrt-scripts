@@ -34,6 +34,8 @@ GEE_STAGING_BUCKET = os.environ.get("GEE_STAGING_BUCKET")
 _gsBucket = None
 # Unary GEE home directory
 _home = ''
+#
+DATE_FORMAT = '%Y%m%d'
 
 
 def init(account=GEE_SERVICE_ACCOUNT,
@@ -189,7 +191,7 @@ def waitForTask(task_id, timeout=300):
     return False
 
 
-def formatDate(date, dateformat='%Y%m%d'):
+def formatDate(date, dateformat=DATE_FORMAT):
     '''Format date as ms since last epoch'''
     if isinstance(date, int):
         return date
@@ -199,7 +201,7 @@ def formatDate(date, dateformat='%Y%m%d'):
     return int(seconds * 1000)
 
 
-def ingestAsset(gs_uri, asset, date='', wait_timeout=0):
+def ingestAsset(gs_uri, asset, date='',dateformat=DATE_FORMAT, wait_timeout=0):
     '''
     Upload asset from GS to EE
     `gs_uri`       should be formatted `gs://<bucket>/<blob>`
@@ -211,16 +213,16 @@ def ingestAsset(gs_uri, asset, date='', wait_timeout=0):
     params = {'id': _path(asset),
               'tilesets': [{'sources': [{'primaryPath': gs_uri}]}]}
     if date:
-        params['properties'] = {'system:time_start': formatDate(date),
-                                'system:time_end': formatDate(date)}
+        params['properties'] = {'system:time_start': formatDate(date, dateformat),
+                                'system:time_end': formatDate(date, dateformat)}
     logging.debug('Ingesting {} to {}: {}'.format(gs_uri, asset, task_id))
     ee.data.startIngestion(task_id, params, True)
     if wait_timeout:
         waitForTask(task_id, wait_timeout)
     return task_id
 
-
-def uploadAsset(filename, asset, gs_prefix='', date='', public=False,
+## Updated from default, dropped gs_prefix from uploadAsset inputs
+def uploadAsset(filename, asset, date='', dateformat=DATE_FORMAT, public=False,
                 timeout=300, clean=True):
     '''
     Stage file to GS and ingest to EE
@@ -234,7 +236,7 @@ def uploadAsset(filename, asset, gs_prefix='', date='', public=False,
     '''
     gs_uris = gsStage(filename, gs_prefix)
     try:
-        ingestAsset(gs_uris[0], asset, date, timeout)
+        ingestAsset(gs_uris[0], asset, date, dateformat, timeout)
         if public:
             setAcl(asset, 'public')
     except Exception as e:
@@ -243,7 +245,7 @@ def uploadAsset(filename, asset, gs_prefix='', date='', public=False,
         gsRemove(gs_uris)
 
 
-def uploadAssets(files, assets, gs_prefix='', dates='', public=False,
+def uploadAssets(files, assets, gs_prefix='', dates='', dateformat=DATE_FORMAT, public=False,
                  timeout=300, clean=True):
     '''
     Stage files to GS and ingest to EE
@@ -256,7 +258,7 @@ def uploadAssets(files, assets, gs_prefix='', dates='', public=False,
     `clean`        delete files from GS after completion
     '''
     gs_uris = gsStage(files, gs_prefix)
-    task_ids = [ingestAsset(gs_uris[i], assets[i], dates[i], timeout)
+    task_ids = [ingestAsset(gs_uris[i], assets[i], dates[i], dateformat, timeout)
                 for i in range(len(files))]
     try:
         waitForTasks(task_ids, timeout)
