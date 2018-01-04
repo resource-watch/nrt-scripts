@@ -95,6 +95,7 @@ def processNewData(existing_dates):
     '''fetch, process, upload, and clean new data'''
     # 1. Determine which years to read from the netCDF file
     target_dates = getNewTargetDates(existing_dates) or []
+    logging.debug(target_dates)
 
     # 2. Fetch datafile
     logging.info('Fetching files')
@@ -111,8 +112,9 @@ def processNewData(existing_dates):
     eeUtil.uploadAssets(tifs, assets, GS_PREFIX, dates, public=True, timeout=3000)
 
     # 4. Delete local files
-    logging.info('Cleaning local files')
+    logging.info('Cleaning local files, yo!')
     for tif in tifs:
+        logging.debug(tif)
         os.remove(tif)
 
     return assets

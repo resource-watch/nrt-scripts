@@ -1,6 +1,6 @@
 FROM python:3.6
 MAINTAINER Nathan Suberi <nathan.suberi@wri.org>
-ARG NAME=cli_035
+ARG NAME=cli_005
 ENV NAME ${NAME}
 
 # install core libraries
