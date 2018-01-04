@@ -69,7 +69,8 @@ def init(service_account=GEE_SERVICE_ACCOUNT,
     else:
         ee.Initialize()
     # GCS auth prefers to read from environment
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credential_path
+    if credential_path:
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credential_path
     if not bucket:
         bucket = _getDefaultBucket()
         logging.warning('No bucket provided, using default {}'.format(bucket))
