@@ -48,7 +48,6 @@ EE_COLLECTION = 'cli_005_{arctic_or_antarctic}_sea_ice_extent'
 
 # Times two because of North / South parallels
 MAX_DATES = 36
-MAX_ASSETS = MAX_DATES*2
 DATE_FORMAT = '%Y%m'
 TIMESTEP = {'days': 30}
 
@@ -356,12 +355,12 @@ def main():
         existing_antarctic_dates = existing_antarctic_dates + new_antarctic_dates
 
         logging.info('Existing arctic assets: {}, new: {}, max: {}'.format(
-            len(existing_arctic_dates), len(new_arctic_dates), MAX_ASSETS))
+            len(existing_arctic_dates), len(new_arctic_dates), MAX_DATES))
         logging.info('Existing antarctic assets: {}, new: {}, max: {}'.format(
-            len(existing_antarctic_dates), len(new_antarctic_dates), MAX_ASSETS))
+            len(existing_antarctic_dates), len(new_antarctic_dates), MAX_DATES))
 
-        deleteExcessAssets(existing_arctic_dates, MAX_ASSETS)
-        deleteExcessAssets(existing_antarctic_dates, MAX_ASSETS)
+        deleteExcessAssets(existing_arctic_dates, MAX_DATES)
+        deleteExcessAssets(existing_antarctic_dates, MAX_DATES)
 
         logging.info('SUCCESS')
 
