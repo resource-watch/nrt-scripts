@@ -47,7 +47,7 @@ GS_PREFIX = 'cli_005_polar_sea_ice_extent'
 EE_COLLECTION = 'cli_005_{arctic_or_antarctic}_sea_ice_extent'
 
 # Times two because of North / South parallels
-MAX_DATES = 36
+MAX_DATES = 6
 MAX_ASSETS = MAX_DATES*2
 DATE_FORMAT = '%Y%m'
 TIMESTEP = {'days': 30}
@@ -66,7 +66,7 @@ GCS_PROJECT = os.environ.get("CLOUDSDK_CORE_PROJECT")
 def getAssetName(tif):
     '''get asset name from tif name, extract datetime and location'''
     location = tif.split('_')[4]
-    date = getDate(tif)
+    date = getRasterDate(tif)
     return os.path.join(EE_COLLECTION.format(arctic_or_antarctic=location), ASSET_NAME.format(arctic_or_antarctic=location, date=date))
 
 def getRasterDate(filename):
@@ -119,36 +119,44 @@ def reproject(filename, s_srs='EPSG:4326', extent='-180 -89.75 180 89.75'):
                     os.path.join(DATA_DIR, tmp_filename)])
     subprocess.check_output(cmd, shell=True)
 
+
     new_filename = ''.join(['compressed_reprojected_',filename])
     cmd = ' '.join(['gdal_translate','-co','COMPRESS=LZW','-stats',
                     os.path.join(DATA_DIR, tmp_filename),
                     os.path.join(DATA_DIR, new_filename)])
     subprocess.check_output(cmd, shell=True)
+    os.remove(os.path.join(DATA_DIR, tmp_filename))
+    os.remove(os.path.join(DATA_DIR, tmp_filename+'.aux.xml'))
 
     logging.debug('Reprojected {} to {}'.format(filename, new_filename))
     return new_filename
 
-def processNewRasterData(existing_dates):
+def processNewRasterData(existing_arctic_dates, existing_antarctic_dates):
     '''fetch, process, upload, and clean new data'''
     # 1. Determine which years to read from the ftp file
-    target_dates = getNewTargetDates(existing_dates) or []
-    logging.debug(target_dates)
+    target_arctic_dates = getNewTargetDates(existing_arctic_dates) or []
+    logging.debug(target_arctic_dates)
+    target_antarctic_dates = getNewTargetDates(existing_antarctic_dates) or []
+    logging.debug(target_antarctic_dates)
 
     # 2. Fetch datafile
     logging.info('Fetching files')
     tifs = []
-    for date in target_dates:
-        arctic_file = fetch(SOURCE_URL_MEASUREMENT, 'north', date)
-        reprojected_arctic = reproject(arctic_file, s_srs='EPSG:3411', extent='-180 50 180 89.75')
-        os.remove(os.path.join(DATA_DIR,arctic_file))
+    for date in target_arctic_dates:
+        if date not in existing_arctic_dates:
+            arctic_file = fetch(SOURCE_URL_MEASUREMENT, 'north', date)
+            reprojected_arctic = reproject(arctic_file, s_srs='EPSG:3411', extent='-180 50 180 89.75')
+            os.remove(os.path.join(DATA_DIR,arctic_file))
+            tifs.append(os.path.join(DATA_DIR,reprojected_arctic))
+            logging.debug('New Arctic file: {}'.format(reprojected_arctic))
 
-        antarctic_file = fetch(SOURCE_URL_MEASUREMENT, 'south', date)
-        reprojected_antarctic = reproject(antarctic_file, s_srs='EPSG:3412', extent='-180 -89.75 180 -50')
-        os.remove(os.path.join(DATA_DIR,antarctic_file))
-
-        logging.debug('Arctic file: {}, Antarctic file: {}'.format(reprojected_arctic, reprojected_antarctic))
-        tifs.append(os.path.join(DATA_DIR,reprojected_arctic))
-        tifs.append(os.path.join(DATA_DIR,reprojected_antarctic))
+    for date in target_antarctic_dates:
+        if date not in existing_antarctic_dates:
+            antarctic_file = fetch(SOURCE_URL_MEASUREMENT, 'south', date)
+            reprojected_antarctic = reproject(antarctic_file, s_srs='EPSG:3412', extent='-180 -89.75 180 -50')
+            os.remove(os.path.join(DATA_DIR,antarctic_file))
+            tifs.append(os.path.join(DATA_DIR,reprojected_antarctic))
+            logging.debug('New Antarctic file: {}'.format(reprojected_antarctic))
 
     # 3. Upload new files
     logging.info('Uploading files')
@@ -158,9 +166,8 @@ def processNewRasterData(existing_dates):
 
     # 4. Delete local files
     for tif in tifs:
-        logging.debug(tif)
+        logging.debug('Deleting: {}'.format(tif))
         os.remove(tif)
-        os.remove(tif+'.aux.xml')
 
     return assets
 
@@ -325,22 +332,36 @@ def main():
                 GCS_PROJECT, GEE_STAGING_BUCKET)
 
     if RUN_RASTERS:
+        arctic_collection = EE_COLLECTION.format(arctic_or_antarctic='arctic')
+        antarctic_collection = EE_COLLECTION.format(arctic_or_antarctic='antarctic')
         if CLEAR_COLLECTION_FIRST:
-            eeUtil.removeAsset(EE_COLLECTION.format(arctic_or_antarctic='arctic'), recursive=True)
-            eeUtil.removeAsset(EE_COLLECTION.format(arctic_or_antarctic='antarctic'), recursive=True)
+            if eeUtil.exists(arctic_collection):
+                eeUtil.removeAsset(arctic_collection, recursive=True)
+            if eeUtil.exists(antarctic_collection):
+                eeUtil.removeAsset(antarctic_collection, recursive=True)
 
         ### RASTERS
-        existing_assets = checkCreateCollection(EE_COLLECTION)
-        existing_dates = [getRasterDate(a) for a in existing_assets]
+        existing_arctic_assets = checkCreateCollection(arctic_collection)
+        existing_arctic_dates = [getRasterDate(a) for a in existing_arctic_assets]
 
-        new_assets = processNewRasterData(existing_dates)
-        new_dates = [getDate(a) for a in new_assets]
+        existing_antarctic_assets = checkCreateCollection(antarctic_collection)
+        existing_antarctic_dates = [getRasterDate(a) for a in existing_antarctic_assets]
+
+        new_assets = processNewRasterData(existing_arctic_dates,existing_antarctic_dates)
+        new_arctic_dates = [getRasterDate(a) for a in new_assets if 'antarctic' not in a]
+        new_antarctic_dates = [getRasterDate(a) for a in new_assets if 'antarctic' in a]
 
         # 3. Delete old assets
-        existing_dates = existing_dates + new_dates
-        logging.info('Existing assets: {}, new: {}, max: {}'.format(
-            len(existing_dates), len(new_dates), MAX_ASSETS))
-        deleteExcessAssets(existing_dates, MAX_ASSETS)
+        existing_arctic_dates = existing_arctic_dates + new_arctic_dates
+        existing_antarctic_dates = existing_antarctic_dates + new_antarctic_dates
+
+        logging.info('Existing arctic assets: {}, new: {}, max: {}'.format(
+            len(existing_arctic_dates), len(new_arctic_dates), MAX_ASSETS))
+        logging.info('Existing antarctic assets: {}, new: {}, max: {}'.format(
+            len(existing_antarctic_dates), len(new_antarctic_dates), MAX_ASSETS))
+
+        deleteExcessAssets(existing_arctic_dates, MAX_ASSETS)
+        deleteExcessAssets(existing_antarctic_dates, MAX_ASSETS)
 
         logging.info('SUCCESS')
 
