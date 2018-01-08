@@ -15,7 +15,7 @@ import cartosql
 from . import eeUtil
 
 
-LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.INFO
 CLEAR_COLLECTION_FIRST = False
 CLEAR_TABLE_FIRST = False
 VERSION = '3.0'
@@ -47,7 +47,7 @@ GS_PREFIX = 'cli_005_polar_sea_ice_extent'
 EE_COLLECTION = 'cli_005_{arctic_or_antarctic}_sea_ice_extent'
 
 # Times two because of North / South parallels
-MAX_DATES = 6
+MAX_DATES = 36
 MAX_ASSETS = MAX_DATES*2
 DATE_FORMAT = '%Y%m'
 TIMESTEP = {'days': 30}
