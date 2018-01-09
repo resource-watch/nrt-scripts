@@ -15,8 +15,8 @@ import cartosql
 from . import eeUtil
 
 
-LOG_LEVEL = logging.INFO
-CLEAR_COLLECTION_FIRST = False
+LOG_LEVEL = logging.DEBUG
+CLEAR_COLLECTION_FIRST = True
 CLEAR_TABLE_FIRST = False
 VERSION = '3.0'
 
@@ -27,7 +27,7 @@ RUN_VECTORS = False
 SOURCE_URL_MEASUREMENT = 'ftp://sidads.colorado.edu/DATASETS/NOAA/G02135/{north_or_south}/monthly/geotiff/{month}/{target_file}'
 SOURCE_FILENAME_MEASUREMENT = '{N_or_S}_{date}_extent_v{version}.tif'
 LOCAL_FILE = 'cli_005_{arctic_or_antarctic}_sea_ice_{date}.tif'
-ASSET_NAME = 'cli_005_{arctic_or_antarctic}_sea_ice_{date}'
+ASSET_NAME = 'cli_005_{arctic_or_antarctic}_sea_ice_{orig_or_reproj}_{date}'
 
 # Sources for average polylines
 SOURCE_URL_MONTHLY_MEDIAN = 'ftp://sidads.colorado.edu/DATASETS/NOAA/G02135/{north_or_south}/monthly/shapefiles/shp_median/{target_file}'
@@ -47,7 +47,8 @@ GS_PREFIX = 'cli_005_polar_sea_ice_extent'
 EE_COLLECTION = 'cli_005_{arctic_or_antarctic}_sea_ice_extent'
 
 # Times two because of North / South parallels
-MAX_DATES = 36
+MAX_DATES = 3
+MAX_ASSETS = MAX_DATES*2
 DATE_FORMAT = '%Y%m'
 TIMESTEP = {'days': 30}
 
@@ -62,11 +63,17 @@ GCS_PROJECT = os.environ.get("CLOUDSDK_CORE_PROJECT")
 ## Handling RASTERS
 ###
 
-def getAssetName(tif):
+def getAssetName(tif, orig_or_reproj):
     '''get asset name from tif name, extract datetime and location'''
-    location = tif.split('_')[4]
+    if orig_or_reproj=='orig':
+        location = tif.split('_')[2]
+    else:
+        location = tif.split('_')[4]
     date = getRasterDate(tif)
-    return os.path.join(EE_COLLECTION.format(arctic_or_antarctic=location), ASSET_NAME.format(arctic_or_antarctic=location, date=date))
+    return os.path.join(EE_COLLECTION.format(arctic_or_antarctic=location),
+                        ASSET_NAME.format(arctic_or_antarctic=location,
+                                            orig_or_reproj=orig_or_reproj,
+                                            date=date))
 
 def getRasterDate(filename):
     '''get last 8 chrs of filename'''
@@ -99,7 +106,7 @@ def fetch(url, north_or_south, datestring):
     arctic_or_antarctic = 'arctic' if (north_or_south=='north') else 'antarctic'
 
     _file = url.format(north_or_south=north_or_south,month=month,target_file=target_file)
-    filename = LOCAL_FILE.format(arctic_or_antarctic=arctic_or_antarctic, date=datestring)
+    filename = LOCAL_FILE.format(arctic_or_antarctic=arctic_or_antarctic,date=datestring)
     try:
         with closing(urllib.request.urlopen(_file)) as r:
             with open(os.path.join(DATA_DIR, filename), 'wb') as f:
@@ -117,7 +124,6 @@ def reproject(filename, s_srs='EPSG:4326', extent='-180 -89.75 180 89.75'):
                     os.path.join(DATA_DIR, filename),
                     os.path.join(DATA_DIR, tmp_filename)])
     subprocess.check_output(cmd, shell=True)
-
 
     new_filename = ''.join(['compressed_reprojected_',filename])
     cmd = ' '.join(['gdal_translate','-co','COMPRESS=LZW','-stats',
@@ -140,35 +146,46 @@ def processNewRasterData(existing_arctic_dates, existing_antarctic_dates):
 
     # 2. Fetch datafile
     logging.info('Fetching files')
-    tifs = []
+    orig_tifs = []
+    reproj_tifs = []
     for date in target_arctic_dates:
         if date not in existing_arctic_dates:
             arctic_file = fetch(SOURCE_URL_MEASUREMENT, 'north', date)
             reprojected_arctic = reproject(arctic_file, s_srs='EPSG:3411', extent='-180 50 180 89.75')
-            os.remove(os.path.join(DATA_DIR,arctic_file))
-            tifs.append(os.path.join(DATA_DIR,reprojected_arctic))
+
+            orig_tifs.append(os.path.join(DATA_DIR, arctic_file))
+            reproj_tifs.append(os.path.join(DATA_DIR, reprojected_arctic))
             logging.debug('New Arctic file: {}'.format(reprojected_arctic))
 
     for date in target_antarctic_dates:
         if date not in existing_antarctic_dates:
             antarctic_file = fetch(SOURCE_URL_MEASUREMENT, 'south', date)
             reprojected_antarctic = reproject(antarctic_file, s_srs='EPSG:3412', extent='-180 -89.75 180 -50')
-            os.remove(os.path.join(DATA_DIR,antarctic_file))
-            tifs.append(os.path.join(DATA_DIR,reprojected_antarctic))
+
+            orig_tifs.append(os.path.join(DATA_DIR, antarctic_file))
+            reproj_tifs.append(os.path.join(DATA_DIR, reprojected_antarctic))
             logging.debug('New Antarctic file: {}'.format(reprojected_antarctic))
 
     # 3. Upload new files
     logging.info('Uploading files')
-    dates = [getRasterDate(tif) for tif in tifs]
-    assets = [getAssetName(tif) for tif in tifs]
-    eeUtil.uploadAssets(tifs, assets, GS_PREFIX, dates, dateformat=DATE_FORMAT, public=True, timeout=3000)
+
+    orig_assets = [getAssetName(tif, 'orig') for tif in orig_tifs]
+    reproj_assets = [getAssetName(tif, 'reproj') for tif in reproj_tifs]
+
+    dates = [getRasterDate(tif) for tif in reproj_tifs]
+
+    eeUtil.uploadAssets(orig_tifs, orig_assets, GS_PREFIX, dates, dateformat=DATE_FORMAT, public=True, timeout=3000)
+    eeUtil.uploadAssets(reproj_tifs, reproj_assets, GS_PREFIX, dates, dateformat=DATE_FORMAT, public=True, timeout=3000)
 
     # 4. Delete local files
-    for tif in tifs:
+    for tif in orig_tifs:
+        logging.debug('Deleting: {}'.format(tif))
+        os.remove(tif)
+    for tif in reproj_tifs:
         logging.debug('Deleting: {}'.format(tif))
         os.remove(tif)
 
-    return assets
+    return orig_assets + reproj_assets
 
 def checkCreateCollection(collection):
     '''List assests in collection else create new collection'''
@@ -184,8 +201,9 @@ def deleteExcessAssets(dates, max_assets):
     # oldest first
     dates.sort()
     if len(dates) > max_assets:
-        for date in dates[:-max_assets]:
-            eeUtil.removeAsset(getAssetName(date))
+        for date in set(dates[:-max_assets]):
+            eeUtil.removeAsset(getAssetName(date, 'orig'))
+            eeUtil.removeAsset(getAssetName(date), 'reproj')
 
 ###
 ## Handling VECTORS
@@ -346,7 +364,9 @@ def main():
         existing_antarctic_assets = checkCreateCollection(antarctic_collection)
         existing_antarctic_dates = [getRasterDate(a) for a in existing_antarctic_assets]
 
-        new_assets = processNewRasterData(existing_arctic_dates,existing_antarctic_dates)
+        # New_assets are orig_assets + reproj_assets
+        new_assets = processNewRasterData(existing_arctic_dates, existing_antarctic_dates)
+
         new_arctic_dates = [getRasterDate(a) for a in new_assets if 'antarctic' not in a]
         new_antarctic_dates = [getRasterDate(a) for a in new_assets if 'antarctic' in a]
 
@@ -355,12 +375,12 @@ def main():
         existing_antarctic_dates = existing_antarctic_dates + new_antarctic_dates
 
         logging.info('Existing arctic assets: {}, new: {}, max: {}'.format(
-            len(existing_arctic_dates), len(new_arctic_dates), MAX_DATES))
+            len(existing_arctic_dates), len(new_arctic_dates), MAX_ASSETS))
         logging.info('Existing antarctic assets: {}, new: {}, max: {}'.format(
-            len(existing_antarctic_dates), len(new_antarctic_dates), MAX_DATES))
+            len(existing_antarctic_dates), len(new_antarctic_dates), MAX_ASSETS))
 
-        deleteExcessAssets(existing_arctic_dates, MAX_DATES)
-        deleteExcessAssets(existing_antarctic_dates, MAX_DATES)
+        deleteExcessAssets(existing_arctic_dates, MAX_ASSETS)
+        deleteExcessAssets(existing_antarctic_dates, MAX_ASSETS)
 
         logging.info('SUCCESS')
 

@@ -264,6 +264,7 @@ def uploadAssets(files, assets, gs_prefix='', dates='', dateformat=DATE_FORMAT, 
         waitForTasks(task_ids, timeout)
         if public:
             for asset in assets:
+                logging.debug('Setting {} to public read'.format(asset))
                 setAcl(asset, 'public')
     except Exception as e:
         logging.error(e)
