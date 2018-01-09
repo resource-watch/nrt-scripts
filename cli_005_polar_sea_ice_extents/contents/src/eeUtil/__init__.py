@@ -244,7 +244,6 @@ def uploadAsset(filename, asset, date='', dateformat=DATE_FORMAT, public=False,
     if clean:
         gsRemove(gs_uris)
 
-
 def uploadAssets(files, assets, gs_prefix='', dates='', dateformat=DATE_FORMAT, public=False,
                  timeout=300, clean=True):
     '''
@@ -272,7 +271,6 @@ def uploadAssets(files, assets, gs_prefix='', dates='', dateformat=DATE_FORMAT, 
         gsRemove(gs_uris)
     return assets
 
-
 def removeAsset(asset, recursive=False):
     '''Delete asset from GEE'''
     if recursive:
@@ -299,7 +297,6 @@ def gsStage(files, prefix=''):
         _gsBucket.blob(path).upload_from_filename(f)
         gs_uris.append(uri)
     return gs_uris
-
 
 def gsRemove(gs_uris):
     '''
