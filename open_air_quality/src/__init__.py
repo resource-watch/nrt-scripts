@@ -8,7 +8,7 @@ from geopandas import GeoDataFrame
 from pandas.io.json import json_normalize
 import tinys3
 
-ee.initialize()
+
 
 url='https://api.openaq.org/v1/latest'
 payload = {
@@ -39,11 +39,11 @@ def export2shp(data, outdir, outname):
     os.rmdir(path)
 
 def ZipShp (inShp, outname, Delete = True):
- 
+
     #List of shapefile file extensions
     extensions = [".shp",".shx",".dbf",".sbn",".sbx",".fbn",".fbx",".ain",".aih",".atx",".ixs",".mxs",".prj",
                   ".xml",".cpg"]
- 
+
     #Directory of shapefile
     inLocation = './'
     #Base name of shapefile
@@ -52,7 +52,7 @@ def ZipShp (inShp, outname, Delete = True):
     zipfl = os.path.join (inLocation, inName + ".zip")
     #Create zipfile object
     ZIP = zipfile.ZipFile (zipfl, "w")
-     
+
     #Iterate files in shapefile directory
     for fl in os.listdir (inLocation):
         #Iterate extensions
@@ -65,11 +65,11 @@ def ZipShp (inShp, outname, Delete = True):
                 ZIP.write (inFile, fl)
                 os.remove(fl)
                 break
- 
- 
+
+
     #Close zipfile object
     ZIP.close()
- 
+
     #Return zipfile full path
     return zipfl
 
@@ -84,4 +84,4 @@ outname='PM2-5_PM10_NO2_SO2_O3_CO_BC_OpenAQ'
 export2shp(geo_df, outdir, outname)
 ZipShp(os.getcwd(), outname)
 s3Upload(outname+'.zip')
-print 'ready' 
+print 'ready'
