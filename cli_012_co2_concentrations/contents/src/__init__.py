@@ -38,6 +38,7 @@ EE_COLLECTION = 'cli_012_co2_concentrations'
 
 # Times two because of North / South parallels
 MAX_YEARS = 5
+MAX_DATES = MAX_YEARS*12
 DATE_FORMAT = '%Y%m'
 TIMESTEP = {'days': 30}
 
@@ -148,6 +149,8 @@ def processNewData(existing_dates):
     for date in target_dates:
         years.append(date[0:4])
     years = set(years)
+
+    new_assets = []
     for year in years:
         clearDir()
         fetch(year)
@@ -167,9 +170,10 @@ def processNewData(existing_dates):
         dates = [getDate(tif) for tif in tifs]
         assets = [getAssetName(tif) for tif in tifs]
         eeUtil.uploadAssets(tifs, assets, GS_PREFIX, dates, dateformat=DATE_FORMAT, public=True, timeout=3000)
+        new_assets.extend(assets)
 
     clearDir()
-    return assets
+    return new_assets
 
 def checkCreateCollection(collection):
     '''List assests in collection else create new collection'''
@@ -210,7 +214,10 @@ def main():
     new_assets = processNewData(exclude_dates)
 
     # 3. Delete old assets
-    
+
+    logging.info('Existing assets: {}, new: {}, max: {}'.format(
+        len(existing_ids), len(new_assets), MAX_DATES))
+    deleteExcessAssets(existing_ids+new_assets,MAX_DATES)
 
     ###
 
