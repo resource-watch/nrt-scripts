@@ -16,12 +16,11 @@ RUN apt-get install -y \
   cron \
   && apt-get clean
 
-# Move and copy over requirements here to speed up dev - don't need to reinstall
-# Python packages when only change is to application code
-COPY contents/requirements.txt .
-# install application libraries
-RUN pip install numpy #Install this ahead of rasterio for appropriate applications
-RUN pip install --upgrade pip && pip install -r requirements.txt
+RUN pip install --upgrade pip && pip install numpy
+RUN pip install rasterio \
+    earthengine-api \
+    google-cloud-storage
+
 RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
 
 # copy the application folder inside the container
@@ -32,18 +31,9 @@ COPY time.cron .
 COPY credentials.json .
 VOLUME /opt/$NAME/data
 
-RUN cd ~
-RUN touch .netrc
-RUN echo "machine urs.earthdata.nasa.gov login nathan.suberi2 password Kathmandu1!" >> .netrc
-RUN chmod 0600 .netrc
-RUN cd ~
-RUN touch .urs_cookies
-
 RUN useradd $NAME
 RUN chown -R $NAME:$NAME .
 USER $NAME
-
-
 
 # Launch script
 CMD ["python", "main.py"]

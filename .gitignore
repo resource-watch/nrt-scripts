@@ -16,3 +16,4 @@
 # Environmental variables
 *.env
 *credentials.json
+*.netrc

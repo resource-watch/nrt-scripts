@@ -1,54 +1,43 @@
 from __future__ import unicode_literals
 
 import os
+import glob
 import sys
 import urllib.request
 import shutil
 from contextlib import closing
 import gzip
 import datetime
-from dateutil import parser
 import logging
 import subprocess
-from netCDF4 import Dataset
-import rasterio as rio
 from . import eeUtil
+import rasterio as rio
+from affine import Affine
+import numpy as np
+from rasterio.crs import CRS
 
-LOG_LEVEL = logging.INFO
+LOG_LEVEL = logging.DEBUG
 CLEAR_COLLECTION_FIRST = False
 VERSION = '3.0'
 
 # constants for bleaching alerts
-SOURCE_URL = 'https://acdisc.gesdisc.eosdis.nasa.gov/data/Aqua_AIRS_Level3/AIRS3C2M.005/{year}/{target_file}'
-DATE_FORMAT_SOURCE = '%Y.%m.%d'
-SOURCE1_FILENAME_LIKE = 'AIRS.{date}.*.hdf'
-SOURCE2_FILENAME_LIKE = 'AIRS.{date}.*.hdf.map.gz'
-SOURCE3_FILENAME_LIKE = 'AIRS.{date}.*.hdf.xml'
-
+SOURCE_URL = 'https://acdisc.gesdisc.eosdis.nasa.gov/data/Aqua_AIRS_Level3/AIRS3C2M.005/{year}/'
+DATE_FORMAT = '%Y%m'
 # Test how to download these files
 # Have to set environmental variables
 
-year = 2017
-cmd = ' '.join(['wget','--load-cookies','~/.urs_cookies','--save-cookies','~/.urs_cookies'
-        '--keep-session-cookies','-r','-c','-nH','-nd','-np',
-        '-A','hdf,hdf.map.gz,hdf.xml',
-        'https://acdisc.gesdisc.eosdis.nasa.gov/data/Aqua_AIRS_Level3/AIRS3C2M.005/{year}/'.format(year=year)])
-cmd
-
-ASSET_NAME = 'cli_005_{arctic_or_antarctic}_sea_ice_{date}'
+ASSET_NAME = 'cli_012_co2_concentrations_{date}'
 
 # Read from data
-NODATA_VALUE = 0
-DATA_TYPE = 'Byte' # Byte/Int16/UInt16/UInt32/Int32/Float32/Float64/CInt16/CInt32/CFloat32/CFloat64
+NODATA_VALUE = -9999
+DATA_TYPE = np.float32 # Byte/Int16/UInt16/UInt32/Int32/Float32/Float64/CInt16/CInt32/CFloat32/CFloat64
 
-# For NetCDF
 DATA_DIR = 'data'
-GS_PREFIX = 'cli_005_polar_sea_ice_extent'
-EE_COLLECTION = 'cli_005_polar_sea_ice_extent'
+GS_PREFIX = 'cli_012_co2_concentrations'
+EE_COLLECTION = 'cli_012_co2_concentrations'
 
 # Times two because of North / South parallels
-MAX_DATES = 5
-MAX_ASSETS = MAX_DATES*2
+MAX_YEARS = 5
 DATE_FORMAT = '%Y%m'
 TIMESTEP = {'days': 30}
 
@@ -59,11 +48,13 @@ GOOGLE_APPLICATION_CREDENTIALS = os.environ.get(
 GEE_STAGING_BUCKET = os.environ.get("GEE_STAGING_BUCKET")
 GCS_PROJECT = os.environ.get("CLOUDSDK_CORE_PROJECT")
 
+NASA_USER = os.environ.get("NASA_USER")
+NASA_PASS = os.environ.get("NASA_PASS")
+
 def getAssetName(tif):
     '''get asset name from tif name, extract datetime and location'''
-    location = tif.split('_')[2]
     date = getDate(tif)
-    return os.path.join(EE_COLLECTION, ASSET_NAME.format(arctic_or_antarctic=location, date=date))
+    return os.path.join(EE_COLLECTION, ASSET_NAME.format(date=date))
 
 def getDate(filename):
     '''get last 8 chrs of filename'''
@@ -74,7 +65,7 @@ def getNewTargetDates(exclude_dates):
     new_dates = []
     date = datetime.date.today()
     date.replace(day=15)
-    for i in range(MAX_DATES):
+    for i in range(MAX_YEARS*12):
         date -= datetime.timedelta(**TIMESTEP)
         date.replace(day=15)
         datestr = date.strftime(DATE_FORMAT)
@@ -82,70 +73,103 @@ def getNewTargetDates(exclude_dates):
             new_dates.append(datestr)
     return new_dates
 
-def format_month(datestring):
-    month = datestring[-2:]
-    names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    name = names[int(month)-1]
-    return('_'.join([month, name]))
+def fetch(year):
+    cmd = ' '.join(['wget','--user',NASA_USER,'--password',NASA_PASS,
+                    '-r','-c','-nH','-nd','-np',
+                    '-A','hdf,hdf.map.gz,hdf.xml',
+                    SOURCE_URL.format(year=year)])
 
-def fetch(url, north_or_south, datestring):
-    '''Fetch files by datestamp'''
-    # New data may not yet be posted
-    month = format_month(datestring)
-    target_file = SOURCE_FILENAME.format(n_or_s=north_or_south[0].upper(), date=datestring, version=VERSION)
-    arctic_or_antarctic = 'arctic' if (north_or_south=='north') else 'antarctic'
+    subprocess.call(cmd, shell=True)
+    logging.info('call to server: {}'.format(cmd))
 
-    _file = url.format(north_or_south=north_or_south,month=month,target_file=target_file)
-    filename = ASSET_NAME.format(arctic_or_antarctic=arctic_or_antarctic, date=datestring)
-    try:
-        with closing(urllib.request.urlopen(_file)) as r:
-            with open(filename, 'wb') as f:
-                shutil.copyfileobj(r, f)
-                logging.debug('Copied: {}'.format(_file))
-    except Exception as e:
-        logging.warning('Could not fetch {}'.format(_file))
-        logging.error(e)
-    return filename
 
-def convert(filename):
+def getDateFromSource(filename):
+    dateinfo = filename.split('.')
+    year = dateinfo[1]
+    month = dateinfo[2]
+    return('{year}{month}'.format(year=year,month=month))
+
+def convert(filename, date):
+    # https://gis.stackexchange.com/questions/58688/convert-from-hdf-to-geotiff
     '''Convert from hdf to GTIFF format, delete hdf file on hand'''
-    new_filename = os.path.splitext(filename)[0]+'.tif'
-    cmd = ' '.join(['gdal_translate', '-co', '"COMPRESS=LZW"', '-of', 'GTIFF',
-                    filename, new_filename])
-    subprocess.call(cmd)
-    os.remove(filename)
-    return new_filename
+    new_filename = ASSET_NAME.format(date=date)
+    data_filename = new_filename+'_data.tif'
+    georef_filename = new_filename+'.tif'
+
+    cmd = ' '.join(['gdal_translate','-of', 'GTIFF',
+                    '\'HDF4_EOS:EOS_GRID:"{file}":CO2:mole_fraction_of_carbon_dioxide_in_free_troposphere\''.format(file=filename),
+                    data_filename])
+    subprocess.call(cmd, shell=True)
+
+    with rio.open(data_filename, 'r') as src:
+        data = src.read(indexes=1)
+        # lats: -89.5, 88 to 60, in increments of 2
+        # lons: -180 to 177.5, in increments of 2.5
+        row_width=2.5
+        column_height=-2
+        row_rotation=0
+        column_rotation=0
+        upper_right_x=-180
+        upper_right_y=90
+
+        transform = Affine(row_width,row_rotation,upper_right_x,
+                            column_rotation, column_height, upper_right_y)
+        profile = {
+            'driver': 'GTiff',
+            'dtype': np.float32,
+            'nodata': -9999,
+            'width': data.shape[1],
+            'height': data.shape[0],
+            'count': 1,
+            'crs': CRS({'init': 'EPSG:4326'}),
+            'transform':transform,
+            'tiled': True,
+            'compress': 'lzw',
+            'interleave': 'band'
+        }
+        with rio.open(georef_filename, "w", **profile) as dst:
+            dst.write(data, indexes=1)
+
+    return georef_filename
+
+def clearDir():
+    files = glob.glob('*')
+    for file in files:
+        os.remove(file)
 
 def processNewData(existing_dates):
     '''fetch, process, upload, and clean new data'''
-    # 1. Determine which years to read from the netCDF file
+    # 1. Determine which years to read from the file
     target_dates = getNewTargetDates(existing_dates) or []
-    logging.debug(target_dates)
-
-    # 2. Fetch datafile
+    logging.debug('Target dates: {}'.format(target_dates))
+    # 2. Fetch datafiles
     logging.info('Fetching files')
-    tifs = []
+    years = []
     for date in target_dates:
-        arctic_file = convert(fetch(SOURCE_URL, 'north', date))
-        antarctic_file = convert(fetch(SOURCE_URL, 'south', date))
-        logging.debug('Arctic file: {}, Antarctic file: {}'.format(arctic_file, antarctic_file))
-        tifs.append(arctic_file)
-        tifs.append(antarctic_file)
+        years.append(date[0:4])
+    years = set(years)
+    for year in years:
+        clearDir()
+        fetch(year)
+        # 3. Convert files
+        files = glob.glob('*.hdf')
+        tifs = []
+        for _file in files:
+            date = getDateFromSource(_file)
+            logging.info(date)
+            logging.info(existing_dates)
+            if date not in existing_dates:
+                logging.info('Converting file: {}'.format(_file))
+                tifs.append(convert(_file, date))
 
-    # 3. Upload new files
-    logging.info('Uploading files')
-    dates = [getDate(tif) for tif in tifs]
-    assets = [getAssetName(tif) for tif in tifs]
-    eeUtil.uploadAssets(tifs, assets, GS_PREFIX, dates, dateformat=DATE_FORMAT, public=True, timeout=3000)
+        # 3. Upload new files
+        logging.info('Uploading files')
+        dates = [getDate(tif) for tif in tifs]
+        assets = [getAssetName(tif) for tif in tifs]
+        eeUtil.uploadAssets(tifs, assets, GS_PREFIX, dates, dateformat=DATE_FORMAT, public=True, timeout=3000)
 
-    # 4. Delete local files
-    logging.info('Cleaning local files, yo!')
-    for tif in tifs:
-        logging.debug(tif)
-        os.remove(tif)
-
+    clearDir()
     return assets
-
 
 def checkCreateCollection(collection):
     '''List assests in collection else create new collection'''
@@ -156,7 +180,6 @@ def checkCreateCollection(collection):
         eeUtil.createFolder(collection, imageCollection=True, public=True)
         return []
 
-
 def deleteExcessAssets(dates, max_assets):
     '''Delete assets if too many'''
     # oldest first
@@ -164,7 +187,6 @@ def deleteExcessAssets(dates, max_assets):
     if len(dates) > max_assets:
         for date in dates[:-max_assets]:
             eeUtil.removeAsset(getAssetName(date))
-
 
 def main():
     '''Ingest new data into EE and delete old data'''
@@ -179,17 +201,17 @@ def main():
         eeUtil.removeAsset(EE_COLLECTION, recursive=True)
 
     # 1. Check if collection exists and create
-    existing_assets = checkCreateCollection(EE_COLLECTION)
-    existing_dates = [getDate(a) for a in existing_assets]
+    existing_ids = checkCreateCollection(EE_COLLECTION)
+    exclude_dates = [getDate(asset) for asset in existing_ids]
+    logging.debug(exclude_dates)
 
-    # 2. Fetch, process, stage, ingest, clean
-    new_assets = processNewData(existing_dates)
-    new_dates = [getDate(a) for a in new_assets]
+    # 2. Process, stage, ingest, clean
+    os.chdir('data')
+    new_assets = processNewData(exclude_dates)
 
     # 3. Delete old assets
-    existing_dates = existing_dates + new_dates
-    logging.info('Existing assets: {}, new: {}, max: {}'.format(
-        len(existing_dates), len(new_dates), MAX_ASSETS))
-    deleteExcessAssets(existing_dates, MAX_ASSETS)
+    
+
+    ###
 
     logging.info('SUCCESS')
