@@ -107,6 +107,7 @@ def simpleGeom(geom):
     simple_geo = geo.simplify(SIMPLIFICATION_TOLERANCE, PRESERVE_TOPOLOGY)
     logging.debug('Length simple WKT: {}'.format(len(simple_geo.wkt)))
     geojson = mapping(simple_geo)
+
     return geojson
 
 def processNewData(exclude_dates):
