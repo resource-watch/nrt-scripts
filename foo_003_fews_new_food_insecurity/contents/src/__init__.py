@@ -1,18 +1,17 @@
 from __future__ import unicode_literals
 
-import fiona
 import os
 import logging
 import sys
 import urllib
 import zipfile
 from datetime import datetime, timedelta
-from collections import OrderedDict
-import cartosql
-from shapely.geometry import mapping, Polygon, MultiPolygon
-import pprint
-import json
 from dateutil.relativedelta import relativedelta
+
+import fiona
+from collections import OrderedDict
+from shapely.geometry import mapping, Polygon, MultiPolygon
+import cartosql
 
 # Constants
 DATA_DIR = 'data'
@@ -118,7 +117,6 @@ def simple_geom(geom):
     simple_geo = geo.simplify(SIMPLIFICATION_TOLERANCE, PRESERVE_TOPOLOGY)
     logging.debug('Length simple WKT: {}'.format(len(simple_geo.wkt)))
     geojson = mapping(simple_geo)
-    logging.debug('GeoJSON head: {}'.format(json.dumps(geojson)[:100]))
     return geojson
 
 def processNewData(exclude_dates):
