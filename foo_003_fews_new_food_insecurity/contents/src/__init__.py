@@ -26,7 +26,7 @@ REGIONS = {'WA':'west-africa{date}.zip',
 TIMESTEP = {'days': 30}
 DATE_FORMAT = '%Y%m'
 DATETIME_FORMAT = '%Y%m%dT00:00:00Z'
-CLEAR_TABLE_FIRST = True
+CLEAR_TABLE_FIRST = False
 SIMPLIFICATION_TOLERANCE = .04
 PRESERVE_TOPOLOGY = True
 
@@ -76,14 +76,17 @@ def findShps(zfile):
         logging.error('There should be 3 shapefiles: CS, ML1, ML2')
     return files
 
-def potentialNewDates():
+def potentialNewDates(exclude_dates):
     '''Get new dates excluding existing'''
     new_dates = []
     date = datetime.today()
     while date > MAXAGE:
         datestr = date.strftime(DATE_FORMAT)
-        logging.debug(datestr)
-        new_dates.append(datestr)
+        if datestr not in exclude_dates:
+            logging.debug('Will fetch data for {}'.format(datestr))
+            new_dates.append(datestr)
+        else:
+            logging.debug('Data for {} already in table'.format(datestr))
         date -= timedelta(**TIMESTEP)
     return new_dates
 
@@ -118,11 +121,10 @@ def simple_geom(geom):
     logging.debug('GeoJSON head: {}'.format(json.dumps(geojson)[:100]))
     return geojson
 
-def processNewData(exclude_ids):
+def processNewData(exclude_dates):
     new_ids = []
-
     # get non-existing dates
-    new_dates = potentialNewDates()
+    new_dates = potentialNewDates(exclude_dates)
     for date in new_dates:
         # 1. Fetch data from source
         for region, filename in REGIONS.items():
@@ -162,23 +164,22 @@ def processNewData(exclude_ids):
                         uid = genUID(date, region, ifc_type, pos_in_shp)
                         ### Received an error due to attempting to load same UID twice.
                         # If happens again, to reproduce, set CLEAR_TABLE_FIRST=True and run again.
-                        if uid not in exclude_ids:
-                            new_ids.append(uid)
-                            row = []
-                            for field in CARTO_SCHEMA.keys():
-                                if field == 'the_geom':
-                                    row.append(simple_geom(obs['geometry']))
-                                elif field == UID_FIELD:
-                                    row.append(uid)
-                                elif field == 'ifc_type':
-                                    row.append(ifc_type)
-                                elif field == 'ifc':
-                                    row.append(obs['properties'][ifc_type])
-                                elif field == 'start_date':
-                                    row.append(start_date)
-                                elif field == 'end_date':
-                                    row.append(end_date)
-                            rows.append(row)
+                        new_ids.append(uid)
+                        row = []
+                        for field in CARTO_SCHEMA.keys():
+                            if field == 'the_geom':
+                                row.append(simple_geom(obs['geometry']))
+                            elif field == UID_FIELD:
+                                row.append(uid)
+                            elif field == 'ifc_type':
+                                row.append(ifc_type)
+                            elif field == 'ifc':
+                                row.append(obs['properties'][ifc_type])
+                            elif field == 'start_date':
+                                row.append(start_date)
+                            elif field == 'end_date':
+                                row.append(end_date)
+                        rows.append(row)
                         pos_in_shp += 1
 
                 # 3. Insert new observations
@@ -252,9 +253,10 @@ def main():
         createTableWithIndices(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, TIME_FIELD)
 
     # 2. Iterively fetch, parse and post new data
-    num_new = processNewData(existing_ids)
+    existing_dates = [getDate(_id) for _id in existing_ids]
+    num_new = processNewData(existing_dates)
 
-    existing_count = num_new + len(existing_ids)
+    existing_count = num_new + len(existing_dates)
     logging.info('Total rows: {}, New: {}, Max: {}'.format(
         existing_count, num_new, MAXROWS))
 
