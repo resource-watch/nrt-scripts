@@ -42,7 +42,6 @@ CARTO_SCHEMA = OrderedDict([
 TIME_FIELD = 'start_date'
 UID_FIELD = '_uid'
 
-
 LOG_LEVEL = logging.INFO
 MAXROWS = 10000
 MAXAGE = datetime.today() - timedelta(days=365*10)
@@ -59,6 +58,10 @@ def genUID(date, region, ifc_type, pos_in_shp):
 def getDate(uid):
     '''first component of ID'''
     return uid.split('_')[0]
+
+def formatStartAndEndDates(date, plus=0):
+    dt = datetime.strptime(date, DATE_FORMAT) + relativedelta(months=plus)
+    return(dt.strftime(DATETIME_FORMAT))
 
 def findShps(zfile):
     files = {}
@@ -89,20 +92,7 @@ def potentialNewDates(exclude_dates):
         date -= timedelta(**TIMESTEP)
     return new_dates
 
-def findDepth(array):
-    d = 0
-    while True:
-        try:
-            array = array[0]
-            d += 1
-        except:
-            return(d)
-
-def formatStartAndEndDates(date, plus=0):
-    dt = datetime.strptime(date, DATE_FORMAT) + relativedelta(months=plus)
-    return(dt.strftime(DATETIME_FORMAT))
-
-def simple_geom(geom):
+def simpleGeom(geom):
     # Simplify complex polygons
     # https://gis.stackexchange.com/questions/83084/shapely-multipolygon-construction-will-not-accept-the-entire-set-of-polygons
     if geom['type'] == 'MultiPolygon':
@@ -166,7 +156,7 @@ def processNewData(exclude_dates):
                         row = []
                         for field in CARTO_SCHEMA.keys():
                             if field == 'the_geom':
-                                row.append(simple_geom(obs['geometry']))
+                                row.append(simpleGeom(obs['geometry']))
                             elif field == UID_FIELD:
                                 row.append(uid)
                             elif field == 'ifc_type':
