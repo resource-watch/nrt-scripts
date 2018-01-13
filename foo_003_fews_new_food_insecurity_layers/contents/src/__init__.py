@@ -38,7 +38,8 @@ def main():
         new_description = 'Start date = {}, end date = {}'.format(date_start, date_end)
 
         new_layer_metadata = layer['attributes'].copy()
-        new_layer_metadata.update(description=new_description)
+        new_layer_metadata.update(description=new_description, name='Data for CS beginning in {}'.format(date_start))
+        layer.update(attributes=new_layer_metadata)
 
         patch_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer/{}'.format(FOO_003_API_ID, layer_id)
         headers = {
@@ -46,6 +47,7 @@ def main():
             'authorization': "Bearer {}".format(RW_API_TOKEN)
         }
         logging.info('URL: {}'.format(patch_url))
+        # Tried json.dumps(layer) and that didn't work
         res = req.request("PATCH", patch_url, data=json.dumps(new_layer_metadata), headers = headers)
         logging.info(res.text)
 
