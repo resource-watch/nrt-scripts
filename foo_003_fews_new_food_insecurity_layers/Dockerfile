@@ -1,6 +1,6 @@
 FROM python:3.6
 MAINTAINER Nathan Suberi <nathan.suberi@wri.org>
-ARG NAME=foo_003
+ARG NAME=foo_003_layer_updates
 ENV NAME ${NAME}
 
 # install core libraries
@@ -8,7 +8,7 @@ RUN apt-get update
 RUN apt-get install -y cron
 
 # install application libraries
-RUN pip install --upgrade pip && pip install fiona shapely python-dateutil requests
+RUN pip install --upgrade pip && pip install requests
 RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
 
 # Copy the application folder inside the container
