@@ -13,6 +13,7 @@ import subprocess
 from netCDF4 import Dataset
 import rasterio as rio
 from . import eeUtil
+from src.update_layers import update_layers
 
 LOG_LEVEL = logging.INFO
 CLEAR_COLLECTION_FIRST = False
@@ -203,7 +204,7 @@ def checkCreateCollection(collection):
         return eeUtil.ls(collection)
     else:
         logging.info('{} does not exist, creating'.format(collection))
-        eeUtil.createFolder(collection, ImageCollection=True, public=True)
+        eeUtil.createFolder(collection, imageCollection=True, public=True)
         return []
 
 
@@ -226,14 +227,15 @@ def main():
                 GCS_PROJECT, GEE_STAGING_BUCKET)
 
     if CLEAR_COLLECTION_FIRST:
-        eeUtil.removeAsset(EE_COLLECTION, recursive=True)
+        if eeUtil.exists(EE_COLLECTION):
+            eeUtil.removeAsset(EE_COLLECTION, recursive=True)
 
     # 1. Check if collection exists and create
     existing_assets = checkCreateCollection(EE_COLLECTION)
     existing_dates = [getDate(a) for a in existing_assets]
 
     # 2. Fetch, process, stage, ingest, clean
-    new_assets = processNewData(existing_dates)
+    new_assets =  processNewData(existing_dates)
     new_dates = [getDate(a) for a in new_assets]
 
     # 3. Delete old assets
@@ -241,5 +243,11 @@ def main():
     logging.info('Existing assets: {}, new: {}, max: {}'.format(
         len(existing_dates), len(new_dates), MAX_ASSETS))
     deleteExcessAssets(existing_dates, MAX_ASSETS)
+
+    # 4. Update layers
+    available_dates = existing_assets + new_assets
+    update_layers(available_dates)
+
+    ###
 
     logging.info('SUCCESS')
