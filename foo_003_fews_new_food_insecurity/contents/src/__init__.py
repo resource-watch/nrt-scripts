@@ -14,6 +14,8 @@ from collections import OrderedDict
 from shapely.geometry import mapping, Polygon, MultiPolygon
 import cartosql
 
+from src.update_layers import update_layers
+
 # Constants
 DATA_DIR = 'data'
 SOURCE_URL = 'http://shapefiles.fews.net.s3.amazonaws.com/HFIC/{region}/{target_file}'
@@ -30,8 +32,6 @@ CLEAR_TABLE_FIRST = False
 SIMPLIFICATION_TOLERANCE = .04
 PRESERVE_TOPOLOGY = True
 
-RW_API_TOKEN = os.environ('rw_api_token')
-
 # asserting table structure rather than reading from input
 CARTO_TABLE = 'foo_003_fews_net_food_insecurity'
 CARTO_SCHEMA = OrderedDict([
@@ -47,7 +47,7 @@ UID_FIELD = '_uid'
 
 LOG_LEVEL = logging.INFO
 MAXROWS = 10000
-MAXAGE = datetime.today() - timedelta(days=365*10)
+MAXAGE = datetime.today() - timedelta(days=365*3)
 
 # Generate UID
 def genUID(date, region, ifc_type, pos_in_shp):
@@ -255,23 +255,9 @@ def main():
     # 3. Remove old observations
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD, MAXAGE)
 
-    # 4. Update layer definitions - is this the best place to do so?
-    API_ID = 'b0f859ce-f13b-462e-9063-ebc68ed88420'
-    rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer'.format(API_ID)
-    layers = req.get(rw_api_url).json()['data']
-    for layer in layers:
-        layer_id = layer['id']
-        most_recent = layer['attributes']['layerConfig']['most_recent']
-        sql = "(SELECT distinct {} from (SELECT {}, dense_rank() over (order by {} desc) as rn from foo_003_fews_net_food_insecurity where ifc_type = '{}') t where rn={})"
-        date_start = cartosql.sendSql(sql.format('start_date', 'start_date', 'start_date', 'CS', most_recent))
-        date_end = cartosql.sendSql(sql.format('end_date', 'end_date', 'end_date', 'CS', most_recent))
-        new_description = 'Start date = {}, end date = {}'.format(start_date, end_date)
+    # 4. Update layer definitions
+    update_layers()
 
-        patch_url = 'https://api.resourcewatch.org/v1//layer/{}'.format(layer_id)
-        headers = {
-            'content-type': "application/json",
-            'authorization': "Bearer {}".format(RW_API_TOKEN)
-        }
-        res = req.request("POST", layer_update_url, data=json.dumps(layer_def), headers = headers)
+    ###
 
     logging.info('SUCCESS')
