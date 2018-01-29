@@ -19,8 +19,9 @@ TIMESTEP = {'days': 1}
 DATE_FORMAT = '%Y%m%d'
 DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 CLEAR_TABLE_FIRST = False
-LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.INFO
 MAX_CHECK = 10
+PROCESS_ARCHIVE = False
 
 # asserting table structure rather than reading from input
 CARTO_TABLE = 'cli_037_smoke_plumes'
@@ -232,11 +233,14 @@ def main():
 
     # 2. Iterively fetch, parse and post new data
     num_new = processNewData(existing_ids, from_archive=False)
-    #num_new_from_archive = processNewData(existing_ids, from_archive=True)
     logging.debug('Num new: {}'.format(num_new))
-    #logging.debug('Num new from archive: {}'.format(num_new_from_archive))
+    existing_count = num_new + len(existing_ids)
 
-    existing_count = num_new + num_new_from_archive + len(existing_ids)
+    if PROCESS_ARCHIVE:
+        num_new_from_archive = processNewData(existing_ids, from_archive=True)
+        logging.debug('Num new from archive: {}'.format(num_new_from_archive))
+        existing_count = existing_count + num_new_from_archive
+
     logging.info('Total rows: {}, New: {}, Max: {}'.format(
         existing_count, num_new, MAXROWS))
 

@@ -21,8 +21,8 @@ COPY contents/ .
 VOLUME ./data
 
 # add user
-RUN useradd $NAME
-RUN chown -R $NAME:$NAME .
+RUN groupadd -r $NAME && useradd -r -g $NAME $NAME
+RUN chown -R $NAME:$NAME /opt/$NAME/
 USER $NAME
 
 CMD ["python", "main.py"]
