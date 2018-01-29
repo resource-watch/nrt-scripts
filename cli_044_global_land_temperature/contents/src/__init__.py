@@ -13,36 +13,32 @@ SOURCE_URL = 'https://climate.nasa.gov/system/internal_resources/details/origina
 TIMEOUT = 300
 ENCODING = 'utf-8'
 STRICT = False
-FILENAME_INDEX = -1
 
 ### Table name and structure
-CARTO_TABLE = 'cli_043_arctic_sea_ice_minimum'
+CARTO_TABLE = 'cli_044_global_land_temperature'
 CARTO_SCHEMA = OrderedDict([
         ('UID', 'text'),
         ('date', 'timestamp'),
-        ('value_type', 'text'),
-        ('value', 'numeric')
+        ('value', 'numeric'),
+        ('value_type', 'text')
     ])
-
 UID_FIELD = 'UID'
 TIME_FIELD = 'date'
 
 CARTO_USER = os.environ.get('CARTO_USER')
 CARTO_KEY = os.environ.get('CARTO_KEY')
 
-# Table limits
+###
+## CARTO
+###
+
 MAX_ROWS = 1000000
 MAX_AGE = datetime.today() - timedelta(days=365*150)
 CLEAR_TABLE_FIRST = False
 
-###
-## Carto code
-###
-
 def checkCreateTable(table, schema, id_field, time_field):
     '''
-    Get existing ids or create table
-    Return a list of existing ids in time order
+    Create table if it doesn't already exist
     '''
     if cartosql.tableExists(table):
         logging.info('Table {} already exists'.format(table))
@@ -50,8 +46,8 @@ def checkCreateTable(table, schema, id_field, time_field):
         logging.info('Creating Table {}'.format(table))
         cartosql.createTable(table, schema)
         cartosql.createIndex(table, id_field, unique=True)
-        cartosql.createIndex(table, time_field)
-    return []
+        if id_field != time_field:
+            cartosql.createIndex(table, time_field)
 
 def cleanOldRows(table, time_field, max_age, date_format='%Y-%m-%d %H:%M:%S'):
     '''
@@ -90,7 +86,6 @@ def deleteExcessRows(table, max_rows, time_field):
 
     return(num_dropped)
 
-
 ###
 ## Accessing remote data
 ###
@@ -119,11 +114,10 @@ def fetchDataFileName(SOURCE_URL):
     if not ALREADY_FOUND:
         logging.warning("No valid filename found")
 
+    # Return the file name
     return(filename)
 
-
 def tryRetrieveData(SOURCE_URL, filename, TIMEOUT, ENCODING):
-    # Optional logic in case this request fails with "unable to decode" response
     start = time.time()
     elapsed = 0
     resource_location = os.path.join(SOURCE_URL, filename)
@@ -138,7 +132,7 @@ def tryRetrieveData(SOURCE_URL, filename, TIMEOUT, ENCODING):
             logging.error("Unable to retrieve resource on this attempt.")
             time.sleep(5)
 
-    logging.error("Unable to retrive resource before timeout of {} seconds".format(TIMEOUT))
+    logging.error("Unable to retrieve resource before timeout of {} seconds".format(TIMEOUT))
     if STRICT:
         raise Exception("Unable to retrieve data from {}".format(resource_locations))
     return([])
@@ -171,34 +165,31 @@ def processData(SOURCE_URL, filename, existing_ids):
     res_rows = tryRetrieveData(SOURCE_URL, filename, TIMEOUT, ENCODING)
     new_data = {}
     for row in res_rows:
-        row = row.split()
-        # Ensure that this is a full data row
-        if (len(row) == 8) and (type(row[0]==int)):
-            logging.debug("Processing Row: {}".format(row))
-            # Pull data available in each line
-            AREA_VALUE_INDEX = 3
-            area_value = row[AREA_VALUE_INDEX]
-            EXTENT_VALUE_INDEX = 7
-            extent_value = row[EXTENT_VALUE_INDEX]
+        if not (row.startswith("HDR")):
+            row = row.split()
+            if len(row)==3:
+                logging.debug("Processing row: {}".format(row))
+                # Pull data available in each line
+                ANNUAL_MEAN_VALUE_INDEX = 1
+                annual_mean_value = row[ANNUAL_MEAN_VALUE_INDEX]
+                FIVE_YEAR_MEAN_VALUE_INDEX = 2
+                five_year_mean_value = row[FIVE_YEAR_MEAN_VALUE_INDEX]
 
-            area_date = datetime(year=int(row[0]),
-                                month=int(row[1]),
-                                day=int(row[2])).strftime("%Y-%m-%d")
-            extent_date = datetime(year=int(row[4]),
-                                month=int(row[5]),
-                                day=int(row[6])).strftime("%Y-%m-%d")
+                date = datetime(year=int(row[0]),month=1,day=1).strftime("%Y-%m-%d")
 
-            areaUID = genUID("area", area_date)
-            extentUID = genUID("extent", extent_date)
-            areaValues = [areaUID, area_date, "minimum_area_measurement", area_value]
-            extentValues = [extentUID, extent_date, "minimum_extent_measurement", extent_value]
-            new_data = insertIfNew(areaUID, areaValues, existing_ids, new_data)
-            new_data = insertIfNew(extentUID, extentValues, existing_ids, new_data)
-        else:
-            logging.debug("Skipping row: {}".format(row))
+                annualUID = genUID('annual_mean', date)
+                fiveyearUID = genUID('five_year_mean', date)
+                annualValues = [annualUID, date, annual_mean_value, "annual_mean"]
+                fiveyearValues = [fiveyearUID, date, five_year_mean_value, "five_year_mean"]
+
+                new_data = insertIfNew(annualUID, annualValues, existing_ids, new_data)
+                new_data = insertIfNew(fiveyearUID, fiveyearValues, existing_ids, new_data)
+
+            else:
+                logging.debug("Skipping row: {}".format(row))
 
     if len(new_data):
-        num_new += len(new_data)
+        num_new = len(new_data)
         new_data = list(new_data.values())
         cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), new_data)
 
@@ -229,7 +220,7 @@ def main():
 
     ### 4. Fetch data from FTP, dedupe, process
     #filename = fetchDataFileName(SOURCE_URL)
-    filename = "1270_minimum_extents_and_area_north_SBA_reg_20171001_2_.txt"
+    filename = "647_Global_Temperature_Data_File.txt"
     num_new = processData(SOURCE_URL, filename, existing_ids)
 
     ### 5. Delete data to get back to MAX_ROWS

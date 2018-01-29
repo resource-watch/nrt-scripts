@@ -9,22 +9,22 @@ from dateutil import parser
 import cartosql
 
 ### Constants
-SOURCE_URL = 'https://climate.nasa.gov/system/internal_resources/details/original/'
+SOURCE_URL = 'ftp://podaac-ftp.jpl.nasa.gov/allData/tellus/L3/mascon/RL05/JPL/CRI/mass_variability_time_series/'
+DATE_INDEX = 0
+FILENAME_INDEX = -1
 TIMEOUT = 300
 ENCODING = 'utf-8'
 STRICT = False
-FILENAME_INDEX = -1
+CLEAR_TABLE_FIRST = False
 
 ### Table name and structure
-CARTO_TABLE = 'cli_043_arctic_sea_ice_minimum'
+CARTO_TABLE = 'cli_042_greenland_ice'
 CARTO_SCHEMA = OrderedDict([
-        ('UID', 'text'),
         ('date', 'timestamp'),
-        ('value_type', 'text'),
-        ('value', 'numeric')
+        ('mass', 'numeric'),
+        ('uncertainty', 'text')
     ])
-
-UID_FIELD = 'UID'
+UID_FIELD = 'date'
 TIME_FIELD = 'date'
 
 CARTO_USER = os.environ.get('CARTO_USER')
@@ -33,7 +33,6 @@ CARTO_KEY = os.environ.get('CARTO_KEY')
 # Table limits
 MAX_ROWS = 1000000
 MAX_AGE = datetime.today() - timedelta(days=365*150)
-CLEAR_TABLE_FIRST = False
 
 ###
 ## Carto code
@@ -50,8 +49,8 @@ def checkCreateTable(table, schema, id_field, time_field):
         logging.info('Creating Table {}'.format(table))
         cartosql.createTable(table, schema)
         cartosql.createIndex(table, id_field, unique=True)
-        cartosql.createIndex(table, time_field)
-    return []
+        if id_field != time_field:
+            cartosql.createIndex(table, time_field)
 
 def cleanOldRows(table, time_field, max_age, date_format='%Y-%m-%d %H:%M:%S'):
     '''
@@ -90,7 +89,6 @@ def deleteExcessRows(table, max_rows, time_field):
 
     return(num_dropped)
 
-
 ###
 ## Accessing remote data
 ###
@@ -106,21 +104,20 @@ def fetchDataFileName(SOURCE_URL):
     ALREADY_FOUND=False
     for fileline in ftp_contents:
         fileline = fileline.split()
+        logging.debug("Fileline as formatted on server: {}".format(fileline))
         potential_filename = fileline[FILENAME_INDEX]
-        if (potential_filename.endswith(".txt") and ("V4" in potential_filename)):
+        if (potential_filename.endswith(".txt") and ("greenland" in potential_filename)):
             if not ALREADY_FOUND:
                 filename = potential_filename
                 ALREADY_FOUND=True
             else:
                 logging.warning("There are multiple filenames which match criteria, passing most recent")
                 filename = potential_filename
-
     logging.info("Selected filename: {}".format(filename))
     if not ALREADY_FOUND:
         logging.warning("No valid filename found")
 
     return(filename)
-
 
 def tryRetrieveData(SOURCE_URL, filename, TIMEOUT, ENCODING):
     # Optional logic in case this request fails with "unable to decode" response
@@ -143,8 +140,19 @@ def tryRetrieveData(SOURCE_URL, filename, TIMEOUT, ENCODING):
         raise Exception("Unable to retrieve data from {}".format(resource_locations))
     return([])
 
-def genUID(value_type, value_date):
-    return("_".join([str(value_type), str(value_date)]).replace(" ", "_"))
+# https://stackoverflow.com/questions/20911015/decimal-years-to-datetime-in-python
+def decimalToDatetime(dec, date_pattern="%Y-%m-%d %H:%M:%S"):
+    """
+    Convert a decimal representation of a year to a desired string representation
+    I.e. 2016.5 -> 2016-06-01 00:00:00
+    """
+    dec = float(dec)
+    year = int(dec)
+    rem = dec - year
+    base = datetime(year, 1, 1)
+    dt = base + timedelta(seconds=(base.replace(year=base.year + 1) - base).total_seconds() * rem)
+    result = dt.strftime(date_pattern)
+    return(result)
 
 def insertIfNew(newUID, newValues, existing_ids, new_data):
     '''
@@ -171,31 +179,19 @@ def processData(SOURCE_URL, filename, existing_ids):
     res_rows = tryRetrieveData(SOURCE_URL, filename, TIMEOUT, ENCODING)
     new_data = {}
     for row in res_rows:
-        row = row.split()
-        # Ensure that this is a full data row
-        if (len(row) == 8) and (type(row[0]==int)):
-            logging.debug("Processing Row: {}".format(row))
-            # Pull data available in each line
-            AREA_VALUE_INDEX = 3
-            area_value = row[AREA_VALUE_INDEX]
-            EXTENT_VALUE_INDEX = 7
-            extent_value = row[EXTENT_VALUE_INDEX]
+        if not (row.startswith("HDR")):
+            row = row.split()
+            if len(row)==len(CARTO_SCHEMA):
+                logging.debug("Processing row: {}".format(row))
 
-            area_date = datetime(year=int(row[0]),
-                                month=int(row[1]),
-                                day=int(row[2])).strftime("%Y-%m-%d")
-            extent_date = datetime(year=int(row[4]),
-                                month=int(row[5]),
-                                day=int(row[6])).strftime("%Y-%m-%d")
+                date = decimalToDatetime(row[DATE_INDEX])
+                MASS_INDEX = 1
+                UNCERTAINTY_INDEX = 2
+                values = [date, row[MASS_INDEX], row[UNCERTAINTY_INDEX]]
 
-            areaUID = genUID("area", area_date)
-            extentUID = genUID("extent", extent_date)
-            areaValues = [areaUID, area_date, "minimum_area_measurement", area_value]
-            extentValues = [extentUID, extent_date, "minimum_extent_measurement", extent_value]
-            new_data = insertIfNew(areaUID, areaValues, existing_ids, new_data)
-            new_data = insertIfNew(extentUID, extentValues, existing_ids, new_data)
-        else:
-            logging.debug("Skipping row: {}".format(row))
+                new_data = insertIfNew(date, values, existing_ids, new_data)
+            else:
+                logging.debug("Skipping row: {}".format(row))
 
     if len(new_data):
         num_new += len(new_data)
@@ -212,6 +208,7 @@ def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
     if CLEAR_TABLE_FIRST:
+        logging.info("clearing table")
         cartosql.dropTable(CARTO_TABLE)
 
     ### 1. Check if table exists, if not, create it
@@ -228,8 +225,7 @@ def main():
     logging.debug("First 10 IDs already in table: {}".format(existing_ids[:10]))
 
     ### 4. Fetch data from FTP, dedupe, process
-    #filename = fetchDataFileName(SOURCE_URL)
-    filename = "1270_minimum_extents_and_area_north_SBA_reg_20171001_2_.txt"
+    filename = fetchDataFileName(SOURCE_URL)
     num_new = processData(SOURCE_URL, filename, existing_ids)
 
     ### 5. Delete data to get back to MAX_ROWS
