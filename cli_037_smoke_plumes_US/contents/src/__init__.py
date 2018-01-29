@@ -240,7 +240,7 @@ def main():
         num_new_from_archive = processNewData(existing_ids, from_archive=True)
         logging.debug('Num new from archive: {}'.format(num_new_from_archive))
         existing_count = existing_count + num_new_from_archive
-
+        num_new = num_new + num_new_from_archive
     logging.info('Total rows: {}, New: {}, Max: {}'.format(
         existing_count, num_new, MAXROWS))
 
