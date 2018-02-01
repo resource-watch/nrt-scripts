@@ -16,7 +16,7 @@ from affine import Affine
 import numpy as np
 from rasterio.crs import CRS
 
-LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.INFO
 CLEAR_COLLECTION_FIRST = False
 VERSION = '3.0'
 
