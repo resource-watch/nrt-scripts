@@ -42,10 +42,12 @@ def getFiles(date, path):
     regions = ['west-africa','southern-africa','central-asia','east-africa','caribbean-central-america']
     zipFiles=[]
     for region in regions:
-        url = 'http://shapefiles.fews.net.s3.amazonaws.com/'+ region + date + '.zip'
+        url = 'http://shapefiles.fews.net.s3.amazonaws.com/HFIC/WA/'+ region + date + '.zip'
         zipFiles.append(downloadFile(url, path))
 
     for file in zipFiles:
+        print(file)
+        zipfile.ZipInfo(file)
         with zipfile.ZipFile(file,"r") as zip_ref:
             zip_ref.extractall(path)
         os.remove(file)
@@ -119,10 +121,13 @@ def main():
     dataDate = requests.get(url, params=args).json()['rows'][0]['date'].split('-')
     lastDate = datetime.date(int(dataDate[0]), int(dataDate[1]), int(dataDate[2]))
     date = str(lastDate.year)+"%02d" % (lastDate.month+4)
-    pingUrl='http://shapefiles.fews.net.s3.amazonaws.com/west-africa'+ date +'.zip'
-    if requests.get(pingUrl).status_code!=200:
+    pingUrl='http://shapefiles.fews.net.s3.amazonaws.com/HFIC/WA/west-africa'+ date +'.zip'
+    re=requests.get(pingUrl)
+    if re.status_code!=200:
         print('There is not new data for this date: ', date)
     else:
+        print(re.status_code)
+        print(re.headers)
         os.mkdir(path)
         os.mkdir(path2f)
         getFiles(date, path)
