@@ -250,8 +250,8 @@ def main():
         n = n_dates[i]
         total = e + n
 
-        logging.info('Existing arctic assets: {}, new: {}, max: {}'.format(
-            len(e), len(n), MAX_DATES))
+        logging.info('Existing {} {} assets: {}, new: {}, max: {}'.format(
+            orig_or_reproj, arctic_or_antarctic, len(e), len(n), MAX_DATES))
         deleteExcessAssets(total,orig_or_reproj,arctic_or_antarctic,MAX_DATES)
 
     ###
