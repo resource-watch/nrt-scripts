@@ -38,7 +38,8 @@ CARTO_SCHEMA = OrderedDict([
     ("city", "text"),
     ("country", "text"),
     ("unit", "text"),
-    ("attribution", "text")
+    ("attribution", "text"),
+    ("ppm", "numeric")
 ])
 CARTO_GEOM_TABLE = 'cit_003loc_air_quality'
 CARTO_GEOM_SCHEMA = OrderedDict([
@@ -49,6 +50,7 @@ CARTO_GEOM_SCHEMA = OrderedDict([
     ("country", "text")
 ])
 
+
 UID_FIELD = '_UID'
 TIME_FIELD = 'utc'
 
@@ -58,6 +60,28 @@ CARTO_KEY = os.environ.get('CARTO_KEY')
 # Limit to 5M rows / 30 days
 MAXROWS = 5000000
 MAXAGE = datetime.datetime.now() - datetime.timedelta(days=30)
+
+# conversions
+UGM3 = ["\u00b5g/m\u00b3", "ug/m3"]
+MOL_WEIGHTS = {
+    'so2': 64,
+    'no2': 46,
+    'o3': 48,
+    'co': 28
+}
+
+
+def convert(param, unit, value):
+    if param in MOL_WEIGHTS.keys() and unit in UGM3:
+        return convert_ugm3_ppm(value, MOL_WEIGHTS[param])
+    return value
+
+
+def convert_ugm3_ppm(ugm3, mol, T=0, P=101.325):
+    # ideal gas conversion
+    K = 273.15    # 0C
+    Atm = 101.325 # kPa
+    return float(ugm3)/mol * 22.414 * (T+K)/K * Atm/P / 1000
 
 
 # Generate UID
@@ -95,6 +119,9 @@ def parseFields(obs, uid, fields):
             row.append(obs['date'][TIME_FIELD])
         elif field == 'attribution':
             row.append(str(obs['attribution']))
+        elif field == 'ppm':
+            ppm = convert(obs['parameter'], obs['unit'], obs['value'])
+            row.append(ppm)
         else:
             row.append(obs[field])
     return row
