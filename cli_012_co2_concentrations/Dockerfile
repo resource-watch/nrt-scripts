@@ -28,10 +28,9 @@ RUN mkdir -p /opt/$NAME/data
 WORKDIR /opt/$NAME/
 COPY contents/ .
 COPY time.cron .
-COPY credentials.json .
 VOLUME /opt/$NAME/data
 
-RUN useradd $NAME
+RUN groupadd -r $NAME && useradd -r -g $NAME $NAME
 RUN chown -R $NAME:$NAME .
 USER $NAME
 
