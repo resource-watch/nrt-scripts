@@ -1,5 +1,0 @@
-## Daily Nighttime Lights Mosaic (NOAA, NGDC)
-
-NASA scientists have released new global maps of Earth at night, providing the clearest-yet views of the patterns of human settlements across our planet.
-Satellite images of Earth at night—often referred to as “night lights”—have been a curiosity for the public and a tool of fundamental research for at least 25 years. They have provided a broad, beautiful picture, showing how humans have shaped the planet and lit up the darkness. Produced every decade or so, such maps have spawned hundreds of pop-culture uses and dozens of economic, social science, and environmental research projects.
-But what would happen if scientists removed the moonlight, fires, and other natural sources of light and updated such nighttime images yearly, monthly, or even daily? A research team led by NASA Earth scientist Miguel Román plans to find out this year.
