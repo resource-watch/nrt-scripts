@@ -32,6 +32,9 @@ DATE_FORMAT = '%Y%m'
 TIMESTEP = {'days': 30}
 
 # environmental variables
+with open('gcsPrivateKey.json','w') as f:
+    f.write(os.getenv('GCS_JSON'))
+
 GEE_SERVICE_ACCOUNT = os.environ.get("GEE_SERVICE_ACCOUNT")
 GOOGLE_APPLICATION_CREDENTIALS = os.environ.get(
     "GOOGLE_APPLICATION_CREDENTIALS")
