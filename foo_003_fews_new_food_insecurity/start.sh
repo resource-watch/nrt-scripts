@@ -2,4 +2,4 @@
 NAME=foo_003
 
 docker build -t $NAME --build-arg NAME=$NAME .
-docker run -v $(pwd)/data:/opt/$NAME/data --env-file .env --rm $NAME python main.py
+docker run --log-driver=syslog  --log-opt syslog-address=$LOG --log-opt tag=$NAME -v $(pwd)/data:/opt/$NAME/data --env-file .env --rm $NAME python main.py

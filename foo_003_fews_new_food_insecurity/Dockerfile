@@ -18,5 +18,9 @@ COPY contents/ .
 COPY time.cron .
 VOLUME ./data
 
+RUN groupadd -r $NAME && useradd -r -g $NAME $NAME
+RUN chown $NAME:$NAME /opt/$NAME
+USER $NAME
+
 # Launch script
 CMD ["python", "main.py"]
