@@ -13,7 +13,7 @@ Repository
 | |-time.cron  # single line containing crontab frequency
 | |-start.sh   # shell script to start job in new container
 | |-Dockefile  # container to build
-| |-.env       # this repo's .env file will be copied here
+| |-.env       # the global repo's .env file will be copied here
 | +-...
 |
 |-Script 2 folder
