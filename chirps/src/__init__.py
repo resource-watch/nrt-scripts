@@ -1,4 +1,10 @@
 
+
+'''
+THIS IS BEING PRESERVED, BUT NOT IMPLEMENTED AT THIS POINT
+RW WILL USE THE CHIRPS DATA ON GEE FOR NOW
+'''
+
 import os
 import glob
 import gzip
@@ -30,7 +36,7 @@ print 'The last file (compress) is: ',last_file
 uncompressed = os.path.splitext(last_file)[0]
 
 print 'The last file UNCOMPRESSED is: ',uncompressed
-print 
+print
 
 with closing(urllib2.urlopen('ftp://chg-ftpout.geog.ucsb.edu/pub/org/chg/products/CHIRPS-2.0/global_daily/tifs/p05/2017/'+last_file)) as r:
     with open(str(last_file), 'wb') as f:
@@ -46,7 +52,7 @@ archives = [x for x in os.listdir(source) if '.gz' in x]
 
 for archive in archives:
     archive = os.path.join(source, archive)
-    dest = os.path.join(destination, os.path.splitext(archive)[0]) 
+    dest = os.path.join(destination, os.path.splitext(archive)[0])
 
     with gzip.open(archive, "rb") as zip:
         with open(dest, "w") as out:
@@ -71,7 +77,7 @@ with rasterio.open(source+'/'+uncompressed) as src:
         count=1,
         compress='lzw',
         nodata=0,
-        bigtiff='YES' 
+        bigtiff='YES'
     )
 
     windows = src.block_windows(1)
