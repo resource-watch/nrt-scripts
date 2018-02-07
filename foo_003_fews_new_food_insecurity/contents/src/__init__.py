@@ -14,8 +14,6 @@ from collections import OrderedDict
 from shapely.geometry import mapping, Polygon, MultiPolygon
 import cartosql
 
-from src.update_layers import update_layers
-
 # Constants
 DATA_DIR = 'data'
 SOURCE_URL = 'http://shapefiles.fews.net.s3.amazonaws.com/HFIC/{region}/{target_file}'
@@ -254,9 +252,6 @@ def main():
 
     # 3. Remove old observations
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD, MAXAGE)
-
-    # 4. Update layer definitions
-    update_layers()
 
     ###
 
