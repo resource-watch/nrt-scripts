@@ -13,7 +13,6 @@ import subprocess
 from netCDF4 import Dataset
 import rasterio as rio
 from . import eeUtil
-from src.update_layers import update_layers
 
 LOG_LEVEL = logging.INFO
 CLEAR_COLLECTION_FIRST = False
@@ -243,10 +242,6 @@ def main():
     logging.info('Existing assets: {}, new: {}, max: {}'.format(
         len(existing_dates), len(new_dates), MAX_ASSETS))
     deleteExcessAssets(existing_dates, MAX_ASSETS)
-
-    # 4. Update layers
-    available_dates = existing_assets + new_assets
-    update_layers(available_dates)
 
     ###
 
