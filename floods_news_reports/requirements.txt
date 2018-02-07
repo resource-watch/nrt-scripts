@@ -1,4 +1,0 @@
-beautifulsoup4==4.4.0
-requests==2.3.0
-lxml==3.7.2
-tinys3==0.1.12
