@@ -31,7 +31,7 @@ OUTPUT_DATE_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 
 # Limit 1M rows, drop older than 1 yr
 MAXROWS_EXPLORE = 1000000
-MAXROWS_PLANETPULSE = 50000
+MAXROWS_PLANETPULSE = 100000
 MAXAGE_EXPLORE = datetime.today() - timedelta(days=365)
 MAXAGE_PLANETPULSE = datetime.now() - timedelta(days=1)
 
