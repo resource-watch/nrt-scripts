@@ -15,15 +15,15 @@ import rasterio as rio
 from . import eeUtil
 
 LOG_LEVEL = logging.INFO
-CLEAR_COLLECTION_FIRST = False
+CLEAR_COLLECTION_FIRST = True
 
 # constants for bleaching alerts
-SOURCE_URL = 'https://data.giss.nasa.gov/pub/gistemp/{target_file}'
-SOURCE_FILENAME = 'gistemp250.nc.gz'
+SOURCE_URL = 'ftp://ftp.cdc.noaa.gov/Datasets/gistemp/combined/250km/{target_file}'
+SOURCE_FILENAME = 'air.2x2.250.mon.anom.comb.nc'
 FILENAME = 'cli_035_{date}'
 NODATA_VALUE = None
 DATA_TYPE = 'Byte' # Byte/Int16/UInt16/UInt32/Int32/Float32/Float64/CInt16/CInt32/CFloat32/CFloat64
-VAR_NAME = 'tempanomaly'
+VAR_NAME = 'air'
 TIME_NAME = 'time'
 # For NetCDF
 SDS_NAME = 'NETCDF:\"{nc_name}\":{var_name}'
@@ -37,6 +37,9 @@ DATE_FORMAT = '%Y%m15'
 TIMESTEP = {'days': 30}
 
 # environmental variables
+with open('gcsPrivateKey.json','w') as f:
+    f.write(os.getenv('GCS_JSON'))
+
 GEE_SERVICE_ACCOUNT = os.environ.get("GEE_SERVICE_ACCOUNT")
 GOOGLE_APPLICATION_CREDENTIALS = os.environ.get(
     "GOOGLE_APPLICATION_CREDENTIALS")
@@ -64,15 +67,17 @@ def getNewTargetDates(exclude_dates):
             new_dates.append(datestr)
     return new_dates
 
-def fetch(url, target_file, filename):
+def fetch(filename):
     '''Fetch files by datestamp'''
     # New data may not yet be posted
-    _file = url.format(target_file=target_file)
+    _file = SOURCE_URL.format(target_file=SOURCE_FILENAME)
     try:
         with closing(urllib.request.urlopen(_file)) as r:
-            with gzip.open(r, "rb") as unzipped:
-                with open(filename, 'wb') as f:
-                    shutil.copyfileobj(unzipped, f)
+            #with gzip.open(r, "rb") as unzipped:
+            with open(filename, 'wb') as f:
+                #shutil.copyfileobj(unzipped, f)
+                shutil.copyfileobj(r, f)
+
         #urllib.request.urlretrieve(_file, filename)
         #cmd = ['head', filename]
         #subprocess.call(cmd)
@@ -171,7 +176,7 @@ def processNewData(existing_dates):
 
     # 2. Fetch datafile
     logging.info('Fetching files')
-    nc_file = fetch(SOURCE_URL, SOURCE_FILENAME, 'nc_file.nc')
+    nc_file = fetch('nc_file.nc')
     available_dates = retrieve_formatted_dates(nc_file, TIME_NAME)
     DATA_TYPE, NODATA_VALUE = extract_metadata(nc_file, VAR_NAME)
 
