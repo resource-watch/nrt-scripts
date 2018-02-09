@@ -39,12 +39,13 @@ def genUID(datetime, position_in_geojson):
     '''Generate unique id'''
     return '{}_{}'.format(datetime, position_in_geojson)
 
-def insertIfNew(response, existing_ids,explore=True,
+def insertIfNew(response, existing_ids, explore=True,
                 input_date=INPUT_DATE_FORMAT,output_date=OUTPUT_DATE_FORMAT):
     '''Loop over months in the data, add to new rows if new'''
 
     m = map(methodcaller('split', '_'),(existing_ids))
     seen_dates = list(zip(*m))[0]
+    today = datetime.today().replace(hour=23, minute=30, second=0).strftime(OUTPUT_DATE_FORMAT)
 
     new_rows = []
     for item in response['items']:
@@ -57,7 +58,13 @@ def insertIfNew(response, existing_ids,explore=True,
             dt = datetime.strptime(dt_info[0]+dt_info[1][:4], INPUT_DATE_FORMAT)
             dt = dt.strftime(OUTPUT_DATE_FORMAT)
 
-        if dt not in seen_dates:
+        if dt == today:
+            # Delete existing data for this date
+            delete_ids = [existing_ids[ix] for ix, date in enumerate(seen_dates) if date == today ]
+            logging.info('deleting ids related to this day: ' + str(delete_ids))
+            cartosql.deleteRowsByIDs(CARTO_TABLE_EXPLORE, delete_ids, id_field=UID_FIELD, dtype='text')
+
+        if (dt not in seen_dates) or (dt == today) :
             logging.info('adding data for datetime ' + dt)
             for act in item['action']:
                 if act['displayName'] == 'export':
