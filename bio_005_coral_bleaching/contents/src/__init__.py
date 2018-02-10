@@ -6,7 +6,7 @@ import urllib
 import datetime
 import logging
 import subprocess
-from . import eeUtil
+import eeUtil
 
 # constants for bleaching alerts
 SOURCE_URL = 'ftp://ftp.star.nesdis.noaa.gov/pub/sod/mecb/crw/data/5km/v3/nc/v1/composite/daily/7day/baa-max/{year}/b5km_baa-max-7d_{date}.nc'

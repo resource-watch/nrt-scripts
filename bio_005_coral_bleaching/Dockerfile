@@ -17,7 +17,6 @@ ENV NAME ${NAME}
 RUN mkdir -p /opt/$NAME/data
 WORKDIR /opt/$NAME/
 COPY contents/ .
-COPY credentials.json .
 
 RUN useradd -r $NAME
 RUN chown -R $NAME:$NAME /opt/$NAME
