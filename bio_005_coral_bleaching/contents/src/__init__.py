@@ -18,16 +18,9 @@ DATA_DIR = 'data'
 GS_FOLDER = 'bio_005_bleaching_alerts'
 EE_COLLECTION = 'bio_005_bleaching_alerts'
 
-MAX_ASSETS = 31
+MAX_ASSETS = 61
 DATE_FORMAT = '%Y%m%d'
 TIMESTEP = {'days': 1}
-
-# environmental variables
-GEE_SERVICE_ACCOUNT = os.environ.get("GEE_SERVICE_ACCOUNT")
-GOOGLE_APPLICATION_CREDENTIALS = os.environ.get(
-    "GOOGLE_APPLICATION_CREDENTIALS")
-GEE_STAGING_BUCKET = os.environ.get("GEE_STAGING_BUCKET")
-GCS_PROJECT = os.environ.get("CLOUDSDK_CORE_PROJECT")
 
 
 def getUrl(date):
@@ -91,7 +84,7 @@ def fetch(dates):
             files.append(f)
         except Exception as e:
             logging.warning('Could not fetch {}'.format(url))
-            logging.error(e)
+            logging.debug(e)
     return files
 
 
@@ -153,8 +146,7 @@ def main():
     logging.info('STARTING')
 
     # Initialize eeUtil
-    eeUtil.init(GEE_SERVICE_ACCOUNT, GOOGLE_APPLICATION_CREDENTIALS,
-                GCS_PROJECT, GEE_STAGING_BUCKET)
+    eeUtil.initJson()
 
     # 1. Check if collection exists and create
     existing_assets = checkCreateCollection(EE_COLLECTION)
