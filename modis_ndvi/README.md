@@ -1,3 +1,0 @@
-## MODIS Normalized Difference Vegetation Index
-
-Our lives depend upon plants and trees. They feed us and give us clothes. They absorb carbon dioxide and give off oxygen we need to breathe. Plants even provide many of our medicines and building materials. So when the plants and trees around us change, these changes can affect our health, our environment, and our economy. For these reasons, and more, scientists monitor plant life around the world. Today, scientists use NASA satellites to map the "greenness" of all Earth's lands. These vegetation index maps show where and how much green leaf vegetation was growing for the time period shown.
