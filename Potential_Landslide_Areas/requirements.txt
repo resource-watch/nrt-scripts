@@ -1,4 +1,0 @@
-beautifulsoup4==4.4.0
-requests==2.3.0
-jsonschema==2.5.1
-lxml==3.7.2
