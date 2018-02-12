@@ -20,20 +20,20 @@ make install
 cd ..
 
 # Install HDF5
-v=1.8.13
-wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4/hdf5-${v}.tar.gz
-tar -xf hdf5-${v}.tar.gz && cd hdf5-${v}
-prefix="/usr/local/hdf5-$v"
-if [ $HDF5_DIR != $prefix ]; then
-    echo "Add HDF5_DIR=$prefix to .bashrc"
-    echo "" >> $BASHRC
-    echo "# HDF5 libraries for python" >> $BASHRC
-    echo export HDF5_DIR=$prefix  >> $BASHRC
-fi
-./configure --enable-shared --enable-hl --prefix=$HDF5_DIR
-make -j 2 # 2 for number of procs to be used
-make install
-cd ..
+#v=1.8.13
+#wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4/hdf5-${v}.tar.gz
+#tar -xf hdf5-${v}.tar.gz && cd hdf5-${v}
+#prefix="/usr/local/hdf5-$v"
+#if [ $HDF5_DIR != $prefix ]; then
+#    echo "Add HDF5_DIR=$prefix to .bashrc"
+#    echo "" >> $BASHRC
+#    echo "# HDF5 libraries for python" >> $BASHRC
+#    echo export HDF5_DIR=$prefix  >> $BASHRC
+#fi
+#./configure --enable-shared --enable-hl --prefix=$HDF5_DIR
+#make -j 2 # 2 for number of procs to be used
+#make install
+#cd ..
 
 # Install Netcdf
 v=4.1.3

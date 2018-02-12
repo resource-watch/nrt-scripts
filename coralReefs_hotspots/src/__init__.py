@@ -13,8 +13,9 @@ from rasterio.transform import from_origin
 # Download last dataset (2 days in the past)
 
 def dataDownload(): 
-    today = datetime.date.today() - datetime.timedelta(days=2)
-    url='ftp://ftp.star.nesdis.noaa.gov/pub/sod/mecb/crw/data/5km/nc/baa_max_comp_7day/2017/baa_max_r07d_b05kmnn_'+ str(today.year) +"%02d" % (today.month)+"%02d" % (today.day)+'.nc'
+    today = datetime.date.today() - datetime.timedelta(days=27)
+    url='ftp://ftp.star.nesdis.noaa.gov/pub/sod/mecb/crw/data/5km/nc/baa_max_comp_7day/'+str(today.year)+'/baa_max_r07d_b05kmnn_'+ str(today.year) +"%02d" % (today.month)+"%02d" % (today.day)+'.nc'
+    print(url)
     filename = wget.download(url)
     print('data download finish')
     return filename
