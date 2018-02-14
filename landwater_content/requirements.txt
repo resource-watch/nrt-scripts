@@ -1,5 +1,0 @@
-numpy==1.11.3
-rasterio==1.0a5
-requests==2.6.0
-tinys3==0.1.12
-pydap==3.2.1
