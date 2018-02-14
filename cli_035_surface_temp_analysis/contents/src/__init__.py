@@ -5,14 +5,14 @@ import sys
 import urllib.request
 import shutil
 from contextlib import closing
-import gzip
+#import gzip
 import datetime
 from dateutil import parser
 import logging
-import subprocess
+#import subprocess
 from netCDF4 import Dataset
 import rasterio as rio
-from . import eeUtil
+import eeUtil
 
 LOG_LEVEL = logging.INFO
 CLEAR_COLLECTION_FIRST = False
@@ -32,22 +32,12 @@ DATA_TYPE = 'Byte' # Byte/Int16/UInt16/UInt32/Int32/Float32/Float64/CInt16/CInt3
 MISSING_VALUE_NAME = "missing_value"
 
 DATA_DIR = 'data/'
-GS_PREFIX = 'cli_035_surface_temp_analysis'
+GS_FOLDER = 'cli_035_surface_temp_analysis'
 EE_COLLECTION = 'cli_035_surface_temp_analysis'
 
 MAX_ASSETS = 36
 DATE_FORMAT = '%Y%m15'
 TIMESTEP = {'days': 30}
-
-# environmental variables
-with open('gcsPrivateKey.json','w') as f:
-    f.write(os.getenv('GCS_JSON'))
-
-GEE_SERVICE_ACCOUNT = os.environ.get("GEE_SERVICE_ACCOUNT")
-GOOGLE_APPLICATION_CREDENTIALS = os.environ.get(
-    "GOOGLE_APPLICATION_CREDENTIALS")
-GEE_STAGING_BUCKET = os.environ.get("GEE_STAGING_BUCKET")
-GCS_PROJECT = os.environ.get("CLOUDSDK_CORE_PROJECT")
 
 def getAssetName(date):
     '''get asset name from datestamp'''
@@ -66,7 +56,7 @@ def getNewTargetDates(exclude_dates):
         date -= datetime.timedelta(**TIMESTEP)
         date.replace(day=15)
         datestr = date.strftime(DATE_FORMAT)
-        if datestr not in exclude_dates:
+        if datestr not in exclude_dates + new_dates:
             new_dates.append(datestr)
     return new_dates
 
@@ -99,7 +89,7 @@ def extract_metadata(nc_file):
     logging.info(nc[VAR_NAME])
 
     dtype = str(nc[VAR_NAME].dtype)
-    #NODATA_VALUE = str(nc[data_var_name].getncattr("_FillValue"))
+    #nodata = str(nc[data_var_name].getncattr("_FillValue"))
     nodata = float(nc[VAR_NAME].getncattr(MISSING_VALUE_NAME))
 
     del nc
@@ -115,7 +105,6 @@ def retrieve_formatted_dates(nc_file, date_pattern=DATE_FORMAT):
     # Extract time variable range
     nc = Dataset(nc_file)
     time_displacements = nc[TIME_NAME]
-    # Clean up reference to nc object
     del nc
 
     # Identify time units
@@ -195,17 +184,21 @@ def processNewData(existing_dates):
         # 3. Convert new files
         logging.info('Converting files')
         sub_tifs = extract_subdata_by_date(nc_file, dtype, nodata, available_dates, target_dates)
+        logging.info(sub_tifs)
 
         # 4. Upload new files
         logging.info('Uploading files')
         dates = [getDate(tif) for tif in sub_tifs]
+        datestamps = [datetime.datetime.strptime(date, DATE_FORMAT)
+                      for date in dates]
         assets = [getAssetName(date) for date in dates]
-        eeUtil.uploadAssets(sub_tifs, assets, GS_PREFIX, dates, public=True, timeout=3000)
+        eeUtil.uploadAssets(sub_tifs, assets, GS_FOLDER, datestamps)
 
         # 5. Delete local files
         logging.info('Cleaning local files')
         os.remove(nc_file)
         for tif in sub_tifs:
+            logging.debug('deleting: ' + tif)
             os.remove(tif)
 
         return assets
@@ -237,14 +230,13 @@ def main():
     logging.info('STARTING')
 
     # Initialize eeUtil
-    eeUtil.init(GEE_SERVICE_ACCOUNT, GOOGLE_APPLICATION_CREDENTIALS,
-                GCS_PROJECT, GEE_STAGING_BUCKET)
+    eeUtil.initJson()
 
+    # 1. Check if collection exists and create
     if CLEAR_COLLECTION_FIRST:
         if eeUtil.exists(EE_COLLECTION):
             eeUtil.removeAsset(EE_COLLECTION, recursive=True)
 
-    # 1. Check if collection exists and create
     existing_assets = checkCreateCollection(EE_COLLECTION)
     existing_dates = [getDate(a) for a in existing_assets]
 

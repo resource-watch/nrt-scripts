@@ -16,14 +16,14 @@ RUN apt-get install -y \
   cron \
   && apt-get clean
 
+RUN pip install -e git+https://github.com/fgassert/eeUtil#egg=eeUtil
 RUN pip install numpy #Install this ahead of rasterio for appropriate applications
 RUN pip install --upgrade pip && pip install \
     requests \
     rasterio \
     netCDF4 \
-    python-dateutil \
-    earthengine-api \
-    google-cloud-storage
+    python-dateutil
+
 
 # copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data
