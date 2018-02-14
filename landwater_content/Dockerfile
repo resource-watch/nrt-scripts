@@ -13,7 +13,6 @@ COPY install_ntcdf4.sh /opt/install_ntcdf4.sh
 RUN ls /opt
 RUN /opt/install_ntcdf4.sh
 
-
 RUN groupadd -r $NAME && useradd -r -g $NAME $NAME
 
 RUN easy_install pip && pip install --upgrade pip
