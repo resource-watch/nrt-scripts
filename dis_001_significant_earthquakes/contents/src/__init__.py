@@ -10,12 +10,12 @@ import cartosql
 ### Constants
 SOURCE_URL = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime={startTime}&endtime={endTime}&minsig={minSig}"
 
-PROCESS_HISTORY = True
+PROCESS_HISTORY = False
 DATE_FORMAT = '%Y-%m-%d'
 DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
-SIGNIFICANT_THRESHOLD=600
+SIGNIFICANT_THRESHOLD = 600
 
-LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.INFO
 CLEAR_TABLE_FIRST = False
 
 ### Table name and structure
@@ -131,7 +131,7 @@ def appendTimeFrame(existing_ids, startTime, endTime, new_data, new_ids):
 
             new_data.append(row)
 
-    logging.debug('{} new ids added'.format(len(new_ids) - num_start_ids))
+    logging.info('{} new ids added'.format(len(new_ids) - num_start_ids))
     return new_data, new_ids
 
 def processData(existing_ids):
@@ -150,7 +150,7 @@ def processData(existing_ids):
         startTime = MAX_AGE
         endTime = startTime + timedelta(days=31)
         while startTime < today:
-            logging.debug('Fetching data between {} and {}'.format(startTime, endTime))
+            logging.info('Fetching data between {} and {}'.format(startTime, endTime))
             new_data, new_ids = appendTimeFrame(existing_ids, startTime, endTime, new_data, new_ids)
             startTime = endTime
             endTime = startTime + timedelta(days=31)
@@ -159,10 +159,13 @@ def processData(existing_ids):
         # Use defaults of endpoint
         startTime = ''
         endTime = ''
-        new_data = appendTimeFrame(existing_ids, startTime, endTime, new_data, new_ids)
+        logging.info('Fetching data for last 30 days')
 
-    num_new = len(new_data)
+        new_data, new_ids = appendTimeFrame(existing_ids, startTime, endTime, new_data, new_ids)
+
+    num_new = len(new_ids)
     if num_new:
+        logging.info('Adding {} new records'.format(num_new))
         cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), new_data)
 
     return(num_new)
