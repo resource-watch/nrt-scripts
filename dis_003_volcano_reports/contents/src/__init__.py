@@ -17,7 +17,7 @@ DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 SIGNIFICANT_THRESHOLD = 600
 
 LOG_LEVEL = logging.INFO
-CLEAR_TABLE_FIRST = False
+CLEAR_TABLE_FIRST = True
 
 ### Table name and structure
 CARTO_TABLE = 'dis_003_volcano_reports'
@@ -28,6 +28,7 @@ CARTO_SCHEMA = OrderedDict([
     ('volcano_name', 'text'),
     ('country_name', 'text'),
     ('description', 'text'),
+    ('sources', 'text')
 ])
 UID_FIELD = 'uid'
 TIME_FIELD = 'pubdate'
@@ -121,7 +122,7 @@ def processData(existing_ids):
 
         description_text = [text.replace('<p>','').replace('</p>','') for text in info]
         description = description_text[0]
-        source = description_text[1]
+        sources = description_text[1]
 
         _uid = genUID(lat,lon,dt)
         if _uid not in existing_ids:
@@ -136,8 +137,8 @@ def processData(existing_ids):
                     row.append(dt)
                 elif field == 'description':
                     row.append(description)
-                elif field == 'source':
-                    row.append(source)
+                elif field == 'sources':
+                    row.append(sources)
                 elif field == 'volcano_name':
                     row.append(volcano_name)
                 elif field == 'country_name':
