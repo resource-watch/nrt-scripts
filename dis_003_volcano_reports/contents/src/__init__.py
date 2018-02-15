@@ -13,8 +13,6 @@ from dateutil import parser
 ### Constants
 SOURCE_URL = "http://volcano.si.edu/news/WeeklyVolcanoRSS.xml"
 
-PROCESS_HISTORY = False
-DATE_FORMAT = '%Y-%m-%d'
 DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 SIGNIFICANT_THRESHOLD = 600
 
@@ -107,10 +105,10 @@ def processData(existing_ids):
         country_name = title[1]
 
         coords = item['{http://www.georss.org/georss}point'].split(' ')
-        dt = parser.parse(item['pubDate'], fuzzy=True)
+        dt = parser.parse(item['pubDate'], fuzzy=True).strftime(DATETIME_FORMAT)
 
-        lat = coords[1]
-        lon = coords[0]
+        lat = coords[0]
+        lon = coords[1]
         geom = {
             'type':'Point',
             'coordinates':[lon,lat]
