@@ -24,13 +24,13 @@ CARTO_TABLE = 'dis_003_volcano_reports'
 CARTO_SCHEMA = OrderedDict([
     ('uid', 'text'),
     ('the_geom', 'geometry'),
-    ('datetime', 'timestamp'),
+    ('pubdate', 'timestamp'),
     ('volcano_name', 'text'),
     ('country_name', 'text'),
     ('description', 'text'),
 ])
 UID_FIELD = 'uid'
-TIME_FIELD = 'datetime'
+TIME_FIELD = 'pubdate'
 
 # Table limits
 MAX_ROWS = 1000000
@@ -100,9 +100,10 @@ def processData(existing_ids):
     items = json['channel']['item']
 
     for item in items:
-        title = [x.replace(')','').strip() for x in item['title'].split('(')]
-        volcano_name = title[0]
-        country_name = title[1]
+        title = item['title'].split(')')[0].split('(')
+        place_info = [place.strip() for place in title]
+        volcano_name = place_info[0]
+        country_name = place_info[1]
 
         coords = item['{http://www.georss.org/georss}point'].split(' ')
         dt = parser.parse(item['pubDate'], fuzzy=True).strftime(DATETIME_FORMAT)
@@ -114,6 +115,14 @@ def processData(existing_ids):
             'coordinates':[lon,lat]
         }
 
+        info = item['description'].split('Source:')
+        if len(info) < 2:
+            info = item['description'].split('Sources:')
+
+        description_text = [text.replace('<p>','').replace('</p>','') for text in info]
+        description = description_text[0]
+        source = description_text[1]
+
         _uid = genUID(lat,lon,dt)
         if _uid not in existing_ids:
             new_ids.append(_uid)
@@ -123,10 +132,12 @@ def processData(existing_ids):
                     row.append(_uid)
                 elif field == 'the_geom':
                     row.append(geom)
-                elif field == 'datetime':
+                elif field == 'pubdate':
                     row.append(dt)
                 elif field == 'description':
-                    row.append(item['description'])
+                    row.append(description)
+                elif field == 'source':
+                    row.append(source)
                 elif field == 'volcano_name':
                     row.append(volcano_name)
                 elif field == 'country_name':
