@@ -125,7 +125,7 @@ def processData(existing_ids):
         sources = description_text[1]
 
         _uid = genUID(lat,lon,dt)
-        if _uid not in existing_ids:
+        if _uid not in existing_ids + new_ids:
             new_ids.append(_uid)
             row = []
             for field in CARTO_SCHEMA:
