@@ -10,7 +10,7 @@ import cartosql
 
 ### Constants
 SOURCE_URL = "https://missingmigrants.iom.int/global-figures/{year}/xls"
-CLEAR_TABLE_FIRST = False
+CLEAR_TABLE_FIRST = True
 PROCESS_HISTORY = True
 DATE_FORMAT = '%Y-%m-%d'
 LOG_LEVEL = logging.DEBUG
