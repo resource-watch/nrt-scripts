@@ -10,13 +10,13 @@ import cartosql
 
 ### Constants
 SOURCE_URL = "https://missingmigrants.iom.int/global-figures/{year}/xls"
-CLEAR_TABLE_FIRST = True
-PROCESS_HISTORY = True
+CLEAR_TABLE_FIRST = False
+PROCESS_HISTORY = False
 DATE_FORMAT = '%Y-%m-%d'
 LOG_LEVEL = logging.DEBUG
 
 ### Table name and structure
-CARTO_TABLE = 'soc_018_migrant_deaths'
+CARTO_TABLE = 'soc_018_missing_migrants'
 CARTO_SCHEMA = OrderedDict([
     ('uid', 'text'),
     ('the_geom', 'geometry'),
@@ -59,6 +59,17 @@ def structure_row(headers, values):
         row[key] = val
     return row
 
+def clean_row(row):
+    clean_row = []
+    for entry in row:
+        if entry == 'nan':
+            clean_row.append(None)
+        elif pd.isnull(entry):
+            clean_row.append(None)
+        else:
+            clean_row.append(entry)
+    return clean_row
+
 def processData(existing_ids):
     """
     Inputs: FTP SOURCE_URL and filename where data is stored, existing_ids not to duplicate
@@ -79,19 +90,20 @@ def processData(existing_ids):
             logging.info("Fetching data for {}".format(year))
             try:
                 more_headers, more_rows = fetchAndFormatData(year)
+                # Check that headers for historical data match the newest data
                 logging.info('More headers: {}'.format(more_headers))
                 assert(headers == more_headers)
                 rows.extend(more_rows)
-                logging.info('Fetched additional data')
+                logging.info('Fetched additional data for year {}'.format(year))
             except:
-                logging.info('Couldn\'t fetch data')
+                logging.info('Couldn\'t fetch data for year {}'.format(year))
             logging.info("Num rows: {}".format(len(rows)))
             count += 1
 
     new_rows = []
     for _row in rows:
-        if _row[0] not in existing_ids:
-            row = structure_row(headers, _row)
+        row = structure_row(headers, _row)
+        if str(row['Web ID']) not in existing_ids:
             uid = row['Web ID']
             lat, lon = [float(loc.strip()) for loc in row['Location'].split(',')]
             geometry = {
@@ -107,10 +119,13 @@ def processData(existing_ids):
                     new_row.append(geometry)
                 else:
                     new_row.append(row[field.replace('_', ' ')])
-        new_rows.append(new_row)
+
+            new_row = clean_row(new_row)
+            new_rows.append(new_row)
 
     if len(new_rows):
         num_new = len(new_rows)
+        logging.debug("15 rows from middle of new_rows: {}".format(new_rows[1000:1015]))
         cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), new_rows)
 
     return(num_new)
@@ -167,8 +182,6 @@ def deleteExcessRows(table, max_rows, time_field, max_age=''):
 def main():
     logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
 
-    #cartosql.dropTable(CARTO_TABLE)
-    #cartosql.createTable(CARTO_TABLE, CARTO_SCHEMA)
     if CLEAR_TABLE_FIRST:
         if cartosql.tableExists(CARTO_TABLE):
             logging.info('Dropping table')
