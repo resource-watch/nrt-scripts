@@ -84,22 +84,26 @@ def processData(existing_ids):
     logging.info("Num rows: {}".format(len(rows)))
 
     if PROCESS_HISTORY:
-        count = 0
-        while count < 5:
-            year -= 1
-            logging.info("Fetching data for {}".format(year))
-            try:
-                more_headers, more_rows = fetchAndFormatData(year)
-                # Check that headers for historical data match the newest data
-                logging.info('More headers: {}'.format(more_headers))
-                assert(headers == more_headers)
-                rows.extend(more_rows)
-                logging.info('Fetched additional data for year {}'.format(year))
-            except:
-                logging.info('Couldn\'t fetch data for year {}'.format(year))
-            logging.info("Num rows: {}".format(len(rows)))
-            count += 1
+        year_history = 5
+    else:
+        year_history = 1
 
+    count = 0
+    while count < year_history:
+        year -= 1
+        logging.info("Fetching data for {}".format(year))
+        try:
+            more_headers, more_rows = fetchAndFormatData(year)
+            # Check that headers for historical data match the newest data
+            logging.info('More headers: {}'.format(more_headers))
+            assert(headers == more_headers)
+            rows.extend(more_rows)
+            logging.info('Fetched additional data for year {}'.format(year))
+        except:
+            logging.info('Couldn\'t fetch data for year {}'.format(year))
+        logging.info("Num rows: {}".format(len(rows)))
+        count += 1
+        
     new_rows = []
     for _row in rows:
         row = structure_row(headers, _row)
