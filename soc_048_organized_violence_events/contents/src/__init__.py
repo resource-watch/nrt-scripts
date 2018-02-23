@@ -13,6 +13,8 @@ CLEAR_TABLE_FIRST = False
 PROCESS_HISTORY = False
 DATE_FORMAT = '%Y-%m-%d'
 DAYS_TO_LOOK_BACK = 60
+# Limit 1M rows
+MAXROWS = 1000000
 
 CARTO_TABLE = 'soc_048_organized_violence_events_nrt'
 CARTO_SCHEMA = OrderedDict([
@@ -67,8 +69,6 @@ TIME_FIELD = 'date_start'
 DATA_DIR = 'data'
 LOG_LEVEL = logging.INFO
 
-# Limit 1M rows
-MAXROWS = 1000000
 
 def genUID(obs):
     '''Generate unique id'''
