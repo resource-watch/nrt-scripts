@@ -69,7 +69,6 @@ TIME_FIELD = 'date_start'
 DATA_DIR = 'data'
 LOG_LEVEL = logging.INFO
 
-
 def genUID(obs):
     '''Generate unique id'''
     return str(obs['id'])
@@ -206,9 +205,9 @@ def main():
 
     # 2. Iterively fetch, parse and post new data
     new_count = processNewData(existing_ids)
-    existing_count = new_count + len(existing_ids)
+    total_count = len(existing_ids)
     logging.info('Total rows: {}, New: {}, Max: {}'.format(
-        existing_count, new_count, MAXROWS))
+        total_count, new_count, MAXROWS))
 
     # 3. Remove old observations
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD)
