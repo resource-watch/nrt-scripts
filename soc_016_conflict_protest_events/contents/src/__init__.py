@@ -11,8 +11,9 @@ import cartosql
 LATEST_URL = 'https://api.acleddata.com/acled/read?page={page}'
 MIN_PAGES = 10
 MAX_PAGES = 200
+CLEAR_TABLE_FIRST = False
 
-CARTO_TABLE = 'soc_016_conflict_protest_events_afr'
+CARTO_TABLE = 'soc_016_conflict_protest_events'
 CARTO_SCHEMA = OrderedDict([
     ("the_geom", "geometry"),
     ("data_id", "int"),
@@ -21,26 +22,30 @@ CARTO_SCHEMA = OrderedDict([
     ("time_precision", "int"),
     ("event_type", "text"),
     ("actor1", "text"),
-    ("ally_actor_1", "text"),
+    ("assoc_actor_1", "text"),
     ("inter1", "int"),
     ("actor2", "text"),
-    ("ally_actor_2", "text"),
+    ("assoc_actor_2", "text"),
     ("inter2", "int"),
     ("interaction", "int"),
     ("country", "text"),
+    ("iso3", "text"),
+    ("region", "text"),
     ("admin1", "text"),
     ("admin2", "text"),
     ("admin3", "text"),
     ("location", "text"),
     ("geo_precision", "int"),
+    ("time_precision", "int"),
     ("source", "text"),
+    ("source_scale", "text"),
     ("notes", "text"),
     ("fatalities", "int"),
 ])
 UID_FIELD = 'data_id'
 TIME_FIELD = 'event_date'
 DATA_DIR = 'data'
-LOG_LEVEL = logging.INFO
+LOG_LEVEL = logging.DEBUG
 
 # Limit 1M rows, drop older than 10yrs
 MAXROWS = 1000000
@@ -71,7 +76,7 @@ def processNewData(exclude_ids):
         new_rows = []
         for obs in r.json()['data']:
             uid = genUID(obs)
-            if uid not in exclude_ids:
+            if uid not in exclude_ids + new_ids:
                 new_ids.append(uid)
                 row = []
                 for field in CARTO_SCHEMA.keys():
@@ -88,7 +93,12 @@ def processNewData(exclude_ids):
                     elif field == UID_FIELD:
                         row.append(uid)
                     else:
-                        row.append(obs[field])
+                        try:
+                            row.append(obs[field])
+                        except:
+                            logging.debug('{} not available for this row'.format(field))
+                            row.append('')
+
                 new_rows.append(row)
 
         # 3. Insert new rows
@@ -147,13 +157,17 @@ def main():
     logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
     logging.info('STARTING')
 
+    if CLEAR_TABLE_FIRST:
+        if cartosql.tableExists(CARTO_TABLE):
+            cartosql.dropTable(CARTO_TABLE)
+
     # 1. Check if table exists and create table
     existing_ids = []
     if cartosql.tableExists(CARTO_TABLE):
         logging.info('Fetching existing ids')
         existing_ids = getIds(CARTO_TABLE, UID_FIELD)
     else:
-        logging.info('Table {} does not exist, creating'.format(table))
+        logging.info('Table {} does not exist, creating'.format(CARTO_TABLE))
         createTableWithIndex(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, TIME_FIELD)
 
     # 2. Iterively fetch, parse and post new data
