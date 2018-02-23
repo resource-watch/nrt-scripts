@@ -45,7 +45,7 @@ CARTO_SCHEMA = OrderedDict([
 UID_FIELD = 'data_id'
 TIME_FIELD = 'event_date'
 DATA_DIR = 'data'
-LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.INFO
 
 # Limit 1M rows, drop older than 10yrs
 MAXROWS = 1000000
