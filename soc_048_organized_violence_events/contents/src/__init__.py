@@ -3,15 +3,18 @@ import logging
 import sys
 import requests
 from collections import OrderedDict
-import datetime
+from datetime import datetime, timedelta
 import cartosql
 
-
 # Constants
-LATEST_URL = 'http://ucdpapi.pcr.uu.se/api/gedevents/17.2?pagesize=1000&page={page}'
+HISTORY_URL = 'http://ucdpapi.pcr.uu.se/api/gedevents/17.2?pagesize=1000&page={page}'
+LATEST_URL = 'http://ucdpapi.pcr.uu.se/api/gedevents/17.2?pagesize=1000&page={page}&StartDate={start_date}'
 CLEAR_TABLE_FIRST = False
+PROCESS_HISTORY = False
+DATE_FORMAT = '%Y-%m-%d'
+DAYS_TO_LOOK_BACK = 60
 
-CARTO_TABLE = 'soc_048_organized_violence_events'
+CARTO_TABLE = 'soc_048_organized_violence_events_nrt'
 CARTO_SCHEMA = OrderedDict([
     ("uid", "text"),
     ("the_geom", "geometry"),
@@ -64,16 +67,18 @@ TIME_FIELD = 'date_start'
 DATA_DIR = 'data'
 LOG_LEVEL = logging.INFO
 
-# Limit 1M rows, drop older than 10yrs
+# Limit 1M rows
 MAXROWS = 1000000
-MAXAGE = datetime.datetime.today() - datetime.timedelta(days=365*20)
 
 def genUID(obs):
     '''Generate unique id'''
     return str(obs['id'])
 
-def fetchResults(page):
-    return requests.get(LATEST_URL.format(page=page)).json()['Result']
+def fetchResults(page, start_date=None):
+    if PROCESS_HISTORY:
+        return requests.get(HISTORY_URL.format(page=page)).json()['Result']
+    else:
+        return requests.get(LATEST_URL.format(page=page, start_date=start_date)).json()['Result']
 
 def genRow(obs):
     uid = genUID(obs)
@@ -93,10 +98,14 @@ def genRow(obs):
             row.append(uid)
         else:
             try:
-                row.append(obs[field])
+                if obs[field]:
+                    row.append(obs[field])
+                else:
+                    logging.debug('Field {} was empty'.format(field))
+                    row.append(None)
             except:
                 logging.debug('{} not available for this row'.format(field))
-                row.append('')
+                row.append(None)
     return row
 
 def keep_if_new(obs, existing_ids):
@@ -106,26 +115,33 @@ def keep_if_new(obs, existing_ids):
         existing_ids.append(obs[0])
         return True
 
-def processNewData(exclude_ids):
+def processNewData(existing_ids):
     '''
     Iterively fetch parse and post new data
     '''
-    num_pages = requests.get(LATEST_URL.format(page=0)).json()['TotalPages']
-    all_pages = range(num_pages)
-    all_new_ids = []
-    for page in all_pages:
-        results = fetchResults(page)
-        parsed_rows = map(genRow, results)
-        new_rows = filter(keep_if_new, parsed_rows)
+    if PROCESS_HISTORY:
+        start_date = '1900-01-01'
+        num_pages = requests.get(HISTORY_URL.format(page=0)).json()['TotalPages']
+    else:
+        start_date = (datetime.today() - timedelta(days=DAYS_TO_LOOK_BACK)).strftime(DATE_FORMAT)
+        num_pages = requests.get(LATEST_URL.format(page=0, start_date=start_date)).json()['TotalPages']
 
-        # 3. Insert new rows
+    logging.info('Number of pages: {}'.format(num_pages))
+    all_pages = range(num_pages)
+    total_new = 0
+    for page in all_pages:
+        logging.info('Processing page {}/{}'.format(page, num_pages))
+        results = fetchResults(page, start_date)
+        parsed_rows = map(genRow, results)
+        new_rows = list(filter(lambda row: keep_if_new(row, existing_ids), parsed_rows))
         new_count = len(new_rows)
         if new_count:
-            logging.info('Pushing new rows')
+            logging.info('Pushing {} new rows'.format(new_count))
             cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
                                 CARTO_SCHEMA.values(), new_rows)
-            all_new_ids.append(new_ids)
-    return all_new_ids
+            total_new += new_count
+
+    return total_new
 
 
 ##############################################################
@@ -150,7 +166,7 @@ def getIds(table, id_field):
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
     '''Delete excess rows by age or count'''
     num_dropped = 0
-    if isinstance(max_age, datetime.datetime):
+    if isinstance(max_age, datetime):
         max_age = max_age.isoformat()
 
     # 1. delete by age
@@ -189,14 +205,12 @@ def main():
         createTableWithIndex(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, TIME_FIELD)
 
     # 2. Iterively fetch, parse and post new data
-    new_ids = processNewData(existing_ids)
-
-    new_count = len(new_ids)
+    new_count = processNewData(existing_ids)
     existing_count = new_count + len(existing_ids)
     logging.info('Total rows: {}, New: {}, Max: {}'.format(
         existing_count, new_count, MAXROWS))
 
     # 3. Remove old observations
-    deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD, MAXAGE)
+    deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD)
 
     logging.info('SUCCESS')
