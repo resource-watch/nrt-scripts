@@ -93,7 +93,7 @@ def extract_metadata(nc_file):
     logging.info(nc[VAR_NAME])
 
     dtype = str(nc[VAR_NAME].dtype)
-    nodata = nc[VAR_NAME].getncattr("_FillValue")
+    nodata = float(nc[VAR_NAME].getncattr("_FillValue"))
     #nodata = float(nc[VAR_NAME].getncattr(MISSING_VALUE_NAME))
 
     del nc
