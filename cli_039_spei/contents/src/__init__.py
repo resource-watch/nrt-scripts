@@ -13,10 +13,11 @@ import logging
 from netCDF4 import Dataset
 import rasterio as rio
 import eeUtil
+import numpy as np
 
 LOG_LEVEL = logging.INFO
 CLEAR_COLLECTION_FIRST = False
-DOWNLOAD_FILE = False
+DOWNLOAD_FILE = True
 
 # constants for bleaching alerts
 SOURCE_URL = 'http://soton.eead.csic.es/spei/maps/../nc/{filename}'
@@ -26,7 +27,7 @@ SDS_NAME = 'NETCDF:\"{nc_name}\":{var_name}'
 
 VAR_NAME = 'spei'
 TIME_NAME = 'time'
-TIMELAG = '06'
+TIMELAGS = ['06']
 
 # Read from dataset
 NODATA_VALUE = None
@@ -168,7 +169,9 @@ def extract_subdata_by_date(nc_file, lag, dtype, nodata, available_dates, target
         logging.info(sub_tif)
 
         with rio.open(sub_tif, 'w', **profile) as dst:
-            dst.write(data.astype(dtype), indexes=1)
+            ## Need to flip array, original data comes in upside down
+            flipped_array = np.flipud(data.astype(dtype))
+            dst.write(flipped_array, indexes=1)
         sub_tifs.append(sub_tif)
 
     del nc
@@ -249,7 +252,9 @@ def main():
     existing_dates = [getDate(a) for a in existing_assets]
 
     # 2. Fetch, process, stage, ingest, clean
-    new_assets =  processNewData(existing_dates, TIMELAG)
+    new_assets =  []
+    for lag in TIMELAGS:
+        new_assets.extend(processNewData(existing_dates, lag))
     new_dates = [getDate(a) for a in new_assets]
 
     # 3. Delete old assets
