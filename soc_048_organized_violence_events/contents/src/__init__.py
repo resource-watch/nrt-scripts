@@ -13,10 +13,10 @@ CLEAR_TABLE_FIRST = False
 
 CARTO_TABLE = 'soc_048_organized_violence_events'
 CARTO_SCHEMA = OrderedDict([
+    ("uid", "text"),
     ("the_geom", "geometry"),
     ("date_start", "timestamp"),
     ("date_end", "timestamp"),
-    ("uid", "text"),
     ("active_year", "text"),
     ("code_status", "text"),
     ("type_of_violence", "numeric"),
@@ -68,7 +68,6 @@ LOG_LEVEL = logging.INFO
 MAXROWS = 1000000
 MAXAGE = datetime.datetime.today() - datetime.timedelta(days=365*20)
 
-
 def genUID(obs):
     '''Generate unique id'''
     return str(obs['id'])
@@ -76,60 +75,48 @@ def genUID(obs):
 def fetchResults(page):
     return requests.get(LATEST_URL.format(page=page)).json()['Result']
 
-def genRow(obs, exclude_ids, new_ids):
+def genRow(obs):
     uid = genUID(obs)
-    if uid not in exclude_ids + new_ids:
-        new_ids.append(uid)
-        row = []
-        for field in CARTO_SCHEMA.keys():
-            if field == 'the_geom':
-                # construct geojson geometry
-                geom = {
-                    "type": "Point",
-                    "coordinates": [
-                        obs['longitude'],
-                        obs['latitude']
-                    ]
-                }
-                row.append(geom)
-            elif field == UID_FIELD:
-                row.append(uid)
-            else:
-                try:
-                    row.append(obs[field])
-                except:
-                    logging.debug('{} not available for this row'.format(field))
-                    row.append('')
+    row = []
+    for field in CARTO_SCHEMA.keys():
+        if field == 'the_geom':
+            # construct geojson geometry
+            geom = {
+                "type": "Point",
+                "coordinates": [
+                    obs['longitude'],
+                    obs['latitude']
+                ]
+            }
+            row.append(geom)
+        elif field == UID_FIELD:
+            row.append(uid)
+        else:
+            try:
+                row.append(obs[field])
+            except:
+                logging.debug('{} not available for this row'.format(field))
+                row.append('')
+    return row
 
-
-def parseData(results, exclude_ids):
-    return map(genRow, results)
+def keep_if_new(obs, existing_ids):
+    if obs[0] in existing_ids:
+        return False
+    else:
+        existing_ids.append(obs[0])
+        return True
 
 def processNewData(exclude_ids):
     '''
     Iterively fetch parse and post new data
     '''
-    ping = requests.get(LATEST_URL.format(page=0))
-    num_pages = ping.json()['TotalPages']
-    all_pages = list(range(num_pages))
-
-    # Map - create a list of paginated responses
-    all_results = map(fetchResults, all_pages)
-    parse_results = map(parseData, all_results)
-    # Reduce - collapse list of lists into a single list of rows
-
-    # get and parse each page; stop when no new results or 200 pages
-    while page <= MIN_PAGES or new_count and page < MAX_PAGES:
-        # 1. Fetch new data
-        logging.info("Fetching page {}".format(page))
-        r = requests.get(LATEST_URL.format(page=page))
-        page += 1
-
-        # 2. Parse data excluding existing observations
-        new_rows = []
-
-
-                new_rows.append(row)
+    num_pages = requests.get(LATEST_URL.format(page=0)).json()['TotalPages']
+    all_pages = range(num_pages)
+    all_new_ids = []
+    for page in all_pages:
+        results = fetchResults(page)
+        parsed_rows = map(genRow, results)
+        new_rows = filter(keep_if_new, parsed_rows)
 
         # 3. Insert new rows
         new_count = len(new_rows)
@@ -137,7 +124,8 @@ def processNewData(exclude_ids):
             logging.info('Pushing new rows')
             cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
                                 CARTO_SCHEMA.values(), new_rows)
-    return new_ids
+            all_new_ids.append(new_ids)
+    return all_new_ids
 
 
 ##############################################################
