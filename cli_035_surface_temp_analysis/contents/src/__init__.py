@@ -15,7 +15,7 @@ import rasterio as rio
 import eeUtil
 
 LOG_LEVEL = logging.INFO
-CLEAR_COLLECTION_FIRST = False
+CLEAR_COLLECTION_FIRST = True
 
 # constants for bleaching alerts
 SOURCE_URL = 'ftp://ftp.cdc.noaa.gov/Datasets/gistemp/combined/250km/{target_file}'
