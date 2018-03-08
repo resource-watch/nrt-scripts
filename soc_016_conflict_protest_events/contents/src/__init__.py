@@ -49,7 +49,7 @@ LOG_LEVEL = logging.INFO
 
 # Limit 1M rows, drop older than 10yrs
 MAXROWS = 1000000
-MAXAGE = datetime.datetime.today() - datetime.timedelta(days=3650)
+#MAXAGE = datetime.datetime.today() - datetime.timedelta(days=3650)
 
 
 def genUID(obs):
@@ -104,7 +104,7 @@ def processNewData(exclude_ids):
         # 3. Insert new rows
         new_count = len(new_rows)
         if new_count:
-            logging.info('Pushing new rows')
+            logging.info('Pushing {} new rows'.format(new_count))
             cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
                                 CARTO_SCHEMA.values(), new_rows)
     return new_ids
@@ -179,6 +179,6 @@ def main():
         existing_count, new_count, MAXROWS))
 
     # 3. Remove old observations
-    deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD, MAXAGE)
+    deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD) # MAXAGE)
 
     logging.info('SUCCESS')
