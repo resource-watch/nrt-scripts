@@ -12,23 +12,25 @@ import eeUtil
 from functools import reduce
 from netCDF4 import Dataset
 import rasterio as rio
+from rasterio.crs import CRS
 import numpy as np
+from collections import defaultdict
 
-LOG_LEVEL = logging.DEBUG
-CLEAR_COLLECTION_FIRST = True
-VERSION = '3.0'
+LOG_LEVEL = logging.INFO
+CLEAR_COLLECTION_FIRST = False
+DELETE_LOCAL = True
 
 # Sources for nrt data
 SOURCE_URL = 'ftp://ftp.star.nesdis.noaa.gov/pub/corp/scsb/wguo/data/VHP_4km/VH/{target_file}'
 SOURCE_FILENAME = 'VHP.G04.C07.NP.P{date}.VH.nc'
-# SDS_NAME = 'NETCDF:"{fname}":{varname}'
+SDS_NAME = 'NETCDF:"{fname}":{varname}'
 
 VARIABLES = {
     'foo_025':'VHI',
     'foo_051':'VCI'
 }
 
-ASSETS = {
+ASSET_NAMES = {
     'foo_025':'vegetation_health_index',
     'foo_051':'vegetation_condition_index',
 }
@@ -41,12 +43,18 @@ DATA_DIR = 'data'
 GS_PREFIX = '{rw_id}_{varname}'
 
 MAX_DATES = 36
+# http://php.net/manual/en/function.strftime.php
 DATE_FORMAT = '%Y0%V'
+DATE_FORMAT_ISO = '%G0%V-%w'
 TIMESTEP = {'days':7}
 S_SRS = 'EPSG:32662'
-EXTENT = '-180 -89.75 180 89.75'
+EXTENT = '-180 -55.152 180 75.024002'
 DTYPE = rio.float32
 NODATA = -999
+SCALE_FACTOR = .01
+
+# https://gist.github.com/tomkralidis/baabcad8c108e91ee7ab
+os.environ['GDAL_NETCDF_BOTTOMUP']='NO'
 
 ###
 ## Handling RASTERS
@@ -89,30 +97,20 @@ def extract_subdata(nc_file, rw_id):
     '''
     # Set filename
     nc = Dataset(nc_file)
-    var = VARIABLES[rw_id]
+    var_code = VARIABLES[rw_id]
 
-    var_tif = '{}_{}.tif'.format(os.path.splitext(nc_file)[0], var)
+    var_tif = '{}_{}.tif'.format(os.path.splitext(nc_file)[0], var_code)
     logging.info('New tif: {}'.format(var_tif))
 
     # Extract data
-    data = nc[var][:,:]
+    data = nc[var_code][:,:]
     logging.info('Type of data: {}'.format(type(data)))
-    logging.debug('Shape: {}'.format(data.shape))
+    logging.info('Shape: {}'.format(data.shape))
 
+    logging.info('Rescaling data w/ scale factor {}'.format(SCALE_FACTOR))
+    data = data*SCALE_FACTOR
     # Transformation function
     transform = rio.transform.from_bounds(*[float(pos) for pos in EXTENT.split(' ')], data.shape[1], data.shape[0])
-
-    # Not a clear view of data
-    logging.info('Data: {}'.format(data))
-
-    # Max value of each row or column
-    # By row
-    rowsums = np.sum(data, axis=1)
-    # By column
-    colsums = np.sum(data, axis=0)
-
-    logging.info('Sorted rowsums: {}'.format(sorted(rowsums)))
-    logging.info('Sorted colsums: {}'.format(sorted(colsums)))
 
     # Profile
     profile = {
@@ -121,7 +119,7 @@ def extract_subdata(nc_file, rw_id):
         'width':data.shape[1],
         'count':1,
         'dtype':DTYPE,
-        'crs':'EPSG:4326',
+        'crs':CRS({'init':S_SRS}),
         'transform':transform,
         'compress':'lzw',
         'nodata':NODATA
@@ -133,58 +131,86 @@ def extract_subdata(nc_file, rw_id):
     del nc
     return var_tif
 
-def reproject(ncfile, var):
+def reproject(ncfile, rw_id, date):
+    # Output filename
+    new_file = os.path.join(DATA_DIR, '{}.tif'.format(ASSET_NAME.format(rw_id = rw_id, varname = ASSET_NAMES[rw_id], date = date)))
 
-    new_file = '{}_reprojected_compressed.tif'.format(os.path.splitext(ncfile)[0])
-    extracted_var_tif = extract_subdata(ncfile, var)
+    logging.info('Extracting subdata')
+    # METHOD 1
+    extracted_var_tif = extract_subdata(ncfile, rw_id)
+
+    # METHOD 2
+    ### Using this, get error:
+    # ERROR 1: Unable to compute a transformation between pixel/line
+    # and georeferenced coordinates for data/VHP.G04.C07.NP.P2018008.VH.tif.
+    # There is no affine transformation and no GCPs.
+    # varname = VARIABLES[rw_id]
+    # sds_path = SDS_NAME.format(fname=ncfile, varname=varname)
+    # extracted_var_tif = '{}.tif'.format(os.path.splitext(ncfile)[0])
+    # # nodata value -5 equals 251 for Byte type?
+    # cmd = ['gdal_translate', '-a_srs', S_SRS, sds_path, extracted_var_tif]
+    # logging.debug('Extracting var {} from {} to {}'.format(varname, ncfile, extracted_var_tif))
+    # subprocess.call(cmd)
 
     logging.info('Reprojecting')
-    reprojected_tif = 'reprojected.tif'
-    cmd = ' '.join(['gdalwarp','-overwrite','-s_srs',S_SRS,'-t_srs','EPSG:4326',
-                    '-te',EXTENT,'-multi','-wo','NUM_THREADS=val/ALL_CPUS',
+    reprojected_vrt = os.path.join(DATA_DIR, 'reprojected.vrt')
+    # Using trivial transform is important to give the data a CRS
+    cmd = ' '.join(['gdalwarp','-overwrite',
+                    '-s_srs', 'EPSG:4326',
+                    '-t_srs','EPSG:4326',
+                    '-multi','-wo','NUM_THREADS=val/ALL_CPUS',
+                    '-of', 'VRT', '-te', EXTENT,
                     extracted_var_tif,
-                    reprojected_tif])
+                    reprojected_vrt])
     subprocess.check_output(cmd, shell=True)
 
     logging.info('Compressing')
-    cmd = ' '.join(['gdal_translate','-co','COMPRESS=LZW',
-                    reprojected_tif,
+    cmd = ' '.join(['gdal_translate','-co','COMPRESS=LZW','-of','GTiff',
+                    reprojected_vrt,
                     new_file])
     subprocess.check_output(cmd, shell=True)
 
-    os.remove(extracted_var_tif)
-    os.remove(reprojected_tif)
-    os.remove(reprojected_tif+'.aux.xml')
+    if DELETE_LOCAL:
+        os.remove(extracted_var_tif)
+        os.remove(reprojected_vrt)
 
-    logging.debug('Reprojected {} to {}'.format(ncfile, new_file))
+    logging.info('Reprojected {} to {}'.format(ncfile, new_file))
     return new_file
 
-
-def makeTifListsObj(agg, elem):
-    agg[elem] = []
-    return agg
-
-def _processAssets(tifs, varname):
-    assets = [getAssetName(tif, var, varname) for tif in tifs]
+def _processAssets(tifs, rw_id, varname):
+    assets = [getAssetName(tif, rw_id, varname) for tif in tifs]
     dates = [getRasterDate(tif) for tif in tifs]
-    eeUtil.uploadAssets(tifs, assets, GS_PREFIX.format(rw_id=var,varname=varname), dates, dateformat=DATE_FORMAT, public=True, timeout=3000)
+    # Set date to the end of the reported week,
+    # -0 corresponding to Sunday at end of week
+    datestamps = [datetime.datetime.strptime(date + '-0', DATE_FORMAT_ISO)
+                  for date in dates]
+    eeUtil.uploadAssets(tifs, assets, GS_PREFIX.format(rw_id=rw_id,varname=varname), datestamps, public=True, timeout=3000)
+    return assets
 
-def processAssets(agg, var, tifs):
-    agg[elem] = _processAssets(tifs[var], ASSETS[var])
+def processAssets(agg, rw_id, tifs):
+    agg[rw_id] = _processAssets(tifs[rw_id], rw_id, ASSET_NAMES[rw_id])
     return agg
+
+
 
 def deleteLocalFiles(tifs):
     return list(map(os.remove, tifs))
 
-def processNewRasterData(existing_dates):
+def processNewRasterData(existing_dates_by_id):
     '''fetch, process, upload, and clean new data'''
+
+    # 0. Prep dates
+    existing_dates = []
+    for rw_id, e_dates in existing_dates_by_id.items():
+        existing_dates.extend(e_dates)
+
     # 1. Determine which years to read from the ftp file
     target_dates = getNewTargetDates(existing_dates) or []
     logging.debug(target_dates)
 
     # 2. Fetch datafile
     logging.info('Fetching files')
-    tifs = reduce(makeTifListsObj, VARIABLES.keys(), {})
+    tifs = defaultdict(list)
     for date in target_dates:
         if date not in existing_dates:
             try:
@@ -193,19 +219,26 @@ def processNewRasterData(existing_dates):
                 logging.error('Could not fetch data for date: {}'.format(date))
                 continue
 
-            for var in VARIABLES:
-                reproj_file = reproject(nc, var)
-                tifs[var].append(reproj_file)
+            for rw_id in VARIABLES:
+                reproj_file = reproject(nc, rw_id, date)
+                tifs[rw_id].append(reproj_file)
+            if DELETE_LOCAL:
+                os.remove(nc)
 
 
     # 3. Upload new files
     logging.info('Uploading files')
-    assets = reduce(lambda agg, elem: processAssets(agg, elem, tifs), tifs, {})
+    new_assets = reduce(lambda agg, rw_id: processAssets(agg, rw_id, tifs), tifs, {})
+    logging.debug('New Assets object: {}'.format(new_assets))
 
     # 4. Delete local files
-    deleted_files = list(map(lambda var: deleteLocalFiles(tifs[var]), tifs))
+    if DELETE_LOCAL:
+         deleted_files = list(map(lambda rw_id: deleteLocalFiles(tifs[rw_id]), tifs))
 
-    return assets
+    return new_assets
+
+
+
 
 def checkCreateCollection(collection):
     '''List assests in collection else create new collection'''
@@ -245,7 +278,7 @@ def main():
 
     ### 1. Create collection names, clear if desired
     collections = {}
-    for rw_id, varname in ASSETS.items():
+    for rw_id, varname in ASSET_NAMES.items():
         collections[rw_id] = EE_COLLECTION.format(rw_id=rw_id,varname=varname)
 
     if CLEAR_COLLECTION_FIRST:
@@ -258,9 +291,9 @@ def main():
     for rw_id, coll in collections.items():
         existing_assets[rw_id] = checkCreateCollection(coll)
 
-    existing_dates = []
+    existing_dates = {}
     for rw_id, ex_assets in existing_assets.items():
-        existing_dates.extend(list(map(getRasterDate, ex_assets)))
+        existing_dates[rw_id] = list(map(getRasterDate, ex_assets))
 
     # This will be a list of objects
     new_assets = processNewRasterData(existing_dates)
@@ -276,7 +309,7 @@ def main():
         total = e + n
         logging.info('Existing assets in {}: {}, new: {}, max: {}'.format(
             rw_id, len(e), len(n), MAX_DATES))
-        deleteExcessAssets(total,MAX_DATES)
+        deleteExcessAssets(total,rw_id,ASSET_NAMES[rw_id],MAX_DATES)
 
     ###
 
