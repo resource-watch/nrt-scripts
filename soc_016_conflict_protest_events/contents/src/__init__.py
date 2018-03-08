@@ -66,7 +66,7 @@ def processNewData(exclude_ids):
     new_ids = []
 
     # get and parse each page; stop when no new results or 200 pages
-    while page <= MIN_PAGES or new_count or page < MAX_PAGES:
+    while page <= MIN_PAGES or new_count and page < MAX_PAGES:
         try:
             # 1. Fetch new data
             logging.info("Fetching page {}".format(page))
