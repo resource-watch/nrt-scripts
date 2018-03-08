@@ -12,6 +12,7 @@ import eeUtil
 from functools import reduce
 from netCDF4 import Dataset
 import rasterio as rio
+import numpy as np
 
 LOG_LEVEL = logging.DEBUG
 CLEAR_COLLECTION_FIRST = True
@@ -86,13 +87,33 @@ def extract_subdata(nc_file, rw_id):
     '''
     new_dates should be a list of tuples of form (date, index_in_netcdf)
     '''
+    # Set filename
     nc = Dataset(nc_file)
     var = VARIABLES[rw_id]
+
+    var_tif = '{}_{}.tif'.format(os.path.splitext(nc_file)[0], var)
+    logging.info('New tif: {}'.format(var_tif))
+
     # Extract data
     data = nc[var][:,:]
+    logging.info('Type of data: {}'.format(type(data)))
     logging.debug('Shape: {}'.format(data.shape))
+
     # Transformation function
     transform = rio.transform.from_bounds(*[float(pos) for pos in EXTENT.split(' ')], data.shape[1], data.shape[0])
+
+    # Not a clear view of data
+    logging.info('Data: {}'.format(data))
+
+    # Max value of each row or column
+    # By row
+    rowsums = np.sum(data, axis=1)
+    # By column
+    colsums = np.sum(data, axis=0)
+
+    logging.info('Sorted rowsums: {}'.format(sorted(rowsums)))
+    logging.info('Sorted colsums: {}'.format(sorted(colsums)))
+
     # Profile
     profile = {
         'driver':'GTiff',
@@ -105,9 +126,6 @@ def extract_subdata(nc_file, rw_id):
         'compress':'lzw',
         'nodata':NODATA
     }
-    # Set filename
-    var_tif = '{}_{}.tif'.format(os.path.splitext(nc_file)[0], var)
-    logging.info('New tif: {}'.format(var_tif))
 
     with rio.open(var_tif, 'w', **profile) as dst:
         dst.write(data.astype(DTYPE), indexes=1)
