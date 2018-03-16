@@ -8,11 +8,9 @@ import cartosql
 from functools import reduce
 
 # Constants
-LOG_LEVEL = logging.INFO
+LOG_LEVEL = logging.DEBUG
 
 ALPS_URL = 'http://dataviz.vam.wfp.org/api/GetAlps?ac={country_code}'
-
-INGEST_LOCATIONS = True
 MARKETS_URL = 'http://dataviz.vam.wfp.org/api/GetMarkets?ac={country_code}'
 
 CLEAR_TABLE_FIRST = False
@@ -37,13 +35,13 @@ CARTO_ALPS_SCHEMA = OrderedDict([
     ("admname","text"),
     ("adm1id","int"),
     ("sn","text"),
+    ("forecast","text"),
     # These three need to be looped over w/ every call
     ("mp_price","numeric"),
     ("trend","numeric"),
-    ("pewi","numeric")
+    ("pewi","numeric"),
+    ("alps","text")
 ])
-# What are "f_price","f_pewi","p_trend","f_lower_bound","f_upper_bound","f_method"?
-
 
 CARTO_MARKET_TABLE = 'foo_053b_monitored_markets'
 CARTO_MARKET_SCHEMA = OrderedDict([
@@ -63,14 +61,15 @@ MAXROWS = 1000000
 #MAXAGE = datetime.datetime.today() - datetime.timedelta(days=3650)
 
 
-def genAlpsUID(sn, date):
+def genAlpsUID(sn, date, forecast):
     '''Generate unique id'''
-    return '{}_{}'.format(sn, date)
+    return '{}_{}_{}'.format(sn, date, forecast)
 
 def genMarketUID(rid, mid, mname):
     '''Generate unique id'''
     return '{}_{}_{}'.format(rid,mid,mname)
 
+## MAP
 def parseMarkets(region_scale, existing_markets):
     # Happens w/ 'National Average' entries
     if 'items' not in region_scale:
@@ -119,6 +118,17 @@ def parseMarkets(region_scale, existing_markets):
 def stepForward(start):
     return (start + timedelta(**TIME_STEP)).replace(day=15)
 
+def assignALPS(pewi):
+    if pewi < .25:
+        return 'Normal'
+    elif pewi < 1:
+        return 'Stress'
+    elif pewi < 2:
+        return 'Alert'
+    else:
+        return 'Crisis'
+
+## MAP
 def parseAlps(market_data, existing_alps):
     # Happens w/ 'National Average' entries
     if 'admname' not in market_data:
@@ -127,7 +137,17 @@ def parseAlps(market_data, existing_alps):
         return [None]*len(CARTO_ALPS_SCHEMA)
 
     new_rows = []
-    num_obs = len(market_data['mp_price'])
+    # These are not always the same length, i.e. 23
+    # FLAG FOR WFP
+    num_obs = min(len(market_data['mp_price']), len(market_data['trend']), len(market_data['pewi']))
+
+    run_forecast = True
+    try:
+        num_forecast = min(len(market_data['f_price']), len(market_data['p_trend']), len(market_data['f_pewi']))
+    except:
+        logging.error('No forecast')
+        logging.error(market_data)
+        run_forecast = False
 
     date = datetime.strptime(market_data['startdate'], DATE_FORMAT)
     for i in range(num_obs):
@@ -135,7 +155,18 @@ def parseAlps(market_data, existing_alps):
         trend = market_data['trend'][i]
         pewi = market_data['pewi'][i]
 
-        uid = genAlpsUID(market_data['sn'], date)
+        # This data point will be filtered out later
+        if not pewi:
+            logging.error('No alert data for this month')
+            logging.error(market_data)
+            new_rows.append([None]*len(CARTO_ALPS_SCHEMA))
+            date = stepForward(date)
+            continue
+
+        # If get here, that that pewi is not null
+        alps = assignALPS(pewi)
+
+        uid = genAlpsUID(market_data['sn'], date, False)
         if uid not in existing_alps:
             existing_alps.append(uid)
 
@@ -149,20 +180,72 @@ def parseAlps(market_data, existing_alps):
                     row.append(trend)
                 elif field == 'pewi':
                     row.append(pewi)
+                elif field == 'alps':
+                    row.append(alps)
                 elif field == 'date':
                     row.append(date.strftime(DATE_FORMAT))
+                elif field == 'forecast':
+                    row.append(False)
                 else:
                     row.append(market_data[field])
 
             new_rows.append(row)
         date = stepForward(date)
 
+    if run_forecast:
+        for i in range(num_forecast):
+            f_price = market_data['f_price'][i]
+            p_trend = market_data['p_trend'][i]
+            f_pewi = market_data['f_pewi'][i]
+
+            # This data point will be filtered out later
+            if not f_pewi:
+                logging.error('No alert data forecast for this month')
+                logging.error(market_data)
+                new_rows.append([None]*len(CARTO_ALPS_SCHEMA))
+                date = stepForward(date)
+                continue
+
+            # If get here, that that pewi is not null
+            f_alps = assignALPS(f_pewi)
+
+            uid = genAlpsUID(market_data['sn'], date, True)
+            if uid not in existing_alps:
+                existing_alps.append(uid)
+
+                row = []
+                for field in CARTO_ALPS_SCHEMA.keys():
+                    if field == 'uid':
+                        row.append(uid)
+                    elif field == 'mp_price':
+                        row.append(f_price)
+                    elif field == 'trend':
+                        row.append(p_trend)
+                    elif field == 'pewi':
+                        row.append(f_pewi)
+                    elif field == 'alps':
+                        row.append(f_alps)
+                    elif field == 'date':
+                        row.append(date.strftime(DATE_FORMAT))
+                    elif field == 'forecast':
+                        row.append(True)
+                    else:
+                        row.append(market_data[field])
+
+                new_rows.append(row)
+
+            date = stepForward(date)
+
     return new_rows
 
-
+## REDUCE
 def flatten(lst, items):
     lst.extend(items)
     return lst
+
+## FILTER
+def clean_null_rows(row):
+    return any(row)
 
 def processNewData(existing_markets, existing_alps):
     '''
@@ -189,10 +272,35 @@ def processNewData(existing_markets, existing_alps):
             country_code += 1
 
         # 2. Parse data excluding existing observations
-        new_markets = reduce(flatten, list(map(lambda mkt: parseMarkets(mkt, existing_markets), markets)), [])
-        new_alps = reduce(flatten, list(map(lambda alp: parseAlps(alp, existing_alps), alps)), [])
+        new_markets = list(map(lambda mkt: parseMarkets(mkt, existing_markets), markets))
+        new_alps = list(map(lambda alp: parseAlps(alp, existing_alps), alps))
 
-        logging.info(new_markets)
+        logging.debug('Country {} Data: After map:'.format(country_code))
+        logging.debug(new_markets)
+        logging.debug(new_alps)
+
+        new_markets = reduce(flatten, new_markets , [])
+        new_alps = reduce(flatten, new_alps, [])
+
+        logging.debug('Country {} Data: After reduce:'.format(country_code))
+        logging.debug(new_markets)
+        logging.debug(new_alps)
+
+        # Ensure new_<rows> is a list of lists, even if only one element
+        if len(new_markets):
+            if type(new_markets[0]) != list:
+                new_markets = [new_markets]
+        if len(new_alps):
+            if type(new_alps[0]) != list:
+                new_alps = [new_alps]
+
+        # Clean any rows that are all None
+        new_markets = list(filter(clean_null_rows, new_markets))
+        new_alps = list(filter(clean_null_rows, new_alps))
+
+        logging.debug('Country {} Data: After filter:'.format(country_code))
+        logging.debug(new_markets)
+        logging.debug(new_alps)
 
         num_new_markets += len(new_markets)
         num_new_alps += len(new_alps)
@@ -234,7 +342,7 @@ def getIds(table, id_field):
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
     '''Delete excess rows by age or count'''
     num_dropped = 0
-    if isinstance(max_age, datetime.datetime):
+    if isinstance(max_age, datetime):
         max_age = max_age.isoformat()
 
     # 1. delete by age
@@ -269,7 +377,7 @@ def main():
     existing_markets = []
     if cartosql.tableExists(CARTO_MARKET_TABLE):
         logging.info('Fetching existing ids')
-        existing_ids = getIds(CARTO_MARKET_TABLE, UID_FIELD)
+        existing_markets = getIds(CARTO_MARKET_TABLE, UID_FIELD)
     else:
         logging.info('Table {} does not exist, creating'.format(CARTO_MARKET_TABLE))
         createTableWithIndex(CARTO_MARKET_TABLE, CARTO_MARKET_SCHEMA, UID_FIELD)
@@ -277,7 +385,7 @@ def main():
     existing_alps = []
     if cartosql.tableExists(CARTO_ALPS_TABLE):
         logging.info('Fetching existing ids')
-        existing_ids = getIds(CARTO_ALPS_TABLE, UID_FIELD)
+        existing_alps = getIds(CARTO_ALPS_TABLE, UID_FIELD)
     else:
         logging.info('Table {} does not exist, creating'.format(CARTO_ALPS_TABLE))
         createTableWithIndex(CARTO_ALPS_TABLE, CARTO_ALPS_SCHEMA, UID_FIELD, TIME_FIELD)
