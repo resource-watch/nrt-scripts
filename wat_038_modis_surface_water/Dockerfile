@@ -10,9 +10,6 @@ RUN apt-get install -y \
     gdal-bin \
     libgdal-dev
 
-#RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
-#RUN pip install fiona
-
 RUN pip install -e git+https://github.com/fgassert/eeUtil#egg=eeUtil
 RUN pip install numpy
 RUN pip install \
