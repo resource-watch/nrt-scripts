@@ -1,6 +1,6 @@
 FROM python:3.6
 MAINTAINER Nathan Suberi <nathan.suberi@wri.org>
-ARG NAME=cli_035
+ARG NAME=cli_005
 ENV NAME ${NAME}
 
 # install core libraries
@@ -16,14 +16,9 @@ RUN apt-get install -y \
   cron \
   && apt-get clean
 
-RUN pip install -e git+https://github.com/fgassert/eeUtil#egg=eeUtil
-RUN pip install numpy #Install this ahead of rasterio for appropriate applications
 RUN pip install --upgrade pip && pip install \
-    requests \
-    rasterio \
-    netCDF4 \
-    python-dateutil
-
+    earthengine-api \
+    google-cloud-storage
 
 # copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data

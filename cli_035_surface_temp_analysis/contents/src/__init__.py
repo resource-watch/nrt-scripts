@@ -5,43 +5,39 @@ import sys
 import urllib.request
 import shutil
 from contextlib import closing
-import gzip
+#import gzip
 import datetime
 from dateutil import parser
 import logging
-import subprocess
+#import subprocess
 from netCDF4 import Dataset
 import rasterio as rio
-from . import eeUtil
+import eeUtil
 
 LOG_LEVEL = logging.INFO
-CLEAR_COLLECTION_FIRST = False
+CLEAR_COLLECTION_FIRST = True
 
 # constants for bleaching alerts
-SOURCE_URL = 'https://data.giss.nasa.gov/pub/gistemp/{target_file}'
-SOURCE_FILENAME = 'gistemp250.nc.gz'
+SOURCE_URL = 'ftp://ftp.cdc.noaa.gov/Datasets/gistemp/combined/250km/{target_file}'
+SOURCE_FILENAME = 'air.2x2.250.mon.anom.comb.nc'
 FILENAME = 'cli_035_{date}'
-NODATA_VALUE = None
-DATA_TYPE = 'Byte' # Byte/Int16/UInt16/UInt32/Int32/Float32/Float64/CInt16/CInt32/CFloat32/CFloat64
-VAR_NAME = 'tempanomaly'
-TIME_NAME = 'time'
-# For NetCDF
 SDS_NAME = 'NETCDF:\"{nc_name}\":{var_name}'
 
-DATA_DIR = 'data'
-GS_PREFIX = 'cli_035_surface_temp_analysis'
+VAR_NAME = 'air'
+TIME_NAME = 'time'
+
+# Read from dataset
+NODATA_VALUE = None
+DATA_TYPE = 'Byte' # Byte/Int16/UInt16/UInt32/Int32/Float32/Float64/CInt16/CInt32/CFloat32/CFloat64
+MISSING_VALUE_NAME = "missing_value"
+
+DATA_DIR = 'data/'
+GS_FOLDER = 'cli_035_surface_temp_analysis'
 EE_COLLECTION = 'cli_035_surface_temp_analysis'
 
 MAX_ASSETS = 36
 DATE_FORMAT = '%Y%m15'
 TIMESTEP = {'days': 30}
-
-# environmental variables
-GEE_SERVICE_ACCOUNT = os.environ.get("GEE_SERVICE_ACCOUNT")
-GOOGLE_APPLICATION_CREDENTIALS = os.environ.get(
-    "GOOGLE_APPLICATION_CREDENTIALS")
-GEE_STAGING_BUCKET = os.environ.get("GEE_STAGING_BUCKET")
-GCS_PROJECT = os.environ.get("CLOUDSDK_CORE_PROJECT")
 
 def getAssetName(date):
     '''get asset name from datestamp'''
@@ -60,48 +56,55 @@ def getNewTargetDates(exclude_dates):
         date -= datetime.timedelta(**TIMESTEP)
         date.replace(day=15)
         datestr = date.strftime(DATE_FORMAT)
-        if datestr not in exclude_dates:
+        if datestr not in exclude_dates + new_dates:
             new_dates.append(datestr)
     return new_dates
 
-def fetch(url, target_file, filename):
+def fetch(filename):
     '''Fetch files by datestamp'''
     # New data may not yet be posted
-    _file = url.format(target_file=target_file)
+    _file = SOURCE_URL.format(target_file=SOURCE_FILENAME)
     try:
         with closing(urllib.request.urlopen(_file)) as r:
-            with gzip.open(r, "rb") as unzipped:
-                with open(filename, 'wb') as f:
-                    shutil.copyfileobj(unzipped, f)
+            #with gzip.open(r, "rb") as unzipped:
+            with open(filename, 'wb') as f:
+                #shutil.copyfileobj(unzipped, f)
+                shutil.copyfileobj(r, f)
+
         #urllib.request.urlretrieve(_file, filename)
         #cmd = ['head', filename]
         #subprocess.call(cmd)
         #cmd = ['gdalinfo', filename]
         #subprocess.call(cmd)
+
     except Exception as e:
         logging.warning('Could not fetch {}'.format(_file))
         logging.error(e)
     return filename
 
-def extract_metadata(nc_file, data_var_name):
+def extract_metadata(nc_file):
     nc = Dataset(nc_file)
-    DATA_TYPE = str(nc[data_var_name].dtype)
-    NODATA_VALUE = str(nc[data_var_name].getncattr("_FillValue"))
-    del nc
-    return DATA_TYPE, NODATA_VALUE
+    logging.info(nc)
+    logging.info(nc.variables)
+    logging.info(nc[VAR_NAME])
 
-def retrieve_formatted_dates(nc, time_var_name, date_pattern=DATE_FORMAT):
+    dtype = str(nc[VAR_NAME].dtype)
+    #nodata = float(nc[data_var_name].getncattr("_FillValue"))
+    nodata = float(nc[VAR_NAME].getncattr(MISSING_VALUE_NAME))
+
+    del nc
+    return dtype, nodata
+
+def retrieve_formatted_dates(nc_file, date_pattern=DATE_FORMAT):
     '''
     Inputs:
     * pointer to a netcdf file
-    * name of the time variable
     Outputs:
     * dates formatted according to DATE_FORMAT
     '''
     # Extract time variable range
-    nc = Dataset(nc)
-    time_displacements = nc[time_var_name]
-    # Clean up reference to nc object
+    nc = Dataset(nc_file)
+    time_displacements = nc[TIME_NAME]
     del nc
 
     # Identify time units
@@ -116,7 +119,7 @@ def retrieve_formatted_dates(nc, time_var_name, date_pattern=DATE_FORMAT):
     logging.debug('Dates available: {}'.format(formatted_dates))
     return(formatted_dates)
 
-def extract_subdata_by_date(nc_file, data_var_name, data_type, nodata_value, available_dates, target_dates):
+def extract_subdata_by_date(nc_file, dtype, nodata, available_dates, target_dates):
     '''
     new_dates should be a list of tuples of form (date, index_in_netcdf)
     '''
@@ -132,7 +135,7 @@ def extract_subdata_by_date(nc_file, data_var_name, data_type, nodata_value, ava
             continue
 
         # Extract data
-        data = nc[data_var_name][date_ix,:,:]
+        data = nc[VAR_NAME][date_ix,:,:]
         # Create profile/tif metadata
         south_lat = -90
         north_lat = 90
@@ -146,18 +149,18 @@ def extract_subdata_by_date(nc_file, data_var_name, data_type, nodata_value, ava
             'height':data.shape[0],
             'width':data.shape[1],
             'count':1,
-            'dtype':data_type,
+            'dtype':dtype,
             'crs':'EPSG:4326',
             'transform':transform,
             'compress':'lzw',
-            'nodata':nodata_value
+            'nodata':nodata
         }
         # Set filename
-        sub_tif = '{}.tif'.format(FILENAME.format(date=date))
+        sub_tif = DATA_DIR + '{}.tif'.format(FILENAME.format(date=date))
         logging.info(sub_tif)
 
         with rio.open(sub_tif, 'w', **profile) as dst:
-            dst.write(data.astype(data_type), indexes=1)
+            dst.write(data.astype(dtype), indexes=1)
         sub_tifs.append(sub_tif)
 
     del nc
@@ -171,26 +174,31 @@ def processNewData(existing_dates):
 
     # 2. Fetch datafile
     logging.info('Fetching files')
-    nc_file = fetch(SOURCE_URL, SOURCE_FILENAME, 'nc_file.nc')
-    available_dates = retrieve_formatted_dates(nc_file, TIME_NAME)
-    DATA_TYPE, NODATA_VALUE = extract_metadata(nc_file, VAR_NAME)
+    nc_file = fetch(DATA_DIR + 'nc_file.nc')
+    available_dates = retrieve_formatted_dates(nc_file)
+    dtype, nodata = extract_metadata(nc_file)
+    logging.info('type: ' + dtype)
+    logging.info('nodata val: ' + str(nodata))
 
     if target_dates:
         # 3. Convert new files
         logging.info('Converting files')
-        sub_tifs = extract_subdata_by_date(nc_file,VAR_NAME,DATA_TYPE,NODATA_VALUE,
-                                            available_dates, target_dates)
+        sub_tifs = extract_subdata_by_date(nc_file, dtype, nodata, available_dates, target_dates)
+        logging.info(sub_tifs)
 
         # 4. Upload new files
         logging.info('Uploading files')
         dates = [getDate(tif) for tif in sub_tifs]
+        datestamps = [datetime.datetime.strptime(date, DATE_FORMAT)
+                      for date in dates]
         assets = [getAssetName(date) for date in dates]
-        eeUtil.uploadAssets(sub_tifs, assets, GS_PREFIX, dates, public=True, timeout=3000)
+        eeUtil.uploadAssets(sub_tifs, assets, GS_FOLDER, datestamps)
 
         # 5. Delete local files
         logging.info('Cleaning local files')
         os.remove(nc_file)
         for tif in sub_tifs:
+            logging.debug('deleting: ' + tif)
             os.remove(tif)
 
         return assets
@@ -222,14 +230,13 @@ def main():
     logging.info('STARTING')
 
     # Initialize eeUtil
-    eeUtil.init(GEE_SERVICE_ACCOUNT, GOOGLE_APPLICATION_CREDENTIALS,
-                GCS_PROJECT, GEE_STAGING_BUCKET)
+    eeUtil.initJson()
 
+    # 1. Check if collection exists and create
     if CLEAR_COLLECTION_FIRST:
         if eeUtil.exists(EE_COLLECTION):
             eeUtil.removeAsset(EE_COLLECTION, recursive=True)
 
-    # 1. Check if collection exists and create
     existing_assets = checkCreateCollection(EE_COLLECTION)
     existing_dates = [getDate(a) for a in existing_assets]
 
