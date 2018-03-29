@@ -8,7 +8,7 @@ import cartosql
 from functools import reduce
 
 # Constants
-LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.INFO
 
 ALPS_URL = 'http://dataviz.vam.wfp.org/api/GetAlps?ac={country_code}'
 MARKETS_URL = 'http://dataviz.vam.wfp.org/api/GetMarkets?ac={country_code}'
@@ -36,7 +36,6 @@ CARTO_ALPS_SCHEMA = OrderedDict([
     ("adm1id","int"),
     ("sn","text"),
     ("forecast","text"),
-    # These three need to be looped over w/ every call
     ("mp_price","numeric"),
     ("trend","numeric"),
     ("pewi","numeric"),
