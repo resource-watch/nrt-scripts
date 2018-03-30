@@ -26,12 +26,12 @@ SOURCE_FILENAME = 'VHP.G04.C07.NP.P{date}.VH.nc'
 SDS_NAME = 'NETCDF:"{fname}":{varname}'
 
 VARIABLES = {
-    'foo_025':'VHI',
+    'foo_024':'VHI',
     'foo_051':'VCI'
 }
 
 ASSET_NAMES = {
-    'foo_025':'vegetation_health_index',
+    'foo_024':'vegetation_health_index',
     'foo_051':'vegetation_condition_index',
 }
 
