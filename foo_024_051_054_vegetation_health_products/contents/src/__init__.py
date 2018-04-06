@@ -23,7 +23,7 @@ DELETE_LOCAL = True
 # Sources for nrt data
 SOURCE_URL = 'ftp://ftp.star.nesdis.noaa.gov/pub/corp/scsb/wguo/data/VHP_4km/VH/{target_file}'
 SOURCE_FILENAME = 'VHP.G04.C07.NP.P{date}.VH.nc'
-SDS_NAME = 'NETCDF:"{fname}":{varname}'
+#SDS_NAME = 'NETCDF:"{fname}":{varname}'
 
 VARIABLES = {
     'foo_024':'VHI',
@@ -42,19 +42,21 @@ ASSET_NAME = '{rw_id}_{varname}_{date}'
 DATA_DIR = 'data'
 GS_PREFIX = '{rw_id}_{varname}'
 
-MAX_DATES = 36
+MAX_DATES = 10
 # http://php.net/manual/en/function.strftime.php
 DATE_FORMAT = '%Y0%V'
 DATE_FORMAT_ISO = '%G0%V-%w'
+
 TIMESTEP = {'days': 7}
-S_SRS = 'EPSG:32662'
+#S_SRS = 'EPSG:32662'
+
 EXTENT = '-180 -55.152 180 75.024002'
 DTYPE = rio.float32
 NODATA = -999
 SCALE_FACTOR = .01
 
 # https://gist.github.com/tomkralidis/baabcad8c108e91ee7ab
-os.environ['GDAL_NETCDF_BOTTOMUP']='NO'
+#os.environ['GDAL_NETCDF_BOTTOMUP']='NO'
 
 ###
 ## Handling RASTERS
@@ -103,29 +105,37 @@ def extract_subdata(nc_file, rw_id):
     logging.info('New tif: {}'.format(var_tif))
 
     # Extract data
-    data = nc[var_code][:,:]
+    data = nc[var_code][:, :]
     logging.info('Type of data: {}'.format(type(data)))
     logging.info('Shape: {}'.format(data.shape))
 
-    logging.info('Rescaling data w/ scale factor {}'.format(SCALE_FACTOR))
-    # data = data * SCALE_FACTOR
+    # not sure why this works, but it gets us to the right numbers
+    # except for no-data values
+    outdata = data.data.copy() * SCALE_FACTOR
+
+    # There's some strange deferred execution going on here
+    # if I set the mask like this, it scales down unmasked data by 10k
+    # outdata[data.mask] = NODATA
+
+    logging.info((outdata, outdata.min(), outdata.max()))
+
     # Transformation function
     transform = rio.transform.from_bounds(*[float(pos) for pos in EXTENT.split(' ')], data.shape[1], data.shape[0])
 
     # Profile
     profile = {
-        'driver':'GTiff',
-        'height':data.shape[0],
-        'width':data.shape[1],
-        'count':1,
-        'dtype':DTYPE,
+        'driver': 'GTiff',
+        'height': data.shape[0],
+        'width': data.shape[1],
+        'count': 1,
+        'dtype': DTYPE,
         'crs':'EPSG:4326',
-        'transform':transform,
-        'nodata':NODATA
+        'transform': transform,
+        'nodata': NODATA*SCALE_FACTOR
     }
 
     with rio.open(var_tif, 'w', **profile) as dst:
-        dst.write(data.astype(DTYPE), 1)
+        dst.write(outdata.astype(DTYPE), 1)
 
     del nc
     return var_tif

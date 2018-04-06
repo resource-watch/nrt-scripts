@@ -1,4 +1,4 @@
-FROM python:3.6
+FROM python:3-stretch
 MAINTAINER Nathan Suberi <nathan.suberi@wri.org>
 
 # install core libraries
