@@ -8,10 +8,7 @@ RUN pip install -U pip
 # install application libraries
 RUN apt-get install -y \
     gdal-bin \
-    libgdal-dev \
-    libnetcdf-dev \
-    netcdf-bin \
-    && apt-get clean
+    libgdal-dev
 
 RUN pip install -e git+https://github.com/fgassert/eeUtil#egg=eeUtil
 RUN pip install numpy
@@ -27,6 +24,7 @@ ENV NAME ${NAME}
 RUN mkdir -p /opt/$NAME/data
 WORKDIR /opt/$NAME/
 COPY contents/ .
+VOLUME /opt/$NAME/data
 
 RUN groupadd -r $NAME && useradd -r -g $NAME $NAME
 RUN chown -R $NAME:$NAME .

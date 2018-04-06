@@ -17,7 +17,7 @@ import numpy as np
 from collections import defaultdict
 
 LOG_LEVEL = logging.INFO
-CLEAR_COLLECTION_FIRST = False
+CLEAR_COLLECTION_FIRST = True
 DELETE_LOCAL = True
 
 # Sources for nrt data
@@ -46,12 +46,12 @@ MAX_DATES = 36
 # http://php.net/manual/en/function.strftime.php
 DATE_FORMAT = '%Y0%V'
 DATE_FORMAT_ISO = '%G0%V-%w'
-TIMESTEP = {'days':7}
+TIMESTEP = {'days': 7}
 S_SRS = 'EPSG:32662'
 EXTENT = '-180 -55.152 180 75.024002'
 DTYPE = rio.float32
 NODATA = -999
-SCALE_FACTOR = .0001
+SCALE_FACTOR = .01
 
 # https://gist.github.com/tomkralidis/baabcad8c108e91ee7ab
 os.environ['GDAL_NETCDF_BOTTOMUP']='NO'
@@ -108,7 +108,7 @@ def extract_subdata(nc_file, rw_id):
     logging.info('Shape: {}'.format(data.shape))
 
     logging.info('Rescaling data w/ scale factor {}'.format(SCALE_FACTOR))
-    data = data*SCALE_FACTOR
+    # data = data * SCALE_FACTOR
     # Transformation function
     transform = rio.transform.from_bounds(*[float(pos) for pos in EXTENT.split(' ')], data.shape[1], data.shape[0])
 
@@ -119,14 +119,13 @@ def extract_subdata(nc_file, rw_id):
         'width':data.shape[1],
         'count':1,
         'dtype':DTYPE,
-        'crs':CRS({'init':S_SRS}),
+        'crs':'EPSG:4326',
         'transform':transform,
-        'compress':'lzw',
         'nodata':NODATA
     }
 
     with rio.open(var_tif, 'w', **profile) as dst:
-        dst.write(data.astype(DTYPE), indexes=1)
+        dst.write(data.astype(DTYPE), 1)
 
     del nc
     return var_tif
@@ -152,27 +151,14 @@ def reproject(ncfile, rw_id, date):
     # logging.debug('Extracting var {} from {} to {}'.format(varname, ncfile, extracted_var_tif))
     # subprocess.call(cmd)
 
-    logging.info('Reprojecting')
-    reprojected_vrt = os.path.join(DATA_DIR, 'reprojected.vrt')
-    # Using trivial transform is important to give the data a CRS
-    cmd = ' '.join(['gdalwarp','-overwrite',
-                    '-s_srs', 'EPSG:4326',
-                    '-t_srs','EPSG:4326',
-                    '-multi','-wo','NUM_THREADS=val/ALL_CPUS',
-                    '-of', 'VRT', '-te', EXTENT,
-                    extracted_var_tif,
-                    reprojected_vrt])
-    subprocess.check_output(cmd, shell=True)
-
     logging.info('Compressing')
-    cmd = ' '.join(['gdal_translate','-co','COMPRESS=LZW','-of','GTiff',
-                    reprojected_vrt,
-                    new_file])
-    subprocess.check_output(cmd, shell=True)
+    cmd = ['gdal_translate','-co','COMPRESS=LZW','-of','GTiff',
+           extracted_var_tif,
+           new_file]
+    subprocess.call(cmd)
 
     if DELETE_LOCAL:
         os.remove(extracted_var_tif)
-        os.remove(reprojected_vrt)
 
     logging.info('Reprojected {} to {}'.format(ncfile, new_file))
     return new_file
