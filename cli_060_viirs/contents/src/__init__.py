@@ -1,0 +1,64 @@
+import logging
+import sys
+import os
+import requests
+import datetime
+
+logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+
+### Constants
+RW_API = 'https://api.resourcewatch.org/v1/dataset/bd9f603e-a559-4cc1-84f4-de0ddc7c341f/layer/'
+LAYER_CONFIGS = [
+    {
+        "type": "tileLayer",
+        "url": "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/{date}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg",
+        "body": {
+            "format": "image/jpeg"
+        },
+        "id": "275dcc83-673b-44e4-b7db-253ff1d2d867"
+    },
+    {
+        "body": {
+            "format": "image/png"
+        },
+        "url": "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_DayNightBand_ENCC/default/{date}/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png",
+        "type": "tileLayer",
+        "id": "9bcaa1e8-3181-441f-879a-060b068b7c2a"
+    }
+]
+API_KEY = os.environ['RW_API_KEY']
+
+
+def main():
+    logging.info('BEGIN')
+    today = datetime.datetime.today()
+    yesterday = today - datetime.timedelta(days=1)
+    date = yesterday.strftime('%Y-%m-%d')
+
+    for layer in LAYER_CONFIGS:
+        api_url = RW_API + layer['id']
+        layer['url'] = layer['url'].format(x='{x}', y='{y}', z='{z}', date=date)
+        payload = {
+            'data': {
+                'attributes': {
+                    'application': ['rw'],
+                    'layerConfig': layer
+                }
+            }
+        }
+        logging.debug(payload)
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer {token}'.format(token=API_KEY)
+        }
+        response = requests.request(
+            'PATCH',
+            api_url,
+            data=payload,
+            headers=headers
+        )
+        if not response.ok:
+            logging.warning("Warning: failed to update layer")
+            logging.warning(response.text)
+
+    logging.info('SUCCESS')
