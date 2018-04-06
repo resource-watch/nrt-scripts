@@ -17,7 +17,7 @@ import numpy as np
 from collections import defaultdict
 
 LOG_LEVEL = logging.INFO
-CLEAR_COLLECTION_FIRST = False
+CLEAR_COLLECTION_FIRST = True
 DELETE_LOCAL = True
 
 # Sources for nrt data
@@ -51,7 +51,7 @@ S_SRS = 'EPSG:32662'
 EXTENT = '-180 -55.152 180 75.024002'
 DTYPE = rio.float32
 NODATA = -999
-SCALE_FACTOR = .01
+SCALE_FACTOR = .0001
 
 # https://gist.github.com/tomkralidis/baabcad8c108e91ee7ab
 os.environ['GDAL_NETCDF_BOTTOMUP']='NO'
@@ -184,7 +184,7 @@ def _processAssets(tifs, rw_id, varname):
     # -0 corresponding to Sunday at end of week
     datestamps = [datetime.datetime.strptime(date + '-0', DATE_FORMAT_ISO)
                   for date in dates]
-    eeUtil.uploadAssets(tifs, assets, GS_PREFIX.format(rw_id=rw_id,varname=varname), datestamps, public=True, timeout=3000)
+    eeUtil.uploadAssets(tifs, assets, GS_PREFIX.format(rw_id=rw_id, varname=varname), datestamps, timeout=3000)
     return assets
 
 def processAssets(agg, rw_id, tifs):
@@ -305,7 +305,7 @@ def main():
     ### 5. Delete old assets
     for rw_id, collection in collections.items():
         e = existing_dates[rw_id]
-        n = new_dates[rw_id]
+        n = new_dates[rw_id] if rw_id in new_dates else 0
         total = e + n
         logging.info('Existing assets in {}: {}, new: {}, max: {}'.format(
             rw_id, len(e), len(n), MAX_DATES))
