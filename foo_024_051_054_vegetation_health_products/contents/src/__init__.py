@@ -17,7 +17,7 @@ import numpy as np
 from collections import defaultdict
 
 LOG_LEVEL = logging.INFO
-CLEAR_COLLECTION_FIRST = True
+CLEAR_COLLECTION_FIRST = False
 DELETE_LOCAL = True
 
 # Sources for nrt data
