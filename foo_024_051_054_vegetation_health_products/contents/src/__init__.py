@@ -17,7 +17,7 @@ import numpy as np
 from collections import defaultdict
 
 LOG_LEVEL = logging.INFO
-CLEAR_COLLECTION_FIRST = True
+CLEAR_COLLECTION_FIRST = False
 DELETE_LOCAL = True
 
 # Sources for nrt data
@@ -42,7 +42,7 @@ ASSET_NAME = '{rw_id}_{varname}_{date}'
 DATA_DIR = 'data'
 GS_PREFIX = '{rw_id}_{varname}'
 
-MAX_DATES = 10
+MAX_DATES = 36
 # http://php.net/manual/en/function.strftime.php
 DATE_FORMAT = '%Y0%V'
 DATE_FORMAT_ISO = '%G0%V-%w'
@@ -106,9 +106,9 @@ def extract_subdata(nc_file, rw_id):
 
     # Extract data
     data = nc[var_code][:, :]
-    logging.info('Type of data: {}'.format(type(data)))
-    logging.info('Shape: {}'.format(data.shape))
-
+    logging.debug('Type of data: {}'.format(type(data)))
+    logging.debug('Shape: {}'.format(data.shape))
+    logging.debug('Min,Max: {},{}'.format(data.min(), data.max()))
     # not sure why this works, but it gets us to the right numbers
     # except for no-data values
     outdata = data.data.copy() * SCALE_FACTOR
@@ -116,8 +116,8 @@ def extract_subdata(nc_file, rw_id):
     # There's some strange deferred execution going on here
     # if I set the mask like this, it scales down unmasked data by 10k
     # outdata[data.mask] = NODATA
+    logging.debug('Out min, max: {},{}'.format(outdata.min(), outdata.max()))
 
-    logging.info((outdata, outdata.min(), outdata.max()))
 
     # Transformation function
     transform = rio.transform.from_bounds(*[float(pos) for pos in EXTENT.split(' ')], data.shape[1], data.shape[0])
