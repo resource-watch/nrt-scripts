@@ -14,8 +14,8 @@ CLEAR_TABLE_FIRST = False
 _3HR_LATEST_URL = 'https://pmmpublisher.pps.eosdis.nasa.gov/opensearch?q=global_landslide_nowcast_3hr&limit=100000000&startTime={startTime}&endTime={endTime}'
 DAILY_LATEST_URL = 'https://pmmpublisher.pps.eosdis.nasa.gov/opensearch?q=global_landslide_nowcast&limit=100000000&startTime={startTime}&endTime={endTime}'
 
-CARTO_TABLE_EXPLORE = 'dis_012_landslide_hazard_alerts_explore'
-CARTO_TABLE_PLANETPULSE = 'dis_012_landslide_hazard_alerts'
+CARTO_TABLE_EXPLORE = 'dis_012_landslide_hazard_alerts'
+CARTO_TABLE_PLANETPULSE = 'dis_012_landslide_hazard_alerts_3hr'
 CARTO_SCHEMA = OrderedDict([
     ('_UID', 'text'),
     ('datetime', 'timestamp'),
@@ -44,7 +44,8 @@ def insertIfNew(response, existing_ids, explore=True,
     '''Loop over months in the data, add to new rows if new'''
 
     m = map(methodcaller('split', '_'),(existing_ids))
-    seen_dates = list(zip(*m))[0]
+    existing_dates = list(zip(*m))
+    seen_dates = [] if not len(existing_dates) else existing_dates[0]
     today = datetime.today().replace(hour=23, minute=30, second=0).strftime(OUTPUT_DATE_FORMAT)
 
     new_rows = []
