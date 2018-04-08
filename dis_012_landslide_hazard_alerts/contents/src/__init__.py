@@ -33,7 +33,7 @@ OUTPUT_DATE_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 MAXROWS_EXPLORE = 1000000
 MAXROWS_PLANETPULSE = 100000
 MAXAGE_EXPLORE = datetime.today() - timedelta(days=365)
-MAXAGE_PLANETPULSE = datetime.now() - timedelta(days=1)
+MAXAGE_PLANETPULSE = datetime.now() - timedelta(days=2)
 
 def genUID(datetime, position_in_geojson):
     '''Generate unique id'''
@@ -46,6 +46,8 @@ def insertIfNew(response, existing_ids, explore=True,
     m = map(methodcaller('split', '_'),(existing_ids))
     existing_dates = list(zip(*m))
     seen_dates = [] if not len(existing_dates) else existing_dates[0]
+    all_dates = set(sorted(seen_dates))
+    logging.debug('Seen dates: {}'.format(all_dates))
     today = datetime.today().replace(hour=23, minute=30, second=0).strftime(OUTPUT_DATE_FORMAT)
 
     new_rows = []
@@ -61,9 +63,13 @@ def insertIfNew(response, existing_ids, explore=True,
 
         if dt == today:
             # Delete existing data for this date
-            delete_ids = [existing_ids[ix] for ix, date in enumerate(seen_dates) if date == today ]
-            logging.info('deleting ids related to this day: ' + str(delete_ids))
-            cartosql.deleteRowsByIDs(CARTO_TABLE_EXPLORE, delete_ids, id_field=UID_FIELD, dtype='text')
+            logging.info('deleting ids related to today, {}'.format(dt))
+            delete_ids = [existing_ids[ix] for ix, date in enumerate(seen_dates) if date == dt]
+            if len(delete_ids):
+                logging.debug('deleting ids: ' + str(delete_ids))
+                cartosql.deleteRowsByIDs(CARTO_TABLE_EXPLORE, delete_ids, id_field=UID_FIELD, dtype='text')
+            else:
+                logging.debug('Not yet any ids for today')
 
         if (dt not in seen_dates) or (dt == today) :
             logging.info('adding data for datetime ' + dt)
@@ -100,7 +106,7 @@ def processNewData(explore_ids, planetpulse_ids):
     twoMonthsAgo = (datetime.today() - timedelta(days=62)).strftime(QUERY_DATE_FORMAT)
     ### DAILY DATA - EXPLORE
     # 1. Fetch new daily data
-    logging.info("Fetching all available daily data from " + twoMonthsAgo)
+    logging.info("Fetching all available daily data from {} until {}".format(twoMonthsAgo, now))
     r = req.get(DAILY_LATEST_URL.format(startTime=twoMonthsAgo,endTime=now))
     data = r.json()
 
@@ -185,6 +191,7 @@ def main():
     if CLEAR_TABLE_FIRST:
         logging.info('Clearing explore table')
         cartosql.dropTable(CARTO_TABLE_EXPLORE)
+        cartosql.dropTable(CARTO_TABLE_PLANETPULSE)
 
     # 1. Check if table exists and create table
 
@@ -211,10 +218,10 @@ def main():
     existing_count_explore = num_new_explore + len(existing_explore_ids)
     existing_count_pp = num_new_pp + len(existing_pp_ids)
 
-    logging.info('Total rows in daily table: {}, New: {}, Max: {}'.format(
+    logging.info('Total rows in Explore table: {}, New: {}, Max: {}'.format(
         existing_count_explore, num_new_explore, MAXROWS_EXPLORE))
 
-    logging.info('Total rows in daily table: {}, New: {}, Max: {}'.format(
+    logging.info('Total rows in Planet Pulse table: {}, New: {}, Max: {}'.format(
         existing_count_pp, num_new_pp, MAXROWS_PLANETPULSE))
 
     # 3. Remove old observations
