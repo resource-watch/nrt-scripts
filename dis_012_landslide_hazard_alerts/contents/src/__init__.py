@@ -15,7 +15,7 @@ _3HR_LATEST_URL = 'https://pmmpublisher.pps.eosdis.nasa.gov/opensearch?q=global_
 DAILY_LATEST_URL = 'https://pmmpublisher.pps.eosdis.nasa.gov/opensearch?q=global_landslide_nowcast&limit=100000000&startTime={startTime}&endTime={endTime}'
 
 CARTO_TABLE_EXPLORE = 'dis_012_landslide_hazard_alerts_explore'
-CARTO_TABLE_PLANETPULSE = 'dis_012_landslide_hazard_alerts_planetpulse'
+CARTO_TABLE_PLANETPULSE = 'dis_012_landslide_hazard_alerts'
 CARTO_SCHEMA = OrderedDict([
     ('_UID', 'text'),
     ('datetime', 'timestamp'),
