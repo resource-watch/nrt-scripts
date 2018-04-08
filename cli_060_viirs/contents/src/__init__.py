@@ -3,8 +3,9 @@ import sys
 import os
 import requests
 import datetime
+import json
 
-logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 ### Constants
 RW_API = 'https://api.resourcewatch.org/v1/dataset/bd9f603e-a559-4cc1-84f4-de0ddc7c341f/layer/'
@@ -39,13 +40,9 @@ def main():
         api_url = RW_API + layer['id']
         layer['url'] = layer['url'].format(x='{x}', y='{y}', z='{z}', date=date)
         payload = {
-            'data': {
-                'attributes': {
                     'application': ['rw'],
                     'layerConfig': layer
                 }
-            }
-        }
         logging.debug(payload)
         headers = {
             'Content-Type': 'application/json',
@@ -54,11 +51,11 @@ def main():
         response = requests.request(
             'PATCH',
             api_url,
-            data=payload,
+            data=json.dumps(payload),
             headers=headers
         )
         if not response.ok:
-            logging.warning("Warning: failed to update layer")
-            logging.warning(response.text)
+            logging.error("ERROR: failed to update layer")
+            logging.error(response.text)
 
     logging.info('SUCCESS')
