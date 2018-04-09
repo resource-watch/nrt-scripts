@@ -33,7 +33,7 @@ API_KEY = os.environ['RW_API_KEY']
 def main():
     logging.info('BEGIN')
     today = datetime.datetime.today()
-    yesterday = today - datetime.timedelta(days=1)
+    yesterday = today - datetime.timedelta(days=2)
     date = yesterday.strftime('%Y-%m-%d')
 
     for layer in LAYER_CONFIGS:
