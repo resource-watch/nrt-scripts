@@ -108,10 +108,11 @@ def extract_subdata(nc_file, rw_id):
     data = nc[var_code][:, :]
     logging.debug('Type of data: {}'.format(type(data)))
     logging.debug('Shape: {}'.format(data.shape))
-    logging.debug('Min,Max: {},{}'.format(data.min(), data.max()))
+    logging.debug('Min,Max: {},{}'.format(data.data.min(), data.data.max()))
     # not sure why this works, but it gets us to the right numbers
     # except for no-data values
-    outdata = data.data.copy() * SCALE_FACTOR
+    outdata = data.data.copy()
+    outdata[outdata>=0] = outdata[outdata>=0] * SCALE_FACTOR
 
     # There's some strange deferred execution going on here
     # if I set the mask like this, it scales down unmasked data by 10k
@@ -131,7 +132,7 @@ def extract_subdata(nc_file, rw_id):
         'dtype': DTYPE,
         'crs':'EPSG:4326',
         'transform': transform,
-        'nodata': NODATA*SCALE_FACTOR
+        'nodata': NODATA
     }
 
     with rio.open(var_tif, 'w', **profile) as dst:
