@@ -302,7 +302,7 @@ def main():
     ### 5. Delete old assets
     for rw_id, collection in collections.items():
         e = existing_dates[rw_id]
-        n = new_dates[rw_id] if rw_id in new_dates else 0
+        n = new_dates[rw_id] if rw_id in new_dates else []
         total = e + n
         logging.info('Existing assets in {}: {}, new: {}, max: {}'.format(
             rw_id, len(e), len(n), MAX_DATES))

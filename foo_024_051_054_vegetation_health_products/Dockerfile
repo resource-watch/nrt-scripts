@@ -24,10 +24,11 @@ ENV NAME ${NAME}
 RUN mkdir -p /opt/$NAME/data
 WORKDIR /opt/$NAME/
 COPY contents/ .
-VOLUME /opt/$NAME/data
 
 RUN groupadd -r $NAME && useradd -r -g $NAME $NAME
 RUN chown -R $NAME:$NAME .
 USER $NAME
+
+VOLUME /opt/$NAME/data
 
 CMD ["python", "main.py"]
