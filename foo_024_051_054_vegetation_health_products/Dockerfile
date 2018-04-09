@@ -1,4 +1,4 @@
-FROM python:3.6
+FROM python:3-stretch
 MAINTAINER Nathan Suberi <nathan.suberi@wri.org>
 
 # install core libraries
@@ -8,10 +8,7 @@ RUN pip install -U pip
 # install application libraries
 RUN apt-get install -y \
     gdal-bin \
-    libgdal-dev \
-    libnetcdf-dev \
-    netcdf-bin \
-    && apt-get clean
+    libgdal-dev
 
 RUN pip install -e git+https://github.com/fgassert/eeUtil#egg=eeUtil
 RUN pip install numpy
@@ -31,5 +28,7 @@ COPY contents/ .
 RUN groupadd -r $NAME && useradd -r -g $NAME $NAME
 RUN chown -R $NAME:$NAME .
 USER $NAME
+
+VOLUME /opt/$NAME/data
 
 CMD ["python", "main.py"]

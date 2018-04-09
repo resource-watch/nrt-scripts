@@ -23,7 +23,7 @@ DELETE_LOCAL = True
 # Sources for nrt data
 SOURCE_URL = 'ftp://ftp.star.nesdis.noaa.gov/pub/corp/scsb/wguo/data/VHP_4km/VH/{target_file}'
 SOURCE_FILENAME = 'VHP.G04.C07.NP.P{date}.VH.nc'
-SDS_NAME = 'NETCDF:"{fname}":{varname}'
+#SDS_NAME = 'NETCDF:"{fname}":{varname}'
 
 VARIABLES = {
     'foo_024':'VHI',
@@ -46,15 +46,17 @@ MAX_DATES = 36
 # http://php.net/manual/en/function.strftime.php
 DATE_FORMAT = '%Y0%V'
 DATE_FORMAT_ISO = '%G0%V-%w'
-TIMESTEP = {'days':7}
-S_SRS = 'EPSG:32662'
+
+TIMESTEP = {'days': 7}
+#S_SRS = 'EPSG:32662'
+
 EXTENT = '-180 -55.152 180 75.024002'
 DTYPE = rio.float32
 NODATA = -999
 SCALE_FACTOR = .01
 
 # https://gist.github.com/tomkralidis/baabcad8c108e91ee7ab
-os.environ['GDAL_NETCDF_BOTTOMUP']='NO'
+#os.environ['GDAL_NETCDF_BOTTOMUP']='NO'
 
 ###
 ## Handling RASTERS
@@ -103,30 +105,38 @@ def extract_subdata(nc_file, rw_id):
     logging.info('New tif: {}'.format(var_tif))
 
     # Extract data
-    data = nc[var_code][:,:]
-    logging.info('Type of data: {}'.format(type(data)))
-    logging.info('Shape: {}'.format(data.shape))
+    data = nc[var_code][:, :]
+    logging.debug('Type of data: {}'.format(type(data)))
+    logging.debug('Shape: {}'.format(data.shape))
+    logging.debug('Min,Max: {},{}'.format(data.data.min(), data.data.max()))
+    # not sure why this works, but it gets us to the right numbers
+    # except for no-data values
+    outdata = data.data.copy()
+    outdata[outdata>=0] = outdata[outdata>=0] * SCALE_FACTOR
 
-    logging.info('Rescaling data w/ scale factor {}'.format(SCALE_FACTOR))
-    data = data*SCALE_FACTOR
+    # There's some strange deferred execution going on here
+    # if I set the mask like this, it scales down unmasked data by 10k
+    # outdata[data.mask] = NODATA
+    logging.debug('Out min, max: {},{}'.format(outdata.min(), outdata.max()))
+
+
     # Transformation function
     transform = rio.transform.from_bounds(*[float(pos) for pos in EXTENT.split(' ')], data.shape[1], data.shape[0])
 
     # Profile
     profile = {
-        'driver':'GTiff',
-        'height':data.shape[0],
-        'width':data.shape[1],
-        'count':1,
-        'dtype':DTYPE,
-        'crs':CRS({'init':S_SRS}),
-        'transform':transform,
-        'compress':'lzw',
-        'nodata':NODATA
+        'driver': 'GTiff',
+        'height': data.shape[0],
+        'width': data.shape[1],
+        'count': 1,
+        'dtype': DTYPE,
+        'crs':'EPSG:4326',
+        'transform': transform,
+        'nodata': NODATA
     }
 
     with rio.open(var_tif, 'w', **profile) as dst:
-        dst.write(data.astype(DTYPE), indexes=1)
+        dst.write(outdata.astype(DTYPE), 1)
 
     del nc
     return var_tif
@@ -152,27 +162,14 @@ def reproject(ncfile, rw_id, date):
     # logging.debug('Extracting var {} from {} to {}'.format(varname, ncfile, extracted_var_tif))
     # subprocess.call(cmd)
 
-    logging.info('Reprojecting')
-    reprojected_vrt = os.path.join(DATA_DIR, 'reprojected.vrt')
-    # Using trivial transform is important to give the data a CRS
-    cmd = ' '.join(['gdalwarp','-overwrite',
-                    '-s_srs', 'EPSG:4326',
-                    '-t_srs','EPSG:4326',
-                    '-multi','-wo','NUM_THREADS=val/ALL_CPUS',
-                    '-of', 'VRT', '-te', EXTENT,
-                    extracted_var_tif,
-                    reprojected_vrt])
-    subprocess.check_output(cmd, shell=True)
-
     logging.info('Compressing')
-    cmd = ' '.join(['gdal_translate','-co','COMPRESS=LZW','-of','GTiff',
-                    reprojected_vrt,
-                    new_file])
-    subprocess.check_output(cmd, shell=True)
+    cmd = ['gdal_translate','-co','COMPRESS=LZW','-of','GTiff',
+           extracted_var_tif,
+           new_file]
+    subprocess.call(cmd)
 
     if DELETE_LOCAL:
         os.remove(extracted_var_tif)
-        os.remove(reprojected_vrt)
 
     logging.info('Reprojected {} to {}'.format(ncfile, new_file))
     return new_file
@@ -184,7 +181,7 @@ def _processAssets(tifs, rw_id, varname):
     # -0 corresponding to Sunday at end of week
     datestamps = [datetime.datetime.strptime(date + '-0', DATE_FORMAT_ISO)
                   for date in dates]
-    eeUtil.uploadAssets(tifs, assets, GS_PREFIX.format(rw_id=rw_id,varname=varname), datestamps, public=True, timeout=3000)
+    eeUtil.uploadAssets(tifs, assets, GS_PREFIX.format(rw_id=rw_id, varname=varname), datestamps, timeout=3000)
     return assets
 
 def processAssets(agg, rw_id, tifs):
@@ -305,7 +302,7 @@ def main():
     ### 5. Delete old assets
     for rw_id, collection in collections.items():
         e = existing_dates[rw_id]
-        n = new_dates[rw_id]
+        n = new_dates[rw_id] if rw_id in new_dates else []
         total = e + n
         logging.info('Existing assets in {}: {}, new: {}, max: {}'.format(
             rw_id, len(e), len(n), MAX_DATES))
