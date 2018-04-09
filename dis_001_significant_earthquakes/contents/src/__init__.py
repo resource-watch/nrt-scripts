@@ -13,7 +13,7 @@ SOURCE_URL = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&st
 PROCESS_HISTORY = False
 DATE_FORMAT = '%Y-%m-%d'
 DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
-SIGNIFICANT_THRESHOLD = 600
+SIGNIFICANT_THRESHOLD = 0
 
 LOG_LEVEL = logging.INFO
 CLEAR_TABLE_FIRST = False
