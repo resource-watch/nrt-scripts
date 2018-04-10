@@ -72,8 +72,8 @@ def genMarketUID(rid, mid, mname):
 def parseMarkets(region_scale, existing_markets):
     # Happens w/ 'National Average' entries
     if 'items' not in region_scale:
-        logging.error('Unfamiliar structure')
-        logging.error(region_scale)
+        logging.error('Unfamiliar structure, probably National Average entry')
+        #logging.error(region_scale)
         return [None]*len(CARTO_MARKET_SCHEMA)
 
     new_rows = []
@@ -131,8 +131,8 @@ def assignALPS(pewi):
 def parseAlps(market_data, existing_alps):
     # Happens w/ 'National Average' entries
     if 'admname' not in market_data:
-        logging.error('Unfamiliar structure')
-        logging.error(market_data)
+        logging.error('Unfamiliar structure, probably National Average entry')
+        #logging.error(market_data)
         return [None]*len(CARTO_ALPS_SCHEMA)
 
     new_rows = []
@@ -144,8 +144,8 @@ def parseAlps(market_data, existing_alps):
     try:
         num_forecast = min(len(market_data['f_price']), len(market_data['p_trend']), len(market_data['f_pewi']))
     except:
-        logging.error('No forecast')
-        logging.error(market_data)
+        logging.warning('No forecast')
+        #logging.warning(market_data)
         run_forecast = False
 
     date = datetime.strptime(market_data['startdate'], DATE_FORMAT)
@@ -156,8 +156,8 @@ def parseAlps(market_data, existing_alps):
 
         # This data point will be filtered out later
         if not pewi:
-            logging.error('No alert data for this month')
-            logging.error(market_data)
+            logging.warning('No alert data for this month')
+            #logging.warning(market_data)
             new_rows.append([None]*len(CARTO_ALPS_SCHEMA))
             date = stepForward(date)
             continue
@@ -199,8 +199,8 @@ def parseAlps(market_data, existing_alps):
 
             # This data point will be filtered out later
             if not f_pewi:
-                logging.error('No alert data forecast for this month')
-                logging.error(market_data)
+                logging.warning('No alert data forecast for this month')
+                #logging.warning(market_data)
                 new_rows.append([None]*len(CARTO_ALPS_SCHEMA))
                 date = stepForward(date)
                 continue
