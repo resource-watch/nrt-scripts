@@ -26,7 +26,7 @@ REGIONS = {'WA':'west-africa{date}.zip',
 TIMESTEP = {'days': 30}
 DATE_FORMAT = '%Y%m'
 DATETIME_FORMAT = '%Y%m%dT00:00:00Z'
-CLEAR_TABLE_FIRST = False
+CLEAR_TABLE_FIRST = True
 SIMPLIFICATION_TOLERANCE = .04
 PRESERVE_TOPOLOGY = True
 
@@ -138,7 +138,7 @@ def processNewData(exclude_dates):
                 rows = []
 
                 if ifc_type == 'CS':
-                    start_date = formatStartAndEndDates(date)
+                    start_date = formatStartAndEndDates(date,plus=-1)
                     end_date = formatStartAndEndDates(date)
                 elif ifc_type == 'ML1':
                     start_date = formatStartAndEndDates(date)
