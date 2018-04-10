@@ -16,11 +16,11 @@ RUN mkdir -p /opt/$NAME/data
 WORKDIR /opt/$NAME/
 COPY contents/ .
 COPY time.cron .
-VOLUME ./data
 
 RUN groupadd -r $NAME && useradd -r -g $NAME $NAME
-RUN chown $NAME:$NAME /opt/$NAME
+RUN chown -R $NAME:$NAME /opt/$NAME
 USER $NAME
+VOLUME ./data
 
 # Launch script
 CMD ["python", "main.py"]

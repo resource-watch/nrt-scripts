@@ -15,7 +15,7 @@ from shapely.geometry import mapping, Polygon, MultiPolygon
 import cartosql
 
 # Constants
-DATA_DIR = 'data'
+DATA_DIR = './data'
 SOURCE_URL = 'http://shapefiles.fews.net.s3.amazonaws.com/HFIC/{region}/{target_file}'
 REGIONS = {'WA':'west-africa{date}.zip',
             'CA':'central-asia{date}.zip',
