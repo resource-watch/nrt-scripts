@@ -138,7 +138,7 @@ def processNewData(exclude_dates):
                 rows = []
 
                 if ifc_type == 'CS':
-                    start_date = formatStartAndEndDates(date)
+                    start_date = formatStartAndEndDates(date,plus=-1)
                     end_date = formatStartAndEndDates(date)
                 elif ifc_type == 'ML1':
                     start_date = formatStartAndEndDates(date)
