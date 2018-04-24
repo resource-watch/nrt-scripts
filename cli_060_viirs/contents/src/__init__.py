@@ -24,7 +24,7 @@ LAYER_CONFIGS = [
         },
         "url": "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_DayNightBand_ENCC/default/{date}/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png",
         "type": "tileLayer",
-        "id": "9bcaa1e8-3181-441f-879a-060b068b7c2a"
+        "id": "91642712-916c-4b03-9d3c-1924a998ea98"
     }
 ]
 API_KEY = os.environ['RW_API_KEY']
