@@ -13,4 +13,3 @@ docker run -it --log-driver=syslog \
            python main.py
 
            #/bin/bash
-           

@@ -14,12 +14,11 @@ RUN pip install --upgrade pip && pip install pyodbc
 ## https://www.cnblogs.com/he11o-liu/p/7503232.html
 ## https://odbc.postgresql.org/docs/unix-compilation.html
 
-#RUN apt-get install -y build-essential
-#RUN cd /home
-#RUN wget https://ftp.postgresql.org/pub/odbc/versions/src/psqlodbc-09.02.0100.tar.gz
-#RUN gunzip psqlodbc-09.02.0100.tar.gz
-#RUN tar xvf psqlodbc-09.02.0100.tar
-#RUN cd psqlodbc-09.02.0100 && sh ./configure --with-unixodbc && make && make install
+RUN apt-get install -y build-essential
+RUN wget https://ftp.postgresql.org/pub/odbc/versions/src/psqlodbc-09.02.0100.tar.gz
+RUN gunzip psqlodbc-09.02.0100.tar.gz
+RUN tar xvf psqlodbc-09.02.0100.tar
+## RUN cd psqlodbc-09.02.0100 && sh ./configure --with-unixodbc && make && make install
 
 # set name
 ARG NAME=nrt-script
@@ -32,6 +31,8 @@ COPY contents/ .
 
 # Set up ODBC driver info
 RUN mv /opt/$NAME/odbcinst.ini /etc/odbcinst.ini
+RUN cat /etc/odbcinst.ini
+RUN odbcinst -j
 
 RUN useradd -r $NAME
 RUN chown -R $NAME:$NAME /opt/$NAME
