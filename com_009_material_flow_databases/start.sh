@@ -10,6 +10,7 @@ docker run -it --log-driver=syslog \
            --log-opt tag=$NAME \
            --env-file .env \
            --rm $NAME \
-           python main.py
+           /bin/bash
 
-           #/bin/bash
+           #python main.py
+           
