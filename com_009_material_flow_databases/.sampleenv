@@ -1,1 +1,4 @@
 mfa_db_password=<<password>>
+
+carto_user=<<user>>
+carto_password=<<password>>

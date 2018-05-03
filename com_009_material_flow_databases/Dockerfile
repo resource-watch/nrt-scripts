@@ -11,6 +11,10 @@ RUN gunzip psqlodbc-09.02.0100.tar.gz
 RUN tar xvf psqlodbc-09.02.0100.tar
 RUN cd psqlodbc-09.02.0100 && sh ./configure --with-unixodbc && make && make install
 
+# Provide pandas
+RUN conda install pandas
+RUN conda install cartoframes
+
 # Provide name of container
 ARG NAME=com_009_connector
 ENV NAME ${NAME}
