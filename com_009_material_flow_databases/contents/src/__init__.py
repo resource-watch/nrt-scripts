@@ -12,7 +12,7 @@ import cartoframes
 ODBC_SOURCE_URL = 'vps348928.ovh.net'
 ODBC_PORT = '5432'
 ODBC_DATABASE = 'mfa'
-OBDC_USER = 'mfa'
+ODBC_USER = 'mfa'
 ODBC_PASSWORD = os.environ.get('mfa_db_password')
 
 CONNECTION_STRING = 'DRIVER={};SERVER={};PORT={};DATABASE={};UID={};PWD={}'
@@ -36,7 +36,7 @@ def main():
     # Fetch data
     logging.info("DEMO - run query for countries table to prove this works")
     before = datetime.now()
-    countries = pd.DataFrame(cursor.execute('SELECT * FROM Countries').fetchall())
+    countries = pd.DataFrame(cursor.execute('SELECT * FROM Country').fetchall())
     logging.info('Shape of df is: {}'.format(countries.shape))
     after = datetime.now()
     logging.info("Countries query takes {}".format(after-before))

@@ -13,7 +13,7 @@ RUN cd psqlodbc-09.02.0100 && sh ./configure --with-unixodbc && make && make ins
 
 # Provide pandas
 RUN conda install pandas
-RUN conda install cartoframes
+RUN pip install cartoframes
 
 # Provide name of container
 ARG NAME=com_009_connector
