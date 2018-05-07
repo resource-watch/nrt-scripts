@@ -5,11 +5,16 @@ NAME=$(basename $(pwd))
 LOG=${LOG:-udp://localhost}
 
 docker build -t $NAME --build-arg NAME=$NAME .
-docker run -it --log-driver=syslog \
+docker run -it -v data:/opt/$NAME/data \
+           --log-driver=syslog \
            --log-opt syslog-address=$LOG \
            --log-opt tag=$NAME \
            --env-file .env \
            --rm $NAME \
-           python main.py
+           /bin/bash
 
-           #/bin/bash
+           #python main.py
+
+
+
+           #
