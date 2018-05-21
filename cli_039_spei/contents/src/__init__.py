@@ -5,11 +5,9 @@ import sys
 import urllib.request
 import shutil
 from contextlib import closing
-#import gzip
 import datetime
 from dateutil import parser
 import logging
-#import subprocess
 from netCDF4 import Dataset
 import rasterio as rio
 import eeUtil
@@ -34,7 +32,7 @@ NODATA_VALUE = None
 DATA_TYPE = 'Byte' # Byte/Int16/UInt16/UInt32/Int32/Float32/Float64/CInt16/CInt32/CFloat32/CFloat64
 MISSING_VALUE_NAME = "missing_value"
 
-DATA_DIR = 'data/'
+DATA_DIR = 'data'
 GS_FOLDER = 'cli_039_spei'
 EE_COLLECTION = 'cli_039_spei'
 
@@ -70,20 +68,13 @@ def fetch(filename, lag):
     try:
         if DOWNLOAD_FILE:
             with closing(urllib.request.urlopen(_file)) as r:
-                #with gzip.open(r, "rb") as unzipped:
                 with open(filename, 'wb') as f:
-                    #shutil.copyfileobj(unzipped, f)
                     shutil.copyfileobj(r, f)
-
-        #urllib.request.urlretrieve(_file, filename)
-        #cmd = ['head', filename]
-        #subprocess.call(cmd)
-        #cmd = ['gdalinfo', filename]
-        #subprocess.call(cmd)
 
     except Exception as e:
         logging.warning('Could not fetch {}'.format(_file))
         logging.error(e)
+
     return filename
 
 def extract_metadata(nc_file):
@@ -119,11 +110,6 @@ def retrieve_formatted_dates(nc_file, date_pattern=DATE_FORMAT):
     logging.debug("Reference time: {}".format(ref_time))
 
     # Format times to DATE_FORMAT
-
-    ###
-    ## REPLACE W/ MAP FUNCTION
-    ###
-
     formatted_dates = [(ref_time + datetime.timedelta(days=int(time_disp))).strftime(date_pattern) for time_disp in time_displacements]
     logging.debug('Dates available: {}'.format(formatted_dates))
     return(formatted_dates)
@@ -177,7 +163,6 @@ def extract_subdata_by_date(nc_file, lag, dtype, nodata, available_dates, target
     del nc
     return sub_tifs
 
-
 def processNewData(existing_dates, lag):
     '''fetch, process, upload, and clean new data'''
     # 1. Determine which years to read from the netCDF file
@@ -185,7 +170,8 @@ def processNewData(existing_dates, lag):
 
     # 2. Fetch datafile
     logging.info('Fetching files')
-    nc_file = fetch(DATA_DIR + 'nc_file.nc', lag)
+    nc_file = os.path.join(DATA_DIR, 'nc_file.nc')
+    fetch(nc_file, lag)
     available_dates = retrieve_formatted_dates(nc_file)
     dtype, nodata = extract_metadata(nc_file)
     logging.info('type: ' + dtype)
@@ -225,7 +211,6 @@ def checkCreateCollection(collection):
         eeUtil.createFolder(collection, imageCollection=True, public=True)
         return []
 
-
 def deleteExcessAssets(dates, max_assets):
     '''Delete assets if too many'''
     # oldest first
@@ -233,7 +218,6 @@ def deleteExcessAssets(dates, max_assets):
     if len(dates) > max_assets:
         for date in dates[:-max_assets]:
             eeUtil.removeAsset(getAssetName(date))
-
 
 def main():
     '''Ingest new data into EE and delete old data'''
