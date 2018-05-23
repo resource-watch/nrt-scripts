@@ -13,7 +13,7 @@ SOURCE_URL = "https://missingmigrants.iom.int/global-figures/{year}/xls"
 CLEAR_TABLE_FIRST = False
 PROCESS_HISTORY = False
 DATE_FORMAT = '%Y-%m-%d'
-LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.INFO
 
 ### Table name and structure
 CARTO_TABLE = 'soc_018_missing_migrants'
@@ -25,14 +25,14 @@ CARTO_SCHEMA = OrderedDict([
     ('Number_Dead', 'numeric'),
     ('Number_Missing', 'numeric'),
     ('Total_Dead_and_Missing', 'numeric'),
-    ('Number_of_survivors', 'numeric'),
-    ('Number_of_Female', 'numeric'),
-    ('Number_of_Male', 'numeric'),
+    ('Number_of_Survivors', 'numeric'),
+    ('Number_of_Females', 'numeric'),
+    ('Number_of_Males', 'numeric'),
     ('Number_of_Children', 'numeric'),
-    ('Cause_of_death', 'text'),
+    ('Cause_of_Death', 'text'),
     ('Location_Description', 'text'),
     ('Information_Source', 'text'),
-    ('Migrant_Route', 'text'),
+    ('Migration_Route', 'text'),
     ('URL', 'text'),
     ('UNSD_Geographical_Grouping', 'text'),
     ('Verification_level', 'text')
@@ -103,13 +103,14 @@ def processData(existing_ids):
             logging.info('Couldn\'t fetch data for year {}'.format(year))
         logging.info("Num rows: {}".format(len(rows)))
         count += 1
-        
+
     new_rows = []
     for _row in rows:
         row = structure_row(headers, _row)
         if str(row['Web ID']) not in existing_ids:
             uid = row['Web ID']
-            lat, lon = [float(loc.strip()) for loc in row['Location'].split(',')]
+            logging.debug('Row: {}'.format(row))
+            lat, lon = [float(loc.strip()) for loc in row['Location Coordinates'].split(',')]
             geometry = {
                 'type':'Point',
                 'coordinates':[lon, lat]
