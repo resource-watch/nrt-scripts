@@ -103,7 +103,7 @@ def processData(existing_ids):
             logging.info('Couldn\'t fetch data for year {}'.format(year))
         logging.info("Num rows: {}".format(len(rows)))
         count += 1
-
+        
     new_rows = []
     for _row in rows:
         row = structure_row(headers, _row)
