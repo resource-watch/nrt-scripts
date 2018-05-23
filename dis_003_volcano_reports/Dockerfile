@@ -1,5 +1,5 @@
 FROM python:3.6
-MAINTAINER Nathan Suberi <nathan.suberi@wri.org>
+MAINTAINER Nathan Suberi <nsuberi@gmail.com>
 ARG NAME=dis_003
 ENV NAME ${NAME}
 
