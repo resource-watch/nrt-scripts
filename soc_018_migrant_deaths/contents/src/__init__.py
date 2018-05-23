@@ -11,8 +11,9 @@ import cartosql
 ### Constants
 SOURCE_URL = "https://missingmigrants.iom.int/global-figures/{year}/xls"
 CLEAR_TABLE_FIRST = False
+PROCESS_HISTORY = False
 DATE_FORMAT = '%Y-%m-%d'
-LOG_LEVEL = logging.INFO
+LOG_LEVEL = logging.DEBUG
 
 ### Table name and structure
 CARTO_TABLE = 'soc_018_missing_migrants'
@@ -24,14 +25,14 @@ CARTO_SCHEMA = OrderedDict([
     ('Number_Dead', 'numeric'),
     ('Number_Missing', 'numeric'),
     ('Total_Dead_and_Missing', 'numeric'),
-    ('Number_of_Survivors', 'numeric'),
-    ('Number_of_Females', 'numeric'),
-    ('Number_of_Males', 'numeric'),
+    ('Number_of_survivors', 'numeric'),
+    ('Number_of_Female', 'numeric'),
+    ('Number_of_Male', 'numeric'),
     ('Number_of_Children', 'numeric'),
-    ('Cause_of_Death', 'text'),
+    ('Cause_of_death', 'text'),
     ('Location_Description', 'text'),
     ('Information_Source', 'text'),
-    ('Migration_Route', 'text'),
+    ('Migrant_Route', 'text'),
     ('URL', 'text'),
     ('UNSD_Geographical_Grouping', 'text'),
     ('Verification_level', 'text')
@@ -82,7 +83,11 @@ def processData(existing_ids):
     headers, rows = fetchAndFormatData(year)
     logging.info("Num rows: {}".format(len(rows)))
 
-    year_history = 10
+    if PROCESS_HISTORY:
+        year_history = 5
+    else:
+        year_history = 1
+
     count = 0
     while count < year_history:
         year -= 1
@@ -95,8 +100,7 @@ def processData(existing_ids):
             rows.extend(more_rows)
             logging.info('Fetched additional data for year {}'.format(year))
         except:
-            logging.warning('Couldn\'t fetch data for year {}'.format(year))
-
+            logging.info('Couldn\'t fetch data for year {}'.format(year))
         logging.info("Num rows: {}".format(len(rows)))
         count += 1
 
@@ -105,8 +109,7 @@ def processData(existing_ids):
         row = structure_row(headers, _row)
         if str(row['Web ID']) not in existing_ids:
             uid = row['Web ID']
-            logging.debug('Row: {}'.format(row))
-            lat, lon = [float(loc.strip()) for loc in row['Location Coordinates'].split(',')]
+            lat, lon = [float(loc.strip()) for loc in row['Location'].split(',')]
             geometry = {
                 'type':'Point',
                 'coordinates':[lon, lat]
