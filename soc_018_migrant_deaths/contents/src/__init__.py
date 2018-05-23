@@ -11,7 +11,6 @@ import cartosql
 ### Constants
 SOURCE_URL = "https://missingmigrants.iom.int/global-figures/{year}/xls"
 CLEAR_TABLE_FIRST = False
-PROCESS_HISTORY = False
 DATE_FORMAT = '%Y-%m-%d'
 LOG_LEVEL = logging.INFO
 
@@ -83,11 +82,7 @@ def processData(existing_ids):
     headers, rows = fetchAndFormatData(year)
     logging.info("Num rows: {}".format(len(rows)))
 
-    if PROCESS_HISTORY:
-        year_history = 5
-    else:
-        year_history = 1
-
+    year_history = 10
     count = 0
     while count < year_history:
         year -= 1
@@ -100,7 +95,8 @@ def processData(existing_ids):
             rows.extend(more_rows)
             logging.info('Fetched additional data for year {}'.format(year))
         except:
-            logging.info('Couldn\'t fetch data for year {}'.format(year))
+            logging.warning('Couldn\'t fetch data for year {}'.format(year))
+
         logging.info("Num rows: {}".format(len(rows)))
         count += 1
 
