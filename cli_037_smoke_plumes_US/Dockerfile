@@ -1,14 +1,10 @@
 FROM python:3.6
 MAINTAINER Nathan Suberi <nathan.suberi@wri.org>
 
-# install core libraries
-RUN apt-get update
-
 # install application libraries
-RUN apt-get install -y gdal-bin libgdal-dev
-RUN pip install requests
-RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
-RUN pip install fiona
+RUN pip install --upgrade pip && \
+    pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql && \
+    pip install requests fiona
 
 # set name
 ARG NAME=cli_037
