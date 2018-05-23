@@ -19,7 +19,7 @@ TIMESTEP = {'days': 1}
 DATE_FORMAT = '%Y%m%d'
 DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 CLEAR_TABLE_FIRST = False
-LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.INFO
 MAXAGE_UPLOAD = datetime.today() - timedelta(days=360)
 MAX_CHECK_CURRENT = datetime.today() - timedelta(days=14)
 
