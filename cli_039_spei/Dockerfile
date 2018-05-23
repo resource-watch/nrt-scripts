@@ -26,10 +26,11 @@ RUN pip install --upgrade pip && pip install \
 
 
 # copy the application folder inside the container
+RUN mkdir -p /opt/$NAME/data
 WORKDIR /opt/$NAME/
 COPY contents/ .
 COPY time.cron .
-RUN mkdir -p /opt/$NAME/data
+VOLUME /opt/$NAME/data
 
 RUN groupadd -r $NAME && useradd -r -g $NAME $NAME
 RUN chown -R $NAME:$NAME .
