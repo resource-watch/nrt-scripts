@@ -26,7 +26,7 @@ RUN mv /opt/$NAME/odbcinst.ini /etc/odbcinst.ini
 
 # Restrict permissions
 RUN useradd -r $NAME
-RUN chown -R $NAME:$NAME /opt/$NAME
-USER $NAME
+RUN chown -R $NAME:$NAME .
+#USER $NAME
 
 CMD ["python", "main.py"]

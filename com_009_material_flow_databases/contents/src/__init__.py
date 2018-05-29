@@ -68,8 +68,10 @@ def main():
         after = datetime.now()
         logging.info("FlowMFA query takes {}".format(after-before))
 
+
         flowmfa.columns = ['index', 'isoalpha3', 'flow', 'mfa13', 'mfa4', 'year', 'amount']
-        flowmfa.drop('index', inplace=True)
+        flowmfa.drop('index', axis=1, inplace=True)
+        flowmfa['amount'] = flowmfa['amount'].astype(float)
         flowmfa.to_csv('data/flowmfa.csv')
 
         # before = datetime.now()
