@@ -7,7 +7,6 @@ import datetime
 import logging
 import subprocess
 import eeUtil
-import requests
 import urllib.request
 from bs4 import BeautifulSoup
 import os
