@@ -1,31 +1,27 @@
 FROM python:3.6
 MAINTAINER Nathan Suberi <nathan.suberi@wri.org>
+ARG NAME=dis_003
+ENV NAME ${NAME}
 
 # install core libraries
 RUN apt-get update
-RUN apt-get install git
+RUN apt-get install -y cron
 
 # install application libraries
-RUN pip install --upgrade pip
-RUN pip install pandas
-RUN pip install requests \
+RUN pip install --upgrade pip && pip install \
+    requests \
     cartoframes
 
-RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
-
-# set name
-ARG NAME=climatewatchapi
-ENV NAME ${NAME}
-
-# copy the application folder inside the container
+# Copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data
 WORKDIR /opt/$NAME/
 COPY contents/ .
-VOLUME ./data
+COPY time.cron .
 
 # Set user for container security
 RUN useradd $NAME
 RUN chown -R $NAME:$NAME .
-USER $NAME
+#USER $NAME
 
+# Launch script
 CMD ["python", "main.py"]

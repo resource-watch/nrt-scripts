@@ -12,6 +12,7 @@ import logging
 #import subprocess
 from netCDF4 import Dataset
 import rasterio as rio
+import numpy as np
 import eeUtil
 
 LOG_LEVEL = logging.INFO
@@ -31,7 +32,7 @@ NODATA_VALUE = None
 DATA_TYPE = 'Byte' # Byte/Int16/UInt16/UInt32/Int32/Float32/Float64/CInt16/CInt32/CFloat32/CFloat64
 MISSING_VALUE_NAME = "missing_value"
 
-DATA_DIR = 'data/'
+DATA_DIR = os.path.join(os.getcwd(),'data')
 GS_FOLDER = 'cli_035_surface_temp_analysis'
 EE_COLLECTION = 'cli_035_surface_temp_analysis'
 
@@ -65,13 +66,13 @@ def fetch(filename):
     # New data may not yet be posted
     _file = SOURCE_URL.format(target_file=SOURCE_FILENAME)
     try:
-        with closing(urllib.request.urlopen(_file)) as r:
-            #with gzip.open(r, "rb") as unzipped:
-            with open(filename, 'wb') as f:
-                #shutil.copyfileobj(unzipped, f)
-                shutil.copyfileobj(r, f)
+        # with closing(urllib.request.urlopen(_file)) as r:
+        #     #with gzip.open(r, "rb") as unzipped:
+        #     with open(filename, 'wb') as f:
+        #         #shutil.copyfileobj(unzipped, f)
+        #         shutil.copyfileobj(r, f)
 
-        #urllib.request.urlretrieve(_file, filename)
+        urllib.request.urlretrieve(_file, filename)
         #cmd = ['head', filename]
         #subprocess.call(cmd)
         #cmd = ['gdalinfo', filename]
@@ -135,7 +136,11 @@ def extract_subdata_by_date(nc_file, dtype, nodata, available_dates, target_date
             continue
 
         # Extract data
-        data = nc[VAR_NAME][date_ix,:,:]
+        data_tmp = nc[VAR_NAME][date_ix,:,:]
+        data = np.zeros(data_tmp.shape)
+        data[:,:90] = data_tmp[:,90:]
+        data[:,90:] = data_tmp[:,:90]
+
         # Create profile/tif metadata
         south_lat = -90
         north_lat = 90
@@ -156,8 +161,10 @@ def extract_subdata_by_date(nc_file, dtype, nodata, available_dates, target_date
             'nodata':nodata
         }
         # Set filename
-        sub_tif = DATA_DIR + '{}.tif'.format(FILENAME.format(date=date))
+        sub_tif = os.path.join(DATA_DIR,'{}.tif'.format(FILENAME.format(date=date)))
         logging.info(sub_tif)
+
+
 
         with rio.open(sub_tif, 'w', **profile) as dst:
             dst.write(data.astype(dtype), indexes=1)
@@ -174,7 +181,7 @@ def processNewData(existing_dates):
 
     # 2. Fetch datafile
     logging.info('Fetching files')
-    nc_file = fetch(DATA_DIR + 'nc_file.nc')
+    nc_file = fetch(os.path.join(DATA_DIR,'nc_file.nc'))
     available_dates = retrieve_formatted_dates(nc_file)
     dtype, nodata = extract_metadata(nc_file)
     logging.info('type: ' + dtype)

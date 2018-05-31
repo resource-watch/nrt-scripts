@@ -14,10 +14,10 @@ from dateutil import parser
 SOURCE_URL = "http://volcano.si.edu/news/WeeklyVolcanoRSS.xml"
 
 DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
-SIGNIFICANT_THRESHOLD = 600
+
 
 LOG_LEVEL = logging.INFO
-CLEAR_TABLE_FIRST = True
+CLEAR_TABLE_FIRST = False
 
 ### Table name and structure
 CARTO_TABLE = 'dis_003_volcano_reports'

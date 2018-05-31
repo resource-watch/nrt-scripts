@@ -14,10 +14,8 @@ from collections import OrderedDict
 from shapely.geometry import mapping, Polygon, MultiPolygon
 import cartosql
 
-from src.update_layers import update_layers
-
 # Constants
-DATA_DIR = 'data'
+DATA_DIR = './data'
 SOURCE_URL = 'http://shapefiles.fews.net.s3.amazonaws.com/HFIC/{region}/{target_file}'
 REGIONS = {'WA':'west-africa{date}.zip',
             'CA':'central-asia{date}.zip',
@@ -140,7 +138,7 @@ def processNewData(exclude_dates):
                 rows = []
 
                 if ifc_type == 'CS':
-                    start_date = formatStartAndEndDates(date)
+                    start_date = formatStartAndEndDates(date,plus=-1)
                     end_date = formatStartAndEndDates(date)
                 elif ifc_type == 'ML1':
                     start_date = formatStartAndEndDates(date)
@@ -254,9 +252,6 @@ def main():
 
     # 3. Remove old observations
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD, MAXAGE)
-
-    # 4. Update layer definitions
-    update_layers()
 
     ###
 
