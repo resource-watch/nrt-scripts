@@ -17,20 +17,20 @@ from http.cookiejar import CookieJar
 SOURCE_URL = 'https://n5eil01u.ecs.nsidc.org/MOST/MOD10C2.006/{date}'
 SDS_NAME = 'HDF4_EOS:EOS_GRID:"{fname}":MOD_CMG_Snow_5km:Eight_Day_CMG_Snow_Cover'
 FILENAME = 'cli_021_{date}'
-NODATA_VALUE = None
+NODATA_VALUE = 255
 
 DATA_DIR = 'data'
 GS_FOLDER = 'cli_021_snow_cover'
 EE_COLLECTION = 'cli_021_snow_cover'
-CLEAR_COLLECTION_FIRST = True
-DELETE_LOCAL = False
+CLEAR_COLLECTION_FIRST = False
+DELETE_LOCAL = True
 
-MAX_ASSETS = 5
+MAX_ASSETS = 8
 DATE_FORMAT_HDF = '%Y.%m.%d'
 DATE_FORMAT = '%Y%m%d'
 TIMESTEP = {'days': 1} #check everyday so don't start on day without and miss
 
-LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.INFO
 
 def getUrl(date):
     '''get source url from datestamp'''
@@ -60,7 +60,7 @@ def getNewDates(exclude_dates):
     for i in range(MAX_ASSETS*8): #because only updates every 8 days
         date -= datetime.timedelta(**TIMESTEP) #substraction and assignments in one step
         datestr = date.strftime(DATE_FORMAT_HDF)#of HDF because looking for new data in old format
-        if datestr not in exclude_dates:
+        if date.strftime(DATE_FORMAT) not in exclude_dates:
             new_dates.append(datestr) #add to new dates if have not already seen
     return new_dates
 
