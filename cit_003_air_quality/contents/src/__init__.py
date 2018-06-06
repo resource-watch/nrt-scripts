@@ -15,7 +15,7 @@ DATA_DIR = 'data'
 DATA_URL = 'https://api.openaq.org/v1/measurements?limit=10000&include_fields=attribution&page={page}'
 # always check first 10 pages
 MIN_PAGES = 10
-MAX_PAGES = 200
+MAX_PAGES = 15
 
 # asserting table structure rather than reading from input
 PARAMS = ('pm25', 'pm10', 'so2', 'no2', 'o3', 'co', 'bc')
@@ -58,7 +58,7 @@ CARTO_USER = os.environ.get('CARTO_USER')
 CARTO_KEY = os.environ.get('CARTO_KEY')
 
 # Limit to 5M rows / 30 days
-MAXROWS = 5000000
+MAXROWS = 500000
 MAXAGE = datetime.datetime.now() - datetime.timedelta(days=30)
 
 # conversions
