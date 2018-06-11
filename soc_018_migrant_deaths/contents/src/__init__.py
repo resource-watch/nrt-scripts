@@ -13,7 +13,7 @@ SOURCE_URL = "https://missingmigrants.iom.int/global-figures/{year}/xls"
 CLEAR_TABLE_FIRST = False
 PROCESS_HISTORY = False
 DATE_FORMAT = '%Y-%m-%d'
-LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.INFO
 
 ### Table name and structure
 CARTO_TABLE = 'soc_018_missing_migrants'
@@ -103,7 +103,7 @@ def processData(existing_ids):
             logging.info('Couldn\'t fetch data for year {}'.format(year))
         logging.info("Num rows: {}".format(len(rows)))
         count += 1
-        
+
     new_rows = []
     for _row in rows:
         row = structure_row(headers, _row)
