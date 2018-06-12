@@ -22,6 +22,7 @@ RUN pip install rasterio \
     google-cloud-storage
 
 RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
+RUN pip install oauth2client
 
 # copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data
