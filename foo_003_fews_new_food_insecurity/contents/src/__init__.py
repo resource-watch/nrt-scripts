@@ -124,9 +124,18 @@ def processNewData(exclude_dates):
             logging.info('Fetching data for {} in {}'.format(region,date))
             try:
                 urllib.request.urlretrieve(url, tmpfile)
+
             except Exception as e:
+                
+                ### TO DO:
+                # Add in a check to throw an error if the last updated data was
+                # more than 6 months old, or some similar check.
+                # Most of the time, this exception will be caused by checking
+                # for data for dates for which data should not exist!
+                ###
+
                 logging.warning('Could not retrieve {}'.format(url))
-                logging.error(e)
+                logging.warning(e)
                 continue
 
             # 2. Parse fetched data and generate unique ids
