@@ -11,6 +11,7 @@ RUN apt-get install -y \
     libgdal-dev
 
 RUN pip install -e git+https://github.com/fgassert/eeUtil#egg=eeUtil
+RUN pip install oauth2client
 RUN pip install numpy
 RUN pip install \
     netCDF4 \
