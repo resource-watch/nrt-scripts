@@ -6,7 +6,7 @@ import logging
 import sys
 import urllib
 from datetime import datetime, timedelta
-from collections import OrderedDict, deque
+from collections import OrderedDict
 import cartosql
 import zipfile
 
@@ -20,8 +20,8 @@ DATE_FORMAT = '%Y%m%d'
 DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 CLEAR_TABLE_FIRST = False
 LOG_LEVEL = logging.INFO
-MAX_CHECK = 10
-PROCESS_ARCHIVE = False
+MAXAGE_UPLOAD = datetime.today() - timedelta(days=360)
+MAX_CHECK_CURRENT = datetime.today() - timedelta(days=14)
 
 # asserting table structure rather than reading from input
 CARTO_TABLE = 'cli_037_smoke_plumes'
@@ -40,8 +40,6 @@ TIME_FIELD = 'date'
 
 MAXROWS = 100000
 MAXAGE = datetime.today() - timedelta(days=365*10)
-MAXAGE_UPLOAD = datetime.today() - timedelta(days=360)
-
 
 # Generate UID
 def genUID(date, pos_in_shp):
@@ -80,7 +78,7 @@ def findShp(zfile):
 
 def getNewDates(exclude_dates):
     '''Get new dates excluding existing'''
-    new_dates = deque([])
+    new_dates = []
     date = datetime.today()
     while date > MAXAGE_UPLOAD:
         date -= timedelta(**TIMESTEP)
@@ -93,41 +91,40 @@ def getNewDates(exclude_dates):
     return new_dates
 
 
-def processNewData(exclude_ids, from_archive=False):
+def processNewData(exclude_ids):
     new_ids = []
-    checked = 0
-    go = True
 
     # get non-existing dates
     dates = set([getDate(uid) for uid in exclude_ids])
     new_dates = getNewDates(dates)
+    logging.debug(new_dates)
 
-    while len(new_dates) and go:
-        # Only look back MAX_CHECK days, unless reading in archive
-        if not from_archive and checked > MAX_CHECK:
-            go = False
-            continue
-
-        logging.debug('Dates left to check: {}'.format(len(new_dates)))
-
-        # https://stackoverflow.com/questions/4426663/how-do-i-remove-the-first-item-from-a-python-list
-        date = new_dates.popleft()
-        if from_archive:
-            url = SOURCE_URL_ARCHIVE.format(date=date)
-        else:
-            url = SOURCE_URL.format(date=date)
-
+    for date in new_dates:
         tmpfile = '{}.zip'.format(os.path.join(DATA_DIR,
                                                FILENAME.format(date=date)))
-
         logging.info('Fetching {}'.format(date))
+
+        ###
+        ## First try the Archive, if not there, and less than 2 weeks old,
+        ## try current folder
+        ###
+
         try:
+            url = SOURCE_URL_ARCHIVE.format(date=date)
             urllib.request.urlretrieve(url, tmpfile)
         except Exception as e:
-            logging.warning('Could not retrieve {}'.format(url))
-            logging.error(e)
-            checked += 1
-            continue
+            logging.warning('Could not retrieve {} from ARCHIVE'.format(url))
+            logging.warning(e)
+            if datetime.strptime(date, DATE_FORMAT) > MAX_CHECK_CURRENT:
+                try:
+                    url = SOURCE_URL.format(date=date)
+                    urllib.request.urlretrieve(url, tmpfile)
+                except Exception as e:
+                    logging.warning('Could not retrieve {} from CURRENT'.format(url))
+                    logging.error('This data was not found in either the ARCHIVE or CURRENT ftp folders, {}'.format(e))
+                    continue
+            else:
+                continue
 
         # 2. Parse fetched data and generate unique ids
         logging.info('Parsing data')
@@ -166,7 +163,6 @@ def processNewData(exclude_ids, from_archive=False):
 
         # 4. Insert new observations
         new_count = len(rows)
-        checked += 1
         if new_count:
             logging.info('Pushing {} new rows'.format(new_count))
             cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
@@ -215,7 +211,6 @@ def deleteExcessRows(table, max_rows, time_field, max_age=''):
     if num_dropped:
         logging.info('Dropped {} old rows from {}'.format(num_dropped, table))
 
-
 def main():
     logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
     logging.info('STARTING')
@@ -232,15 +227,10 @@ def main():
         createTableWithIndices(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, otherFields=[TIME_FIELD])
 
     # 2. Iterively fetch, parse and post new data
-    num_new = processNewData(existing_ids, from_archive=False)
+    num_new = processNewData(existing_ids)
     logging.debug('Num new: {}'.format(num_new))
     existing_count = num_new + len(existing_ids)
 
-    if PROCESS_ARCHIVE:
-        num_new_from_archive = processNewData(existing_ids, from_archive=True)
-        logging.debug('Num new from archive: {}'.format(num_new_from_archive))
-        existing_count = existing_count + num_new_from_archive
-        num_new = num_new + num_new_from_archive
     logging.info('Total rows: {}, New: {}, Max: {}'.format(
         existing_count, num_new, MAXROWS))
 
