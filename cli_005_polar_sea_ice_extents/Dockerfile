@@ -15,10 +15,11 @@ RUN apt-get install -y \
   netcdf-bin \
   cron \
   && apt-get clean
-
+RUN pip install oauth2client
 RUN pip install --upgrade pip && pip install \
     earthengine-api \
     google-cloud-storage
+
 
 # copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data
