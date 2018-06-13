@@ -10,7 +10,7 @@ import csv
 
 ### Constants
 SOURCE_URL = "https://incidentnews.noaa.gov/raw/incidents.csv"
-CLEAR_TABLE_FIRST = False
+CLEAR_TABLE_FIRST = True
 ENCODING = 'utf-8'
 LOG_LEVEL = logging.INFO
 
