@@ -78,13 +78,13 @@ def processNewData(existing_ids):
             try:
                 origins[obs['country_of_origin']][obs['month']] += obs['value']
             except Exception as e:
-                logging.error("Error processing value {} for country of origin {} in {}-{}. Value set to -9999. Error: {}".format(obs['value'],obs['country_of_origin'],year,obs['month'],e))
+                logging.debug("Error processing value {} for country of origin {} in {}-{}. Value set to -9999. Error: {}".format(obs['value'],obs['country_of_origin'],year,obs['month'],e))
                 unknown_vals_origins[obs['country_of_origin']].append(obs['month'])
                 origins[obs['country_of_origin']][obs['month']] += 0
             try:
                 asylums[obs['country_of_asylum']][obs['month']] += obs['value']
             except Exception as e:
-                logging.error("Error processing value {} for country of asylum {} in {}-{}. Value set to -9999. Error: {}".format(obs['value'],obs['country_of_asylum'],year,obs['month'],e))
+                logging.debug("Error processing value {} for country of asylum {} in {}-{}. Value set to -9999. Error: {}".format(obs['value'],obs['country_of_asylum'],year,obs['month'],e))
                 unknown_vals_asylums[obs['country_of_asylum']].append(obs['month'])
                 asylums[obs['country_of_asylum']][obs['month']] += 0
 

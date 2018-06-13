@@ -8,7 +8,7 @@ RUN pip install -U pip
 # install application libraries
 RUN apt-get install -y gdal-bin libgdal-dev
 RUN pip install -e git+https://github.com/fgassert/eeUtil#egg=eeUtil
-
+RUN pip install oauth2client
 # set name
 ARG NAME=nrt-script
 ENV NAME ${NAME}
