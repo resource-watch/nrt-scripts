@@ -16,6 +16,7 @@ RUN apt-get install -y \
   cron \
   && apt-get clean
 
+RUN pip install oauth2client
 RUN pip install --upgrade pip && pip install \
     earthengine-api \
     google-cloud-storage
