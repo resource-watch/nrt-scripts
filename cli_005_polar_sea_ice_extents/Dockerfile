@@ -15,6 +15,10 @@ RUN apt-get install -y \
   netcdf-bin \
   cron \
   && apt-get clean
+<<<<<<< HEAD
+=======
+
+>>>>>>> 94826425702ca1e4e026200213e7f542940327e8
 RUN pip install oauth2client
 RUN pip install --upgrade pip && pip install \
     earthengine-api \
