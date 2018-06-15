@@ -27,7 +27,7 @@ LAYER_CONFIGS = [
         "id": "91642712-916c-4b03-9d3c-1924a998ea98"
     }
 ]
-API_KEY = os.environ['RW_API_KEY']
+API_KEY = os.environ['rw_api_token']
 
 
 def main():
