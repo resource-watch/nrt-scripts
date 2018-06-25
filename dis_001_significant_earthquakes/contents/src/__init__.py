@@ -15,7 +15,7 @@ DATE_FORMAT = '%Y-%m-%d'
 DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 SIGNIFICANT_THRESHOLD = 0
 
-LOG_LEVEL = logging.INFO
+LOG_LEVEL = logging.DEBUG
 CLEAR_TABLE_FIRST = False
 
 ### Table name and structure
@@ -45,7 +45,7 @@ TIME_FIELD = 'datetime'
 
 # Table limits
 MAX_ROWS = 1000000
-MAX_AGE = datetime.today() - timedelta(days=365*5)
+MAX_AGE = datetime.today() - timedelta(days=365*2)
 
 ###
 ## Carto code
@@ -145,23 +145,13 @@ def processData(existing_ids):
 
     today = datetime.today()
 
-    if PROCESS_HISTORY:
-
-        startTime = MAX_AGE
-        endTime = startTime + timedelta(days=31)
-        while startTime < today:
-            logging.info('Fetching data between {} and {}'.format(startTime, endTime))
-            new_data, new_ids = appendTimeFrame(existing_ids, startTime, endTime, new_data, new_ids)
-            startTime = endTime
-            endTime = startTime + timedelta(days=31)
-
-    else:
-        # Use defaults of endpoint
-        startTime = ''
-        endTime = ''
-        logging.info('Fetching data for last 30 days')
-
+    startTime = MAX_AGE
+    endTime = startTime + timedelta(days=31)
+    while startTime < today:
+        logging.info('Fetching data between {} and {}'.format(startTime, endTime))
         new_data, new_ids = appendTimeFrame(existing_ids, startTime, endTime, new_data, new_ids)
+        startTime = endTime
+        endTime = startTime + timedelta(days=31)
 
     num_new = len(new_ids)
     if num_new:
