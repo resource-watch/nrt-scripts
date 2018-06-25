@@ -15,7 +15,7 @@ DATE_FORMAT = '%Y-%m-%d'
 DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 SIGNIFICANT_THRESHOLD = 0
 
-LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.INFO
 CLEAR_TABLE_FIRST = False
 
 ### Table name and structure
