@@ -20,7 +20,7 @@ CLEAR_COLLECTION_FIRST = False
 DOWNLOAD_FILE = True
 
 # constants for bleaching alerts
-SOURCE_URL = 'http://soton.eead.csic.es/spei/maps/../nc/{filename}'
+SOURCE_URL = 'http://soton.eead.csic.es/spei/nc/{filename}'
 SOURCE_FILENAME = 'spei{month_lag}.nc'
 FILENAME = 'cli_039_lag{lag}_{date}'
 SDS_NAME = 'NETCDF:\"{nc_name}\":{var_name}'
@@ -66,31 +66,19 @@ def getNewTargetDates(exclude_dates):
 def fetch(filename, lag):
     '''Fetch files by datestamp'''
     # New data may not yet be posted
-    _file = SOURCE_URL.format(filename=SOURCE_FILENAME.format(month_lag=lag))
+    sourceUrl = SOURCE_URL.format(filename=SOURCE_FILENAME.format(month_lag=lag))
     try:
-        if DOWNLOAD_FILE:
-            with closing(urllib.request.urlopen(_file)) as r:
-                #with gzip.open(r, "rb") as unzipped:
-                with open(filename, 'wb') as f:
-                    #shutil.copyfileobj(unzipped, f)
-                    shutil.copyfileobj(r, f)
-
-        #urllib.request.urlretrieve(_file, filename)
-        #cmd = ['head', filename]
-        #subprocess.call(cmd)
-        #cmd = ['gdalinfo', filename]
-        #subprocess.call(cmd)
-
+        urllib.request.urlretrieve(sourceUrl, filename)
     except Exception as e:
-        logging.warning('Could not fetch {}'.format(_file))
+        logging.warning('Could not fetch {}'.format(sourceUrl))
         logging.error(e)
     return filename
 
 def extract_metadata(nc_file):
     nc = Dataset(nc_file)
-    logging.info(nc)
-    logging.info(nc.variables)
-    logging.info(nc[VAR_NAME])
+    logging.debug(nc)
+    logging.debug(nc.variables)
+    logging.debug(nc[VAR_NAME])
 
     dtype = str(nc[VAR_NAME].dtype)
     nodata = float(nc[VAR_NAME].getncattr("_FillValue"))
@@ -232,7 +220,7 @@ def deleteExcessAssets(dates, max_assets):
     dates.sort()
     if len(dates) > max_assets:
         for date in dates[:-max_assets]:
-            eeUtil.removeAsset(getAssetName(date))
+            eeUtil.removeAsset(getAssetName(date, TIMELAGS[0]))
 
 
 def main():

@@ -31,7 +31,6 @@ RUN mkdir -p /opt/$NAME/data
 WORKDIR /opt/$NAME/
 COPY contents/ .
 COPY time.cron .
-VOLUME /opt/$NAME/data
 
 RUN groupadd -r $NAME && useradd -r -g $NAME $NAME
 RUN chown -R $NAME:$NAME .
