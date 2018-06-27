@@ -5,10 +5,10 @@ ENV NAME ${NAME}
 
 # install core libraries
 RUN apt-get update
-RUN apt-get install -y cron
+RUN pip install --upgrade pip
 
 # install application libraries
-RUN pip install --upgrade pip && pip install fiona shapely python-dateutil requests
+RUN pip install fiona shapely python-dateutil requests
 RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
 
 # Copy the application folder inside the container
