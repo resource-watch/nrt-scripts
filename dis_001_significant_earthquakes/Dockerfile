@@ -6,8 +6,8 @@ RUN apk update
 RUN apk add git
 
 # install application libraries
-RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
 RUN pip install --upgrade pip && pip install requests
+RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
 
 # Env
 ARG NAME=nrt-script
@@ -21,7 +21,7 @@ COPY time.cron .
 VOLUME ./data
 
 # Set user for container security
-RUN useradd $NAME
+RUN adduser $NAME
 RUN chown -R $NAME:$NAME .
 USER $NAME
 
