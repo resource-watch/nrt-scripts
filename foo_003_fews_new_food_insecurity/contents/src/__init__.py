@@ -22,7 +22,7 @@ REGIONS = {'WA':'west-africa{date}.zip',
 
 DATE_FORMAT = '%Y%m'
 DATETIME_FORMAT = '%Y%m%dT00:00:00Z'
-CLEAR_TABLE_FIRST = True
+CLEAR_TABLE_FIRST = False
 SIMPLIFICATION_TOLERANCE = .04
 PRESERVE_TOPOLOGY = True
 
@@ -41,6 +41,7 @@ UID_FIELD = '_uid'
 
 LOG_LEVEL = logging.INFO
 MAXROWS = 10000
+MINDATES = 6
 MAXAGE = datetime.today() - timedelta(days=365*3)
 
 # Generate UID
@@ -51,17 +52,6 @@ def genUID(date, region, ifc_type, pos_in_shp):
     ML2 = "most likely status in following four months"
     '''
     return str('{}_{}_{}_{}'.format(date, region, ifc_type, pos_in_shp))
-
-
-def getDate(uid):
-    '''first component of ID'''
-    return uid.split('_')[0]
-
-
-def incrementMonths(date, plus=0):
-    '''Add months to a datestring'''
-    dt = datetime.strptime(date, DATE_FORMAT) + relativedelta(months=plus)
-    return dt.strftime(DATE_FORMAT)
 
 
 def findShps(zfile):
@@ -152,6 +142,7 @@ def processNewData(exclude_ids):
                                     row.append(end_date.strftime(DATETIME_FORMAT))
                             rows.append(row)
                             pos_in_shp += 1
+
             # 4. Delete local files
             os.remove(tmpfile)
 
@@ -162,6 +153,8 @@ def processNewData(exclude_ids):
                 new_count, ifc_type, date))
             cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
                                 CARTO_SCHEMA.values(), rows)
+        elif date < datetime.today() - relativedelta(months=MINDATES):
+            break
 
     num_new = len(new_ids)
     return num_new
