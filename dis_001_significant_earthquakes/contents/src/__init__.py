@@ -1,8 +1,7 @@
 import logging
 import sys
 import os
-import time
-import requests as req
+import requests
 from collections import OrderedDict
 from datetime import datetime, timedelta
 import cartosql
@@ -44,12 +43,13 @@ UID_FIELD = 'uid'
 TIME_FIELD = 'datetime'
 
 # Table limits
-MAX_ROWS = 1000000
+MAX_ROWS = 500000
 MAX_AGE = datetime.today() - timedelta(days=365*2)
 
 ###
 ## Carto code
 ###
+
 
 def checkCreateTable(table, schema, id_field, time_field):
     '''
@@ -64,6 +64,7 @@ def checkCreateTable(table, schema, id_field, time_field):
         cartosql.createIndex(table, id_field, unique=True)
         if id_field != time_field:
             cartosql.createIndex(table, time_field)
+
 
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
     '''Delete excess rows by age or count'''
@@ -92,73 +93,71 @@ def deleteExcessRows(table, max_rows, time_field, max_age=''):
 ###
 ## Accessing remote data
 ###
-
-def genUID(lat,lon,depth,dt):
-    return '{}_{}_{}_{}'.format(lat,lon,depth,dt)
-
-def appendTimeFrame(existing_ids, startTime, endTime, new_data, new_ids):
-    query = SOURCE_URL.format(startTime=startTime, endTime=endTime, minSig=SIGNIFICANT_THRESHOLD)
-    res = req.get(query).json()
-    num_start_ids = len(new_ids)
-    for feature in res['features']:
-        coords = feature['geometry']['coordinates']
-        lat = coords[1]
-        lon = coords[0]
-        depth = coords[2]
-        geom = {
-            'type':'Point',
-            'coordinates':[lon,lat]
-        }
-
-        props = feature['properties']
-        dt = datetime.utcfromtimestamp(props['time']/1000).strftime(DATETIME_FORMAT)
-
-        _uid = genUID(lat,lon,depth,dt)
-        if _uid not in existing_ids + new_ids:
-            new_ids.append(_uid)
-            row = []
-            for field in CARTO_SCHEMA:
-                if field == 'uid':
-                    row.append(_uid)
-                elif field == 'the_geom':
-                    row.append(geom)
-                elif field == 'depth_in_km':
-                    row.append(depth)
-                elif field == 'datetime':
-                    row.append(dt)
-                else:
-                    row.append(props[field])
-
-            new_data.append(row)
-
-    logging.info('{} new ids added'.format(len(new_ids) - num_start_ids))
-    return new_data, new_ids
+def genUID(lat, lon, depth, dt):
+    return '{}_{}_{}_{}'.format(lat, lon, depth, dt)
 
 def processData(existing_ids):
-    """
-    Inputs: FTP SOURCE_URL and filename where data is stored, existing_ids not to duplicate
-    Actions: Retrives data, dedupes and formats it, and adds to Carto table
-    Output: Number of new rows added
-    """
     new_data = []
     new_ids = []
 
-    today = datetime.today()
+    startTime = datetime.today()
 
-    startTime = MAX_AGE
-    endTime = startTime + timedelta(days=31)
-    while startTime < today:
-        logging.info('Fetching data between {} and {}'.format(startTime, endTime))
-        new_data, new_ids = appendTimeFrame(existing_ids, startTime, endTime, new_data, new_ids)
-        startTime = endTime
-        endTime = startTime + timedelta(days=31)
+    # Iterate backwards 1-week at a time
+    while startTime > MAX_AGE:
+        endTime = startTime
+        startTime = startTime - timedelta(days=7)
+        query = SOURCE_URL.format(startTime=startTime, endTime=endTime,
+                                  minSig=SIGNIFICANT_THRESHOLD)
 
-    num_new = len(new_ids)
-    if num_new:
-        logging.info('Adding {} new records'.format(num_new))
-        cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), new_data)
+        logging.info('Fetching data between {} and {}'.format(
+            startTime, endTime))
+        res = requests.get(query)
+        if not res.ok:
+            logging.error(res.text)
+        data = res.json()
+        new_data = []
 
-    return(num_new)
+        for feature in data['features']:
+            coords = feature['geometry']['coordinates']
+            lat = coords[1]
+            lon = coords[0]
+            depth = coords[2]
+
+            props = feature['properties']
+            dt = datetime.utcfromtimestamp(props['time'] / 1000).strftime(
+                DATETIME_FORMAT)
+
+            _uid = genUID(lat, lon, depth, dt)
+            if _uid not in existing_ids and _uid not in new_ids:
+                new_ids.append(_uid)
+                row = []
+                for field in CARTO_SCHEMA:
+                    if field == UID_FIELD:
+                        row.append(_uid)
+                    elif field == 'the_geom':
+                        geom = {
+                            'type': 'Point',
+                            'coordinates': [lon, lat]
+                        }
+                        row.append(geom)
+                    elif field == 'depth_in_km':
+                        row.append(depth)
+                    elif field == 'datetime':
+                        row.append(dt)
+                    else:
+                        row.append(props[field])
+                new_data.append(row)
+
+        num_new = len(new_data)
+        if num_new:
+            logging.info('Adding {} new records'.format(num_new))
+            cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
+                                     CARTO_SCHEMA.values(), new_data)
+        elif not PROCESS_HISTORY:
+            # Break if no results for a week otherwise keep going
+            return 0
+
+    return(len(new_ids))
 
 ###
 ## Application code
@@ -175,7 +174,8 @@ def main():
     checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, TIME_FIELD)
 
     ### 2. Retrieve existing data
-    r = cartosql.getFields(UID_FIELD, CARTO_TABLE, order='{} desc'.format(TIME_FIELD), f='csv')
+    r = cartosql.getFields(UID_FIELD, CARTO_TABLE,
+                           order='{} desc'.format(TIME_FIELD), f='csv')
     existing_ids = r.text.split('\r\n')[1:-1]
     num_existing = len(existing_ids)
 
