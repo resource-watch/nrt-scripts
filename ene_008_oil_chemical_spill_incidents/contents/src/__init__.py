@@ -1,8 +1,8 @@
 import logging
 import sys
 import os
-import time
-import urllib.request
+
+import requests
 from collections import OrderedDict
 from datetime import datetime, timedelta
 import cartosql
@@ -24,7 +24,7 @@ CARTO_SCHEMA = OrderedDict([
     ('location', 'text'),
     ('threat', 'text'),
     ('tags', 'text'),
-    ('commodity' ,'text'),
+    ('commodity', 'text'),
     ('measure_skim', 'numeric'),
     ('measure_shore', 'numeric'),
     ('measure_bio', 'numeric'),
@@ -53,7 +53,7 @@ def structure_row(headers, values):
         row[key] = val
     return row
 
-# Deal w/ CSV being sent in Bytes, not String type:
+
 # https://stackoverflow.com/questions/18897029/read-csv-file-from-url-into-python-3-x-csv-error-iterator-should-return-str
 def processData(existing_ids):
     """
@@ -62,57 +62,50 @@ def processData(existing_ids):
     Output: Number of new rows added
     """
     new_rows = []
-    num_new = 0
 
-    # Use .splitlines():
-    # https://stackoverflow.com/questions/21351882/reading-data-from-a-csv-file-online-in-python-3
-    csv_stream = urllib.request.urlopen(SOURCE_URL)
-    csv_reader = csv.reader(csv_stream.read().decode(ENCODING).splitlines())
-    # See comment under John Machin's answer:
-    # https://stackoverflow.com/questions/3428532/how-to-import-a-csv-file-using-python-with-headers-intact-where-first-column-is
+    res = requests.get(SOURCE_URL)
+    csv_reader = csv.reader(res.iter_lines(decode_unicode=True))
     headers = next(csv_reader, None)
+    idx = {k: v for v, k in enumerate(headers)}
 
-    for _row in csv_reader:
-        if len(headers) == len(_row):
-            row = structure_row(headers, _row)
-            if row['id'] not in existing_ids:
-
+    for row in csv_reader:
+        if not len(row):
+            break
+        else:
+            if row[idx['id']] not in existing_ids:
                 new_row = []
                 for field in CARTO_SCHEMA:
                     if field == 'uid':
-                        new_row.append(row['id'])
+                        new_row.append(row[idx['id']])
                     elif field == 'the_geom':
                         # Check for whether valid lat lon provided, will fail if either are ''
-                        try:
-                            lon = float(row['lon'])
-                            lat = float(row['lat'])
+                        lon = float(row[idx['lon']])
+                        lat = float(row[idx['lat']])
+                        if lat and lon:
                             geometry = {
-                                'type':'Point',
-                                'coordinates':[lon, lat]
+                                'type': 'Point',
+                                'coordinates': [lon, lat]
                             }
                             new_row.append(geometry)
-                        except:
-                            logging.error('No lat long available for this data point - skipping!')
+                        else:
+                            logging.debug('No lat long available for this data point - skipping!')
                             new_row.append(None)
                     else:
-                        # To fix trouble w/ cartosql not being able to handle '':
-                        val = row[field]
-                        if val:
-                            new_row.append(val)
-                        else:
-                            new_row.append(None)
+                        # To fix trouble w/ cartosql not being able to handle '' for numeric:
+                        val = row[idx[field]] if row[idx[field]] != '' else None
+                        new_row.append(val)
 
                 new_rows.append(new_row)
 
-
-    if len(new_rows):
-        num_new = len(new_rows)
-        cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), new_rows)
+    num_new = len(new_rows)
+    if num_new:
+        cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
+                                 CARTO_SCHEMA.values(), new_rows)
 
     return num_new
 
 ###
-## Carto code
+# Carto code
 ###
 
 def getFieldAsList(table, field, orderBy=''):
