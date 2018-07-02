@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 import os
 import logging
 import sys
@@ -8,10 +6,9 @@ import zipfile
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 
-import requests as req
 import fiona
 from collections import OrderedDict
-from shapely.geometry import mapping, Polygon, MultiPolygon
+from shapely import geometry
 import cartosql
 
 # Constants
@@ -23,7 +20,6 @@ REGIONS = {'WA':'west-africa{date}.zip',
             'LAC':'caribbean-central-america{date}.zip',
             'SA':'southern-africa{date}.zip'}
 
-TIMESTEP = {'days': 30}
 DATE_FORMAT = '%Y%m'
 DATETIME_FORMAT = '%Y%m%dT00:00:00Z'
 CLEAR_TABLE_FIRST = False
@@ -45,6 +41,7 @@ UID_FIELD = '_uid'
 
 LOG_LEVEL = logging.INFO
 MAXROWS = 10000
+MINDATES = 6
 MAXAGE = datetime.today() - timedelta(days=365*3)
 
 # Generate UID
@@ -54,15 +51,8 @@ def genUID(date, region, ifc_type, pos_in_shp):
     ML1 = "most likely status in next four months"
     ML2 = "most likely status in following four months"
     '''
-    return str('{}_{}_{}_{}'.format(date,region,ifc_type,pos_in_shp))
+    return str('{}_{}_{}_{}'.format(date, region, ifc_type, pos_in_shp))
 
-def getDate(uid):
-    '''first component of ID'''
-    return uid.split('_')[0]
-
-def formatStartAndEndDates(date, plus=0):
-    dt = datetime.strptime(date, DATE_FORMAT) + relativedelta(months=plus)
-    return(dt.strftime(DATETIME_FORMAT))
 
 def findShps(zfile):
     files = {}
@@ -75,121 +65,96 @@ def findShps(zfile):
                     files['ML1'] = f
                 elif 'ML2' in f:
                     files['ML2'] = f
-    if len(files)!=3:
+    if len(files) != 3:
         logging.error('There should be 3 shapefiles: CS, ML1, ML2')
     return files
 
-def potentialNewDates(exclude_dates):
-    '''Get new dates excluding existing'''
-    new_dates = []
-    date = datetime.today()
-    while date > MAXAGE:
-        datestr = date.strftime(DATE_FORMAT)
-        if datestr not in exclude_dates:
-            logging.debug('Will fetch data for {}'.format(datestr))
-            new_dates.append(datestr)
-        else:
-            logging.debug('Data for {} already in table'.format(datestr))
-        date -= timedelta(**TIMESTEP)
-    return new_dates
 
-def simpleGeom(geom):
+def simplifyGeom(geom):
     # Simplify complex polygons
-    # https://gis.stackexchange.com/questions/83084/shapely-multipolygon-construction-will-not-accept-the-entire-set-of-polygons
-    if geom['type'] == 'MultiPolygon':
-        multi = []
-        for polycoords in geom['coordinates']:
-            multi.append(Polygon(polycoords[0]))
-        geo = MultiPolygon(multi)
-    else:
-        geo = Polygon(geom['coordinates'][0])
+    shp = geometry.shape(geom)
+    simp = shp.simplify(SIMPLIFICATION_TOLERANCE, PRESERVE_TOPOLOGY)
+    return geometry.mapping(simp)
 
-    logging.debug('Length orig WKT: {}'.format(len(geo.wkt)))
-    simple_geo = geo.simplify(SIMPLIFICATION_TOLERANCE, PRESERVE_TOPOLOGY)
-    logging.debug('Length simple WKT: {}'.format(len(simple_geo.wkt)))
-    geojson = mapping(simple_geo)
 
-    return geojson
-
-def processNewData(exclude_dates):
+def processNewData(exclude_ids):
     new_ids = []
-    # get non-existing dates
-    new_dates = potentialNewDates(exclude_dates)
-    for date in new_dates:
-        # 1. Fetch data from source
-        for region, filename in REGIONS.items():
-            _file = filename.format(date=date)
-            url = SOURCE_URL.format(region=region,target_file=_file)
-            tmpfile = os.path.join(DATA_DIR,_file)
-            logging.info('Fetching data for {} in {}'.format(region,date))
+
+    # Truncate date to monthly resolution
+    date = datetime.strptime(
+        datetime.today().strftime(DATE_FORMAT), DATE_FORMAT)
+
+    # 1. Fetch data from source
+    # iterate backwards 1 month at a time
+    while date > MAXAGE:
+        date -= relativedelta(months=1)
+        datestr = date.strftime(DATE_FORMAT)
+        rows = []
+
+        logging.info('Fetching data for {}'.format(datestr))
+        for region, fileTemplate in REGIONS.items():
+            filename = fileTemplate.format(date=datestr)
+            url = SOURCE_URL.format(region=region, target_file=filename)
+            tmpfile = os.path.join(DATA_DIR, filename)
+
             try:
                 urllib.request.urlretrieve(url, tmpfile)
-
             except Exception as e:
-                
-                ### TO DO:
-                # Add in a check to throw an error if the last updated data was
-                # more than 6 months old, or some similar check.
-                # Most of the time, this exception will be caused by checking
-                # for data for dates for which data should not exist!
-                ###
-
-                logging.warning('Could not retrieve {}'.format(url))
-                logging.warning(e)
+                logging.info('Could not retrieve {}'.format(url))
+                # skip dates that don't work
                 continue
 
             # 2. Parse fetched data and generate unique ids
-            logging.info('Parsing data')
+            logging.info('Parsing data for {}'.format(region))
             shpfiles = findShps(tmpfile)
             for ifc_type, shpfile in shpfiles.items():
                 shpfile = '/{}'.format(shpfile)
                 zfile = 'zip://{}'.format(tmpfile)
-                rows = []
 
-                if ifc_type == 'CS':
-                    start_date = formatStartAndEndDates(date,plus=-1)
-                    end_date = formatStartAndEndDates(date)
-                elif ifc_type == 'ML1':
-                    start_date = formatStartAndEndDates(date)
-                    end_date = formatStartAndEndDates(date,plus=4)
+                start_date = date
+                end_date = date
+                if ifc_type == 'ML1':
+                    end_date = date + relativedelta(months=4)
                 elif ifc_type == 'ML2':
-                    start_date = formatStartAndEndDates(date,plus=4)
-                    end_date = formatStartAndEndDates(date,plus=8)
+                    start_date = date + relativedelta(months=4)
+                    end_date = date + relativedelta(months=8)
 
                 with fiona.open(shpfile, 'r', vfs=zfile) as shp:
                     logging.debug('Schema: {}'.format(shp.schema))
                     pos_in_shp = 0
                     for obs in shp:
-                        uid = genUID(date, region, ifc_type, pos_in_shp)
-                        ### Received an error due to attempting to load same UID twice.
-                        # If happens again, to reproduce, set CLEAR_TABLE_FIRST=True and run again.
-                        new_ids.append(uid)
-                        row = []
-                        for field in CARTO_SCHEMA.keys():
-                            if field == 'the_geom':
-                                row.append(simpleGeom(obs['geometry']))
-                            elif field == UID_FIELD:
-                                row.append(uid)
-                            elif field == 'ifc_type':
-                                row.append(ifc_type)
-                            elif field == 'ifc':
-                                row.append(obs['properties'][ifc_type])
-                            elif field == 'start_date':
-                                row.append(start_date)
-                            elif field == 'end_date':
-                                row.append(end_date)
-                        rows.append(row)
-                        pos_in_shp += 1
-
-                # 3. Insert new observations
-                new_count = len(rows)
-                if new_count:
-                    logging.info('Pushing {} new rows: {} for {} in {}'.format(new_count,ifc_type,region,date))
-                    cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
-                                        CARTO_SCHEMA.values(), rows)
+                        uid = genUID(datestr, region, ifc_type, pos_in_shp)
+                        if uid not in exclude_ids and uid not in new_ids:
+                            new_ids.append(uid)
+                            row = []
+                            for field in CARTO_SCHEMA.keys():
+                                if field == 'the_geom':
+                                    row.append(simplifyGeom(obs['geometry']))
+                                elif field == UID_FIELD:
+                                    row.append(uid)
+                                elif field == 'ifc_type':
+                                    row.append(ifc_type)
+                                elif field == 'ifc':
+                                    row.append(obs['properties'][ifc_type])
+                                elif field == 'start_date':
+                                    row.append(start_date.strftime(DATETIME_FORMAT))
+                                elif field == 'end_date':
+                                    row.append(end_date.strftime(DATETIME_FORMAT))
+                            rows.append(row)
+                            pos_in_shp += 1
 
             # 4. Delete local files
             os.remove(tmpfile)
+
+        # 3. Insert new observations
+        new_count = len(rows)
+        if new_count:
+            logging.info('Pushing {} new rows: {} for {}'.format(
+                new_count, ifc_type, date))
+            cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
+                                CARTO_SCHEMA.values(), rows)
+        elif date < datetime.today() - relativedelta(months=MINDATES):
+            break
 
     num_new = len(new_ids)
     return num_new
@@ -207,11 +172,13 @@ def createTableWithIndices(table, schema, idField, timeField):
     if timeField != idField:
         cartosql.createIndex(table, timeField, unique=False)
 
+
 def getFieldAsList(table, field, orderBy=''):
     assert isinstance(field, str), 'Field must be a single string'
     r = cartosql.getFields(field, table, order='{}'.format(orderBy),
                            f='csv')
     return(r.text.split('\r\n')[1:-1])
+
 
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
     '''Delete excess rows by age or count'''
@@ -252,10 +219,9 @@ def main():
         createTableWithIndices(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, TIME_FIELD)
 
     # 2. Iterively fetch, parse and post new data
-    existing_dates = [getDate(_id) for _id in existing_ids]
-    num_new = processNewData(existing_dates)
+    num_new = processNewData(existing_ids)
 
-    existing_count = num_new + len(existing_dates)
+    existing_count = num_new + len(existing_ids)
     logging.info('Total rows: {}, New: {}, Max: {}'.format(
         existing_count, num_new, MAXROWS))
 
@@ -263,5 +229,4 @@ def main():
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD, MAXAGE)
 
     ###
-
     logging.info('SUCCESS')
