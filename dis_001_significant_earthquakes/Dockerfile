@@ -21,7 +21,8 @@ COPY time.cron .
 VOLUME ./data
 
 # Set user for container security
-RUN adduser $NAME
+USER root
+RUN adduser -D $NAME
 RUN chown -R $NAME:$NAME .
 USER $NAME
 
