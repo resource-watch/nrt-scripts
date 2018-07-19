@@ -20,9 +20,9 @@ CARTO_SCHEMA = OrderedDict([
     ('uid', 'text'),
     ('the_geom', 'geometry'),
     ('Reported_Date', 'timestamp'),
-    ('Region', 'text'),
+    ('Region_of_Incident', 'text'),
     ('Number_Dead', 'numeric'),
-    ('Number_Missing', 'numeric'),
+    ('Minimum_Estimated_Number_of_Missing', 'numeric'),
     ('Total_Dead_and_Missing', 'numeric'),
     ('Number_of_Survivors', 'numeric'),
     ('Number_of_Females', 'numeric'),
@@ -34,13 +34,13 @@ CARTO_SCHEMA = OrderedDict([
     ('Migration_Route', 'text'),
     ('URL', 'text'),
     ('UNSD_Geographical_Grouping', 'text'),
-    ('Verification_level', 'text')
+    ('Source_Quality', 'text')
 ])
 UID_FIELD = 'uid'
 TIME_FIELD = 'Reported_Date'
 
 # Table limits
-MAX_ROWS = 1000000
+MAX_ROWS = 500000
 MAX_AGE = datetime.today() - timedelta(days=365*10)
 
 ###
