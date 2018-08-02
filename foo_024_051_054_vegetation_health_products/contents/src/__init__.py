@@ -23,8 +23,8 @@ DELETE_LOCAL = True
 # Sources for nrt data
 #SOURCE_URL = 'ftp://ftp.star.nesdis.noaa.gov/pub/corp/scsb/wguo/data/VHP_4km/VH/{target_file}'
 SOURCE_URL = 'ftp://ftp.star.nesdis.noaa.gov/pub/corp/scsb/wguo/data/Blended_VH_4km/VH/{target_file}'
-#SOURCE_FILENAME = 'VHP.G04.C07.NP.P{date}.VH.nc'
-SOURCE_FILENAME = 'VGVI_21Bands.G04.C07.npp.P{date}.VH.nc'
+SOURCE_FILENAME = 'VHP.G04.C07.npp.P{date}.VH.nc'
+#SOURCE_FILENAME = 'VGVI_21Bands.G04.C07.npp.P{date}.VH.nc'
 #SDS_NAME = 'NETCDF:"{fname}":{varname}'
 
 VARIABLES = {
@@ -214,10 +214,10 @@ def processNewRasterData(existing_dates_by_id):
         if date not in existing_dates:
             try:
                 nc = fetch(date)
-            except:
+            except Exception as e:
+                logging.error(e)
                 logging.error('Could not fetch data for date: {}'.format(date))
                 continue
-
             for rw_id in VARIABLES:
                 reproj_file = reproject(nc, rw_id, date)
                 tifs[rw_id].append(reproj_file)
