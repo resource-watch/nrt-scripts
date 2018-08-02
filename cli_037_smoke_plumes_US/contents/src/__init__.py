@@ -12,8 +12,8 @@ import zipfile
 
 # Constants
 DATA_DIR = 'data'
-SOURCE_URL = 'ftp://satepsanone.nesdis.noaa.gov/FIRE/HMS/GIS/hms_smoke{date}.zip'
-SOURCE_URL_ARCHIVE = 'ftp://satepsanone.nesdis.noaa.gov/FIRE/HMS/GIS/ARCHIVE/hms_smoke{date}.zip'
+SOURCE_URL = 'http://satepsanone.nesdis.noaa.gov/pub/FIRE/HMS/GIS/hms_smoke{date}.zip'
+SOURCE_URL_ARCHIVE = 'http://satepsanone.nesdis.noaa.gov/pub/FIRE/HMS/GIS/ARCHIVE/hms_smoke{date}.zip'
 FILENAME = 'hms_smoke{date}'
 TIMESTEP = {'days': 1}
 DATE_FORMAT = '%Y%m%d'
@@ -21,7 +21,7 @@ DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 CLEAR_TABLE_FIRST = False
 LOG_LEVEL = logging.INFO
 MAXAGE_UPLOAD = datetime.today() - timedelta(days=360)
-MAX_CHECK_CURRENT = datetime.today() - timedelta(days=14)
+MAX_CHECK_CURRENT = datetime.today() - timedelta(days=7)
 
 # asserting table structure rather than reading from input
 CARTO_TABLE = 'cli_037_smoke_plumes'
@@ -45,9 +45,11 @@ MAXAGE = datetime.today() - timedelta(days=365*10)
 def genUID(date, pos_in_shp):
     return str('{}_{}'.format(date, pos_in_shp))
 
+
 def getDate(uid):
     '''first 8 chr of ID'''
     return uid.split('_')[0]
+
 
 def formatObservationDatetime(start, end, datetime_format=DATETIME_FORMAT):
     date, time = start.split(' ')
@@ -69,12 +71,14 @@ def formatObservationDatetime(start, end, datetime_format=DATETIME_FORMAT):
     duration = str((end_dt - start_dt))
     return(start,end,duration)
 
+
 def findShp(zfile):
     with zipfile.ZipFile(zfile) as z:
         for f in z.namelist():
             if os.path.splitext(f)[1] == '.shp':
                 return f
     return False
+
 
 def getNewDates(exclude_dates):
     '''Get new dates excluding existing'''
@@ -95,7 +99,7 @@ def processNewData(exclude_ids):
     new_ids = []
 
     # get non-existing dates
-    dates = set([getDate(uid) for uid in exclude_ids])
+    dates = [getDate(uid) for uid in exclude_ids]
     new_dates = getNewDates(dates)
     logging.debug(new_dates)
 
@@ -105,26 +109,25 @@ def processNewData(exclude_ids):
         logging.info('Fetching {}'.format(date))
 
         ###
-        ## First try the Archive, if not there, and less than 2 weeks old,
-        ## try current folder
+        # First try the Archive, if not there, and less than 1 week old,
+        # try current folder
         ###
 
         try:
             url = SOURCE_URL_ARCHIVE.format(date=date)
             urllib.request.urlretrieve(url, tmpfile)
-        except Exception as e:
-            logging.warning('Could not retrieve {} from ARCHIVE'.format(url))
-            logging.warning(e)
+        except urllib.error.HTTPError as e:
             if datetime.strptime(date, DATE_FORMAT) > MAX_CHECK_CURRENT:
                 try:
                     url = SOURCE_URL.format(date=date)
                     urllib.request.urlretrieve(url, tmpfile)
-                except Exception as e:
-                    logging.warning('Could not retrieve {} from CURRENT'.format(url))
-                    logging.error('This data was not found in either the ARCHIVE or CURRENT ftp folders, {}'.format(e))
+                except urllib.error.HTTPError as e:
+                    logging.warning('Could not retrieve files for {}'.format(date))
                     continue
             else:
+                logging.warning('Could not retrieve files for {}'.format(date))
                 continue
+
 
         # 2. Parse fetched data and generate unique ids
         logging.info('Parsing data')
@@ -184,11 +187,13 @@ def createTableWithIndices(table, schema, idField, otherFields=[]):
         if field != idField:
             cartosql.createIndex(table, field, unique=False)
 
+
 def getFieldAsList(table, field, orderBy=''):
     assert isinstance(field, str), 'Field must be a single string'
     r = cartosql.getFields(field, table, order='{}'.format(orderBy),
                            f='csv')
     return(r.text.split('\r\n')[1:-1])
+
 
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
     '''Delete excess rows by age or count'''
@@ -210,6 +215,7 @@ def deleteExcessRows(table, max_rows, time_field, max_age=''):
         num_dropped += r.json()['total_rows']
     if num_dropped:
         logging.info('Dropped {} old rows from {}'.format(num_dropped, table))
+
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
