@@ -11,7 +11,7 @@ SOURCE_URL = "https://missingmigrants.iom.int/global-figures/{year}/csv"
 CLEAR_TABLE_FIRST = False
 INPUT_DATE_FORMAT = '%B %d, %Y'
 DATE_FORMAT = '%Y-%m-%d'
-LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.INFO
 
 ### Table name and structure
 CARTO_TABLE = 'soc_018_missing_migrants'
