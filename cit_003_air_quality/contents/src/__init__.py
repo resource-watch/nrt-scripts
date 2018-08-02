@@ -15,7 +15,7 @@ DATA_DIR = 'data'
 DATA_URL = 'https://api.openaq.org/v1/measurements?limit=10000&include_fields=attribution&page={page}'
 # always check first 10 pages
 MIN_PAGES = 10
-MAX_PAGES = 15
+MAX_PAGES = 20
 
 # asserting table structure rather than reading from input
 PARAMS = ('pm25', 'pm10', 'so2', 'no2', 'o3', 'co', 'bc')
@@ -131,7 +131,7 @@ def checkCreateTable(table, schema, id_field, time_field=''):
     '''Get existing ids or create table'''
     if cartosql.tableExists(table):
         logging.info('Fetching existing IDs')
-        r = cartosql.getFields(id_field, table, f='csv')
+        r = cartosql.getFields(id_field, table, f='csv', post=True)
         return r.text.split('\r\n')[1:-1]
     else:
         logging.info('Table {} does not exist, creating'.format(table))
