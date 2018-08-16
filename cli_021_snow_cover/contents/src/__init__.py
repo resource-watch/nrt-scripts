@@ -13,14 +13,20 @@ import os
 from http.cookiejar import CookieJar
 
 # constants for bleaching alerts
-SOURCE_URL = 'https://n5eil01u.ecs.nsidc.org/MOST/MOD10C2.006/{date}'
-SDS_NAME = 'HDF4_EOS:EOS_GRID:"{fname}":MOD_CMG_Snow_5km:Eight_Day_CMG_Snow_Cover'
+#Old values for 8 day dataset
+#SOURCE_URL = 'https://n5eil01u.ecs.nsidc.org/MOST/MOD10C2.006/{date}'
+#SDS_NAME = 'HDF4_EOS:EOS_GRID:"{fname}":MOD_CMG_Snow_5km:Eight_Day_CMG_Snow_Cover'
+SOURCE_URL = 'https://n5eil01u.ecs.nsidc.org/MOST/MOD10CM.006/{date}'
+SDS_NAME = 'HDF4_EOS:EOS_GRID:"{fname}":MOD_CMG_Snow_5km:Snow_Cover_Monthly_CMG'
 FILENAME = 'cli_021_{date}'
 NODATA_VALUE = 255
 
 DATA_DIR = 'data'
-GS_FOLDER = 'cli_021_snow_cover'
-EE_COLLECTION = 'cli_021_snow_cover'
+#Old values for 8 day dataset
+#GS_FOLDER = 'cli_021_snow_cover'
+#EE_COLLECTION = 'cli_021_snow_cover'
+GS_FOLDER = 'cli_021_snow_cover_monthly'
+EE_COLLECTION = 'cli_021_snow_cover_monthly'
 CLEAR_COLLECTION_FIRST = False
 DELETE_LOCAL = True
 
@@ -56,7 +62,9 @@ def getNewDates(exclude_dates):
     '''Get new dates excluding existing'''
     new_dates = []
     date = datetime.date.today()
-    for i in range(MAX_ASSETS*8): #because only updates every 8 days
+    #Old value for 8 day dataset
+    #for i in range(MAX_ASSETS*8): #because only updates every 8 days
+    for i in range(MAX_ASSETS*31): #because only updates every 28-31 days
         date -= datetime.timedelta(**TIMESTEP) #substraction and assignments in one step
         datestr = date.strftime(DATE_FORMAT_HDF)#of HDF because looking for new data in old format
         if date.strftime(DATE_FORMAT) not in exclude_dates:
