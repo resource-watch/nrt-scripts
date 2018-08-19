@@ -17,7 +17,7 @@ TABLE_DAILY = 'dis_012a_landslide_hazard_alerts_daily'
 TABLE_3HR = 'dis_012b_landslide_hazard_alerts_3hr'
 
 # legacy dataset table // use either TABLE_DAILY or TABLE_3HR in future
-TABLE_LEGACY = 'dis_012_landslide_hazard_alert_explore'
+TABLE_LEGACY = 'dis_012_landslide_hazard_alerts_explore'
 
 TABLES = {
     TABLE_DAILY: URL_DAILY,
@@ -35,8 +35,8 @@ UID_FIELD = '_UID'
 TIME_FIELD = 'datetime'
 
 # Limit 100k rows, drop older than 1 yr
-MAXROWS = 100000
-MAXAGE = datetime.datetime.utcnow() - datetime.timedelta(days=365)
+MAX_ROWS = 100000
+MAX_AGE = datetime.datetime.utcnow() - datetime.timedelta(days=365)
 
 def genUID(datetime, position_in_geojson):
     '''Generate unique id'''
@@ -46,7 +46,7 @@ def processData(exclude_ids, table, src_url):
     new_ids = []
     num_new = 1
 
-    start_time = MAXAGE.isoformat()
+    start_time = MAX_AGE.isoformat()
     end_time = datetime.datetime.utcnow().isoformat()
 
     # OpenSearch endpoint returns json object of URLs with data
@@ -83,7 +83,7 @@ def processData(exclude_ids, table, src_url):
                 new_rows.append(row)
 
         num_new = len(new_rows)
-        if num_new and len(new_ids) < MAXROWS:
+        if num_new and len(new_ids) < MAX_ROWS:
             logging.info("Inserting {} new rows".format(num_new))
             cartosql.insertRows(table, CARTO_SCHEMA.keys(),
                                 CARTO_SCHEMA.values(), new_rows)
