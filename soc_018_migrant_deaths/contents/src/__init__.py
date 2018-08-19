@@ -115,7 +115,7 @@ def checkCreateTable(table, schema, id_field, time_field):
     if cartosql.tableExists(table):
         logging.info('Fetching existing IDs')
         r = cartosql.getFields(id_field, table, f='csv')
-        return r.text.splitlines()[1:]
+        return r.text.split('\r\n')[1:-1]
     else:
         logging.info('Table {} does not exist, creating'.format(table))
         cartosql.createTable(table, schema)
@@ -138,7 +138,7 @@ def deleteExcessRows(table, max_rows, time_field, max_age=''):
     # 2. get sorted ids (old->new)
     r = cartosql.getFields('cartodb_id', table, order='{}'.format(time_field),
                            f='csv')
-    ids = r.text.splitlines()[1:]
+    ids = r.text.split('\r\n')[1:-1]
 
     # 3. delete excess
     if len(ids) > max_rows:
