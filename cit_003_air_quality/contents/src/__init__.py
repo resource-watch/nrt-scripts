@@ -70,6 +70,24 @@ MOL_WEIGHTS = {
     'co': 28
 }
 
+DATASET_ID = 
+
+def lastUpdateDate(dataset, date):
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset)
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    body = {
+        "dataLastUpdated": date
+    }
+    try:
+        r = requests.patch(url = apiUrl, json = body, headers = headers)
+        logging.info('[lastUpdated]: SUCCESS, status code'+str(r.status_code))
+        return 0
+    except Exception as e:
+        logging.error('[lastUpdated]: '+str(e))
+        logging.error('[lastUpdated]: status code'+str(r.status_code)) 
 
 def convert(param, unit, value):
     if param in MOL_WEIGHTS.keys() and unit in UGM3:
@@ -232,5 +250,7 @@ def main():
         logging.info('Total rows: {}, New: {}, Max: {}'.format(
             len(existing_ids[param]), new_counts[param], MAXROWS))
         deleteExcessRows(CARTO_TABLES[param], MAXROWS, TIME_FIELD, MAXAGE)
+
+    lastUpdateDate(DATASET_ID, MAXAGE)
 
     logging.info('SUCCESS')

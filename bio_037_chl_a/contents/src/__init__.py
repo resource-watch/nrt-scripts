@@ -44,6 +44,26 @@ MAX_ASSETS = 8
 DATE_FORMAT = '%Y%m%d'
 LOG_LEVEL = logging.INFO
 
+DATASET_ID = 
+
+def lastUpdateDate(dataset, date):
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset)
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    body = {
+        "dataLastUpdated": date
+    }
+    try:
+        r = requests.patch(url = apiUrl, json = body, headers = headers)
+        logging.info('[lastUpdated]: SUCCESS, status code'+str(r.status_code))
+        return 0
+    except Exception as e:
+        logging.error('[lastUpdated]: '+str(e))
+        logging.error('[lastUpdated]: status code'+str(r.status_code)) 
+
+
 def getUrl(date):
     '''get source url from datestamp'''
     return SOURCE_URL.format(date=date)
@@ -231,5 +251,7 @@ def main():
     logging.info('Existing assets: {}, new: {}, max: {}'.format(
         len(existing_dates), len(new_dates), MAX_ASSETS))
     deleteExcessAssets(existing_dates, MAX_ASSETS)
+
+    lastUpdateDate(DATASET_ID, new_dates[-1])
 
     logging.info('SUCCESS')

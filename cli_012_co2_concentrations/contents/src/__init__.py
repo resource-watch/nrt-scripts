@@ -55,6 +55,25 @@ GCS_PROJECT = os.environ.get("CLOUDSDK_CORE_PROJECT")
 NASA_USER = os.environ.get("NASA_USER")
 NASA_PASS = os.environ.get("NASA_PASS")
 
+DATASET_ID = 
+
+def lastUpdateDate(dataset, date):
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset)
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    body = {
+        "dataLastUpdated": date
+    }
+    try:
+        r = requests.patch(url = apiUrl, json = body, headers = headers)
+        logging.info('[lastUpdated]: SUCCESS, status code'+str(r.status_code))
+        return 0
+    except Exception as e:
+        logging.error('[lastUpdated]: '+str(e))
+        logging.error('[lastUpdated]: status code'+str(r.status_code)) 
+
 def getAssetName(tif):
     '''get asset name from tif name, extract datetime and location'''
     date = getDate(tif)
@@ -223,5 +242,6 @@ def main():
     deleteExcessAssets(existing_ids+new_assets,MAX_DATES)
 
     ###
+    lastUpdateDate(DATASET_ID, MAX_DATES)
 
     logging.info('SUCCESS')

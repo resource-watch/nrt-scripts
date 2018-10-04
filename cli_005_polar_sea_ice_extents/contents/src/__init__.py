@@ -41,6 +41,26 @@ GOOGLE_APPLICATION_CREDENTIALS = os.environ.get(
 GEE_STAGING_BUCKET = os.environ.get("GEE_STAGING_BUCKET")
 GCS_PROJECT = os.environ.get("CLOUDSDK_CORE_PROJECT")
 
+
+DATASET_ID = 
+
+def lastUpdateDate(dataset, date):
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset)
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    body = {
+        "dataLastUpdated": date
+    }
+    try:
+        r = requests.patch(url = apiUrl, json = body, headers = headers)
+        logging.info('[lastUpdated]: SUCCESS, status code'+str(r.status_code))
+        return 0
+    except Exception as e:
+        logging.error('[lastUpdated]: '+str(e))
+        logging.error('[lastUpdated]: status code'+str(r.status_code)) 
+
 ###
 ## Handling RASTERS
 ###
@@ -255,5 +275,6 @@ def main():
         deleteExcessAssets(total,orig_or_reproj,arctic_or_antarctic,MAX_DATES)
 
     ###
+    lastUpdateDate(DATASET_ID, n_dates[-1])
 
     logging.info('SUCCESS')
