@@ -41,6 +41,25 @@ TIME_FIELD = 'date'
 MAXROWS = 100000
 MAXAGE = datetime.today() - timedelta(days=365*10)
 
+DATASET_ID = 
+
+def lastUpdateDate(dataset, date):
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset)
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    body = {
+        "dataLastUpdated": date
+    }
+    try:
+        r = requests.patch(url = apiUrl, json = body, headers = headers)
+        logging.info('[lastUpdated]: SUCCESS, status code'+str(r.status_code))
+        return 0
+    except Exception as e:
+        logging.error('[lastUpdated]: '+str(e))
+        logging.error('[lastUpdated]: status code'+str(r.status_code)) 
+
 # Generate UID
 def genUID(date, pos_in_shp):
     return str('{}_{}'.format(date, pos_in_shp))
@@ -242,5 +261,6 @@ def main():
 
     # 3. Remove old observations
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD, MAXAGE)
+    lastUpdateDate(DATASET_ID, MAXAGE)
 
     logging.info('SUCCESS')

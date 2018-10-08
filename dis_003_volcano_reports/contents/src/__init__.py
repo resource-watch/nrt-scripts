@@ -37,6 +37,24 @@ TIME_FIELD = 'pubdate'
 MAX_ROWS = 1000000
 MAX_AGE = datetime.today() - timedelta(days=365*5)
 
+DATASET_ID =  
+
+def lastUpdateDate(dataset, date):
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset =dataset)
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    body = {
+        "dataLastUpdated": date
+    }
+    try:
+        r = requests.patch(url = apiUrl, json = body, headers = headers)
+        logging.info('[lastUpdated]: SUCCESS, status code'+str(r.status_code))
+        return 0
+    except Exception as e:
+        logging.error('[lastUpdated]: '+str(e))
+        logging.error('[lastUpdated]: status code'+str(r.status_code)) 
 ###
 ## Carto code
 ###
@@ -180,5 +198,8 @@ def main():
 
     ### 5. Notify results
     total = num_existing + num_new - num_dropped
+
+    lastUpdateDate(DATASET_ID, MAX_AGE)
+    
     logging.info('Existing rows: {},  New rows: {}, Max: {}'.format(total, num_new, MAX_ROWS))
     logging.info("SUCCESS")

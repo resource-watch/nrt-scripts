@@ -16,6 +16,25 @@ LOG_LEVEL = logging.INFO
 ### Table name and structure
 CARTO_TABLE = 'dis_009_tsunamis'
 
+DATASET_ID =  
+
+def lastUpdateDate(dataset, date):
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset =dataset)
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    body = {
+        "dataLastUpdated": date
+    }
+    try:
+        r = requests.patch(url = apiUrl, json = body, headers = headers)
+        logging.info('[lastUpdated]: SUCCESS, status code'+str(r.status_code))
+        return 0
+    except Exception as e:
+        logging.error('[lastUpdated]: '+str(e))
+        logging.error('[lastUpdated]: status code'+str(r.status_code)) 
+
 ###
 ## Accessing remote data
 ###
@@ -67,15 +86,19 @@ def main():
     CARTO_USER = os.environ.get('CARTO_USER')
     CARTO_KEY = os.environ.get('CARTO_KEY')
 
+
     cc = cartoframes.CartoContext(base_url='https://{}.carto.com/'.format(CARTO_USER),
                                   api_key=CARTO_KEY)
 
     ### 2. Fetch data from FTP, dedupe, process
     df = processData()
+
     num_rows = df.shape[0]
 
     cc.write(df, CARTO_TABLE, overwrite=True, privacy='public')
 
+    lastDate = df.sort_values(by=['datetime'], ascending=False)['datetime'][0]
+    lastUpdateDate(DATASET_ID, lastDate)
     ### 3. Notify results
     logging.info('Existing rows: {}'.format(num_rows))
     logging.info("SUCCESS")

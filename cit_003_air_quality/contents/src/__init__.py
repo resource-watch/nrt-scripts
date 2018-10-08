@@ -70,7 +70,14 @@ MOL_WEIGHTS = {
     'co': 28
 }
 
-DATASET_ID = 
+DATASET_ID = [
+"7c36dbb7-6685-4dc7-b285-7476db05cd5e",
+"ae7227d1-8779-4ca4-a2ce-3c87d53c63f6",
+"764318db-bb4b-442c-b533-8a3c38768a0c",
+"51861c34-f67a-4662-b0b6-1b7f265c6d23",
+"5b5c7d9b-baf3-4fdf-a41c-e10506b72770",
+"9d17e2eb-cc26-4743-a2d6-abf1ebc56376",
+"0c3ed5b9-94b4-4fc5-9208-bf749f0a5052"]
 
 def lastUpdateDate(dataset, date):
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset)
@@ -79,7 +86,7 @@ def lastUpdateDate(dataset, date):
     'Authorization': os.getenv('apiToken')
     }
     body = {
-        "dataLastUpdated": date
+        "dataLastUpdated": date.isoformat()
     }
     try:
         r = requests.patch(url = apiUrl, json = body, headers = headers)
@@ -251,6 +258,7 @@ def main():
             len(existing_ids[param]), new_counts[param], MAXROWS))
         deleteExcessRows(CARTO_TABLES[param], MAXROWS, TIME_FIELD, MAXAGE)
 
-    lastUpdateDate(DATASET_ID, MAXAGE)
+    for dataset in DATASET_ID:
+        lastUpdateDate(dataset, datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc))
 
     logging.info('SUCCESS')

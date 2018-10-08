@@ -44,7 +44,7 @@ MAX_ASSETS = 8
 DATE_FORMAT = '%Y%m%d'
 LOG_LEVEL = logging.INFO
 
-DATASET_ID = 
+DATASET_ID =  'd4e91298-b994-4e2c-947c-4f6486a66f30'
 
 def lastUpdateDate(dataset, date):
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset)
@@ -53,7 +53,7 @@ def lastUpdateDate(dataset, date):
     'Authorization': os.getenv('apiToken')
     }
     body = {
-        "dataLastUpdated": date
+        "dataLastUpdated": date.isoformat()
     }
     try:
         r = requests.patch(url = apiUrl, json = body, headers = headers)

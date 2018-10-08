@@ -42,7 +42,7 @@ GEE_STAGING_BUCKET = os.environ.get("GEE_STAGING_BUCKET")
 GCS_PROJECT = os.environ.get("CLOUDSDK_CORE_PROJECT")
 
 
-DATASET_ID = 
+DATASET_ID = ['e740efec-c673-431a-be2c-b214613f641a','484fbba1-ac34-402f-8623-7b1cc9c34f17']
 
 def lastUpdateDate(dataset, date):
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset)
@@ -275,6 +275,7 @@ def main():
         deleteExcessAssets(total,orig_or_reproj,arctic_or_antarctic,MAX_DATES)
 
     ###
-    lastUpdateDate(DATASET_ID, n_dates[-1])
+    for dataset in DATASET_ID:
+        lastUpdateDate(dataset, n_dates[-1])
 
     logging.info('SUCCESS')

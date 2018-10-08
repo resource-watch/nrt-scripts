@@ -7,8 +7,27 @@ import json
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
+DATASET_ID =  'bd9f603e-a559-4cc1-84f4-de0ddc7c341f'
+
+def lastUpdateDate(dataset, date):
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset = dataset)
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    body = {
+        "dataLastUpdated": date.isoformat()
+    }
+    try:
+        r = requests.patch(url = apiUrl, json = body, headers = headers)
+        logging.info('[lastUpdated]: SUCCESS, status code'+str(r.status_code))
+        return 0
+    except Exception as e:
+        logging.error('[lastUpdated]: '+str(e))
+        logging.error('[lastUpdated]: status code'+str(r.status_code)) 
+
 ### Constants
-RW_API = 'https://api.resourcewatch.org/v1/dataset/bd9f603e-a559-4cc1-84f4-de0ddc7c341f/layer/'
+RW_API = 'https://api.resourcewatch.org/v1/dataset/{dataset}/layer/'.format(dataset = DATASET_ID)
 LAYER_CONFIGS = [
     {
         "type": "tileLayer",
@@ -58,4 +77,5 @@ def main():
             logging.error("ERROR: failed to update layer")
             logging.error(response.text)
 
+    lastUpdateDate(DATASET_ID, today)
     logging.info('SUCCESS')

@@ -42,6 +42,25 @@ CARTO_KEY = os.environ.get('CARTO_KEY')
 MAX_ROWS = 1000000
 MAX_AGE = datetime.today() - timedelta(days=365*150)
 
+DATASET_ID = 
+
+def lastUpdateDate(dataset, date):
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset)
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    body = {
+        "dataLastUpdated": date
+    }
+    try:
+        r = requests.patch(url = apiUrl, json = body, headers = headers)
+        logging.info('[lastUpdated]: SUCCESS, status code'+str(r.status_code))
+        return 0
+    except Exception as e:
+        logging.error('[lastUpdated]: '+str(e))
+        logging.error('[lastUpdated]: status code'+str(r.status_code)) 
+
 ###
 ## Carto code
 ###
@@ -233,6 +252,7 @@ def main():
     ### 5. Delete data to get back to MAX_ROWS
     num_deleted = deleteExcessRows(CARTO_TABLE, MAX_ROWS, TIME_FIELD)
 
+    lastUpdateDate(DATASET_ID, MAX_AGE)
     ### 6. Notify results
     logging.info('Expired rows: {}, Previous rows: {},  New rows: {}, Dropped rows: {}, Max: {}'.format(num_expired, num_existing, num_new, num_deleted, MAX_ROWS))
     logging.info("SUCCESS")

@@ -25,7 +25,7 @@ MAX_ASSETS = 61
 DATE_FORMAT = '%Y%m%d'
 TIMESTEP = {'days': 1}
 
-DATASET_ID = 
+DATASET_ID = 'ad790c87-fe9e-4405-891d-de7c2ddfda79'
 
 
 def lastUpdateDate(dataset, date):
@@ -35,7 +35,7 @@ def lastUpdateDate(dataset, date):
     'Authorization': os.getenv('apiToken')
     }
     body = {
-        "dataLastUpdated": date
+        "dataLastUpdated": date.isoformat()
     }
     try:
         r = requests.patch(url = apiUrl, json = body, headers = headers)

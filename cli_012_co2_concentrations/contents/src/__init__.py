@@ -242,6 +242,6 @@ def main():
     deleteExcessAssets(existing_ids+new_assets,MAX_DATES)
 
     ###
-    lastUpdateDate(DATASET_ID, MAX_DATES)
+    lastUpdateDate(DATASET_ID, MAX_DATES[-1])
 
     logging.info('SUCCESS')
