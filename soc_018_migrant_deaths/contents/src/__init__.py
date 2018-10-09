@@ -19,7 +19,7 @@ CARTO_SCHEMA = OrderedDict([
     ('uid', 'text'),
     ('the_geom', 'geometry'),
     ('Reported_Date', 'timestamp'),
-    ('Region_of_Incident', 'text'),
+    ('Region', 'text'),
     ('Number_Dead', 'numeric'),
     ('Minimum_Estimated_Number_of_Missing', 'numeric'),
     ('Total_Dead_and_Missing', 'numeric'),
@@ -35,6 +35,7 @@ CARTO_SCHEMA = OrderedDict([
     ('UNSD_Geographical_Grouping', 'text'),
     ('Source_Quality', 'text')
 ])
+#Note 'Region' column name was changed on 10/09/18 from 'Region_of_Interest'
 UID_FIELD = 'uid'
 TIME_FIELD = 'Reported_Date'
 
