@@ -184,6 +184,7 @@ def main():
     new_counts = dict(((param, 0) for param in PARAMS))
     new_count = 1
     page = 1
+    retries = 0
     # get and parse each page
     # read at least 10 pages; stop when no new results or 100 pages
     while page <= MIN_PAGES or new_count and page < MAX_PAGES:
@@ -192,40 +193,51 @@ def main():
         page += 1
         new_count = 0
 
+
         # separate row lists per param
         rows = dict(((param, []) for param in PARAMS))
         loc_rows = []
 
         # 2.1 parse data excluding existing observations
-        for obs in r.json()['results']:
-            param = obs['parameter']
-            uid = genUID(obs)
-            if uid not in existing_ids[param]:
-                existing_ids[param].append(uid)
-                rows[param].append(parseFields(obs, uid, CARTO_SCHEMA.keys()))
+        try:
+            results = r.json()['results']
+            for obs in results:
+                param = obs['parameter']
+                uid = genUID(obs)
+                if uid not in existing_ids[param]:
+                    existing_ids[param].append(uid)
+                    rows[param].append(parseFields(obs, uid, CARTO_SCHEMA.keys()))
 
-                # 2.2 Check if new locations
-                loc_id = genLocID(obs)
-                if loc_id not in loc_ids and 'coordinates' in obs:
-                    loc_ids.append(loc_id)
-                    loc_rows.append(parseFields(obs, loc_id,
-                                                CARTO_GEOM_SCHEMA.keys()))
+                    # 2.2 Check if new locations
+                    loc_id = genLocID(obs)
+                    if loc_id not in loc_ids and 'coordinates' in obs:
+                        loc_ids.append(loc_id)
+                        loc_rows.append(parseFields(obs, loc_id,
+                                                    CARTO_GEOM_SCHEMA.keys()))
 
-        # 2.3 insert new locations
-        if len(loc_rows):
-            logging.info('Pushing {} new locations'.format(len(loc_rows)))
-            cartosql.insertRows(CARTO_GEOM_TABLE, CARTO_GEOM_SCHEMA.keys(),
-                                CARTO_GEOM_SCHEMA.values(), loc_rows)
+            # 2.3 insert new locations
+            if len(loc_rows):
+                logging.info('Pushing {} new locations'.format(len(loc_rows)))
+                cartosql.insertRows(CARTO_GEOM_TABLE, CARTO_GEOM_SCHEMA.keys(),
+                                    CARTO_GEOM_SCHEMA.values(), loc_rows)
 
-        # 2.4 insert new rows
-        for param in PARAMS:
-            count = len(rows[param])
-            if count:
-                logging.info('Pushing {} new {} rows'.format(count, param))
-                cartosql.insertRows(CARTO_TABLES[param], CARTO_SCHEMA.keys(),
-                                    CARTO_SCHEMA.values(), rows[param])
-                new_count += count
-            new_counts[param] += count
+            # 2.4 insert new rows
+            for param in PARAMS:
+                count = len(rows[param])
+                if count:
+                    logging.info('Pushing {} new {} rows'.format(count, param))
+                    cartosql.insertRows(CARTO_TABLES[param], CARTO_SCHEMA.keys(),
+                                        CARTO_SCHEMA.values(), rows[param])
+                    new_count += count
+                new_counts[param] += count
+
+        # failed to read ['results']
+        except Exception as e:
+            logging.info("Failed to read results")
+            retries += 1
+            page -= 1
+            if retries > 3:
+                raise(e)
 
     # 3. Remove old observations
     for param in PARAMS:
