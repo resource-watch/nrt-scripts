@@ -16,7 +16,7 @@ import numpy as np
 import eeUtil
 
 LOG_LEVEL = logging.INFO
-CLEAR_COLLECTION_FIRST = True
+CLEAR_COLLECTION_FIRST = False
 
 # constants for bleaching alerts
 SOURCE_URL = 'ftp://ftp.cdc.noaa.gov/Datasets/gistemp/combined/250km/{target_file}'
@@ -199,7 +199,7 @@ def processNewData(existing_dates):
         datestamps = [datetime.datetime.strptime(date, DATE_FORMAT)
                       for date in dates]
         assets = [getAssetName(date) for date in dates]
-        eeUtil.uploadAssets(sub_tifs, assets, GS_FOLDER, datestamps)
+        eeUtil.uploadAssets(sub_tifs, assets, GS_FOLDER, datestamps, timeout=900)
 
         # 5. Delete local files
         logging.info('Cleaning local files')
