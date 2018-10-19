@@ -19,7 +19,7 @@ CARTO_SCHEMA = OrderedDict([
     ('uid', 'text'),
     ('the_geom', 'geometry'),
     ('Reported_Date', 'timestamp'),
-    ('Region', 'text'),
+    ('Region_of_Incident', 'text'),
     ('Number_Dead', 'numeric'),
     ('Minimum_Estimated_Number_of_Missing', 'numeric'),
     ('Total_Dead_and_Missing', 'numeric'),
