@@ -18,22 +18,22 @@ CARTO_TABLE = 'soc_018_missing_migrants'
 CARTO_SCHEMA = OrderedDict([
     ('the_geom', 'geometry'),
     ('uid', 'text'),
-    ('reported_date', 'timestamp'),
-    ('region_of_interest', 'text'),
-    ('number_dead', 'numeric'),
-    ('minimum_estimated_number_of_missing', 'numeric'),
-    ('total_dead_and_missing', 'numeric'),
-    ('number_of_survivors', 'numeric'),
-    ('number_of_females', 'numeric'),
-    ('number_of_males', 'numeric'),
-    ('number_of_children', 'numeric'),
-    ('cause_of_death', 'text'),
-    ('location_description', 'text'),
-    ('information_source', 'text'),
-    ('migration_route', 'text'),
-    ('url', 'text'),
-    ('unsd_geographical_grouping', 'text'),
-    ('source_quality', 'text')
+    ('Reported_Date', 'timestamp'),
+    ('Region_of_Incident', 'text'),
+    ('Number_Dead', 'numeric'),
+    ('Minimum_Estimated_Number_of_Missing', 'numeric'),
+    ('Total_Dead_and_Missing', 'numeric'),
+    ('Number_of_Survivors', 'numeric'),
+    ('Number_of_Females', 'numeric'),
+    ('Number_of_Males', 'numeric'),
+    ('Number_of_Children', 'numeric'),
+    ('Cause_of_Death', 'text'),
+    ('Location_Description', 'text'),
+    ('Information_Source', 'text'),
+    ('Migration_Route', 'text'),
+    ('URL', 'text'),
+    ('UNSD_Geographical_Grouping', 'text'),
+    ('Source_Quality', 'text')
 ])
 #Note 'Region' column name was changed on 10/09/18 from 'Region_of_Interest'
 UID_FIELD = 'uid'
