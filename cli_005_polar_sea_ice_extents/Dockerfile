@@ -17,6 +17,8 @@ RUN apt-get install -y \
   && apt-get clean
 
 RUN pip install oauth2client
+RUN pip install -e git+https://github.com/fgassert/eeUtil#egg=eeUtil
+
 RUN pip install --upgrade pip && pip install \
     earthengine-api \
     google-cloud-storage

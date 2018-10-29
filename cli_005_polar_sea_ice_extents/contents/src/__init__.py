@@ -8,7 +8,7 @@ from contextlib import closing
 import datetime
 import logging
 import subprocess
-from . import eeUtil
+import eeUtil
 
 LOG_LEVEL = logging.INFO
 CLEAR_COLLECTION_FIRST = False
@@ -32,14 +32,6 @@ DATE_FORMAT = '%Y%m'
 TIMESTEP = {'days': 30}
 
 # environmental variables
-with open('gcsPrivateKey.json','w') as f:
-    f.write(os.getenv('GCS_JSON'))
-
-GEE_SERVICE_ACCOUNT = os.environ.get("GEE_SERVICE_ACCOUNT")
-GOOGLE_APPLICATION_CREDENTIALS = os.environ.get(
-    "GOOGLE_APPLICATION_CREDENTIALS")
-GEE_STAGING_BUCKET = os.environ.get("GEE_STAGING_BUCKET")
-GCS_PROJECT = os.environ.get("CLOUDSDK_CORE_PROJECT")
 
 ###
 ## Handling RASTERS
@@ -198,8 +190,7 @@ def main():
     logging.info('STARTING')
 
     ### 1. Initialize eeUtil
-    eeUtil.init(GEE_SERVICE_ACCOUNT, GOOGLE_APPLICATION_CREDENTIALS,
-                GCS_PROJECT, GEE_STAGING_BUCKET)
+    eeUtil.initJson()
 
     ### 2. Create collection names, clear if desired
     arctic_collection_orig = EE_COLLECTION.format(arctic_or_antarctic='arctic', orig_or_reproj='orig')
