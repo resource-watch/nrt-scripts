@@ -71,6 +71,7 @@ def getNewDates(exclude_dates):
     date = datetime.date.today()
     for i in range(MAX_ASSETS):
         current_month = date.month
+        date = date.replace(day=1)
         if current_month==1:
             current_year = date.year
             date = date.replace(year=current_year-1)
