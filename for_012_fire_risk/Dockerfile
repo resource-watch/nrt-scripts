@@ -15,7 +15,7 @@ RUN pip install netCDF4
 
 #install
 RUN apt-get -y install python-gdal
-cd 
+
 # set name
 ARG NAME=nrt-script
 ENV NAME ${NAME}
