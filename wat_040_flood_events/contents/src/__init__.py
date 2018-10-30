@@ -76,7 +76,11 @@ def processNewData(exclude_ids):
                 row = []
                 for field in CARTO_SCHEMA.keys():
                     if field == 'the_geom':
-                        row.append(obs['geometry'])
+                        geom = {
+                            'type': 'Point',
+                            'coordinates': [obs['properties']['long'], obs['properties']['lat']]
+                        }
+                        row.append(geom)
                     elif field == UID_FIELD:
                         row.append(uid)
                     else:
