@@ -2,13 +2,10 @@ from __future__ import unicode_literals
 
 import os
 import sys
-import urllib
 import datetime
 import logging
 import subprocess
 import eeUtil
-import urllib.request
-from http.cookiejar import CookieJar
 from ftplib import FTP
 
 # Sources for nrt data
@@ -31,7 +28,7 @@ EE_COLLECTION = 'for_012_fire_risk'
 CLEAR_COLLECTION_FIRST = False
 DELETE_LOCAL = True
 
-MAX_ASSETS = 1
+MAX_ASSETS = 2
 DATE_FORMAT_NETCDF = '%Y%m%d'
 DATE_FORMAT = '%Y%m%d'
 TIMESTEP = {'days': 1}
@@ -71,7 +68,6 @@ def getNewDates(exclude_dates):
     return new_dates
 	
 
-#https://gis.stackexchange.com/questions/6669/converting-projected-geotiff-to-wgs84-with-gdal-and-python
 def convert(files):
     '''convert netcdfs to tifs'''
     tifs = []
@@ -83,7 +79,7 @@ def convert(files):
         #and only takes the file name (splits on last period)
         cmd = ['gdal_translate','-q', '-a_nodata', str(NODATA_VALUE), '-a_srs', 'EPSG:4326', sds_path, tif] #'-q' means quiet so you don't see it
         logging.debug('Converting {} to {}'.format(f, tif))
-        subprocess.call(cmd) #using the gdal from command line from inside python
+        subprocess.call(cmd)
         tifs.append(tif)
     return tifs
 
@@ -93,7 +89,6 @@ def convert(files):
 
 def fetch(new_dates):
 	# 1. Set up authentication with the urllib.request library
-	# not needed here
     username = 'GlobalFWI'
     password = ''
 
@@ -109,7 +104,7 @@ def fetch(new_dates):
         try:
             ftp = FTP('ftp.nccs.nasa.gov', user=username, passwd=password)
             ftp.set_debuglevel(2)
-            #ftp.login(user=username, passwd=password)
+            ftp.login(user=username, passwd=password)
             logging.info("ftp login successful")
             ftp.cwd('v2.0/fwiCalcs.GEOS-5/Default/GPM.EARLY/'+date[0:4])
             logging.info("navigated to correct directory")
@@ -125,9 +120,7 @@ def fetch(new_dates):
             logging.info("appended file")
             logging.info('Successfully retrieved {}'.format(f))# gives us "Successully retrieved file name"
         except Exception as e:
-            #logging.error('Unable to retrieve data from {}'.format(url))
-            logging.info(e)
-            logging.info('Unable to retrieve data from {}'.format(url))
+            logging.error('Unable to retrieve data from {}'.format(url))
             logging.debug(e)
     return files
 
