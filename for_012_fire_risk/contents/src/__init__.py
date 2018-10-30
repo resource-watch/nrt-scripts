@@ -2,18 +2,14 @@ from __future__ import unicode_literals
 
 import os
 import sys
-import urllib
 import datetime
 import logging
 import subprocess
 import eeUtil
-import urllib.request
-from http.cookiejar import CookieJar
 from ftplib import FTP
 
 # Sources for nrt data
 SOURCE_URL = 'ftp://ftp.nccs.nasa.gov/v2.0/fwiCalcs.GEOS-5/Default/GPM.EARLY/{year}/FWI.GPM.EARLY.Daily.Default.{date}.nc'
-#SOURCE_URL = 'ftp://GlobalFWI@ftp.nccs.nasa.gov/v2.0/fwiCalcs.GEOS-5/Default/GPM.EARLY/{year}/FWI.GPM.EARLY.Daily.Default.{date}.nc'
 
 SDS_NAME = 'NETCDF:"{fname}":GPM.EARLY_FWI'
 FILENAME = 'for_012_fire_risk_{date}'
@@ -31,7 +27,7 @@ EE_COLLECTION = 'for_012_fire_risk'
 CLEAR_COLLECTION_FIRST = False
 DELETE_LOCAL = True
 
-MAX_ASSETS = 1
+MAX_ASSETS = 7
 DATE_FORMAT_NETCDF = '%Y%m%d'
 DATE_FORMAT = '%Y%m%d'
 TIMESTEP = {'days': 1}
@@ -47,7 +43,6 @@ def getAssetName(date):
     '''get asset name from datestamp'''# os.path.join('home', 'coming') = 'home/coming'
     return os.path.join(EE_COLLECTION, FILENAME.format(date=date))
 
-
 def getFilename(date):
     '''get filename from datestamp CHECK FILE TYPE'''
     return os.path.join(DATA_DIR, '{}.nc'.format(
@@ -61,17 +56,14 @@ def getNewDates(exclude_dates):
     '''Get new dates excluding existing'''
     new_dates = []
     date = datetime.date.today()
-    #Old value for 8 day dataset
-    #for i in range(MAX_ASSETS*8): #because only updates every 8 days
-    for i in range(MAX_ASSETS*1): #because updates every day
-        date -= datetime.timedelta(**TIMESTEP) #subtraction and assignments in one step
+    for i in range(MAX_ASSETS): #updates every day
+        date -= datetime.timedelta(**TIMESTEP)  #subtraction and assignments in one step
         datestr = date.strftime(DATE_FORMAT_NETCDF)#of NETCDF because looking for new data in old format
         if date.strftime(DATE_FORMAT) not in exclude_dates:
             new_dates.append(datestr) #add to new dates if have not already seen
     return new_dates
 	
 
-#https://gis.stackexchange.com/questions/6669/converting-projected-geotiff-to-wgs84-with-gdal-and-python
 def convert(files):
     '''convert netcdfs to tifs'''
     tifs = []
@@ -79,11 +71,9 @@ def convert(files):
         # extract subdataset by name
         sds_path = SDS_NAME.format(fname=f)
         tif = '{}.tif'.format(os.path.splitext(f)[0]) #naming tiffs
-        #os.path.splitext gets rids of .nc because it makes a list of file name[0] and ext [1]
-        #and only takes the file name (splits on last period)
         cmd = ['gdal_translate','-q', '-a_nodata', str(NODATA_VALUE), '-a_srs', 'EPSG:4326', sds_path, tif] #'-q' means quiet so you don't see it
         logging.debug('Converting {} to {}'.format(f, tif))
-        subprocess.call(cmd) #using the gdal from command line from inside python
+        subprocess.call(cmd)
         tifs.append(tif)
     return tifs
 
@@ -92,42 +82,29 @@ def convert(files):
 
 
 def fetch(new_dates):
-	# 1. Set up authentication with the urllib.request library
-	# not needed here
+	# 1. Set up authentication
     username = 'GlobalFWI'
     password = ''
 
-    # 2. Loop over the new dates, check if there is data available, and attempt to download the hdfs
+    # 2. Loop over the new dates, check if there is data available, and attempt to download
     files = []
     for date in new_dates:
-        # Setup the url of the folder to look for data, and the filename to download to if available
+        # Setup the url of the folder to look for data, and the filename to which we will download, if available
         url = getUrl(date)
         file_name = url[-39:]
-        #starts as string, strptime changes to datetime object, strfttime reformats into string)
         f = getFilename(date)
-        #f = 'C:/Users/amelia.snyder/Github/amsnyder/test/for_012_fire_risk_'+date+'.nc'
         try:
             ftp = FTP('ftp.nccs.nasa.gov', user=username, passwd=password)
             ftp.set_debuglevel(2)
-            #ftp.login(user=username, passwd=password)
-            logging.info("ftp login successful")
             ftp.cwd('v2.0/fwiCalcs.GEOS-5/Default/GPM.EARLY/'+date[0:4])
-            logging.info("navigated to correct directory")
             local_file = open(f, 'wb')
-            logging.info("opened local file")
             ftp.retrbinary('RETR '+file_name, local_file.write)
-            logging.info("transferred file")
             local_file.close()
-            logging.info("closed file")
             ftp.quit()
-            logging.info("quit ftp")
             files.append(f)
-            logging.info("appended file")
             logging.info('Successfully retrieved {}'.format(f))# gives us "Successully retrieved file name"
         except Exception as e:
-            #logging.error('Unable to retrieve data from {}'.format(url))
-            logging.info(e)
-            logging.info('Unable to retrieve data from {}'.format(url))
+            logging.error('Unable to retrieve data from {}'.format(url))
             logging.debug(e)
     return files
 
