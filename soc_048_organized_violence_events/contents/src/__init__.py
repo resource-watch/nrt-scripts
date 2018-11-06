@@ -5,6 +5,7 @@ import requests
 from collections import OrderedDict
 from datetime import datetime, timedelta
 import cartosql
+import json
 
 # Constants
 HISTORY_URL = 'http://ucdpapi.pcr.uu.se/api/gedevents/17.2?pagesize=1000&page={page}'
@@ -78,7 +79,7 @@ def lastUpdateDate(dataset, date):
     'Authorization': os.getenv('apiToken')
     }
     body = {
-        "dataLastUpdated": date
+        "dataLastUpdated": date.isoformat()
     }
     try:
         r = requests.patch(url = apiUrl, json = body, headers = headers)

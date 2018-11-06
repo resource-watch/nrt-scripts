@@ -5,6 +5,7 @@ import requests
 from collections import OrderedDict, defaultdict
 from datetime import datetime
 import cartosql
+import json
 
 # Constants
 LATEST_URL = 'http://popdata.unhcr.org/api/stats/asylum_seekers_monthly.json?year={year}'
@@ -38,7 +39,7 @@ def lastUpdateDate(dataset, date):
     'Authorization': os.getenv('apiToken')
     }
     body = {
-        "dataLastUpdated": date
+        "dataLastUpdated": date.isoformat()
     }
     try:
         r = requests.patch(url = apiUrl, json = body, headers = headers)

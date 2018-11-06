@@ -8,6 +8,8 @@ import urllib
 import datetime
 from collections import OrderedDict
 import cartosql
+import json
+import requests
 
 # Constants
 DATA_DIR = 'data'
@@ -58,7 +60,7 @@ def lastUpdateDate(dataset, date):
     'Authorization': os.getenv('apiToken')
     }
     body = {
-        "dataLastUpdated": date
+        "dataLastUpdated": date.isoformat()
     }
     try:
         r = requests.patch(url = apiUrl, json = body, headers = headers)
@@ -66,7 +68,6 @@ def lastUpdateDate(dataset, date):
         return 0
     except Exception as e:
         logging.error('[lastUpdated]: '+str(e))
-        logging.error('[lastUpdated]: status code'+str(r.status_code))
 
 # Generate UID
 def genUID(obs):
