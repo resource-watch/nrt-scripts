@@ -40,7 +40,7 @@ MAX_ASSETS = 36
 DATE_FORMAT = '%Y%m15'
 TIMESTEP = {'days': 30}
 
-DATASET_ID = 
+DATASET_ID = '0df6dbcd-ee6a-401b-bf1d-2a67dad09f05'
 
 def lastUpdateDate(dataset, date):
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset)

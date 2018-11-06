@@ -34,7 +34,7 @@ CARTO_KEY = os.environ.get('CARTO_KEY')
 MAX_ROWS = 1000000
 MAX_AGE = datetime.today() - timedelta(days=365*150)
 
-DATASET_ID = 
+DATASET_ID = '095eee4a-ff4e-4c58-9110-85a9e42ed6f5'
 
 def lastUpdateDate(dataset, date):
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset)

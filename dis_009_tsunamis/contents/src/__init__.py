@@ -16,7 +16,7 @@ LOG_LEVEL = logging.INFO
 ### Table name and structure
 CARTO_TABLE = 'dis_009_tsunamis'
 
-DATASET_ID =  
+DATASET_ID =  '2fb159b3-e613-40ec-974c-21b22c930ce4'
 
 def lastUpdateDate(dataset, date):
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset =dataset)

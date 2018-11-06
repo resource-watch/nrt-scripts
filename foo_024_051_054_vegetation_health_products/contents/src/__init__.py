@@ -59,6 +59,25 @@ SCALE_FACTOR = .01
 
 # https://gist.github.com/tomkralidis/baabcad8c108e91ee7ab
 #os.environ['GDAL_NETCDF_BOTTOMUP']='NO'
+DATASET_ID = '4828c405-06a2-4460-a78c-90969bce582b'
+
+
+def lastUpdateDate(dataset, date):
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset =dataset)
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    body = {
+        "dataLastUpdated": date
+    }
+    try:
+        r = requests.patch(url = apiUrl, json = body, headers = headers)
+        logging.info('[lastUpdated]: SUCCESS, status code'+str(r.status_code))
+        return 0
+    except Exception as e:
+        logging.error('[lastUpdated]: '+str(e))
+        logging.error('[lastUpdated]: status code'+str(r.status_code))
 
 ###
 ## Handling RASTERS
@@ -311,5 +330,6 @@ def main():
         deleteExcessAssets(total,rw_id,ASSET_NAMES[rw_id],MAX_DATES)
 
     ###
-
+    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
+    
     logging.info('SUCCESS')

@@ -37,7 +37,7 @@ TIMESTEP = {'days': 1} #check everyday so don't start on day without and miss
 
 LOG_LEVEL = logging.INFO
 
-DATASET_ID = 
+DATASET_ID = '23f29e9a-ca07-4c08-a018-28a25af14b49'
 
 def lastUpdateDate(dataset, date):
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset)

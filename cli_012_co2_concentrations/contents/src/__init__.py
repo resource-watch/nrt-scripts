@@ -55,7 +55,7 @@ GCS_PROJECT = os.environ.get("CLOUDSDK_CORE_PROJECT")
 NASA_USER = os.environ.get("NASA_USER")
 NASA_PASS = os.environ.get("NASA_PASS")
 
-DATASET_ID = 
+DATASET_ID = '68455cb5-bfe3-4528-83a2-00fab1c52fb9'
 
 def lastUpdateDate(dataset, date):
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset)

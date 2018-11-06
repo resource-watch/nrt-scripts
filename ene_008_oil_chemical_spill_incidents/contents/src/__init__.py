@@ -41,6 +41,28 @@ TIME_FIELD = 'open_date'
 # Table limits
 MAX_ROWS = 1000000
 
+DATASET_ID = '8746e75d-2749-405e-8f3b-0c12097860a1'
+
+
+
+
+def lastUpdateDate(dataset, date):
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset =dataset)
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    body = {
+        "dataLastUpdated": date
+    }
+    try:
+        r = requests.patch(url = apiUrl, json = body, headers = headers)
+        logging.info('[lastUpdated]: SUCCESS, status code'+str(r.status_code))
+        return 0
+    except Exception as e:
+        logging.error('[lastUpdated]: '+str(e))
+        logging.error('[lastUpdated]: status code'+str(r.status_code))
+
 ###
 ## Accessing remote data
 ###
@@ -173,4 +195,5 @@ def main():
     logging.info('Total rows: {}, New rows: {}, Max: {}'.format(num_total, num_new, MAX_ROWS))
     deleteExcessRows(CARTO_TABLE, MAX_ROWS, TIME_FIELD)
 
+    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
     logging.info("SUCCESS")

@@ -46,7 +46,7 @@ TIME_FIELD = 'datetime'
 MAX_ROWS = 500000
 MAX_AGE = datetime.today() - timedelta(days=365*2)
 
-DATASET_ID =  
+DATASET_ID ='1d7085f7-11c7-4eaf-a29a-5a4de57d010e'
 
 def lastUpdateDate(dataset, date):
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset =dataset)
