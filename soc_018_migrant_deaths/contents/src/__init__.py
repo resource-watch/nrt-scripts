@@ -43,7 +43,7 @@ MAX_ROWS = 500000
 MAX_YEARS = 10
 MAX_AGE = datetime.datetime.today() - datetime.timedelta(days=365*MAX_YEARS)
 
-DATASET_ID = 'ea208a8b-4559-434b-82ee-95e041596a3a'
+DATASET_ID = 'a0aecb8d-07ee-42e6-be3d-e5cabf12b0a9'
 
 
 def lastUpdateDate(dataset, date):
@@ -185,6 +185,5 @@ def main():
     # 3. Remove old observations
     deleteExcessRows(CARTO_TABLE, MAX_ROWS, TIME_FIELD, MAX_AGE)
 
-    deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD)
-    
+    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
     logging.info('SUCCESS')

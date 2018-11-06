@@ -28,6 +28,25 @@ CLEAR_TABLE_FIRST = False
 # Limit 1M rows, drop older than 20yrs
 MAXROWS = 1000000
 MAXAGE = datetime.today().year - 20
+DATASET_ID = 'de24a492-acee-4345-9073-bbbe991f6ede'
+
+
+def lastUpdateDate(dataset, date):
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset =dataset)
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    body = {
+        "dataLastUpdated": date
+    }
+    try:
+        r = requests.patch(url = apiUrl, json = body, headers = headers)
+        logging.info('[lastUpdated]: SUCCESS, status code'+str(r.status_code))
+        return 0
+    except Exception as e:
+        logging.error('[lastUpdated]: '+str(e))
+        logging.error('[lastUpdated]: status code'+str(r.status_code))
 
 def genUID(date, country, valuetype):
     '''Generate unique id'''
@@ -188,4 +207,5 @@ def main():
     # 3. Remove old observations
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD, datetime(year=MAXAGE, month=1, day=1))
 
+    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
     logging.info('SUCCESS')
