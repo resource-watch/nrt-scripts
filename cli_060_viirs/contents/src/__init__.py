@@ -27,7 +27,7 @@ LAYER_CONFIGS = [
         "id": "91642712-916c-4b03-9d3c-1924a998ea98"
     }
 ]
-API_KEY = os.environ.get('rw_api_token') or os.environ.get('RW_API_KEY')
+apiToken = os.environ.get('rw_api_token') or os.environ.get('RW_API_KEY') or os.getenv('apiToken')
 
 
 def main():
@@ -46,7 +46,7 @@ def main():
         logging.debug(payload)
         headers = {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer {token}'.format(token=API_KEY)
+            'Authorization': 'Bearer {token}'.format(token=apiToken)
         }
         response = requests.request(
             'PATCH',
