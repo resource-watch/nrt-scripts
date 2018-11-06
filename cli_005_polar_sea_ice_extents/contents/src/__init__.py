@@ -51,7 +51,7 @@ def lastUpdateDate(dataset, date):
     'Authorization': os.getenv('apiToken')
     }
     body = {
-        "dataLastUpdated": date
+        "dataLastUpdated": date.isoformat()
     }
     try:
         r = requests.patch(url = apiUrl, json = body, headers = headers)
