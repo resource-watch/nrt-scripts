@@ -7,7 +7,6 @@ import datetime
 import logging
 import subprocess
 import eeUtil
-
 import json
 import requests
 
@@ -29,7 +28,7 @@ DATASET_ID = 'ad790c87-fe9e-4405-891d-de7c2ddfda79'
 
 
 def lastUpdateDate(dataset, date):
-    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset)
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
     headers = {
     'Content-Type': 'application/json',
     'Authorization': os.getenv('apiToken')
@@ -39,11 +38,10 @@ def lastUpdateDate(dataset, date):
     }
     try:
         r = requests.patch(url = apiUrl, json = body, headers = headers)
-        logging.info('[lastUpdated]: SUCCESS, status code'+str(r.status_code))
+        logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
         return 0
     except Exception as e:
         logging.error('[lastUpdated]: '+str(e))
-        logging.error('[lastUpdated]: status code'+str(r.status_code)) 
 
 
 
@@ -187,7 +185,6 @@ def main():
     deleteExcessAssets(existing_dates, MAX_ASSETS)
 
     # 4. After asset update lets reflect it on the dataset
-
-    lastUpdateDate(DATASET_ID, new_dates[-1])
+    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
 
     logging.info('SUCCESS')
