@@ -4,9 +4,10 @@ import os
 import time
 import urllib.request
 from collections import OrderedDict
-from datetime import datetime, timedelta
 from dateutil import parser
 import cartosql
+import requests
+import datetime
 
 ### Constants
 SOURCE_URL = 'ftp://podaac-ftp.jpl.nasa.gov/allData/tellus/L3/mascon/RL05/JPL/CRI/mass_variability_time_series/'
@@ -32,26 +33,25 @@ CARTO_KEY = os.environ.get('CARTO_KEY')
 
 # Table limits
 MAX_ROWS = 1000000
-MAX_AGE = datetime.today() - timedelta(days=365*150)
+MAX_AGE = datetime.datetime.today() - datetime.timedelta(days=365*150)
 
 DATASET_ID = '095eee4a-ff4e-4c58-9110-85a9e42ed6f5'
 
 def lastUpdateDate(dataset, date):
-    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset)
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
     headers = {
     'Content-Type': 'application/json',
     'Authorization': os.getenv('apiToken')
     }
     body = {
-        "dataLastUpdated": date
+        "dataLastUpdated": date.isoformat()
     }
     try:
         r = requests.patch(url = apiUrl, json = body, headers = headers)
-        logging.info('[lastUpdated]: SUCCESS, status code'+str(r.status_code))
+        logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
         return 0
     except Exception as e:
         logging.error('[lastUpdated]: '+str(e))
-        logging.error('[lastUpdated]: status code'+str(r.status_code)) 
 ###
 ## Carto code
 ###
@@ -78,7 +78,7 @@ def cleanOldRows(table, time_field, max_age, date_format='%Y-%m-%d %H:%M:%S'):
     '''
     num_expired = 0
     if cartosql.tableExists(table):
-        if isinstance(max_age, datetime):
+        if isinstance(max_age, datetime.datetime):
             max_age = max_age.strftime(date_format)
         elif isinstance(max_age, str):
             logging.error('Max age must be expressed as a datetime.datetime object')
@@ -167,8 +167,8 @@ def decimalToDatetime(dec, date_pattern="%Y-%m-%d %H:%M:%S"):
     dec = float(dec)
     year = int(dec)
     rem = dec - year
-    base = datetime(year, 1, 1)
-    dt = base + timedelta(seconds=(base.replace(year=base.year + 1) - base).total_seconds() * rem)
+    base = datetime.datetime(year, 1, 1)
+    dt = base + datetime.timedelta(seconds=(base.replace(year=base.year + 1) - base).total_seconds() * rem)
     result = dt.strftime(date_pattern)
     return(result)
 
@@ -249,7 +249,7 @@ def main():
     ### 5. Delete data to get back to MAX_ROWS
     num_deleted = deleteExcessRows(CARTO_TABLE, MAX_ROWS, TIME_FIELD)
 
-    lastUpdateDate(DATASET_ID, MAX_AGE)
+    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
     ### 6. Notify results
     logging.info('Expired rows: {}, Previous rows: {},  New rows: {}, Dropped rows: {}, Max: {}'.format(num_expired, num_existing, num_new, num_deleted, MAX_ROWS))
     logging.info("SUCCESS")

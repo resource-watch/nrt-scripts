@@ -5,6 +5,7 @@ import requests
 from collections import OrderedDict
 import datetime
 import cartosql
+import requests
 
 LOG_LEVEL = logging.INFO
 
@@ -43,21 +44,20 @@ MAX_AGE = datetime.datetime.utcnow() - datetime.timedelta(days=365)
 DATASET_ID =  '444138cd-8ef4-48b3-b197-73e324175ad0'
 
 def lastUpdateDate(dataset, date):
-    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset =dataset)
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
     headers = {
     'Content-Type': 'application/json',
     'Authorization': os.getenv('apiToken')
     }
     body = {
-        "dataLastUpdated": date
+        "dataLastUpdated": date.isoformat()
     }
     try:
         r = requests.patch(url = apiUrl, json = body, headers = headers)
-        logging.info('[lastUpdated]: SUCCESS, status code'+str(r.status_code))
+        logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
         return 0
     except Exception as e:
         logging.error('[lastUpdated]: '+str(e))
-        logging.error('[lastUpdated]: status code'+str(r.status_code)) 
 
 def genUID(datetime, position_in_geojson):
     '''Generate unique id'''

@@ -5,6 +5,7 @@ import csv
 from collections import OrderedDict
 import datetime
 import cartosql
+import requests
 
 ### Constants
 SOURCE_URL = "https://missingmigrants.iom.int/global-figures/{year}/csv"
@@ -47,21 +48,21 @@ DATASET_ID = 'a0aecb8d-07ee-42e6-be3d-e5cabf12b0a9'
 
 
 def lastUpdateDate(dataset, date):
-    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset =dataset)
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
     headers = {
     'Content-Type': 'application/json',
     'Authorization': os.getenv('apiToken')
     }
     body = {
-        "dataLastUpdated": date
+        "dataLastUpdated": date.isoformat()
     }
     try:
         r = requests.patch(url = apiUrl, json = body, headers = headers)
-        logging.info('[lastUpdated]: SUCCESS, status code'+str(r.status_code))
+        logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
         return 0
     except Exception as e:
         logging.error('[lastUpdated]: '+str(e))
-        logging.error('[lastUpdated]: status code'+str(r.status_code))
+        
 ###
 ## Accessing remote data
 ###

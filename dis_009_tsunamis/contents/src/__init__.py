@@ -2,9 +2,10 @@ import logging
 import sys
 import os
 import requests as req
-from datetime import datetime
+import datetime
 import pandas as pd
 import cartoframes
+import requests
 
 
 ### Constants
@@ -19,21 +20,20 @@ CARTO_TABLE = 'dis_009_tsunamis'
 DATASET_ID =  '2fb159b3-e613-40ec-974c-21b22c930ce4'
 
 def lastUpdateDate(dataset, date):
-    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset =dataset)
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
     headers = {
     'Content-Type': 'application/json',
     'Authorization': os.getenv('apiToken')
     }
     body = {
-        "dataLastUpdated": date
+        "dataLastUpdated": date.isoformat()
     }
     try:
         r = requests.patch(url = apiUrl, json = body, headers = headers)
-        logging.info('[lastUpdated]: SUCCESS, status code'+str(r.status_code))
+        logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
         return 0
     except Exception as e:
         logging.error('[lastUpdated]: '+str(e))
-        logging.error('[lastUpdated]: status code'+str(r.status_code)) 
 
 ###
 ## Accessing remote data
@@ -98,7 +98,7 @@ def main():
     cc.write(df, CARTO_TABLE, overwrite=True, privacy='public')
 
     lastDate = df.sort_values(by=['datetime'], ascending=False)['datetime'][0]
-    lastUpdateDate(DATASET_ID, lastDate)
+    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
     ### 3. Notify results
     logging.info('Existing rows: {}'.format(num_rows))
     logging.info("SUCCESS")

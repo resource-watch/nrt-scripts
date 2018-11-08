@@ -3,9 +3,10 @@ import logging
 import sys
 import requests
 from collections import OrderedDict, defaultdict
-from datetime import datetime
+import datetime
 import cartosql
 import json
+import requests
 
 # Constants
 LATEST_URL = 'http://popdata.unhcr.org/api/stats/asylum_seekers_monthly.json?year={year}'
@@ -33,7 +34,7 @@ DATASET_ID = 'de24a492-acee-4345-9073-bbbe991f6ede'
 
 
 def lastUpdateDate(dataset, date):
-    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset =dataset)
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
     headers = {
     'Content-Type': 'application/json',
     'Authorization': os.getenv('apiToken')
@@ -43,11 +44,11 @@ def lastUpdateDate(dataset, date):
     }
     try:
         r = requests.patch(url = apiUrl, json = body, headers = headers)
-        logging.info('[lastUpdated]: SUCCESS, status code'+str(r.status_code))
+        logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
         return 0
     except Exception as e:
         logging.error('[lastUpdated]: '+str(e))
-        logging.error('[lastUpdated]: status code'+str(r.status_code))
+        
 
 def genUID(date, country, valuetype):
     '''Generate unique id'''

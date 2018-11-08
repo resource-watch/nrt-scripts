@@ -80,7 +80,7 @@ DATASET_ID = [
 "0c3ed5b9-94b4-4fc5-9208-bf749f0a5052"]
 
 def lastUpdateDate(dataset, date):
-    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset)
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
     headers = {
     'Content-Type': 'application/json',
     'Authorization': os.getenv('apiToken')
@@ -90,11 +90,10 @@ def lastUpdateDate(dataset, date):
     }
     try:
         r = requests.patch(url = apiUrl, json = body, headers = headers)
-        logging.info('[lastUpdated]: SUCCESS, status code'+str(r.status_code))
+        logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
         return 0
     except Exception as e:
-        logging.error('[lastUpdated]: '+str(e))
-        logging.error('[lastUpdated]: status code'+str(r.status_code)) 
+        logging.error('[lastUpdated]: '+str(e)) 
 
 def convert(param, unit, value):
     if param in MOL_WEIGHTS.keys() and unit in UGM3:
@@ -259,6 +258,6 @@ def main():
         deleteExcessRows(CARTO_TABLES[param], MAXROWS, TIME_FIELD, MAXAGE)
 
     for dataset in DATASET_ID:
-        lastUpdateDate(dataset, datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc))
+        lastUpdateDate(dataset, datetime.datetime.utcnow())
 
     logging.info('SUCCESS')

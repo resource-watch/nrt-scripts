@@ -4,11 +4,12 @@ import os
 import time
 import requests as req
 from collections import OrderedDict
-from datetime import datetime, timedelta
 import cartosql
 import lxml
 from xmljson import parker as xml2json
 from dateutil import parser
+import requests
+import datetime
 
 ### Constants
 SOURCE_URL = "http://volcano.si.edu/news/WeeklyVolcanoRSS.xml"
@@ -35,26 +36,26 @@ TIME_FIELD = 'pubdate'
 
 # Table limits
 MAX_ROWS = 1000000
-MAX_AGE = datetime.today() - timedelta(days=365*5)
+MAX_AGE = datetime.datetime.today() - datetime.timedelta(days=365*5)
 
 DATASET_ID = '60d3b365-6c0b-4f1c-9b7f-f3f00f2a05d7'
 
 def lastUpdateDate(dataset, date):
-    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset =dataset)
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
     headers = {
     'Content-Type': 'application/json',
     'Authorization': os.getenv('apiToken')
     }
     body = {
-        "dataLastUpdated": date
+        "dataLastUpdated": date.isoformat()
     }
     try:
         r = requests.patch(url = apiUrl, json = body, headers = headers)
-        logging.info('[lastUpdated]: SUCCESS, status code'+str(r.status_code))
+        logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
         return 0
     except Exception as e:
         logging.error('[lastUpdated]: '+str(e))
-        logging.error('[lastUpdated]: status code'+str(r.status_code)) 
+
 ###
 ## Carto code
 ###
@@ -76,7 +77,7 @@ def checkCreateTable(table, schema, id_field, time_field):
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
     '''Delete excess rows by age or count'''
     num_dropped = 0
-    if isinstance(max_age, datetime):
+    if isinstance(max_age, datetime.datetime):
         max_age = max_age.isoformat()
 
     # 1. delete by age
@@ -199,7 +200,7 @@ def main():
     ### 5. Notify results
     total = num_existing + num_new - num_dropped
 
-    lastUpdateDate(DATASET_ID, MAX_AGE)
+    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
     
     logging.info('Existing rows: {},  New rows: {}, Max: {}'.format(total, num_new, MAX_ROWS))
     logging.info("SUCCESS")

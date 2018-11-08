@@ -3,8 +3,9 @@ import sys
 import os
 import requests
 from collections import OrderedDict
-from datetime import datetime, timedelta
 import cartosql
+import requests
+import datetime
 
 ### Constants
 SOURCE_URL = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime={startTime}&endtime={endTime}&minsig={minSig}"
@@ -44,26 +45,26 @@ TIME_FIELD = 'datetime'
 
 # Table limits
 MAX_ROWS = 500000
-MAX_AGE = datetime.today() - timedelta(days=365*2)
+MAX_AGE = datetime.datetime.today() - datetime.timedelta(days=365*2)
 
 DATASET_ID ='1d7085f7-11c7-4eaf-a29a-5a4de57d010e'
 
 def lastUpdateDate(dataset, date):
-    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset =dataset)
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
     headers = {
     'Content-Type': 'application/json',
     'Authorization': os.getenv('apiToken')
     }
     body = {
-        "dataLastUpdated": date
+        "dataLastUpdated": date.isoformat()
     }
     try:
         r = requests.patch(url = apiUrl, json = body, headers = headers)
-        logging.info('[lastUpdated]: SUCCESS, status code'+str(r.status_code))
+        logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
         return 0
     except Exception as e:
         logging.error('[lastUpdated]: '+str(e))
-        logging.error('[lastUpdated]: status code'+str(r.status_code)) 
+
 ###
 ## Carto code
 ###
@@ -87,7 +88,7 @@ def checkCreateTable(table, schema, id_field, time_field):
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
     '''Delete excess rows by age or count'''
     num_dropped = 0
-    if isinstance(max_age, datetime):
+    if isinstance(max_age, datetime.datetime):
         max_age = max_age.isoformat()
 
     # 1. delete by age
@@ -118,12 +119,12 @@ def processData(existing_ids):
     new_data = []
     new_ids = []
 
-    startTime = datetime.today()
+    startTime = datetime.datetime.today()
 
     # Iterate backwards 1-week at a time
     while startTime > MAX_AGE:
         endTime = startTime
-        startTime = startTime - timedelta(days=7)
+        startTime = startTime - datetime.timedelta(days=7)
         query = SOURCE_URL.format(startTime=startTime, endTime=endTime,
                                   minSig=SIGNIFICANT_THRESHOLD)
 
@@ -142,7 +143,7 @@ def processData(existing_ids):
             depth = coords[2]
 
             props = feature['properties']
-            dt = datetime.utcfromtimestamp(props['time'] / 1000).strftime(
+            dt = datetime.datetime.utcfromtimestamp(props['time'] / 1000).strftime(
                 DATETIME_FORMAT)
 
             _uid = genUID(lat, lon, depth, dt)
@@ -206,7 +207,7 @@ def main():
     ### 5. Notify results
     total = num_existing + num_new - num_dropped
 
-    lastUpdateDate(DATASET_ID, MAX_AGE)
+    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
     
     logging.info('Existing rows: {},  New rows: {}, Max: {}'.format(total, num_new, MAX_ROWS))
     logging.info("SUCCESS")

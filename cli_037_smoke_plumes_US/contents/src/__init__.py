@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from collections import OrderedDict
 import cartosql
 import zipfile
+import requests
 
 # Constants
 DATA_DIR = 'data'
@@ -44,21 +45,20 @@ MAXAGE = datetime.today() - timedelta(days=365*10)
 DATASET_ID = 'c667617a-44e8-4181-b96d-f99bbe73c331'
 
 def lastUpdateDate(dataset, date):
-    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset)
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
     headers = {
     'Content-Type': 'application/json',
     'Authorization': os.getenv('apiToken')
     }
     body = {
-        "dataLastUpdated": date
+        "dataLastUpdated": date.isoformat()
     }
     try:
         r = requests.patch(url = apiUrl, json = body, headers = headers)
-        logging.info('[lastUpdated]: SUCCESS, status code'+str(r.status_code))
+        logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
         return 0
     except Exception as e:
         logging.error('[lastUpdated]: '+str(e))
-        logging.error('[lastUpdated]: status code'+str(r.status_code)) 
 
 # Generate UID
 def genUID(date, pos_in_shp):
@@ -261,6 +261,6 @@ def main():
 
     # 3. Remove old observations
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD, MAXAGE)
-    lastUpdateDate(DATASET_ID, MAXAGE)
+    lastUpdateDate(DATASET_ID, datetime.utcnow())
 
     logging.info('SUCCESS')
