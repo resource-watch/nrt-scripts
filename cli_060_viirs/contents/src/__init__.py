@@ -64,7 +64,7 @@ def main():
         logging.debug(payload)
         headers = {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer {token}'.format(token=API_KEY)
+            'Authorization': '{token}'.format(token=API_KEY)
         }
         response = requests.request(
             'PATCH',
