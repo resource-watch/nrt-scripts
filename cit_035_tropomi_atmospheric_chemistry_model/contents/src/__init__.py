@@ -44,7 +44,7 @@ def getFilename(date):
         
 def getDate(filename):
     '''get last 8 chrs of filename CHECK THIS'''
-    return os.path.splitext(os.path.basename(filename))[0][-8:]
+    return os.path.splitext(os.path.basename(filename))[0][-10:]
 
 def getNewDates(exclude_dates):
     '''Get new dates excluding existing'''
