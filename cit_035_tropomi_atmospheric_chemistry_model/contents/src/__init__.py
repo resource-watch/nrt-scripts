@@ -21,8 +21,9 @@ with this option.
 '''
 
 DATA_DIR = 'data'
+PARENT_FOLDER ='cit_035_tropomi_atmospheric_chemistry_model'
 GS_FOLDER_GEN = 'cit_035_tropomi_atmospheric_chemistry_model_{var}'
-EE_COLLECTION_GEN = 'cit_035_tropomi_atmospheric_chemistry_model_{var}'
+EE_COLLECTION_GEN = 'cit_035_tropomi_atmospheric_chemistry_model/{var}'
 CLEAR_COLLECTION_FIRST = False
 
 MAX_ASSETS = 7
@@ -107,6 +108,9 @@ def processNewData(existing_dates):
 
 def checkCreateCollection(collection):
     '''List assests in collection else create new collection'''
+    if not eeUtil.exists(PARENT_FOLDER):
+        logging.info('{} does not exist, creating'.format(PARENT_FOLDER))
+        eeUtil.createFolder(PARENT_FOLDER, public=True)
     if eeUtil.exists(collection):
         return eeUtil.ls(collection)
     else:
