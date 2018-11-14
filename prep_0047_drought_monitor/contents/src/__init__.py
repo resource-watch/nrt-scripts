@@ -57,7 +57,7 @@ def findShp(zfile):
 def getNewDates(exclude_dates):
     '''Get new dates excluding existing'''
     new_dates = []
-    date = datetime.datetime.today()
+    date = datetime.datetime.today() - datetime.timedelta(**TIMESTEP)
     while date > MAXAGE:
         date -= datetime.timedelta(**TIMESTEP)
         if date.weekday() == WEEKDAY:
