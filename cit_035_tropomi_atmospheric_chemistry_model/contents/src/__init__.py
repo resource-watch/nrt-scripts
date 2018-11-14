@@ -26,7 +26,7 @@ GS_FOLDER_GEN = 'cit_035_tropomi_atmospheric_chemistry_model_{var}'
 EE_COLLECTION_GEN = 'cit_035_tropomi_atmospheric_chemistry_model/{var}'
 CLEAR_COLLECTION_FIRST = False
 
-MAX_ASSETS = 7
+MAX_ASSETS = 14
 DATE_FORMAT_DATASET = '%Y-%m-%d'
 DATE_FORMAT = '%Y%m%d'
 TIMESTEP = {'days': 1}
