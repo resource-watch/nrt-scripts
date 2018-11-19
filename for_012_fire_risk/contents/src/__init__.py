@@ -11,7 +11,8 @@ from ftplib import FTP
 # Sources for nrt data
 SOURCE_URL = 'ftp://ftp.nccs.nasa.gov/v2.0/fwiCalcs.GEOS-5/Default/GPM.EARLY/{year}/FWI.GPM.EARLY.Daily.Default.{date}.nc'
 
-SDS_NAME = 'NETCDF:"{fname}":GPM.EARLY_FWI'
+SDS_NAMES = ['NETCDF:"{fname}":GPM.EARLY_FWI', 'NETCDF:"{fname}":GPM.EARLY_BUI', 'NETCDF:"{fname}":GPM.EARLY_DC',
+             'NETCDF:"{fname}":GPM.EARLY_DMC', 'NETCDF:"{fname}":GPM.EARLY_FFMC', 'NETCDF:"{fname}":GPM.EARLY_ISI']
 FILENAME = 'for_012_fire_risk_{date}'
 NODATA_VALUE = None
 '''
@@ -68,13 +69,19 @@ def convert(files):
     '''convert netcdfs to tifs'''
     tifs = []
     for f in files:
-        # extract subdataset by name
-        sds_path = SDS_NAME.format(fname=f)
-        tif = '{}.tif'.format(os.path.splitext(f)[0]) #naming tiffs
-        cmd = ['gdal_translate','-q', '-a_nodata', str(NODATA_VALUE), '-a_srs', 'EPSG:4326', sds_path, tif] #'-q' means quiet so you don't see it
-        logging.debug('Converting {} to {}'.format(f, tif))
-        subprocess.call(cmd)
-        tifs.append(tif)
+        band_tifs = []
+        for sds_name in SDS_NAMES:
+            # extract subdataset by name
+            sds_path = sds_name.format(fname=f)
+            band_tif = '{}_{}.tif'.format(os.path.splitext(f)[0], sds_name.split('_')[-1]) #naming tiffs
+            cmd = ['gdal_translate','-q', '-a_nodata', str(NODATA_VALUE), '-a_srs', 'EPSG:4326', sds_path, band_tif] #'-q' means quiet so you don't see it
+            logging.debug('Converting {} to {}'.format(f, band_tif))
+            subprocess.call(cmd)
+            band_tifs.append(band_tif)
+        merged_tif = '{}.tif'.format(os.path.splitext(f)[0])  # naming tiffs
+        merge_cmd = ['gdal_merge.py', '-seperate'] + band_tifs + ['-o', merged_tif]
+        subprocess.call(merge_cmd)
+        tifs.append(merged_tif)
     return tifs
 
 
@@ -95,7 +102,7 @@ def fetch(new_dates):
         f = getFilename(date)
         try:
             ftp = FTP('ftp.nccs.nasa.gov', user=username, passwd=password)
-            ftp.set_debuglevel(2)
+            ftp.set_debuglevel(0) #can change to level 1 or 2 to get more information if error in ftp process
             ftp.cwd('v2.0/fwiCalcs.GEOS-5/Default/GPM.EARLY/'+date[0:4])
             local_file = open(f, 'wb')
             ftp.retrbinary('RETR '+file_name, local_file.write)
