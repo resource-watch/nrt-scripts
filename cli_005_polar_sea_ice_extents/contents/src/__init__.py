@@ -94,6 +94,7 @@ def fetch(url, arctic_or_antarctic, datestring):
         with closing(urllib.request.urlopen(_file)) as r:
             with open(os.path.join(DATA_DIR, filename), 'wb') as f:
                 shutil.copyfileobj(r, f)
+                logging.debug('Copied: {}'.format(_file))
     except Exception as e:
         logging.warning('Could not fetch {}'.format(_file))
         logging.error(e)
