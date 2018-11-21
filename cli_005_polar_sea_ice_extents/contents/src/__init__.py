@@ -9,7 +9,6 @@ import datetime
 import logging
 import subprocess
 import eeUtil
-from ftplib import FTP
 
 LOG_LEVEL = logging.INFO
 CLEAR_COLLECTION_FIRST = False
@@ -28,15 +27,11 @@ DATA_DIR = 'data'
 GS_PREFIX = 'cli_005_polar_sea_ice_extent'
 
 # Times two because of North / South parallels
-MAX_DATES = 36
+MAX_DATES = 12
 DATE_FORMAT = '%Y%m'
 TIMESTEP = {'days': 30}
 
 # environmental variables
-'''
-with open('gcsPrivateKey.json','w') as f:
-    f.write(os.getenv('GEE_JSON'))
-'''
 GEE_SERVICE_ACCOUNT = os.environ.get("GEE_SERVICE_ACCOUNT")
 GOOGLE_APPLICATION_CREDENTIALS = os.environ.get(
     "GOOGLE_APPLICATION_CREDENTIALS")
@@ -242,6 +237,7 @@ def main():
                      antarctic_dates_orig, antarctic_dates_reproj]
     n_dates = [new_arctic_dates_orig, new_arctic_dates_reproj,
                 new_antarctic_dates_orig, new_antarctic_dates_reproj]
+
     for i in range(4):
         orig_or_reproj = 'orig' if i%2==0 else 'reproj'
         arctic_or_antarctic = 'arctic' if i < 2 else 'antarctic'
