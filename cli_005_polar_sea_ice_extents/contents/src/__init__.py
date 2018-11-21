@@ -8,7 +8,7 @@ from contextlib import closing
 import datetime
 import logging
 import subprocess
-from . import eeUtil
+import eeUtil
 
 LOG_LEVEL = logging.INFO
 CLEAR_COLLECTION_FIRST = False
@@ -27,14 +27,11 @@ DATA_DIR = 'data'
 GS_PREFIX = 'cli_005_polar_sea_ice_extent'
 
 # Times two because of North / South parallels
-MAX_DATES = 36
+MAX_DATES = 12
 DATE_FORMAT = '%Y%m'
 TIMESTEP = {'days': 30}
 
 # environmental variables
-with open('gcsPrivateKey.json','w') as f:
-    f.write(os.getenv('GCS_JSON'))
-
 GEE_SERVICE_ACCOUNT = os.environ.get("GEE_SERVICE_ACCOUNT")
 GOOGLE_APPLICATION_CREDENTIALS = os.environ.get(
     "GOOGLE_APPLICATION_CREDENTIALS")
@@ -129,7 +126,7 @@ def processNewRasterData(existing_dates, arctic_or_antarctic):
     logging.debug(target_dates)
 
     # 2. Fetch datafile
-    logging.info('Fetching files')
+    logging.info('Fetching {} files'.format(arctic_or_antarctic))
     orig_tifs = []
     reproj_tifs = []
 
@@ -149,15 +146,16 @@ def processNewRasterData(existing_dates, arctic_or_antarctic):
             logging.debug('New files: orig {}, reproj {}'.format(orig_file, reproj_file))
 
     # 3. Upload new files
-    logging.info('Uploading files')
+    logging.info('Uploading {} files'.format(arctic_or_antarctic))
 
     orig_assets = [getAssetName(tif, 'orig') for tif in orig_tifs]
     reproj_assets = [getAssetName(tif, 'reproj') for tif in reproj_tifs]
 
     dates = [getRasterDate(tif) for tif in reproj_tifs]
-
-    eeUtil.uploadAssets(orig_tifs, orig_assets, GS_PREFIX, dates, dateformat=DATE_FORMAT, public=True, timeout=3000)
-    eeUtil.uploadAssets(reproj_tifs, reproj_assets, GS_PREFIX, dates, dateformat=DATE_FORMAT, public=True, timeout=3000)
+    datestamps = [datetime.datetime.strptime(date, DATE_FORMAT)  # list comprehension/for loop
+                  for date in dates]  # returns list of datetime object
+    eeUtil.uploadAssets(orig_tifs, orig_assets, GS_PREFIX, datestamps, timeout=3000)
+    eeUtil.uploadAssets(reproj_tifs, reproj_assets, GS_PREFIX, datestamps, timeout=3000)
 
     # 4. Delete local files
     for tif in orig_tifs:
@@ -184,8 +182,7 @@ def deleteExcessAssets(dates, orig_or_reproj, arctic_or_antarctic, max_assets):
     dates.sort()
     logging.debug('ordered dates: {}'.format(dates))
     if len(dates) > max_assets:
-        for date in set(dates[:-max_assets]):
-            logging.debug('deleting asset from date: {}'.format(date))
+        for date in dates[:-max_assets]:
             eeUtil.removeAsset(getAssetName(date, orig_or_reproj, arctic_or_antarctic=arctic_or_antarctic))
 
 ###
@@ -198,8 +195,7 @@ def main():
     logging.info('STARTING')
 
     ### 1. Initialize eeUtil
-    eeUtil.init(GEE_SERVICE_ACCOUNT, GOOGLE_APPLICATION_CREDENTIALS,
-                GCS_PROJECT, GEE_STAGING_BUCKET)
+    eeUtil.initJson()
 
     ### 2. Create collection names, clear if desired
     arctic_collection_orig = EE_COLLECTION.format(arctic_or_antarctic='arctic', orig_or_reproj='orig')
