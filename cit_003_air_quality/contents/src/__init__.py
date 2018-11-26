@@ -118,7 +118,13 @@ def parseFields(obs, uid, fields):
         elif field == TIME_FIELD:
             row.append(obs['date'][TIME_FIELD])
         elif field == 'attribution':
-            row.append(str(obs['attribution']))
+            try:
+                obs['attribution']
+            except KeyError:
+                row_value='NA'
+            else:
+                row_value = str(obs['attribution'])
+            row.append(row_value)
         elif field == 'ppm':
             ppm = convert(obs['parameter'], obs['unit'], obs['value'])
             row.append(ppm)
