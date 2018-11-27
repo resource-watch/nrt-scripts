@@ -11,7 +11,6 @@ import ee
 SOURCE_URL = 'COPERNICUS/S5P/OFFL/L3_{var}'
 VARS = ['NO2', 'CO', 'AER_AI']
 BANDS = ['tropospheric_NO2_column_number_density', 'CO_column_number_density', 'absorbing_aerosol_index']
-FILENAME = 'cit_035_tropomi_atmospheric_chemistry_model_{var}_{date}'
 NODATA_VALUE = None
 '''
 GDAL: Assign a specified nodata value to output bands. Starting with GDAL 1.8.0, can be set to none to avoid setting
@@ -21,28 +20,31 @@ with this option.
 '''
 
 DATA_DIR = 'data'
-PARENT_FOLDER ='cit_035_tropomi_atmospheric_chemistry_model'
-GS_FOLDER_GEN = 'cit_035_tropomi_atmospheric_chemistry_model_{var}'
-EE_COLLECTION_GEN = 'cit_035_tropomi_atmospheric_chemistry_model/{var}'
 CLEAR_COLLECTION_FIRST = False
 
-MAX_ASSETS = 14
+DAYS_TO_AVERAGE = 7
+'''
+If DAYS_TO_AVERAGE = 1, consider using a larger number of max assets (30) to ensure that you find a day 
+with orbits that cover the entire globe. Data are not uploaded regularly, and some days have large gaps 
+in data coverage.
+
+When averaging, a near-complete global map is not required for a particular day's data to be used. However, 
+because the data are not uploaded very regularly, a value of ~20 should be used for the MAX_ASSETS to ensure 
+that you look back far enough to find the most recent data.
+'''
+MAX_ASSETS = 20
 DATE_FORMAT_DATASET = '%Y-%m-%d'
 DATE_FORMAT = '%Y%m%d'
 TIMESTEP = {'days': 1}
+
+COLLECTION = 'cit_035_tropomi_atmospheric_chemistry_model'
 
 LOG_LEVEL = logging.INFO
 
 def getAssetName(date):
     '''get asset name from datestamp'''# os.path.join('home', 'coming') = 'home/coming'
-    return os.path.join(EE_COLLECTION, FILENAME.format(var=VAR, date=date))
+    return os.path.join(EE_COLLECTION, FILENAME.format(days=DAYS_TO_AVERAGE, var=VAR, date=date))
 
-
-def getFilename(date):
-    '''get filename from datestamp CHECK FILE TYPE'''
-    return os.path.join(DATA_DIR, '{}.nc'.format(
-        FILENAME.format(var=VAR, date=date)))
-        
 def getDate(filename):
     '''get last 8 chrs of filename CHECK THIS'''
     return os.path.splitext(os.path.basename(filename))[0][-10:]
@@ -58,8 +60,15 @@ def getNewDates(exclude_dates):
             new_dates.append(datestr) #add to new dates if have not already seen
     return new_dates
 
+def getDateBounds(new_date):
+    new_date_dt = datetime.datetime.strptime(new_date, DATE_FORMAT_DATASET)
+    #add one day to the date of interest to make sure that day is included in the average
+    #google earth engine does not include the end date specified when filtering dates
+    end_date = (new_date_dt + datetime.timedelta(**TIMESTEP)).strftime(DATE_FORMAT_DATASET)
+    start_date = (new_date_dt - (DAYS_TO_AVERAGE - 1) * datetime.timedelta(**TIMESTEP)).strftime(DATE_FORMAT_DATASET)
+    return end_date, start_date
 
-def fetch(new_dates):
+def fetch_single_day(new_dates):
     # 2. Loop over the new dates, check if there is data available, and attempt to download the hdfs
     dates = []
     daily_images = []
@@ -79,6 +88,32 @@ def fetch(new_dates):
             logging.debug(e)
     return dates, daily_images
 
+def fetch_multi_day_avg(new_dates):
+    # 2. Loop over the new dates, check if there is data available, and attempt to download the hdfs
+    averages = []
+    dates = []
+    for new_date in new_dates:
+        try:
+            end_date, start_date = getDateBounds(new_date)
+            IC = ee.ImageCollection(SOURCE_URL.format(var=VAR))
+            #get band of interest
+            IC_band = IC.select([BAND])
+            # check if any data available for new date yet
+            new_date_IC = IC_band.filterDate(new_date, end_date)
+            if new_date_IC.size().getInfo() > 0:
+                dates.append(new_date)
+                #get dates to average
+                IC_dates_to_average = IC_band.filterDate(start_date, end_date)
+                average = IC_dates_to_average.mean()
+                averages.append(average)
+                logging.info('Successfully retrieved {}'.format(new_date))
+            else:
+                logging.info('No data available for {}'.format(new_date))
+        except Exception as e:
+            logging.error('Unable to retrieve data from {}'.format(new_date))
+            logging.debug(e)
+    return dates, averages
+
 def processNewData(existing_dates):
     '''fetch, process, upload, and clean new data'''
     # 1. Determine which files to fetch
@@ -86,7 +121,10 @@ def processNewData(existing_dates):
 
     # 2. Fetch new files
     logging.info('Fetching files')
-    dates, daily_images = fetch(new_dates) #get list of locations of netcdfs in docker container
+    if DAYS_TO_AVERAGE == 1:
+        dates, images = fetch_single_day(new_dates) #get list of locations of netcdfs in docker container
+    else:
+        dates, images = fetch_multi_day_avg(new_dates) #get list of locations of netcdfs in docker container
 
     if dates: #if files is an empty list do nothing, if something in it:
         # 4. Upload new files
@@ -97,7 +135,7 @@ def processNewData(existing_dates):
         scale = 500
         geometry = [[[-lon, lat], [lon, lat], [lon, -lat], [-lon, -lat], [-lon, lat]]]
         for i in range(len(dates)):
-            task = ee.batch.Export.image.toAsset(daily_images[i],
+            task = ee.batch.Export.image.toAsset(images[i],
                                                  assetId=assets[i],
                                                  region=geometry, scale=scale, maxPixels=1e13)
             task.start()
@@ -140,7 +178,16 @@ def main():
     global VAR
     global BAND
     global EE_COLLECTION
-    global GS_FOLDER
+    global PARENT_FOLDER
+    global FILENAME
+    if DAYS_TO_AVERAGE == 1:
+        PARENT_FOLDER = COLLECTION
+        EE_COLLECTION_GEN = COLLECTION + '/{var}'
+        FILENAME = 'cit_035_tropomi_atmospheric_chemistry_model_{var}_{date}'
+    else:
+        PARENT_FOLDER = COLLECTION + '_{days}day_average'.format(days=DAYS_TO_AVERAGE)
+        EE_COLLECTION_GEN = COLLECTION + '_{days}day_average/{var}'
+        FILENAME = 'cit_035_tropomi_atmospheric_chemistry_model_{days}day_average_{var}_{date}'
     '''Ingest new data into EE and delete old data'''
     logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
     # Initialize eeUtil and ee
@@ -150,8 +197,7 @@ def main():
         VAR = VARS[i]
         logging.info('STARTING {var}'.format(var=VAR))
         BAND = BANDS[i]
-        EE_COLLECTION=EE_COLLECTION_GEN.format(var=VAR)
-        GS_FOLDER=GS_FOLDER_GEN.format(var=VAR)
+        EE_COLLECTION=EE_COLLECTION_GEN.format(days=DAYS_TO_AVERAGE, var=VAR)
         # Clear collection in GEE if desired
         if CLEAR_COLLECTION_FIRST:
             if eeUtil.exists(EE_COLLECTION):
