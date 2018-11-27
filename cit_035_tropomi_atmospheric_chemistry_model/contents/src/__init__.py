@@ -43,7 +43,10 @@ LOG_LEVEL = logging.INFO
 
 def getAssetName(date):
     '''get asset name from datestamp'''# os.path.join('home', 'coming') = 'home/coming'
-    return os.path.join(EE_COLLECTION, FILENAME.format(days=DAYS_TO_AVERAGE, var=VAR, date=date))
+    if DAYS_TO_AVERAGE==1:
+        return os.path.join(EE_COLLECTION, FILENAME.format(var=VAR, date=date))
+    else:
+        return os.path.join(EE_COLLECTION, FILENAME.format(days=DAYS_TO_AVERAGE, var=VAR, date=date))
 
 def getDate(filename):
     '''get last 8 chrs of filename CHECK THIS'''
