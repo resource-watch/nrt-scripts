@@ -189,7 +189,7 @@ def main():
         FILENAME = 'cit_035_tropomi_atmospheric_chemistry_model_{var}_{date}'
     else:
         PARENT_FOLDER = COLLECTION + '_{days}day_average'.format(days=DAYS_TO_AVERAGE)
-        EE_COLLECTION_GEN = COLLECTION + '_{days}day_average/{var}'
+        EE_COLLECTION_GEN = COLLECTION + '_%sday_average/{var}' %DAYS_TO_AVERAGE
         FILENAME = 'cit_035_tropomi_atmospheric_chemistry_model_{days}day_average_{var}_{date}'
     '''Ingest new data into EE and delete old data'''
     logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
@@ -200,7 +200,7 @@ def main():
         VAR = VARS[i]
         logging.info('STARTING {var}'.format(var=VAR))
         BAND = BANDS[i]
-        EE_COLLECTION=EE_COLLECTION_GEN.format(days=DAYS_TO_AVERAGE, var=VAR)
+        EE_COLLECTION=EE_COLLECTION_GEN.format(var=VAR)
         # Clear collection in GEE if desired
         if CLEAR_COLLECTION_FIRST:
             if eeUtil.exists(EE_COLLECTION):
