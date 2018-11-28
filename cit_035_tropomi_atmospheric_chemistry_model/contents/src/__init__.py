@@ -188,9 +188,9 @@ def main():
         EE_COLLECTION_GEN = COLLECTION + '/{var}'
         FILENAME = 'cit_035_tropomi_atmospheric_chemistry_model_{var}_{date}'
     else:
-        PARENT_FOLDER = COLLECTION + '_{days}day_average'.format(days=DAYS_TO_AVERAGE)
-        EE_COLLECTION_GEN = COLLECTION + '_%sday_average/{var}' %DAYS_TO_AVERAGE
-        FILENAME = 'cit_035_tropomi_atmospheric_chemistry_model_{days}day_average_{var}_{date}'
+        PARENT_FOLDER = COLLECTION + '_{days}day_avg'.format(days=DAYS_TO_AVERAGE)
+        EE_COLLECTION_GEN = COLLECTION + '_%sday_avg/{var}' %DAYS_TO_AVERAGE
+        FILENAME = 'cit_035_tropomi_atmospheric_chemistry_model_{days}day_avg_{var}_{date}'
     '''Ingest new data into EE and delete old data'''
     logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
     # Initialize eeUtil and ee
