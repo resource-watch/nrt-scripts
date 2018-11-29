@@ -34,7 +34,7 @@ that you look back far enough to find the most recent data.
 '''
 MAX_ASSETS = 20
 DATE_FORMAT_DATASET = '%Y-%m-%d'
-DATE_FORMAT = '%Y%m%d'
+DATE_FORMAT = '%Y-%m-%d'
 TIMESTEP = {'days': 1}
 
 COLLECTION = 'cit_035_tropomi_atmospheric_chemistry_model'
