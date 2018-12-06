@@ -233,7 +233,7 @@ def main():
                 if count:
                     logging.info('Pushing {} new {} rows'.format(count, param))
                     cartosql.insertRows(CARTO_TABLES[param], CARTO_SCHEMA.keys(),
-                                        CARTO_SCHEMA.values(), rows[param])
+                                        CARTO_SCHEMA.values(), rows[param], blocksize=500)
                     new_count += count
                 new_counts[param] += count
 
