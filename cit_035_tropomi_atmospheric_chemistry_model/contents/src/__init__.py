@@ -34,7 +34,7 @@ When averaging, a near-complete global map is not required for a particular day'
 because the data are not uploaded very regularly, a value of ~20 should be used for the MAX_ASSETS to ensure 
 that you look back far enough to find the most recent data.
 '''
-MAX_ASSETS = 7
+MAX_ASSETS = 3
 DATE_FORMAT_DATASET = '%Y-%m-%d'
 DATE_FORMAT = '%Y-%m-%d'
 TIMESTEP = {'days': 1}
