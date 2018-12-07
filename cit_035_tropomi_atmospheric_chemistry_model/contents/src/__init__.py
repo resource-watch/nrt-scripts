@@ -59,10 +59,10 @@ def getNewDates(exclude_dates):
     '''Get new dates excluding existing'''
     new_dates = []
     date = datetime.date.today()
-    while date.strftime(DATE_FORMAT) not in exclude_dates: #updates every day
-        datestr = date.strftime(DATE_FORMAT_DATASET)#of NETCDF because looking for new data in old format
-        new_dates.append(datestr)  # add to new dates if have not already seen
-        date -= datetime.timedelta(**TIMESTEP) #subtraction and assignments in one step
+    while date.strftime(DATE_FORMAT) not in exclude_dates: #check back until last uploaded date
+        datestr = date.strftime(DATE_FORMAT_DATASET)
+        new_dates.append(datestr)  #add to new dates
+        date -= datetime.timedelta(**TIMESTEP)
     return new_dates
 
 def getDateBounds(new_date):
