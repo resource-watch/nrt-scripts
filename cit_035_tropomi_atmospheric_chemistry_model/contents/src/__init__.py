@@ -6,6 +6,7 @@ import datetime
 import logging
 import eeUtil
 import ee
+import time
 
 # Sources for nrt data
 SOURCE_URL = 'COPERNICUS/S5P/OFFL/L3_{var}'
@@ -23,6 +24,7 @@ DATA_DIR = 'data'
 CLEAR_COLLECTION_FIRST = False
 
 DAYS_TO_AVERAGE = 7
+RESOLUTION = 3.5 #km
 '''
 If DAYS_TO_AVERAGE = 1, consider using a larger number of max assets (30) to ensure that you find a day 
 with orbits that cover the entire globe. Data are not uploaded regularly, and some days have large gaps 
@@ -32,10 +34,11 @@ When averaging, a near-complete global map is not required for a particular day'
 because the data are not uploaded very regularly, a value of ~20 should be used for the MAX_ASSETS to ensure 
 that you look back far enough to find the most recent data.
 '''
-MAX_ASSETS = 20
+MAX_ASSETS = 7
 DATE_FORMAT_DATASET = '%Y-%m-%d'
 DATE_FORMAT = '%Y-%m-%d'
 TIMESTEP = {'days': 1}
+TIMEOUT = 5000
 
 COLLECTION = 'cit_035_tropomi_atmospheric_chemistry_model'
 
@@ -56,11 +59,10 @@ def getNewDates(exclude_dates):
     '''Get new dates excluding existing'''
     new_dates = []
     date = datetime.date.today()
-    for i in range(MAX_ASSETS): #updates every day
-        date -= datetime.timedelta(**TIMESTEP) #subtraction and assignments in one step
-        datestr = date.strftime(DATE_FORMAT_DATASET)#of NETCDF because looking for new data in old format
-        if date.strftime(DATE_FORMAT) not in exclude_dates:
-            new_dates.append(datestr) #add to new dates if have not already seen
+    while date.strftime(DATE_FORMAT) not in exclude_dates: #check back until last uploaded date
+        datestr = date.strftime(DATE_FORMAT_DATASET)
+        new_dates.append(datestr)  #add to new dates
+        date -= datetime.timedelta(**TIMESTEP)
     return new_dates
 
 def getDateBounds(new_date):
@@ -125,9 +127,9 @@ def processNewData(existing_dates):
     # 2. Fetch new files
     logging.info('Fetching files')
     if DAYS_TO_AVERAGE == 1:
-        dates, images = fetch_single_day(new_dates) #get list of locations of netcdfs in docker container
+        dates, images = fetch_single_day(new_dates)
     else:
-        dates, images = fetch_multi_day_avg(new_dates) #get list of locations of netcdfs in docker container
+        dates, images = fetch_multi_day_avg(new_dates)
 
     if dates: #if files is an empty list do nothing, if something in it:
         # 4. Upload new files
@@ -135,13 +137,30 @@ def processNewData(existing_dates):
         assets = [('users/resourcewatch_wri/' + getAssetName(date)) for date in dates]
         lon = 179.999
         lat = 89.999
-        scale = 500
+        scale = RESOLUTION*1000
         geometry = [[[-lon, lat], [lon, lat], [lon, -lat], [-lon, -lat], [-lon, lat]]]
         for i in range(len(dates)):
+            logging.info('Uploading ' + assets[i])
             task = ee.batch.Export.image.toAsset(images[i],
                                                  assetId=assets[i],
                                                  region=geometry, scale=scale, maxPixels=1e13)
             task.start()
+            state = 'RUNNING'
+            start = time.time()
+            #wait for task to complete
+            #check if task was successful
+            while state == 'RUNNING' and (time.time() - start) < TIMEOUT:
+                time.sleep(60)
+                status = task.status()['state']
+                logging.info('Current Status: ' + status +', run time (min): ' + str((time.time() - start)/60))
+                if status == 'COMPLETED':
+                    state = status
+                    logging.info(status)
+                elif status == 'FAILED':
+                    state = status
+                    logging.error(task.status()['error_message'])
+                    logging.debug(task.status())
+
         return assets
     else:
         return []
@@ -186,11 +205,11 @@ def main():
     if DAYS_TO_AVERAGE == 1:
         PARENT_FOLDER = COLLECTION
         EE_COLLECTION_GEN = COLLECTION + '/{var}'
-        FILENAME = 'cit_035_tropomi_atmospheric_chemistry_model_{var}_{date}'
+        FILENAME = COLLECTION+'_{var}_{date}'
     else:
         PARENT_FOLDER = COLLECTION + '_{days}day_avg'.format(days=DAYS_TO_AVERAGE)
         EE_COLLECTION_GEN = COLLECTION + '_%sday_avg/{var}' %DAYS_TO_AVERAGE
-        FILENAME = 'cit_035_tropomi_atmospheric_chemistry_model_{days}day_avg_{var}_{date}'
+        FILENAME = COLLECTION+'_{days}day_avg_{var}_{date}'
     '''Ingest new data into EE and delete old data'''
     logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
     # Initialize eeUtil and ee
