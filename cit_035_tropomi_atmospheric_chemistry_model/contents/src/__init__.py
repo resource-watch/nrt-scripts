@@ -7,6 +7,7 @@ import logging
 import eeUtil
 import ee
 import time
+import requests
 
 # Sources for nrt data
 SOURCE_URL = 'COPERNICUS/S5P/OFFL/L3_{var}'
@@ -44,6 +45,24 @@ COLLECTION = 'cit_035_tropomi_atmospheric_chemistry_model'
 
 LOG_LEVEL = logging.INFO
 
+DATASET_ID = '4eadb2ae-d47b-4171-988f-186c38989fdb'
+def lastUpdateDate(dataset, date):
+   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+   headers = {
+   'Content-Type': 'application/json',
+   'Authorization': os.getenv('apiToken')
+   }
+   body = {
+       "dataLastUpdated": date.isoformat()
+   }
+   try:
+       r = requests.patch(url = apiUrl, json = body, headers = headers)
+       logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+       return 0
+   except Exception as e:
+       logging.error('[lastUpdated]: '+str(e))
+
+
 def getAssetName(date):
     '''get asset name from datestamp'''# os.path.join('home', 'coming') = 'home/coming'
     if DAYS_TO_AVERAGE==1:
@@ -59,10 +78,18 @@ def getNewDates(exclude_dates):
     '''Get new dates excluding existing'''
     new_dates = []
     date = datetime.date.today()
-    while date.strftime(DATE_FORMAT) not in exclude_dates: #check back until last uploaded date
-        datestr = date.strftime(DATE_FORMAT_DATASET)
-        new_dates.append(datestr)  #add to new dates
-        date -= datetime.timedelta(**TIMESTEP)
+    # if anything is in the collection, check back until last uploaded date
+    if len(exclude_dates) > 0:
+        while (date.strftime(DATE_FORMAT) not in exclude_dates):
+            datestr = date.strftime(DATE_FORMAT_DATASET)
+            new_dates.append(datestr)  #add to new dates
+            date -= datetime.timedelta(**TIMESTEP)
+    #if the collection is empty, make list of most recent 45 days to check
+    else:
+        for i in range(45):
+            datestr = date.strftime(DATE_FORMAT_DATASET)
+            new_dates.append(datestr)  #add to new dates
+            date -= datetime.timedelta(**TIMESTEP)
     return new_dates
 
 def getDateBounds(new_date):
@@ -74,7 +101,7 @@ def getDateBounds(new_date):
     return end_date, start_date
 
 def fetch_single_day(new_dates):
-    # 2. Loop over the new dates, check if there is data available, and attempt to download the hdfs
+    # Loop over the new dates, check which dates have good global coverage, and add them to a list
     dates = []
     daily_images = []
     for date in new_dates:
@@ -87,14 +114,19 @@ def fetch_single_day(new_dates):
                 mosaicked_image = IC_1day.mosaic()
                 daily_images.append(mosaicked_image)
                 dates.append(date)
-                logging.info('Successfully retrieved {}'.format(date))# gives us "Successully retrieved file name"
+                logging.info('Successfully retrieved {}'.format(date))
+            else:
+                logging.info('Poor global coverage for {}, discarding'.format(date))
+            # stop if the list exceeds our max assets
+            if len(dates) >= MAX_ASSETS:
+                break
         except Exception as e:
             logging.error('Unable to retrieve data from {}'.format(date))
             logging.debug(e)
     return dates, daily_images
 
 def fetch_multi_day_avg(new_dates):
-    # 2. Loop over the new dates, check if there is data available, and attempt to download the hdfs
+    # Loop over the new dates, check if there is data available, add them to a list
     averages = []
     dates = []
     for new_date in new_dates:
@@ -114,6 +146,9 @@ def fetch_multi_day_avg(new_dates):
                 logging.info('Successfully retrieved {}'.format(new_date))
             else:
                 logging.info('No data available for {}'.format(new_date))
+            # stop if the list exceeds our max assets
+            if len(dates) >= MAX_ASSETS:
+                break
         except Exception as e:
             logging.error('Unable to retrieve data from {}'.format(new_date))
             logging.debug(e)
@@ -235,4 +270,9 @@ def main():
         logging.info('Existing assets: {}, new: {}, max: {}'.format(
             len(existing_dates), len(new_dates), MAX_ASSETS))
         deleteExcessAssets(existing_dates, MAX_ASSETS)
+        existing_assets = checkCreateCollection(EE_COLLECTION) #make image collection if doesn't have one
+        existing_dates = [getDate(a) for a in existing_assets]
+        existing_dates.sort()
+        most_recent_date = datetime.datetime.strptime(existing_dates[-1], DATE_FORMAT)
+        lastUpdateDate(DATASET_ID, most_recent_date)
         logging.info('SUCCESS for {var}'.format(var=VAR))
