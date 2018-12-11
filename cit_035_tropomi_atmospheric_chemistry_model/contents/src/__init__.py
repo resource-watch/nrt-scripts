@@ -45,7 +45,12 @@ COLLECTION = 'cit_035_tropomi_atmospheric_chemistry_model'
 
 LOG_LEVEL = logging.INFO
 
-DATASET_ID = '4eadb2ae-d47b-4171-988f-186c38989fdb'
+if DAYS_TO_AVERAGE == 1:
+    DATASET_ID = '4eadb2ae-d47b-4171-988f-186c38989fdb'
+elif DAYS_TO_AVERAGE == 7:
+    DATASET_ID = 'dbf86e93-03d3-47b6-b846-c5138f726dfe'
+elif DAYS_TO_AVERAGE == 30:
+    DATASET_ID = 'f324b8e5-fde0-45a6-b019-059e05ce5b25'
 def lastUpdateDate(dataset, date):
    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
    headers = {
