@@ -4,6 +4,7 @@ import os
 import requests
 import datetime
 import json
+import requests
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
@@ -46,7 +47,8 @@ def main():
         logging.debug(payload)
         headers = {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer {token}'.format(token=apiToken)
+#            'Authorization': 'Bearer {token}'.format(token=apiToken)
+            'Authorization': apiToken
         }
         response = requests.request(
             'PATCH',
