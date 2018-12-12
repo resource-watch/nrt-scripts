@@ -7,6 +7,7 @@ import logging
 import subprocess
 import eeUtil
 from ftplib import FTP
+import requests
 
 # Sources for nrt data
 SOURCE_URL = 'ftp://ftp.nccs.nasa.gov/v2.0/fwiCalcs.GEOS-5/Default/GPM.EARLY/{year}/FWI.GPM.EARLY.Daily.Default.{date}.nc'
@@ -34,6 +35,22 @@ DATE_FORMAT = '%Y%m%d'
 TIMESTEP = {'days': 1}
 
 LOG_LEVEL = logging.INFO
+DATASET_ID = 'c56ee507-9a3b-41d3-90ac-1406bee32c32'
+def lastUpdateDate(dataset, date):
+   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+   headers = {
+   'Content-Type': 'application/json',
+   'Authorization': os.getenv('apiToken')
+   }
+   body = {
+       "dataLastUpdated": date.isoformat()
+   }
+   try:
+       r = requests.patch(url = apiUrl, json = body, headers = headers)
+       logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+       return 0
+   except Exception as e:
+       logging.error('[lastUpdated]: '+str(e))
 
 def getUrl(date):
     '''get source url from datestamp'''
@@ -188,4 +205,10 @@ def main():
     logging.info('Existing assets: {}, new: {}, max: {}'.format(
         len(existing_dates), len(new_dates), MAX_ASSETS))
     deleteExcessAssets(existing_dates, MAX_ASSETS)
+    # 4. Set last update date
+    existing_assets = checkCreateCollection(EE_COLLECTION)  # make image collection if doesn't have one
+    existing_dates = [getDate(a) for a in existing_assets]
+    existing_dates.sort()
+    most_recent_date = datetime.datetime.strptime(existing_dates[-1], DATE_FORMAT)
+    lastUpdateDate(DATASET_ID, most_recent_date)
     logging.info('SUCCESS')
