@@ -9,6 +9,7 @@ import datetime
 from collections import OrderedDict
 import cartosql
 import zipfile
+import requests
 
 # Constants
 DATA_DIR = 'data'
@@ -34,6 +35,22 @@ TIME_FIELD = 'date'
 LOG_LEVEL = logging.INFO
 MAXROWS = 10000
 MAXAGE = datetime.datetime.today() - datetime.timedelta(days=365*10)
+DATASET_ID = 'ddf88c85-3e2f-41fa-8ceb-a3633ffb0bfb'
+def lastUpdateDate(dataset, date):
+   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+   headers = {
+   'Content-Type': 'application/json',
+   'Authorization': os.getenv('apiToken')
+   }
+   body = {
+       "dataLastUpdated": date.isoformat()
+   }
+   try:
+       r = requests.patch(url = apiUrl, json = body, headers = headers)
+       logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+       return 0
+   except Exception as e:
+       logging.error('[lastUpdated]: '+str(e))
 
 
 # Generate UID

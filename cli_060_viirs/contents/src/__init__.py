@@ -30,6 +30,23 @@ LAYER_CONFIGS = [
 ]
 apiToken = os.getenv('apiToken') or os.environ.get('rw_api_token') or os.environ.get('RW_API_KEY')
 
+DATASET_ID = 'bd9f603e-a559-4cc1-84f4-de0ddc7c341f'
+def lastUpdateDate(dataset, date):
+   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+   headers = {
+   'Content-Type': 'application/json',
+   'Authorization': os.getenv('apiToken')
+   }
+   body = {
+       "dataLastUpdated": date.isoformat()
+   }
+   try:
+       r = requests.patch(url = apiUrl, json = body, headers = headers)
+       logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+       return 0
+   except Exception as e:
+       logging.error('[lastUpdated]: '+str(e))
+
 
 def main():
     logging.info('BEGIN')

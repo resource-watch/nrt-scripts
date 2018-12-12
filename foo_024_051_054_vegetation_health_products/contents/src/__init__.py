@@ -15,6 +15,7 @@ import rasterio as rio
 from rasterio.crs import CRS
 import numpy as np
 from collections import defaultdict
+import requests
 
 LOG_LEVEL = logging.INFO
 CLEAR_COLLECTION_FIRST = False
@@ -56,6 +57,22 @@ EXTENT = '-180 -55.152 180 75.024002'
 DTYPE = rio.float32
 NODATA = -999
 SCALE_FACTOR = .01
+DATASET_ID = '4828c405-06a2-4460-a78c-90969bce582b'
+def lastUpdateDate(dataset, date):
+   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+   headers = {
+   'Content-Type': 'application/json',
+   'Authorization': os.getenv('apiToken')
+   }
+   body = {
+       "dataLastUpdated": date.isoformat()
+   }
+   try:
+       r = requests.patch(url = apiUrl, json = body, headers = headers)
+       logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+       return 0
+   except Exception as e:
+       logging.error('[lastUpdated]: '+str(e))
 
 # https://gist.github.com/tomkralidis/baabcad8c108e91ee7ab
 #os.environ['GDAL_NETCDF_BOTTOMUP']='NO'

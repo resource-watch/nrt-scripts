@@ -5,6 +5,7 @@ import requests as req
 from datetime import datetime
 import pandas as pd
 import cartoframes
+import requests
 
 
 ### Constants
@@ -15,6 +16,22 @@ LOG_LEVEL = logging.INFO
 
 ### Table name and structure
 CARTO_TABLE = 'dis_009_tsunamis'
+DATASET_ID = '2fb159b3-e613-40ec-974c-21b22c930ce4'
+def lastUpdateDate(dataset, date):
+   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+   headers = {
+   'Content-Type': 'application/json',
+   'Authorization': os.getenv('apiToken')
+   }
+   body = {
+       "dataLastUpdated": date.isoformat()
+   }
+   try:
+       r = requests.patch(url = apiUrl, json = body, headers = headers)
+       logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+       return 0
+   except Exception as e:
+       logging.error('[lastUpdated]: '+str(e))
 
 ###
 ## Accessing remote data

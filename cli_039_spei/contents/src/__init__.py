@@ -14,6 +14,7 @@ from netCDF4 import Dataset
 import rasterio as rio
 import eeUtil
 import numpy as np
+import requests
 
 LOG_LEVEL = logging.INFO
 CLEAR_COLLECTION_FIRST = False
@@ -41,6 +42,22 @@ EE_COLLECTION = 'cli_039_spei'
 MAX_ASSETS = 36
 DATE_FORMAT = '%Y%m15'
 TIMESTEP = {'days': 30}
+DATASET_ID = '4f7888d6-d661-4b2c-a60e-cf1eebd0656a'
+def lastUpdateDate(dataset, date):
+   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+   headers = {
+   'Content-Type': 'application/json',
+   'Authorization': os.getenv('apiToken')
+   }
+   body = {
+       "dataLastUpdated": date.isoformat()
+   }
+   try:
+       r = requests.patch(url = apiUrl, json = body, headers = headers)
+       logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+       return 0
+   except Exception as e:
+       logging.error('[lastUpdated]: '+str(e))
 
 def getAssetName(date, lag):
     '''get asset name from datestamp'''

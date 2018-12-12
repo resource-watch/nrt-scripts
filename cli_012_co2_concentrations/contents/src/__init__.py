@@ -15,6 +15,7 @@ import rasterio as rio
 from affine import Affine
 import numpy as np
 from rasterio.crs import CRS
+import requests
 
 LOG_LEVEL = logging.INFO
 CLEAR_COLLECTION_FIRST = False
@@ -54,6 +55,22 @@ GCS_PROJECT = os.environ.get("CLOUDSDK_CORE_PROJECT")
 
 NASA_USER = os.environ.get("NASA_USER")
 NASA_PASS = os.environ.get("NASA_PASS")
+DATASET_ID = '68455cb5-bfe3-4528-83a2-00fab1c52fb9'
+def lastUpdateDate(dataset, date):
+   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+   headers = {
+   'Content-Type': 'application/json',
+   'Authorization': os.getenv('apiToken')
+   }
+   body = {
+       "dataLastUpdated": date.isoformat()
+   }
+   try:
+       r = requests.patch(url = apiUrl, json = body, headers = headers)
+       logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+       return 0
+   except Exception as e:
+       logging.error('[lastUpdated]: '+str(e))
 
 def getAssetName(tif):
     '''get asset name from tif name, extract datetime and location'''

@@ -5,6 +5,7 @@ import requests
 from collections import OrderedDict
 from datetime import datetime, timedelta
 import cartosql
+import requests
 
 ### Constants
 SOURCE_URL = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime={startTime}&endtime={endTime}&minsig={minSig}"
@@ -45,6 +46,23 @@ TIME_FIELD = 'datetime'
 # Table limits
 MAX_ROWS = 500000
 MAX_AGE = datetime.today() - timedelta(days=365*2)
+
+DATASET_ID = '1d7085f7-11c7-4eaf-a29a-5a4de57d010e'
+def lastUpdateDate(dataset, date):
+   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+   headers = {
+   'Content-Type': 'application/json',
+   'Authorization': os.getenv('apiToken')
+   }
+   body = {
+       "dataLastUpdated": date.isoformat()
+   }
+   try:
+       r = requests.patch(url = apiUrl, json = body, headers = headers)
+       logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+       return 0
+   except Exception as e:
+       logging.error('[lastUpdated]: '+str(e))
 
 ###
 ## Carto code

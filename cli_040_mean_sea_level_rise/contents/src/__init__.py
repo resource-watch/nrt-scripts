@@ -6,6 +6,7 @@ import urllib.request
 from collections import OrderedDict
 from datetime import datetime, timedelta
 import cartosql
+import requests
 
 ### Constants
 SOURCE_URL = "ftp://podaac.jpl.nasa.gov/allData/merged_alt/L2/TP_J1_OSTM/global_mean_sea_level/"
@@ -41,6 +42,22 @@ CARTO_KEY = os.environ.get('CARTO_KEY')
 # Table limits
 MAX_ROWS = 1000000
 MAX_AGE = datetime.today() - timedelta(days=365*150)
+DATASET_ID = 'f655d9b2-ea32-4753-9556-182fc6d3156b'
+def lastUpdateDate(dataset, date):
+   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+   headers = {
+   'Content-Type': 'application/json',
+   'Authorization': os.getenv('apiToken')
+   }
+   body = {
+       "dataLastUpdated": date.isoformat()
+   }
+   try:
+       r = requests.patch(url = apiUrl, json = body, headers = headers)
+       logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+       return 0
+   except Exception as e:
+       logging.error('[lastUpdated]: '+str(e))
 
 ###
 ## Carto code
