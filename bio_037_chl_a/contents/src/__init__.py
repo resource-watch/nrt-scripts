@@ -14,6 +14,7 @@ import os
 from http.cookiejar import CookieJar
 import calendar
 import numpy as np
+import requests
 
 #The file naming convention that MODIS-Aqua uses is as follows:
 #A{start year}{julian day of the first of the month}{end year}{julian day of the end of the month}.L3m_MO_CHL_chlor_a_9km
@@ -43,6 +44,23 @@ DELETE_LOCAL = True
 MAX_ASSETS = 8
 DATE_FORMAT = '%Y%m%d'
 LOG_LEVEL = logging.INFO
+DATASET_ID = 'd4e91298-b994-4e2c-947c-4f6486a66f30'
+
+def lastUpdateDate(dataset, date):
+   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+   headers = {
+   'Content-Type': 'application/json',
+   'Authorization': os.getenv('apiToken')
+   }
+   body = {
+       "dataLastUpdated": date.isoformat()
+   }
+   try:
+       r = requests.patch(url = apiUrl, json = body, headers = headers)
+       logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+       return 0
+   except Exception as e:
+       logging.error('[lastUpdated]: '+str(e))
 
 def getUrl(date):
     '''get source url from datestamp'''
@@ -232,5 +250,12 @@ def main():
     logging.info('Existing assets: {}, new: {}, max: {}'.format(
         len(existing_dates), len(new_dates), MAX_ASSETS))
     deleteExcessAssets(existing_dates, MAX_ASSETS)
+
+    # 4. Check most recent asset and report it as the most recent update on Resource Watch
+    existing_assets = checkCreateCollection(EE_COLLECTION)  # make image collection if doesn't have one
+    existing_dates = [getDate(a) for a in existing_assets]
+    existing_dates.sort()
+    most_recent_date = datetime.datetime.strptime(existing_dates[-1], DATE_FORMAT)
+    lastUpdateDate(DATASET_ID, most_recent_date)
 
     logging.info('SUCCESS')
