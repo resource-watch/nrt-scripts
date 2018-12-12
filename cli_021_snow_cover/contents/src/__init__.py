@@ -11,6 +11,7 @@ import urllib.request
 from bs4 import BeautifulSoup
 import os
 from http.cookiejar import CookieJar
+import requests
 
 # constants for bleaching alerts
 #Old values for 8 day dataset
@@ -36,6 +37,22 @@ DATE_FORMAT = '%Y%m%d'
 TIMESTEP = {'days': 1} #check everyday so don't start on day without and miss
 
 LOG_LEVEL = logging.INFO
+DATASET_ID = '23f29e9a-ca07-4c08-a018-28a25af14b49'
+def lastUpdateDate(dataset, date):
+   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+   headers = {
+   'Content-Type': 'application/json',
+   'Authorization': os.getenv('apiToken')
+   }
+   body = {
+       "dataLastUpdated": date.isoformat()
+   }
+   try:
+       r = requests.patch(url = apiUrl, json = body, headers = headers)
+       logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+       return 0
+   except Exception as e:
+       logging.error('[lastUpdated]: '+str(e))
 
 def getUrl(date):
     '''get source url from datestamp'''

@@ -7,6 +7,7 @@ import datetime
 import logging
 import subprocess
 import eeUtil
+import requests
 
 # constants for bleaching alerts
 SOURCE_URL = 'ftp://ftp.star.nesdis.noaa.gov/pub/sod/mecb/crw/data/5km/v3/nc/v1/composite/daily/7day/baa-max/{year}/b5km_baa-max-7d_{date}.nc'
@@ -22,6 +23,22 @@ MAX_ASSETS = 61
 DATE_FORMAT = '%Y%m%d'
 TIMESTEP = {'days': 1}
 
+DATASET_ID = 'e2a2d074-8428-410e-920c-325bbe363a2e'
+def lastUpdateDate(dataset, date):
+   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+   headers = {
+   'Content-Type': 'application/json',
+   'Authorization': os.getenv('apiToken')
+   }
+   body = {
+       "dataLastUpdated": date.isoformat()
+   }
+   try:
+       r = requests.patch(url = apiUrl, json = body, headers = headers)
+       logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+       return 0
+   except Exception as e:
+       logging.error('[lastUpdated]: '+str(e))
 
 def getUrl(date):
     '''get source url from datestamp'''

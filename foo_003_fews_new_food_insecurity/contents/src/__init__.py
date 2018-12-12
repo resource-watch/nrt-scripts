@@ -10,6 +10,7 @@ import fiona
 from collections import OrderedDict
 from shapely import geometry
 import cartosql
+import requests
 
 # Constants
 DATA_DIR = './data'
@@ -43,6 +44,22 @@ LOG_LEVEL = logging.INFO
 MAXROWS = 10000
 MINDATES = 6
 MAXAGE = datetime.today() - timedelta(days=365*3)
+DATASET_ID = '8ee88f34-db15-4711-a76d-bf82dbfcffed'
+def lastUpdateDate(dataset, date):
+   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+   headers = {
+   'Content-Type': 'application/json',
+   'Authorization': os.getenv('apiToken')
+   }
+   body = {
+       "dataLastUpdated": date.isoformat()
+   }
+   try:
+       r = requests.patch(url = apiUrl, json = body, headers = headers)
+       logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+       return 0
+   except Exception as e:
+       logging.error('[lastUpdated]: '+str(e))
 
 # Generate UID
 def genUID(date, region, ifc_type, pos_in_shp):
