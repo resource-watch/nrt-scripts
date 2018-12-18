@@ -7,6 +7,7 @@ import datetime
 import logging
 import subprocess
 import eeUtil
+import json
 import requests
 
 # constants for bleaching alerts
@@ -178,5 +179,8 @@ def main():
     logging.info('Existing assets: {}, new: {}, max: {}'.format(
         len(existing_dates), len(new_dates), MAX_ASSETS))
     deleteExcessAssets(existing_dates, MAX_ASSETS)
+
+    # 4. After asset update lets reflect it on the dataset
+    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
 
     logging.info('SUCCESS')
