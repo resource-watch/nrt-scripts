@@ -24,7 +24,7 @@ with this option.
 DATA_DIR = 'data'
 CLEAR_COLLECTION_FIRST = False
 
-DAYS_TO_AVERAGE = 1
+DAYS_TO_AVERAGE = 7
 RESOLUTION = 3.5 #km
 '''
 If DAYS_TO_AVERAGE = 1, consider using a larger number of max assets (30) to ensure that you find a day 
@@ -117,6 +117,11 @@ def fetch_single_day(new_dates):
             IC_1day = IC.filterDate(date, end_date_str).select([BAND])
             if IC_1day.size().getInfo() > 10:
                 mosaicked_image = IC_1day.mosaic()
+                #copy most recent system start time from that day's images
+                sorted = IC_1day.sort(prop='system:time_start', opt_ascending=False);
+                most_recent_image = ee.Image(sorted.first())
+                mosaicked_image = mosaicked_image.copyProperties(most_recent_image, ['system:time_start'])
+                #add mosaicked image to list for upload
                 daily_images.append(mosaicked_image)
                 dates.append(date)
                 logging.info('Successfully retrieved {}'.format(date))
@@ -147,6 +152,10 @@ def fetch_multi_day_avg(new_dates):
                 #get dates to average
                 IC_dates_to_average = IC_band.filterDate(start_date, end_date)
                 average = IC_dates_to_average.mean()
+                #copy most recent system start time from time period images
+                sorted = IC_dates_to_average.sort(prop='system:time_start', opt_ascending=False);
+                most_recent_image = ee.Image(sorted.first())
+                average = average.copyProperties(most_recent_image, ['system:time_start'])
                 averages.append(average)
                 logging.info('Successfully retrieved {}'.format(new_date))
             else:
