@@ -7,10 +7,9 @@ import datetime
 import logging
 import subprocess
 import eeUtil
-<<<<<<< HEAD
-=======
+
 import json
->>>>>>> feature/update-dates
+
 import requests
 
 # constants for bleaching alerts
