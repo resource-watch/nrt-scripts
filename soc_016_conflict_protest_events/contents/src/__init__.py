@@ -5,6 +5,7 @@ import requests
 from collections import OrderedDict
 import datetime
 import cartosql
+import requests
 
 
 # Constants
@@ -201,4 +202,5 @@ def main():
     # 3. Remove old observations
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD) # MAXAGE)
 
+    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
     logging.info('SUCCESS')
