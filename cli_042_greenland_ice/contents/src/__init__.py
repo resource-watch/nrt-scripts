@@ -7,7 +7,8 @@ from collections import OrderedDict
 from dateutil import parser
 import cartosql
 import requests
-from datetime import datetime
+import datetime
+
 
 ### Constants
 SOURCE_URL = 'ftp://podaac-ftp.jpl.nasa.gov/allData/tellus/L3/mascon/RL05/JPL/CRI/mass_variability_time_series/'
@@ -33,7 +34,7 @@ CARTO_KEY = os.environ.get('CARTO_KEY')
 
 # Table limits
 MAX_ROWS = 1000000
-MAX_AGE = datetime.today() - timedelta(days=365*150)
+MAX_AGE = datetime.datetime.today() - datetime.timedelta(days=365*150)
 DATASET_ID = '095eee4a-ff4e-4c58-9110-85a9e42ed6f5'
 def lastUpdateDate(dataset, date):
    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
