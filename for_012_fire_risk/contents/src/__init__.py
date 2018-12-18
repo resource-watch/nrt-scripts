@@ -10,10 +10,10 @@ from ftplib import FTP
 import requests
 
 # Sources for nrt data
-SOURCE_URL = 'ftp://ftp.nccs.nasa.gov/v2.0/fwiCalcs.GEOS-5/Default/GPM.EARLY/{year}/FWI.GPM.EARLY.Daily.Default.{date}.nc'
+SOURCE_URL = 'ftp://ftp.nccs.nasa.gov/v2.0/fwiCalcs.GEOS-5/Default/GPM.LATE.v5/{year}/FWI.GPM.LATE.v5.Daily.Default.{date}.nc'
 
-SDS_NAMES = ['NETCDF:"{fname}":GPM.EARLY_FWI', 'NETCDF:"{fname}":GPM.EARLY_BUI', 'NETCDF:"{fname}":GPM.EARLY_DC',
-             'NETCDF:"{fname}":GPM.EARLY_DMC', 'NETCDF:"{fname}":GPM.EARLY_FFMC', 'NETCDF:"{fname}":GPM.EARLY_ISI']
+SDS_NAMES = ['NETCDF:"{fname}":GPM.LATE.v5_FWI', 'NETCDF:"{fname}":GPM.LATE.v5_BUI', 'NETCDF:"{fname}":GPM.LATE.v _DC',
+             'NETCDF:"{fname}":GPM.LATE.v5_DMC', 'NETCDF:"{fname}":GPM.LATE.v5_FFMC', 'NETCDF:"{fname}":GPM.LATE.v5_ISI']
 FILENAME = 'for_012_fire_risk_{date}'
 NODATA_VALUE = None
 '''
@@ -74,13 +74,19 @@ def getNewDates(exclude_dates):
     '''Get new dates excluding existing'''
     new_dates = []
     date = datetime.date.today()
-    for i in range(MAX_ASSETS): #updates every day
-        date -= datetime.timedelta(**TIMESTEP)  #subtraction and assignments in one step
-        datestr = date.strftime(DATE_FORMAT_NETCDF)#of NETCDF because looking for new data in old format
-        if date.strftime(DATE_FORMAT) not in exclude_dates:
-            new_dates.append(datestr) #add to new dates if have not already seen
+    # if anything is in the collection, check back until last uploaded date
+    if len(exclude_dates) > 0:
+        while (date.strftime(DATE_FORMAT) not in exclude_dates):
+            datestr = date.strftime(DATE_FORMAT_NETCDF)
+            new_dates.append(datestr)  #add to new dates
+            date -= datetime.timedelta(**TIMESTEP)
+    #if the collection is empty, make list of most recent 45 days to check
+    else:
+        for i in range(45):
+            datestr = date.strftime(DATE_FORMAT_NETCDF)
+            new_dates.append(datestr)  #add to new dates
+            date -= datetime.timedelta(**TIMESTEP)
     return new_dates
-	
 
 def convert(files):
     '''convert netcdfs to tifs'''
@@ -115,12 +121,12 @@ def fetch(new_dates):
     for date in new_dates:
         # Setup the url of the folder to look for data, and the filename to which we will download, if available
         url = getUrl(date)
-        file_name = url[-39:]
+        file_name = url[-41:]
         f = getFilename(date)
         try:
             ftp = FTP('ftp.nccs.nasa.gov', user=username, passwd=password)
             ftp.set_debuglevel(0) #can change to level 1 or 2 to get more information if error in ftp process
-            ftp.cwd('v2.0/fwiCalcs.GEOS-5/Default/GPM.EARLY/'+date[0:4])
+            ftp.cwd('v2.0/fwiCalcs.GEOS-5/Default/GPM.LATE.v5/'+date[0:4])
             local_file = open(f, 'wb')
             ftp.retrbinary('RETR '+file_name, local_file.write)
             local_file.close()
