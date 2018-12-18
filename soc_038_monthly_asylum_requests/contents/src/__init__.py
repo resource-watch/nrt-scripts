@@ -3,8 +3,10 @@ import logging
 import sys
 import requests
 from collections import OrderedDict, defaultdict
-from datetime import datetime
+import datetime
 import cartosql
+import json
+import requests
 
 # Constants
 LATEST_URL = 'http://popdata.unhcr.org/api/stats/asylum_seekers_monthly.json?year={year}'
@@ -204,4 +206,5 @@ def main():
     # 3. Remove old observations
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD, datetime(year=MAXAGE, month=1, day=1))
 
+    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
     logging.info('SUCCESS')

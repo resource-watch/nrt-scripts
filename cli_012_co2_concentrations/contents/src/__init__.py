@@ -72,6 +72,24 @@ def lastUpdateDate(dataset, date):
    except Exception as e:
        logging.error('[lastUpdated]: '+str(e))
 
+DATASET_ID = '68455cb5-bfe3-4528-83a2-00fab1c52fb9'
+
+def lastUpdateDate(dataset, date):
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    body = {
+        "dataLastUpdated": date.isoformat()
+    }
+    try:
+        r = requests.patch(url = apiUrl, json = body, headers = headers)
+        logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+        return 0
+    except Exception as e:
+        logging.error('[lastUpdated]: '+str(e))
+
 def getAssetName(tif):
     '''get asset name from tif name, extract datetime and location'''
     date = getDate(tif)
@@ -240,5 +258,6 @@ def main():
     deleteExcessAssets(existing_ids+new_assets,MAX_DATES)
 
     ###
+    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
 
     logging.info('SUCCESS')

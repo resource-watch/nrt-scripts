@@ -9,6 +9,7 @@ import cartosql
 import requests
 import datetime
 
+
 ### Constants
 SOURCE_URL = 'ftp://podaac-ftp.jpl.nasa.gov/allData/tellus/L3/mascon/RL05/JPL/CRI/mass_variability_time_series/'
 DATE_INDEX = 0

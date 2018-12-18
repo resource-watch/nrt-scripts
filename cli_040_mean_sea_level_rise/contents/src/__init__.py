@@ -4,9 +4,9 @@ import os
 import time
 import urllib.request
 from collections import OrderedDict
-from datetime import datetime, timedelta
 import cartosql
 import requests
+from datetime import datetime
 
 ### Constants
 SOURCE_URL = "ftp://podaac.jpl.nasa.gov/allData/merged_alt/L2/TP_J1_OSTM/global_mean_sea_level/"
@@ -85,7 +85,7 @@ def cleanOldRows(table, time_field, max_age, date_format='%Y-%m-%d %H:%M:%S'):
     '''
     num_expired = 0
     if cartosql.tableExists(table):
-        if isinstance(max_age, datetime):
+        if isinstance(max_age, datetime.datetime):
             max_age = max_age.strftime(date_format)
         elif isinstance(max_age, str):
             logging.error('Max age must be expressed as a datetime.datetime object')
@@ -173,8 +173,8 @@ def decimalToDatetime(dec, date_pattern="%Y-%m-%d %H:%M:%S"):
     """
     year = int(dec)
     rem = dec - year
-    base = datetime(year, 1, 1)
-    dt = base + timedelta(seconds=(base.replace(year=base.year + 1) - base).total_seconds() * rem)
+    base = datetime.datetime(year, 1, 1)
+    dt = base + datetime.timedelta(seconds=(base.replace(year=base.year + 1) - base).total_seconds() * rem)
     result = dt.strftime(date_pattern)
     return(result)
 
@@ -250,6 +250,7 @@ def main():
     ### 5. Delete data to get back to MAX_ROWS
     num_deleted = deleteExcessRows(CARTO_TABLE, MAX_ROWS, TIME_FIELD)
 
+    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
     ### 6. Notify results
     logging.info('Expired rows: {}, Previous rows: {},  New rows: {}, Dropped rows: {}, Max: {}'.format(num_expired, num_existing, num_new, num_deleted, MAX_ROWS))
     logging.info("SUCCESS")
