@@ -5,6 +5,7 @@ import requests
 from collections import OrderedDict
 import datetime
 import cartosql
+import requests
 
 LOG_LEVEL = logging.INFO
 
@@ -34,6 +35,7 @@ CARTO_SCHEMA = OrderedDict([
 UID_FIELD = '_UID'
 TIME_FIELD = 'datetime'
 
+
 # Limit 100k rows, drop older than 1 yr
 MAX_ROWS = 100000
 MAX_AGE = datetime.datetime.utcnow() - datetime.timedelta(days=365)
@@ -53,6 +55,25 @@ def lastUpdateDate(dataset, date):
        return 0
    except Exception as e:
        logging.error('[lastUpdated]: '+str(e))
+
+
+DATASET_ID =  '444138cd-8ef4-48b3-b197-73e324175ad0'
+
+def lastUpdateDate(dataset, date):
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    body = {
+        "dataLastUpdated": date.isoformat()
+    }
+    try:
+        r = requests.patch(url = apiUrl, json = body, headers = headers)
+        logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+        return 0
+    except Exception as e:
+        logging.error('[lastUpdated]: '+str(e))
 
 def genUID(datetime, position_in_geojson):
     '''Generate unique id'''
@@ -173,5 +194,5 @@ def main():
 
         # 3. Remove old observations
         deleteExcessRows(table, MAX_ROWS, TIME_FIELD, MAX_AGE)
-
+    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
     logging.info('SUCCESS')

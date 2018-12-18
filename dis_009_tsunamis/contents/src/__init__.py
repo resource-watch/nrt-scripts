@@ -2,7 +2,7 @@ import logging
 import sys
 import os
 import requests as req
-from datetime import datetime
+import datetime
 import pandas as pd
 import cartoframes
 import requests
@@ -32,6 +32,24 @@ def lastUpdateDate(dataset, date):
        return 0
    except Exception as e:
        logging.error('[lastUpdated]: '+str(e))
+
+DATASET_ID =  '2fb159b3-e613-40ec-974c-21b22c930ce4'
+
+def lastUpdateDate(dataset, date):
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    body = {
+        "dataLastUpdated": date.isoformat()
+    }
+    try:
+        r = requests.patch(url = apiUrl, json = body, headers = headers)
+        logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+        return 0
+    except Exception as e:
+        logging.error('[lastUpdated]: '+str(e))
 
 ###
 ## Accessing remote data
@@ -84,15 +102,19 @@ def main():
     CARTO_USER = os.environ.get('CARTO_USER')
     CARTO_KEY = os.environ.get('CARTO_KEY')
 
+
     cc = cartoframes.CartoContext(base_url='https://{}.carto.com/'.format(CARTO_USER),
                                   api_key=CARTO_KEY)
 
     ### 2. Fetch data from FTP, dedupe, process
     df = processData()
+
     num_rows = df.shape[0]
 
     cc.write(df, CARTO_TABLE, overwrite=True, privacy='public')
 
+    lastDate = df.sort_values(by=['datetime'], ascending=False)['datetime'][0]
+    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
     ### 3. Notify results
     logging.info('Existing rows: {}'.format(num_rows))
     logging.info("SUCCESS")

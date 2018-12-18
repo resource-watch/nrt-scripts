@@ -5,6 +5,7 @@ import csv
 from collections import OrderedDict
 import datetime
 import cartosql
+import requests
 
 ### Constants
 SOURCE_URL = "https://missingmigrants.iom.int/global-figures/{year}/csv"
@@ -185,4 +186,5 @@ def main():
     # 3. Remove old observations
     deleteExcessRows(CARTO_TABLE, MAX_ROWS, TIME_FIELD, MAX_AGE)
 
+    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
     logging.info('SUCCESS')

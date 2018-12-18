@@ -24,7 +24,7 @@ with this option.
 DATA_DIR = 'data'
 CLEAR_COLLECTION_FIRST = False
 
-DAYS_TO_AVERAGE = 7
+DAYS_TO_AVERAGE = 1
 RESOLUTION = 3.5 #km
 '''
 If DAYS_TO_AVERAGE = 1, consider using a larger number of max assets (30) to ensure that you find a day 

@@ -5,6 +5,8 @@ import requests
 from collections import OrderedDict
 from datetime import datetime, timedelta
 import cartosql
+import json
+import requests
 
 # Constants
 HISTORY_URL = 'http://ucdpapi.pcr.uu.se/api/gedevents/17.2?pagesize=1000&page={page}'
@@ -227,5 +229,5 @@ def main():
 
     # 3. Remove old observations
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD)
-
+    lastUpdateDate(DATASET_ID, datetime.utcnow())
     logging.info('SUCCESS')

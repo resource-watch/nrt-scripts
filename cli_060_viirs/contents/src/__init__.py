@@ -8,8 +8,10 @@ import requests
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
+DATASET_ID = 'bd9f603e-a559-4cc1-84f4-de0ddc7c341f'
+
 ### Constants
-RW_API = 'https://api.resourcewatch.org/v1/dataset/bd9f603e-a559-4cc1-84f4-de0ddc7c341f/layer/'
+RW_API = 'https://api.resourcewatch.org/v1/dataset/{dataset}/layer/'.format(dataset = DATASET_ID)
 LAYER_CONFIGS = [
     {
         "type": "tileLayer",
@@ -30,12 +32,11 @@ LAYER_CONFIGS = [
 ]
 apiToken = os.getenv('apiToken') or os.environ.get('rw_api_token') or os.environ.get('RW_API_KEY')
 
-DATASET_ID = 'bd9f603e-a559-4cc1-84f4-de0ddc7c341f'
 def lastUpdateDate(dataset, date):
    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
    headers = {
    'Content-Type': 'application/json',
-   'Authorization': os.getenv('apiToken')
+   'Authorization': apiToken
    }
    body = {
        "dataLastUpdated": date.isoformat()
@@ -64,7 +65,6 @@ def main():
         logging.debug(payload)
         headers = {
             'Content-Type': 'application/json',
-#            'Authorization': 'Bearer {token}'.format(token=apiToken)
             'Authorization': apiToken
         }
         response = requests.request(
@@ -77,4 +77,5 @@ def main():
             logging.error("ERROR: failed to update layer")
             logging.error(response.text)
 
+    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
     logging.info('SUCCESS')

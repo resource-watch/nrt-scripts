@@ -277,4 +277,7 @@ def main():
             len(existing_ids[param]), new_counts[param], MAXROWS))
         deleteExcessRows(CARTO_TABLES[param], MAXROWS, TIME_FIELD, MAXAGE)
 
+    for dataset in DATASET_ID:
+        lastUpdateDate(dataset, datetime.datetime.utcnow())
+
     logging.info('SUCCESS')

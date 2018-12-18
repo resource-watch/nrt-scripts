@@ -271,5 +271,7 @@ def main():
         deleteExcessAssets(total,orig_or_reproj,arctic_or_antarctic,MAX_DATES)
 
     ###
+    for dataset in DATASET_ID:
+        lastUpdateDate(dataset, datetime.datetime.utcnow())
 
     logging.info('SUCCESS')

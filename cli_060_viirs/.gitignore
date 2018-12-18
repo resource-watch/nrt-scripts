@@ -1,4 +1,4 @@
-.env
+*.env
 *.py[c|o]
 .DS_Store
 
