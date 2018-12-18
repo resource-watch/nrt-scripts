@@ -6,6 +6,7 @@ from collections import OrderedDict
 import datetime
 import cartosql
 import requests
+import os
 
 ### Constants
 SOURCE_URL = "https://missingmigrants.iom.int/global-figures/{year}/csv"
@@ -20,7 +21,7 @@ CARTO_SCHEMA = OrderedDict([
     ('the_geom', 'geometry'),
     ('uid', 'text'),
     ('Reported_Date', 'timestamp'),
-    ('Region_of_Incident', 'text'),
+    ('Region', 'text'),
     ('Number_Dead', 'numeric'),
     ('Minimum_Estimated_Number_of_Missing', 'numeric'),
     ('Total_Dead_and_Missing', 'numeric'),
