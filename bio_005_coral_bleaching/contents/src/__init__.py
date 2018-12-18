@@ -7,7 +7,9 @@ import datetime
 import logging
 import subprocess
 import eeUtil
+
 import json
+
 import requests
 
 # constants for bleaching alerts

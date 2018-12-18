@@ -61,6 +61,25 @@ def lastUpdateDate(dataset, date):
    except Exception as e:
        logging.error('[lastUpdated]: '+str(e))
 
+DATASET_ID = '8ee88f34-db15-4711-a76d-bf82dbfcffed'
+
+
+def lastUpdateDate(dataset, date):
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    body = {
+        "dataLastUpdated": date.isoformat()
+    }
+    try:
+        r = requests.patch(url = apiUrl, json = body, headers = headers)
+        logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+        return 0
+    except Exception as e:
+        logging.error('[lastUpdated]: '+str(e))
+
 # Generate UID
 def genUID(date, region, ifc_type, pos_in_shp):
     '''ifc_type can be:
@@ -245,5 +264,6 @@ def main():
     # 3. Remove old observations
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD, MAXAGE)
 
+    lastUpdateDate(DATASET_ID, datetime.utcnow())
     ###
     logging.info('SUCCESS')

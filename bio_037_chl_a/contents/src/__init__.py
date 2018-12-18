@@ -62,10 +62,29 @@ def lastUpdateDate(dataset, date):
    except Exception as e:
        logging.error('[lastUpdated]: '+str(e))
 
+DATASET_ID =  'd4e91298-b994-4e2c-947c-4f6486a66f30'
+
+
+def lastUpdateDate(dataset, date):
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    body = {
+        "dataLastUpdated": date.isoformat()
+    }
+    try:
+        r = requests.patch(url = apiUrl, json = body, headers = headers)
+        logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+        return 0
+    except Exception as e:
+        logging.error('[lastUpdated]: '+str(e))
+
+
 def getUrl(date):
     '''get source url from datestamp'''
     return SOURCE_URL.format(date=date)
-
 
 def getAssetName(date):
     '''get asset name from datestamp'''# os.path.join('home', 'coming') = 'home/coming'
@@ -257,5 +276,6 @@ def main():
     existing_dates.sort()
     most_recent_date = datetime.datetime.strptime(existing_dates[-1], DATE_FORMAT)
     lastUpdateDate(DATASET_ID, most_recent_date)
+
 
     logging.info('SUCCESS')

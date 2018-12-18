@@ -4,12 +4,12 @@ import os
 import time
 import requests as req
 from collections import OrderedDict
-from datetime import datetime, timedelta
 import cartosql
 import lxml
 from xmljson import parker as xml2json
 from dateutil import parser
 import requests
+from datetime import datetime
 
 ### Constants
 SOURCE_URL = "http://volcano.si.edu/news/WeeklyVolcanoRSS.xml"
@@ -75,7 +75,7 @@ def checkCreateTable(table, schema, id_field, time_field):
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
     '''Delete excess rows by age or count'''
     num_dropped = 0
-    if isinstance(max_age, datetime):
+    if isinstance(max_age, datetime.datetime):
         max_age = max_age.isoformat()
 
     # 1. delete by age
@@ -197,5 +197,8 @@ def main():
 
     ### 5. Notify results
     total = num_existing + num_new - num_dropped
+
+    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
+    
     logging.info('Existing rows: {},  New rows: {}, Max: {}'.format(total, num_new, MAX_ROWS))
     logging.info("SUCCESS")

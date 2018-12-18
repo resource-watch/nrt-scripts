@@ -3,9 +3,9 @@ import sys
 import os
 import requests
 from collections import OrderedDict
-from datetime import datetime, timedelta
 import cartosql
 import requests
+import datetime
 
 ### Constants
 SOURCE_URL = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime={startTime}&endtime={endTime}&minsig={minSig}"
@@ -45,7 +45,7 @@ TIME_FIELD = 'datetime'
 
 # Table limits
 MAX_ROWS = 500000
-MAX_AGE = datetime.today() - timedelta(days=365*2)
+MAX_AGE = datetime.datetime.today() - datetime.timedelta(days=365*2)
 
 DATASET_ID = '1d7085f7-11c7-4eaf-a29a-5a4de57d010e'
 def lastUpdateDate(dataset, date):
@@ -87,7 +87,7 @@ def checkCreateTable(table, schema, id_field, time_field):
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
     '''Delete excess rows by age or count'''
     num_dropped = 0
-    if isinstance(max_age, datetime):
+    if isinstance(max_age, datetime.datetime):
         max_age = max_age.isoformat()
 
     # 1. delete by age
@@ -118,12 +118,12 @@ def processData(existing_ids):
     new_data = []
     new_ids = []
 
-    startTime = datetime.today()
+    startTime = datetime.datetime.today()
 
     # Iterate backwards 1-week at a time
     while startTime > MAX_AGE:
         endTime = startTime
-        startTime = startTime - timedelta(days=7)
+        startTime = startTime - datetime.timedelta(days=7)
         query = SOURCE_URL.format(startTime=startTime, endTime=endTime,
                                   minSig=SIGNIFICANT_THRESHOLD)
 
@@ -142,7 +142,7 @@ def processData(existing_ids):
             depth = coords[2]
 
             props = feature['properties']
-            dt = datetime.utcfromtimestamp(props['time'] / 1000).strftime(
+            dt = datetime.datetime.utcfromtimestamp(props['time'] / 1000).strftime(
                 DATETIME_FORMAT)
 
             _uid = genUID(lat, lon, depth, dt)
@@ -205,5 +205,8 @@ def main():
 
     ### 5. Notify results
     total = num_existing + num_new - num_dropped
+
+    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
+    
     logging.info('Existing rows: {},  New rows: {}, Max: {}'.format(total, num_new, MAX_ROWS))
     logging.info("SUCCESS")
