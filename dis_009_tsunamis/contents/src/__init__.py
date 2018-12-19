@@ -91,6 +91,20 @@ def processData():
 
     return(df)
 
+def get_most_recent_date(table):
+    #year = table.sort_values(by=['YEAR', 'MONTH', 'DAY'], ascending=True)['YEAR']
+    #convert date values to numeric for sorting
+    table.YEAR = pd.to_numeric(table.YEAR, errors='coerce')
+    table.MONTH = pd.to_numeric(table.MONTH, errors='coerce')
+    table.DAY = pd.to_numeric(table.DAY, errors='coerce')
+    #sort by date
+    sorted_table = table.sort_values(by=['YEAR', 'MONTH', 'DAY'], ascending=False).reset_index()
+    year = int(sorted_table['YEAR'][0])
+    month = int(sorted_table['MONTH'][0])
+    day = int(sorted_table['DAY'][0])
+    most_recent_date = datetime.date(year, month, day)
+    return most_recent_date
+
 ###
 ## Application code
 ###
@@ -113,8 +127,10 @@ def main():
 
     cc.write(df, CARTO_TABLE, overwrite=True, privacy='public')
 
-    lastDate = df.sort_values(by=['datetime'], ascending=False)['datetime'][0]
-    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
+    # Get most recent update date
+    most_recent_date = get_most_recent_date(df)
+    lastUpdateDate(DATASET_ID, most_recent_date)
+
     ### 3. Notify results
     logging.info('Existing rows: {}'.format(num_rows))
     logging.info("SUCCESS")

@@ -3,7 +3,7 @@ import logging
 import sys
 import urllib
 import zipfile
-from datetime import datetime, timedelta
+import datetime
 from dateutil.relativedelta import relativedelta
 
 import fiona
@@ -43,7 +43,7 @@ UID_FIELD = '_uid'
 LOG_LEVEL = logging.INFO
 MAXROWS = 10000
 MINDATES = 6
-MAXAGE = datetime.today() - timedelta(days=365*3)
+MAXAGE = datetime.datetime.today() - datetime.timedelta(days=365*3)
 DATASET_ID = '8ee88f34-db15-4711-a76d-bf82dbfcffed'
 def lastUpdateDate(dataset, date):
    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
@@ -117,8 +117,8 @@ def processNewData(exclude_ids):
     new_ids = []
 
     # Truncate date to monthly resolution
-    date = datetime.strptime(
-        datetime.today().strftime(DATE_FORMAT), DATE_FORMAT)
+    date = datetime.datetime.strptime(
+        datetime.datetime.today().strftime(DATE_FORMAT), DATE_FORMAT)
 
     # 1. Fetch data from source
     # iterate backwards 1 month at a time
@@ -189,7 +189,7 @@ def processNewData(exclude_ids):
                 new_count, ifc_type, date))
             cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
                                 CARTO_SCHEMA.values(), rows)
-        elif date < datetime.today() - relativedelta(months=MINDATES):
+        elif date < datetime.datetime.today() - relativedelta(months=MINDATES):
             break
 
     num_new = len(new_ids)
@@ -219,7 +219,7 @@ def getFieldAsList(table, field, orderBy=''):
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
     '''Delete excess rows by age or count'''
     num_dropped = 0
-    if isinstance(max_age, datetime):
+    if isinstance(max_age, datetime.datetime):
         max_age = max_age.isoformat()
 
     # 1. delete by age
@@ -237,6 +237,12 @@ def deleteExcessRows(table, max_rows, time_field, max_age=''):
     if num_dropped:
         logging.info('Dropped {} old rows from {}'.format(num_dropped, table))
 
+def get_most_recent_date(table):
+    r = cartosql.getFields(TIME_FIELD, table, where="ifc_type LIKE 'CS'", f='csv', post=True)
+    dates = r.text.split('\r\n')[1:-1]
+    dates.sort()
+    most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
+    return most_recent_date
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
@@ -264,6 +270,9 @@ def main():
     # 3. Remove old observations
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD, MAXAGE)
 
-    lastUpdateDate(DATASET_ID, datetime.utcnow())
+    # Get most recent update date
+    most_recent_date = get_most_recent_date(CARTO_TABLE)
+    lastUpdateDate(DATASET_ID, most_recent_date)
+
     ###
     logging.info('SUCCESS')

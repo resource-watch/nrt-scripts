@@ -177,6 +177,13 @@ def processData(existing_ids):
 
     return(len(new_ids))
 
+def get_most_recent_date(table):
+    r = cartosql.getFields(TIME_FIELD, table, f='csv', post=True)
+    dates = r.text.split('\r\n')[1:-1]
+    dates.sort()
+    most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
+    return most_recent_date
+
 ###
 ## Application code
 ###
@@ -206,7 +213,9 @@ def main():
     ### 5. Notify results
     total = num_existing + num_new - num_dropped
 
-    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
+    # Get most recent update date
+    most_recent_date = get_most_recent_date(CARTO_TABLE)
+    lastUpdateDate(DATASET_ID, most_recent_date)
     
     logging.info('Existing rows: {},  New rows: {}, Max: {}'.format(total, num_new, MAX_ROWS))
     logging.info("SUCCESS")

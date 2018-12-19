@@ -284,6 +284,7 @@ def main():
     # 3. Remove old observations
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD, MAXAGE)
 
+    # Get most recent update date
     most_recent_date = get_most_recent_date(CARTO_TABLE)
     lastUpdateDate(DATASET_ID, most_recent_date)
 

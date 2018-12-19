@@ -9,7 +9,7 @@ import lxml
 from xmljson import parker as xml2json
 from dateutil import parser
 import requests
-from datetime import datetime
+import datetime
 
 ### Constants
 SOURCE_URL = "http://volcano.si.edu/news/WeeklyVolcanoRSS.xml"
@@ -36,7 +36,7 @@ TIME_FIELD = 'pubdate'
 
 # Table limits
 MAX_ROWS = 1000000
-MAX_AGE = datetime.today() - timedelta(days=365*5)
+MAX_AGE = datetime.datetime.today() - datetime.timedelta(days=365*5)
 DATASET_ID = '60d3b365-6c0b-4f1c-9b7f-f3f00f2a05d7'
 def lastUpdateDate(dataset, date):
    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
@@ -170,6 +170,13 @@ def processData(existing_ids):
 
     return(num_new)
 
+def get_most_recent_date(table):
+    r = cartosql.getFields(TIME_FIELD, table, f='csv', post=True)
+    dates = r.text.split('\r\n')[1:-1]
+    dates.sort()
+    most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
+    return most_recent_date
+
 ###
 ## Application code
 ###
@@ -198,7 +205,9 @@ def main():
     ### 5. Notify results
     total = num_existing + num_new - num_dropped
 
-    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
-    
+    # Get most recent update date
+    most_recent_date = get_most_recent_date(CARTO_TABLE)
+    lastUpdateDate(DATASET_ID, most_recent_date)
+
     logging.info('Existing rows: {},  New rows: {}, Max: {}'.format(total, num_new, MAX_ROWS))
     logging.info("SUCCESS")

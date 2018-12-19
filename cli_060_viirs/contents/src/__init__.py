@@ -76,6 +76,8 @@ def main():
         if not response.ok:
             logging.error("ERROR: failed to update layer")
             logging.error(response.text)
-    for dataset in DATASETS:
-        lastUpdateDate(dataset, datetime.datetime.utcnow())
+        elif response.ok:
+            for dataset in DATASETS:
+                lastUpdateDate(dataset, date)
+
     logging.info('SUCCESS')
