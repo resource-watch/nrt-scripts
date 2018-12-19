@@ -24,7 +24,7 @@ with this option.
 DATA_DIR = 'data'
 CLEAR_COLLECTION_FIRST = False
 
-DAYS_TO_AVERAGE = 7
+DAYS_TO_AVERAGE = 30
 RESOLUTION = 3.5 #km
 '''
 If DAYS_TO_AVERAGE = 1, consider using a larger number of max assets (30) to ensure that you find a day 
@@ -51,11 +51,14 @@ elif DAYS_TO_AVERAGE == 7:
     DATASET_ID = 'dbf86e93-03d3-47b6-b846-c5138f726dfe'
 elif DAYS_TO_AVERAGE == 30:
     DATASET_ID = 'f324b8e5-fde0-45a6-b019-059e05ce5b25'
+
+apiToken = os.getenv('apiToken') or os.environ.get('rw_api_token') or os.environ.get('RW_API_KEY')
+
 def lastUpdateDate(dataset, date):
    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
    headers = {
    'Content-Type': 'application/json',
-   'Authorization': os.getenv('apiToken')
+   'Authorization': apiToken
    }
    body = {
        "dataLastUpdated": date.isoformat()
