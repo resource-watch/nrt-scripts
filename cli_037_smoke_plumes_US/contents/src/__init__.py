@@ -5,7 +5,7 @@ import os
 import logging
 import sys
 import urllib
-from datetime import datetime, timedelta
+import datetime
 from collections import OrderedDict
 import cartosql
 import zipfile
@@ -21,8 +21,8 @@ DATE_FORMAT = '%Y%m%d'
 DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 CLEAR_TABLE_FIRST = False
 LOG_LEVEL = logging.INFO
-MAXAGE_UPLOAD = datetime.today() - timedelta(days=360)
-MAX_CHECK_CURRENT = datetime.today() - timedelta(days=7)
+MAXAGE_UPLOAD = datetime.datetime.today() - datetime.timedelta(days=360)
+MAX_CHECK_CURRENT = datetime.datetime.today() - datetime.timedelta(days=7)
 
 # asserting table structure rather than reading from input
 CARTO_TABLE = 'cli_037_smoke_plumes'
@@ -40,7 +40,7 @@ UID_FIELD = '_UID'
 TIME_FIELD = 'date'
 
 MAXROWS = 100000
-MAXAGE = datetime.today() - timedelta(days=365*10)
+MAXAGE = datetime.datetime.today() - datetime.timedelta(days=365*10)
 DATASET_ID = 'c667617a-44e8-4181-b96d-f99bbe73c331'
 def lastUpdateDate(dataset, date):
    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
@@ -92,14 +92,14 @@ def formatObservationDatetime(start, end, datetime_format=DATETIME_FORMAT):
     day = int(date[4:])-1 # Account for fact that we're initiating from day 1
     hour = int(time[:-2])
     minute = int(time[-2:])
-    start_dt = datetime(year=year,month=1,day=1) + timedelta(days=day, hours=hour, minutes=minute)
+    start_dt = datetime.datetime(year=year,month=1,day=1) + datetime.timedelta(days=day, hours=hour, minutes=minute)
 
     date, time = end.split(' ')
     year = int(date[:4])
     day = int(date[4:])-1 # Account for fact that we're initiating from day 1
     hour = int(time[:-2])
     minute = int(time[-2:])
-    end_dt = datetime(year=year,month=1,day=1) + timedelta(days=day, hours=hour, minutes=minute)
+    end_dt = datetime.datetime(year=year,month=1,day=1) + datetime.timedelta(days=day, hours=hour, minutes=minute)
 
     start = start_dt.strftime(datetime_format)
     end = end_dt.strftime(datetime_format)
@@ -118,9 +118,9 @@ def findShp(zfile):
 def getNewDates(exclude_dates):
     '''Get new dates excluding existing'''
     new_dates = []
-    date = datetime.today()
+    date = datetime.datetime.today()
     while date > MAXAGE_UPLOAD:
-        date -= timedelta(**TIMESTEP)
+        date -= datetime.timedelta(**TIMESTEP)
         datestr = date.strftime(DATE_FORMAT)
         logging.debug(datestr)
         if datestr not in exclude_dates:
@@ -152,7 +152,7 @@ def processNewData(exclude_ids):
             url = SOURCE_URL_ARCHIVE.format(date=date)
             urllib.request.urlretrieve(url, tmpfile)
         except urllib.error.HTTPError as e:
-            if datetime.strptime(date, DATE_FORMAT) > MAX_CHECK_CURRENT:
+            if datetime.datetime.strptime(date, DATE_FORMAT) > MAX_CHECK_CURRENT:
                 try:
                     url = SOURCE_URL.format(date=date)
                     urllib.request.urlretrieve(url, tmpfile)
@@ -233,7 +233,7 @@ def getFieldAsList(table, field, orderBy=''):
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
     '''Delete excess rows by age or count'''
     num_dropped = 0
-    if isinstance(max_age, datetime):
+    if isinstance(max_age, datetime.datetime):
         max_age = max_age.isoformat()
 
     # 1. delete by age
@@ -251,6 +251,12 @@ def deleteExcessRows(table, max_rows, time_field, max_age=''):
     if num_dropped:
         logging.info('Dropped {} old rows from {}'.format(num_dropped, table))
 
+def get_most_recent_date(table):
+    r = cartosql.getFields(TIME_FIELD, table, f='csv', post=True)
+    dates = r.text.split('\r\n')[1:-1]
+    dates.sort()
+    most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
+    return most_recent_date
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
@@ -277,6 +283,8 @@ def main():
 
     # 3. Remove old observations
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD, MAXAGE)
-    lastUpdateDate(DATASET_ID, datetime.utcnow())
+
+    most_recent_date = get_most_recent_date(CARTO_TABLE)
+    lastUpdateDate(DATASET_ID, most_recent_date)
 
     logging.info('SUCCESS')
