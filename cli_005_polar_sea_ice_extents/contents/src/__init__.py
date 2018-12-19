@@ -209,6 +209,14 @@ def deleteExcessAssets(dates, orig_or_reproj, arctic_or_antarctic, max_assets):
 ## Application code
 ###
 
+def get_most_recent_date(collection):
+    existing_assets = checkCreateCollection(collection)  # make image collection if doesn't have one
+    existing_dates = [getRasterDate(a) for a in existing_assets]
+    existing_dates.sort()
+    most_recent_date = datetime.datetime.strptime(existing_dates[-1], DATE_FORMAT)
+    return most_recent_date
+
+
 def main():
     '''Ingest new data into EE and delete old data'''
     logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
@@ -272,6 +280,9 @@ def main():
 
     ###
     for dataset in DATASET_ID:
-        lastUpdateDate(dataset, datetime.datetime.utcnow())
+        # Get most recent update date
+        id = DATASET_ID[dataset]
+        most_recent_date = get_most_recent_date(dataset)
+        lastUpdateDate(id, most_recent_date)
 
     logging.info('SUCCESS')

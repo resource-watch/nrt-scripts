@@ -266,6 +266,12 @@ def deleteExcessAssets(dates, max_assets):
         for date in dates[:-max_assets]:
             eeUtil.removeAsset(getAssetName(date))
 
+def get_most_recent_date(collection):
+    existing_assets = checkCreateCollection(collection)  # make image collection if doesn't have one
+    existing_dates = [getDate(a) for a in existing_assets]
+    existing_dates.sort()
+    most_recent_date = datetime.datetime.strptime(existing_dates[-1], '%Y%m%d')
+    return most_recent_date
 
 def main():
     '''Ingest new data into EE and delete old data'''
@@ -292,7 +298,10 @@ def main():
     logging.info('Existing assets: {}, new: {}, max: {}'.format(
         len(existing_dates), len(new_dates), MAX_ASSETS))
     deleteExcessAssets(existing_dates, MAX_ASSETS)
-    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
+
+    # Get most recent update date
+    most_recent_date = get_most_recent_date(EE_COLLECTION)
+    lastUpdateDate(DATASET_ID, most_recent_date)
     ###
 
     logging.info('SUCCESS')
