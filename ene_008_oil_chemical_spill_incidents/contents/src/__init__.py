@@ -4,7 +4,7 @@ import os
 
 import requests
 from collections import OrderedDict
-from datetime import datetime, timedelta
+import datetime
 import cartosql
 import csv
 import requests
@@ -168,7 +168,7 @@ def checkCreateTable(table, schema, id_field, time_field):
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
     '''Delete excess rows by age or count'''
     num_dropped = 0
-    if isinstance(max_age, datetime):
+    if isinstance(max_age, datetime.datetime):
         max_age = max_age.isoformat()
 
     # 1. delete by age
@@ -185,6 +185,13 @@ def deleteExcessRows(table, max_rows, time_field, max_age=''):
         num_dropped += r.json()['total_rows']
     if num_dropped:
         logging.info('Dropped {} old rows from {}'.format(num_dropped, table))
+
+def get_most_recent_date(table):
+    r = cartosql.getFields(TIME_FIELD, table, f='csv', post=True)
+    dates = r.text.split('\r\n')[1:-1]
+    dates.sort()
+    most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
+    return most_recent_date
 
 ###
 ## Application code
@@ -210,5 +217,8 @@ def main():
     logging.info('Total rows: {}, New rows: {}, Max: {}'.format(num_total, num_new, MAX_ROWS))
     deleteExcessRows(CARTO_TABLE, MAX_ROWS, TIME_FIELD)
 
-    lastUpdateDate(DATASET_ID, datetime.utcnow())
+    # Get most recent update date
+    most_recent_date = get_most_recent_date(CARTO_TABLE)
+    lastUpdateDate(DATASET_ID, most_recent_date)
+
     logging.info("SUCCESS")

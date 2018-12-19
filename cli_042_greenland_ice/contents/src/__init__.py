@@ -218,6 +218,13 @@ def processData(SOURCE_URL, filename, existing_ids):
 
     return(num_new)
 
+def get_most_recent_date(table):
+    r = cartosql.getFields(TIME_FIELD, table, f='csv', post=True)
+    dates = r.text.split('\r\n')[1:-1]
+    dates.sort()
+    most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
+    return most_recent_date
+
 ###
 ## Application code
 ###
@@ -249,7 +256,10 @@ def main():
     ### 5. Delete data to get back to MAX_ROWS
     num_deleted = deleteExcessRows(CARTO_TABLE, MAX_ROWS, TIME_FIELD)
 
-    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
+    # Get most recent update date
+    most_recent_date = get_most_recent_date(CARTO_TABLE)
+    lastUpdateDate(DATASET_ID, most_recent_date)
+
     ### 6. Notify results
     logging.info('Expired rows: {}, Previous rows: {},  New rows: {}, Dropped rows: {}, Max: {}'.format(num_expired, num_existing, num_new, num_deleted, MAX_ROWS))
     logging.info("SUCCESS")
