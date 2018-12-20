@@ -238,6 +238,8 @@ def deleteExcessRows(table, max_rows, time_field, max_age=''):
         logging.info('Dropped {} old rows from {}'.format(num_dropped, table))
 
 def get_most_recent_date(table):
+    #get only check times for current state (CS) because dates associated with projections are
+    #in the future and don't make sense to list as our most recent update date
     r = cartosql.getFields(TIME_FIELD, table, where="ifc_type LIKE 'CS'", f='csv', post=True)
     dates = r.text.split('\r\n')[1:-1]
     dates.sort()
