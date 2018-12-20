@@ -57,7 +57,9 @@ EXTENT = '-180 -55.152 180 75.024002'
 DTYPE = rio.float32
 NODATA = -999
 SCALE_FACTOR = .01
-DATASET_ID = '4828c405-06a2-4460-a78c-90969bce582b'
+DATASET_IDS = {'foo_051_vegetation_condition_index':'4828c405-06a2-4460-a78c-90969bce582b',
+'foo_024_vegetation_health_index':'4828c405-06a2-4460-a78c-90969bce582b'}
+
 def lastUpdateDate(dataset, date):
    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
    headers = {
@@ -302,6 +304,16 @@ def deleteExcessAssets(dates, rw_id, varname, max_assets):
 ## Application code
 ###
 
+def get_most_recent_date(collection):
+    existing_assets = checkCreateCollection(collection)  # make image collection if doesn't have one
+    existing_dates = [getRasterDate(a) for a in existing_assets]
+    existing_dates.sort()
+    #since data sets represent a week of data, take the last day of the week (7) as the most recent update
+    datestr = existing_dates[-1]+'7'
+    logging.info(datestr)
+    most_recent_date = datetime.datetime.strptime(datestr, '%G0%V%u')
+    return most_recent_date
+
 def main():
     '''Ingest new data into EE and delete old data'''
     logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
@@ -345,7 +357,9 @@ def main():
             rw_id, len(e), len(n), MAX_DATES))
         deleteExcessAssets(total,rw_id,ASSET_NAMES[rw_id],MAX_DATES)
 
-    ###
-    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
+    # Get most recent update date
+    for collection, id in DATASET_IDS.items():
+        most_recent_date = get_most_recent_date(collection)
+        lastUpdateDate(id, most_recent_date)
     
     logging.info('SUCCESS')

@@ -3,7 +3,7 @@ import logging
 import sys
 import requests as req
 from collections import OrderedDict
-from datetime import datetime, timedelta
+import datetime
 import cartosql
 from functools import reduce
 import requests
@@ -150,7 +150,7 @@ def parseMarkets(region_scale, existing_markets):
 
 
 def stepForward(start):
-    return (start + timedelta(**TIME_STEP)).replace(day=15)
+    return (start + datetime.timedelta(**TIME_STEP)).replace(day=15)
 
 def assignALPS(pewi):
     if pewi < .25:
@@ -183,7 +183,7 @@ def parseAlps(market_data, existing_alps):
         #logging.debug(market_data)
         run_forecast = False
 
-    date = datetime.strptime(market_data['startdate'], DATE_FORMAT)
+    date = datetime.datetime.strptime(market_data['startdate'], DATE_FORMAT)
     for i in range(num_obs):
         mp_price = market_data['mp_price'][i]
         trend = market_data['trend'][i]
@@ -376,7 +376,7 @@ def getIds(table, id_field):
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
     '''Delete excess rows by age or count'''
     num_dropped = 0
-    if isinstance(max_age, datetime):
+    if isinstance(max_age, datetime.datetime):
         max_age = max_age.isoformat()
 
     # 1. delete by age
@@ -396,6 +396,12 @@ def deleteExcessRows(table, max_rows, time_field, max_age=''):
     if num_dropped:
         logging.info('Dropped {} old rows from {}'.format(num_dropped, table))
 
+def get_most_recent_date(table):
+    r = cartosql.getFields(TIME_FIELD, table, f='csv', post=True)
+    dates = r.text.split('\r\n')[1:-1]
+    dates.sort()
+    most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
+    return most_recent_date
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
@@ -438,6 +444,8 @@ def main():
     # 3. Remove old observations
     deleteExcessRows(CARTO_ALPS_TABLE, MAXROWS, TIME_FIELD) # MAXAGE)
 
-    lastUpdateDate(DATASET_ID, datetime.utcnow())
+    # Get most recent update date
+    most_recent_date = get_most_recent_date(CARTO_ALPS_TABLE)
+    lastUpdateDate(DATASET_ID, most_recent_date)
     
     logging.info('SUCCESS')

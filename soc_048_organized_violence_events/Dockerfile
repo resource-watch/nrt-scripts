@@ -8,7 +8,6 @@ RUN apk add git
 # install application libraries
 RUN pip install requests
 RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
-RUN pip install json
 
 # set name
 ARG NAME=soc_048

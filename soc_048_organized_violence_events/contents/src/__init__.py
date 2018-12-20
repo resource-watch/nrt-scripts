@@ -1,11 +1,9 @@
 import os
 import logging
 import sys
-import requests
 from collections import OrderedDict
-from datetime import datetime, timedelta
+import datetime
 import cartosql
-import json
 import requests
 
 # Constants
@@ -140,7 +138,7 @@ def processNewData(existing_ids):
         start_date = '1900-01-01'
         num_pages = requests.get(HISTORY_URL.format(page=0)).json()['TotalPages']
     else:
-        start_date = (datetime.today() - timedelta(days=DAYS_TO_LOOK_BACK)).strftime(DATE_FORMAT)
+        start_date = (datetime.datetime.today() - datetime.timedelta(days=DAYS_TO_LOOK_BACK)).strftime(DATE_FORMAT)
         num_pages = requests.get(LATEST_URL.format(page=0, start_date=start_date)).json()['TotalPages']
 
     logging.info('Number of pages: {}'.format(num_pages))
@@ -183,7 +181,7 @@ def getIds(table, id_field):
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
     '''Delete excess rows by age or count'''
     num_dropped = 0
-    if isinstance(max_age, datetime):
+    if isinstance(max_age, datetime.datetime):
         max_age = max_age.isoformat()
 
     # 1. delete by age
@@ -203,6 +201,12 @@ def deleteExcessRows(table, max_rows, time_field, max_age=''):
     if num_dropped:
         logging.info('Dropped {} old rows from {}'.format(num_dropped, table))
 
+def get_most_recent_date(table):
+    r = cartosql.getFields(TIME_FIELD, table, f='csv', post=True)
+    dates = r.text.split('\r\n')[1:-1]
+    dates.sort()
+    most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
+    return most_recent_date
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
@@ -229,5 +233,9 @@ def main():
 
     # 3. Remove old observations
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD)
-    lastUpdateDate(DATASET_ID, datetime.utcnow())
+
+    # Get most recent update date
+    most_recent_date = get_most_recent_date(CARTO_TABLE)
+    lastUpdateDate(DATASET_ID, most_recent_date)
+
     logging.info('SUCCESS')
