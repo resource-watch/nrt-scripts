@@ -8,7 +8,6 @@ import urllib
 import datetime
 from collections import OrderedDict
 import cartosql
-import json
 import requests
 
 # Constants
@@ -70,20 +69,20 @@ DATASET_ID = '1616a329-1bf0-4a45-992f-3087b76c232e'
 
 
 def lastUpdateDate(dataset, date):
-    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'.format(dataset =dataset)
-    headers = {
-    'Content-Type': 'application/json',
-    'Authorization': os.getenv('apiToken')
-    }
-    body = {
-        "dataLastUpdated": date.isoformat()
-    }
-    try:
-        r = requests.patch(url = apiUrl, json = body, headers = headers)
-        logging.info('[lastUpdated]: SUCCESS, status code'+str(r.status_code))
-        return 0
-    except Exception as e:
-        logging.error('[lastUpdated]: '+str(e))
+   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+   headers = {
+   'Content-Type': 'application/json',
+   'Authorization': os.getenv('apiToken')
+   }
+   body = {
+       "dataLastUpdated": date.isoformat()
+   }
+   try:
+       r = requests.patch(url = apiUrl, json = body, headers = headers)
+       logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+       return 0
+   except Exception as e:
+       logging.error('[lastUpdated]: '+str(e))
 
 # Generate UID
 def genUID(obs):
@@ -174,6 +173,12 @@ def deleteExcessRows(table, max_rows, time_field, max_age=''):
     if num_dropped:
         logging.info('Dropped {} old rows from {}'.format(num_dropped, table))
 
+def get_most_recent_date(table):
+    r = cartosql.getFields('ended', table, f='csv', post=True)
+    dates = r.text.split('\r\n')[1:-1]
+    dates.sort()
+    most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
+    return most_recent_date
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
@@ -193,5 +198,9 @@ def main():
 
     # 3. Remove old observations
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD, MAXAGE)
-    lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
+
+    # Get most recent update date
+    most_recent_date = get_most_recent_date(CARTO_TABLE)
+    lastUpdateDate(DATASET_ID, most_recent_date)
+
     logging.info('SUCCESS')
