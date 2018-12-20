@@ -3,10 +3,6 @@ from __future__ import unicode_literals
 import os
 import glob
 import sys
-import urllib.request
-import shutil
-from contextlib import closing
-import gzip
 import datetime
 import logging
 import subprocess
