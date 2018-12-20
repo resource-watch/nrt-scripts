@@ -279,9 +279,8 @@ def main():
         deleteExcessAssets(total,orig_or_reproj,arctic_or_antarctic,MAX_DATES)
 
     ###
-    for dataset in DATASET_ID:
+    for dataset, id in DATASET_ID.items():
         # Get most recent update date
-        id = DATASET_ID[dataset]
         most_recent_date = get_most_recent_date(dataset)
         lastUpdateDate(id, most_recent_date)
 
