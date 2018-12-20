@@ -3,8 +3,6 @@ from __future__ import unicode_literals
 import os
 import sys
 import urllib.request
-import shutil
-from contextlib import closing
 import datetime
 import logging
 import subprocess
@@ -12,8 +10,6 @@ import eeUtil
 from functools import reduce
 from netCDF4 import Dataset
 import rasterio as rio
-from rasterio.crs import CRS
-import numpy as np
 from collections import defaultdict
 import requests
 

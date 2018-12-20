@@ -11,8 +11,8 @@ import requests
 
 # Sources for nrt data
 SOURCE_URL = 'COPERNICUS/S5P/OFFL/L3_{var}'
-VARS = ['NO2', 'CO', 'AER_AI']
-BANDS = ['tropospheric_NO2_column_number_density', 'CO_column_number_density', 'absorbing_aerosol_index']
+VARS = ['NO2', 'CO', 'AER_AI', 'O3']
+BANDS = ['tropospheric_NO2_column_number_density', 'CO_column_number_density', 'absorbing_aerosol_index', 'O3_column_number_density']
 NODATA_VALUE = None
 '''
 GDAL: Assign a specified nodata value to output bands. Starting with GDAL 1.8.0, can be set to none to avoid setting
@@ -44,13 +44,20 @@ TIMEOUT = 5000
 COLLECTION = 'cit_035_tropomi_atmospheric_chemistry_model'
 
 LOG_LEVEL = logging.INFO
-
+DATASET_IDS = {
+    'NO2': 'b75d8398-34f2-447d-832d-ea570451995a',
+    'CO': 'f84ce519-8128-4a24-b637-89711b9e4713',
+    'AER_AI': '793e4cc9-c060-4b7f-a4a2-0b1fbbe71b69',
+    'O3': 'ada81921-28ff-4fbb-b971-7aa1f3ccdb22'
+}
+'''
 if DAYS_TO_AVERAGE == 1:
     DATASET_ID = '4eadb2ae-d47b-4171-988f-186c38989fdb'
 elif DAYS_TO_AVERAGE == 7:
     DATASET_ID = 'dbf86e93-03d3-47b6-b846-c5138f726dfe'
 elif DAYS_TO_AVERAGE == 30:
     DATASET_ID = 'f324b8e5-fde0-45a6-b019-059e05ce5b25'
+'''
 
 apiToken = os.getenv('apiToken') or os.environ.get('rw_api_token') or os.environ.get('RW_API_KEY')
 
@@ -119,13 +126,13 @@ def fetch_single_day(new_dates):
             end_date_str = end_date.strftime(DATE_FORMAT_DATASET)
             IC_1day = IC.filterDate(date, end_date_str).select([BAND])
             if IC_1day.size().getInfo() > 10:
-                mosaicked_image = IC_1day.mosaic()
+                mean_image = IC_1day.mean()
                 #copy most recent system start time from that day's images
                 sorted = IC_1day.sort(prop='system:time_start', opt_ascending=False);
                 most_recent_image = ee.Image(sorted.first())
-                mosaicked_image = mosaicked_image.copyProperties(most_recent_image, ['system:time_start'])
-                #add mosaicked image to list for upload
-                daily_images.append(mosaicked_image)
+                mean_image = mean_image.copyProperties(most_recent_image, ['system:time_start'])
+                #add image to list for upload
+                daily_images.append(mean_image)
                 dates.append(date)
                 logging.info('Successfully retrieved {}'.format(date))
             else:
@@ -261,6 +268,11 @@ def main():
     global EE_COLLECTION
     global PARENT_FOLDER
     global FILENAME
+    global DAYS_TO_AVERAGE
+    logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
+    # Initialize eeUtil and ee
+    eeUtil.initJson()
+    initialize_ee()
     if DAYS_TO_AVERAGE == 1:
         PARENT_FOLDER = COLLECTION
         EE_COLLECTION_GEN = COLLECTION + '/{var}'
@@ -269,11 +281,6 @@ def main():
         PARENT_FOLDER = COLLECTION + '_{days}day_avg'.format(days=DAYS_TO_AVERAGE)
         EE_COLLECTION_GEN = COLLECTION + '_%sday_avg/{var}' %DAYS_TO_AVERAGE
         FILENAME = COLLECTION+'_{days}day_avg_{var}_{date}'
-    '''Ingest new data into EE and delete old data'''
-    logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
-    # Initialize eeUtil and ee
-    eeUtil.initJson()
-    initialize_ee()
     for i in range(len(VARS)):
         VAR = VARS[i]
         logging.info('STARTING {var}'.format(var=VAR))
@@ -296,5 +303,5 @@ def main():
         deleteExcessAssets(existing_dates, MAX_ASSETS)
         # Get most recent update date
         most_recent_date = get_most_recent_date(EE_COLLECTION)
-        lastUpdateDate(DATASET_ID, most_recent_date)
+        lastUpdateDate(DATASET_IDS[VAR], most_recent_date)
         logging.info('SUCCESS for {var}'.format(var=VAR))
