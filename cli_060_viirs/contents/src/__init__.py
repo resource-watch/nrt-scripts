@@ -1,7 +1,6 @@
 import logging
 import sys
 import os
-import requests
 import datetime
 import json
 import requests
@@ -78,6 +77,6 @@ def main():
             logging.error(response.text)
         elif response.ok:
             for dataset in DATASETS:
-                lastUpdateDate(dataset, date)
+                lastUpdateDate(dataset, yesterday)
 
     logging.info('SUCCESS')
