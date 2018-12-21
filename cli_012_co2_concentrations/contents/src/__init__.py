@@ -39,9 +39,11 @@ MAX_DATES = MAX_YEARS*12
 DATE_FORMAT = '%Y%m'
 TIMESTEP = {'days': 30}
 
+GCS_JSON = os.getenv('GCS_JSON') or os.getenv('GEE_JSON')
+
 # environmental variables
 with open('gcsPrivateKey.json','w') as f:
-    f.write(os.getenv('GCS_JSON'))
+    f.write(GCS_JSON)
 
 GEE_SERVICE_ACCOUNT = os.environ.get("GEE_SERVICE_ACCOUNT")
 GOOGLE_APPLICATION_CREDENTIALS = os.environ.get(
