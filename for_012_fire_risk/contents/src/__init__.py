@@ -8,6 +8,7 @@ import subprocess
 import eeUtil
 import requests
 from bs4 import BeautifulSoup
+import urllib.request
 
 # Sources for nrt data
 SOURCE_URL = 'https://portal.nccs.nasa.gov/datashare/GlobalFWI/v2.0/fwiCalcs.GEOS-5/Default/GPM.LATE.v5/{year}/FWI.GPM.LATE.v5.Daily.Default.{date}.nc'
