@@ -6,13 +6,13 @@ import datetime
 import logging
 import subprocess
 import eeUtil
-from ftplib import FTP
 import requests
+from bs4 import BeautifulSoup
 
 # Sources for nrt data
-SOURCE_URL = 'ftp://ftp.nccs.nasa.gov/v2.0/fwiCalcs.GEOS-5/Default/GPM.LATE.v5/{year}/FWI.GPM.LATE.v5.Daily.Default.{date}.nc'
+SOURCE_URL = 'https://portal.nccs.nasa.gov/datashare/GlobalFWI/v2.0/fwiCalcs.GEOS-5/Default/GPM.LATE.v5/{year}/FWI.GPM.LATE.v5.Daily.Default.{date}.nc'
 
-SDS_NAMES = ['NETCDF:"{fname}":GPM.LATE.v5_FWI', 'NETCDF:"{fname}":GPM.LATE.v5_BUI', 'NETCDF:"{fname}":GPM.LATE.v _DC',
+SDS_NAMES = ['NETCDF:"{fname}":GPM.LATE.v5_FWI', 'NETCDF:"{fname}":GPM.LATE.v5_BUI', 'NETCDF:"{fname}":GPM.LATE.v5_DC',
              'NETCDF:"{fname}":GPM.LATE.v5_DMC', 'NETCDF:"{fname}":GPM.LATE.v5_FFMC', 'NETCDF:"{fname}":GPM.LATE.v5_ISI']
 FILENAME = 'for_012_fire_risk_{date}'
 NODATA_VALUE = None
@@ -107,35 +107,30 @@ def convert(files):
         tifs.append(merged_tif)
     return tifs
 
-
-
-
+def list_available_files(url, ext=''):
+    page = requests.get(url).text
+    soup = BeautifulSoup(page, 'html.parser')
+    return [node.get('href') for node in soup.find_all('a') if type(node.get('href'))==str and node.get('href').endswith(ext)]
 
 def fetch(new_dates):
-	# 1. Set up authentication
-    username = 'GlobalFWI'
-    password = ''
-
-    # 2. Loop over the new dates, check if there is data available, and attempt to download
     files = []
     for date in new_dates:
-        # Setup the url of the folder to look for data, and the filename to which we will download, if available
+        # Setup the url of the folder to look for data, and the filename to download to if available
         url = getUrl(date)
-        file_name = url[-41:]
-        f = getFilename(date)
-        try:
-            ftp = FTP('ftp.nccs.nasa.gov', user=username, passwd=password)
-            ftp.set_debuglevel(0) #can change to level 1 or 2 to get more information if error in ftp process
-            ftp.cwd('v2.0/fwiCalcs.GEOS-5/Default/GPM.LATE.v5/'+date[0:4])
-            local_file = open(f, 'wb')
-            ftp.retrbinary('RETR '+file_name, local_file.write)
-            local_file.close()
-            ftp.quit()
-            files.append(f)
-            logging.info('Successfully retrieved {}'.format(f))# gives us "Successully retrieved file name"
-        except Exception as e:
-            logging.error('Unable to retrieve data from {}'.format(url))
-            logging.debug(e)
+        file_date = datetime.datetime.strptime(date, DATE_FORMAT_NETCDF).strftime(DATE_FORMAT)
+        f = getFilename(file_date)
+        file_list = list_available_files(os.path.split(url)[0], ext='.nc')
+        if os.path.split(url)[1] in file_list:
+            try:
+                urllib.request.urlretrieve(url, f)
+                files.append(f)
+                logging.info('Successfully retrieved {}'.format(f))
+            except Exception as e:
+                logging.error('Unable to retrieve data from {}'.format(url))
+                logging.debug(e)
+        else:
+            logging.info('{} not available yet'.format(f))
+
     return files
 
 def processNewData(existing_dates):
