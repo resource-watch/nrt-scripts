@@ -118,20 +118,18 @@ def fetch(new_dates):
         # Setup the url of the folder to look for data, and the filename to download to if available
         url = getUrl(date)
         file_date = datetime.datetime.strptime(date, DATE_FORMAT_NETCDF).strftime(DATE_FORMAT)
-        #starts as string, strptime changes to datetime object, strfttime reformats into string)
         f = getFilename(file_date)
         file_list = list_available_files(os.path.split(url)[0], ext='.nc')
-        #logging.info(file_list)
         if os.path.split(url)[1] in file_list:
             try:
                 urllib.request.urlretrieve(url, f)
                 files.append(f)
-                logging.info('Successfully retrieved {}'.format(f))# gives us "Successully retrieved file name"
+                logging.info('Successfully retrieved {}'.format(f))
             except Exception as e:
                 logging.error('Unable to retrieve data from {}'.format(url))
                 logging.debug(e)
         else:
-            logging.info('{} not available yet'.format(f))  # gives us "Successully retrieved file name"
+            logging.info('{} not available yet'.format(f))
 
     return files
 
