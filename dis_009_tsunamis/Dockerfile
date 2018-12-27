@@ -11,6 +11,7 @@ RUN apt-get install -y cron
 RUN pip install --upgrade pip && pip install \
     requests \
     cartoframes
+RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
 
 # Copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data

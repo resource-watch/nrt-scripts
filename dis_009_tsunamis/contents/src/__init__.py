@@ -6,6 +6,7 @@ import datetime
 import pandas as pd
 import cartoframes
 import requests
+import cartosql
 
 
 ### Constants
@@ -119,17 +120,21 @@ def main():
 
     cc = cartoframes.CartoContext(base_url='https://{}.carto.com/'.format(CARTO_USER),
                                   api_key=CARTO_KEY)
+    #check size of old table
+    r = cartosql.getFields('datetime', CARTO_TABLE, f='csv')
+    existing_ids = r.text.split('\r\n')[1:-1]
+    num_existing = len(existing_ids)
 
     ### 2. Fetch data from FTP, dedupe, process
     df = processData()
 
     num_rows = df.shape[0]
-
     cc.write(df, CARTO_TABLE, overwrite=True, privacy='public')
 
     # Get most recent update date
-    most_recent_date = get_most_recent_date(df)
-    lastUpdateDate(DATASET_ID, most_recent_date)
+    if num_rows > num_existing:
+        most_recent_date = datetime.datetime.utcnow()
+        lastUpdateDate(DATASET_ID, most_recent_date)
 
     ### 3. Notify results
     logging.info('Existing rows: {}'.format(num_rows))
