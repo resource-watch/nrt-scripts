@@ -235,7 +235,8 @@ def main():
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD)
 
     # Get most recent update date
-    most_recent_date = get_most_recent_date(CARTO_TABLE)
-    lastUpdateDate(DATASET_ID, most_recent_date)
+    if new_count >0:
+        most_recent_date =datetime.datetime.utcnow()
+        lastUpdateDate(DATASET_ID, most_recent_date)
 
     logging.info('SUCCESS')

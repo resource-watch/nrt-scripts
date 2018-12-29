@@ -1,7 +1,6 @@
 import logging
 import sys
 import os
-import time
 import requests as req
 from collections import OrderedDict
 import cartosql
@@ -171,7 +170,8 @@ def processData(existing_ids):
     return(num_new)
 
 def get_most_recent_date(table):
-    r = cartosql.getFields(TIME_FIELD, table, f='csv', post=True)
+    #pubdate is the date the report was published
+    r = cartosql.getFields('pubdate', table, f='csv', post=True)
     dates = r.text.split('\r\n')[1:-1]
     dates.sort()
     most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')

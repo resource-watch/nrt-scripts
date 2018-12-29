@@ -397,7 +397,7 @@ def deleteExcessRows(table, max_rows, time_field, max_age=''):
         logging.info('Dropped {} old rows from {}'.format(num_dropped, table))
 
 def get_most_recent_date(table):
-    r = cartosql.getFields(TIME_FIELD, table, f='csv', post=True)
+    r = cartosql.getFields(TIME_FIELD, table, where="forecast = 'False'", f='csv', post=True)
     dates = r.text.split('\r\n')[1:-1]
     dates.sort()
     most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')

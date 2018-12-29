@@ -57,7 +57,7 @@ def lastUpdateDate(dataset, date):
        logging.error('[lastUpdated]: '+str(e))
 
 
-DATASET_ID =  '444138cd-8ef4-48b3-b197-73e324175ad0'
+DATASET_ID = '444138cd-8ef4-48b3-b197-73e324175ad0'
 
 def lastUpdateDate(dataset, date):
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
