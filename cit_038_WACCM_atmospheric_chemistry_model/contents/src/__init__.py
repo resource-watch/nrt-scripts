@@ -315,7 +315,7 @@ def main():
         all_assets = np.sort(np.unique(existing_assets + new_assets))
         logging.info('Existing assets for {}: {}, new: {}, max: {}'.format(
             VAR, len(all_dates), len(new_dates), MAX_ASSETS))
-        deleteExcessAssets(all_assets, (MAX_ASSETS-9))
+        deleteExcessAssets(all_assets, (MAX_ASSETS))
         # Get most recent update date
         most_recent_date = get_most_recent_date(all_assets)
         #lastUpdateDate(DATASET_IDS[VAR], most_recent_date)
