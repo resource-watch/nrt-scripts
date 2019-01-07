@@ -81,9 +81,9 @@ def getNewDates(exclude_dates):
             datestr = date.strftime(DATE_FORMAT_NETCDF)
             new_dates.append(datestr)  #add to new dates
             date -= datetime.timedelta(**TIMESTEP)
-    #if the collection is empty, make list of most recent 45 days to check
+    #if the collection is empty, make list of most recent 10 days to check
     else:
-        for i in range(45):
+        for i in range(10):
             datestr = date.strftime(DATE_FORMAT_NETCDF)
             new_dates.append(datestr)  #add to new dates
             date -= datetime.timedelta(**TIMESTEP)
@@ -120,8 +120,10 @@ def fetch(new_dates):
         url = getUrl(date)
         file_date = datetime.datetime.strptime(date, DATE_FORMAT_NETCDF).strftime(DATE_FORMAT)
         f = getFilename(file_date)
+        file_name = os.path.split(url)[1]
         file_list = list_available_files(os.path.split(url)[0], ext='.nc')
-        if os.path.split(url)[1] in file_list:
+        if file_name in file_list:
+            logging.info('Retrieving {}'.format(file_name))
             try:
                 urllib.request.urlretrieve(url, f)
                 files.append(f)
@@ -130,7 +132,7 @@ def fetch(new_dates):
                 logging.error('Unable to retrieve data from {}'.format(url))
                 logging.debug(e)
         else:
-            logging.info('{} not available yet'.format(f))
+            logging.info('{} not available yet'.format(file_name))
 
     return files
 
