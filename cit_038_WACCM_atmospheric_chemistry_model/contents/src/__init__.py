@@ -116,7 +116,7 @@ def getNewDates(exclude_dates):
     '''Get new dates excluding existing'''
     new_dates = []
     #forecasts are supposed to go 9 days into the future
-    date = datetime.date.today() + datetime.timedelta(**{'days': 9})
+    date = datetime.date.today() + datetime.timedelta(**{'days': 1})
     # if anything is in the collection, check back until last uploaded date
     if len(exclude_dates) > 0:
         while (date.strftime(DATE_FORMAT[0:8]) not in exclude_dates):
@@ -295,34 +295,37 @@ def main():
     # 1. Check if collection exists and create
     existing_dates, existing_dates_by_var = checkCreateCollection(VARS)
     # Determine which files to fetch
-    new_dates = getNewDates(existing_dates)
-    # Fetch new files
-    logging.info('Fetching files for {}'.format(new_dates))
-    files = fetch(new_dates) #get list of locations of netcdfs in docker container
+    all_new_dates = getNewDates(existing_dates)
+    #container only big enough to hold 3 files at once, so break into groups to process
+    new_date_groups = [all_new_dates[x:x+3] for x in range(0, len(all_new_dates), 3)]
+    for new_dates in new_date_groups:
+        # Fetch new files
+        logging.info('Fetching files for {}'.format(new_dates))
+        files = fetch(new_dates) #get list of locations of netcdfs in docker container
 
-    for var_num in range(len(VARS)):
-        # get variable name
-        VAR = VARS[var_num]
-        # specify GEE collection name and Google Cloud Storage folder names
-        EE_COLLECTION=EE_COLLECTION_GEN.format(var=VAR)
-        GS_FOLDER=COLLECTION[1:]+'_'+VAR
-        existing_assets = eeUtil.ls(EE_COLLECTION)
-        # 2. Fetch, process, stage, ingest, clean
-        new_assets = processNewData(files, var_num)
-        new_dates = [getDateTime(a) for a in new_assets]
-        # 3. Delete old assets
-        all_dates = existing_dates_by_var[var_num] + new_dates
-        all_assets = np.sort(np.unique(existing_assets + [os.path.split(asset)[1] for asset in new_assets]))
-        logging.info('Existing assets for {}: {}, new: {}, max: {}'.format(
-            VAR, len(all_dates), len(new_dates), MAX_ASSETS))
-        deleteExcessAssets(all_assets, (MAX_ASSETS))
-        # Get most recent update date
-        most_recent_date = get_most_recent_date(all_assets)
-        #lastUpdateDate(DATASET_IDS[VAR], most_recent_date)
-        logging.info('SUCCESS for {}'.format(VAR))
+        for var_num in range(len(VARS)):
+            # get variable name
+            VAR = VARS[var_num]
+            # specify GEE collection name and Google Cloud Storage folder names
+            EE_COLLECTION=EE_COLLECTION_GEN.format(var=VAR)
+            GS_FOLDER=COLLECTION[1:]+'_'+VAR
+            existing_assets = eeUtil.ls(EE_COLLECTION)
+            # 2. Fetch, process, stage, ingest, clean
+            new_assets = processNewData(files, var_num)
+            new_dates = [getDateTime(a) for a in new_assets]
+            # 3. Delete old assets
+            all_dates = existing_dates_by_var[var_num] + new_dates
+            all_assets = np.sort(np.unique(existing_assets + [os.path.split(asset)[1] for asset in new_assets]))
+            logging.info('Existing assets for {}: {}, new: {}, max: {}'.format(
+                VAR, len(all_dates), len(new_dates), MAX_ASSETS))
+            deleteExcessAssets(all_assets, (MAX_ASSETS))
+            # Get most recent update date
+            most_recent_date = get_most_recent_date(all_assets)
+            #lastUpdateDate(DATASET_IDS[VAR], most_recent_date)
+            logging.info('SUCCESS for {}'.format(VAR))
 
-    # Delete local netcdf files
-    if DELETE_LOCAL:
-        logging.info('Cleaning local NETCDF files')
-        for f in files:
-            os.remove(f)
+        # Delete local netcdf files
+        if DELETE_LOCAL:
+            logging.info('Cleaning local NETCDF files')
+            for f in files:
+                os.remove(f)
