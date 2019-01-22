@@ -186,7 +186,8 @@ def get_most_recent_date(url):
     page = requests.get(url).text
     soup = BeautifulSoup(page, 'html.parser')
     json_dict = next(soup.find('script').descendants)
-    most_recent_date = json.loads(json_dict)['dateModified']
+    most_recent_date_str = json.loads(json_dict)['dateModified']
+    most_recent_date = datetime.datetime.strptime(most_recent_date_str, '%Y-%m-%d')
     return most_recent_date
 
 def main():
