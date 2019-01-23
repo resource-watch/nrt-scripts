@@ -53,13 +53,7 @@ TIMESTEP = {'days': 1}
 
 LOG_LEVEL = logging.INFO
 
-DATASET_IDS = {
-    'NO2': '',
-    'CO': '',
-    'O3': '',
-    'SO2': '',
-    'PM25_SRF': ''
-}
+DATASET_ID = 'be513af0-94e9-4d14-9332-46855ee1c3ea'
 apiToken = os.getenv('apiToken') or os.environ.get('rw_api_token') or os.environ.get('RW_API_KEY')
 
 def lastUpdateDate(dataset, date):
@@ -319,10 +313,11 @@ def main():
             logging.info('Existing assets for {}: {}, new: {}, max: {}'.format(
                 VAR, len(all_dates), len(new_dates), MAX_ASSETS))
             deleteExcessAssets(all_assets, (MAX_ASSETS))
-            # Get most recent update date
-            most_recent_date = get_most_recent_date(all_assets)
-            #lastUpdateDate(DATASET_IDS[VAR], most_recent_date)
             logging.info('SUCCESS for {}'.format(VAR))
+            if var_num==len(VARS)-1:
+                # Get most recent update date
+                most_recent_date = get_most_recent_date(all_assets)
+                lastUpdateDate(DATASET_ID, most_recent_date)
 
         # Delete local netcdf files
         if DELETE_LOCAL:
