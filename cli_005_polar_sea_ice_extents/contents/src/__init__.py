@@ -6,6 +6,7 @@ import urllib.request
 import shutil
 from contextlib import closing
 import datetime
+from dateutil.relativedelta import relativedelta
 import logging
 import subprocess
 import eeUtil
@@ -22,6 +23,15 @@ LOCAL_FILE = 'cli_005_{arctic_or_antarctic}_sea_ice_{date}.tif'
 
 EE_COLLECTION = 'cli_005_{arctic_or_antarctic}_sea_ice_extent_{orig_or_reproj}'
 ASSET_NAME = 'cli_005_{arctic_or_antarctic}_sea_ice_{date}'
+
+#keep historical record of sea ice in specified months (by month number, ex: 3=March)
+HISTORICAL_MONTHS = [3]
+# if COLLECT_BACK_HISTORY = True, goes back for specified months to get historical data
+#set this to true any time you add a new month to your history
+COLLECT_BACK_HISTORY = True
+EE_COLLECTION_BY_MONTH = '/projects/resource-watch-gee/cli_005_{arctic_or_antarctic}_sea_ice_extent_{orig_or_reproj}_month{month}_hist'
+#if you want to clear the historical collections, set this to True
+CLEAR_HISTORY = False
 
 # For naming and storing assets
 DATA_DIR = 'data'
@@ -43,6 +53,11 @@ DATASET_ID = {
     'cli_005_arctic_sea_ice_extent_reproj': '484fbba1-ac34-402f-8623-7b1cc9c34f17',
 }
 
+HIST_DATASET_ID = {
+    '/projects/resource-watch-gee/cli_005_antarctic_sea_ice_extent_reproj_month03_hist':'',
+    '/projects/resource-watch-gee/cli_005_arctic_sea_ice_extent_reproj_month03_hist': '',
+}
+
 def lastUpdateDate(dataset, date):
    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
    headers = {
@@ -62,7 +77,7 @@ def lastUpdateDate(dataset, date):
 ## Handling RASTERS
 ###
 
-def getAssetName(tif, orig_or_reproj, arctic_or_antarctic=''):
+def getAssetName(tif, orig_or_reproj, new_or_hist, arctic_or_antarctic=''):
     '''get asset name from tif name, extract datetime and location'''
     if len(arctic_or_antarctic):
         location = arctic_or_antarctic
@@ -73,10 +88,14 @@ def getAssetName(tif, orig_or_reproj, arctic_or_antarctic=''):
             location = tif.split('_')[4]
 
     date = getRasterDate(tif)
-    return os.path.join(EE_COLLECTION.format(arctic_or_antarctic=location,
-                                                orig_or_reproj=orig_or_reproj),
-                        ASSET_NAME.format(arctic_or_antarctic=location,
-                                            date=date))
+    if new_or_hist=='new':
+        asset = os.path.join(EE_COLLECTION.format(arctic_or_antarctic=location, orig_or_reproj=orig_or_reproj),
+                        ASSET_NAME.format(arctic_or_antarctic=location, date=date))
+    elif new_or_hist=='hist':
+        month = date[-2:]
+        asset = os.path.join(EE_COLLECTION_BY_MONTH.format(arctic_or_antarctic=location, orig_or_reproj=orig_or_reproj, month=month),
+                        ASSET_NAME.format(arctic_or_antarctic=location, date=date))
+    return asset
 
 def getRasterDate(filename):
     '''get last 8 chrs of filename'''
@@ -90,6 +109,23 @@ def getNewTargetDates(exclude_dates):
     for i in range(MAX_DATES):
         date -= datetime.timedelta(**TIMESTEP)
         date.replace(day=15)
+        datestr = date.strftime(DATE_FORMAT)
+        if datestr not in exclude_dates:
+            new_dates.append(datestr)
+    return new_dates
+
+def getHistoricTargetDates(exclude_dates, month):
+    '''Get new dates excluding existing'''
+    new_dates = []
+    date = datetime.date.today()
+    if date.month < 3:
+        years = range(1979, date.year)
+    else:
+        years = range(1979, date.year+1)
+    #earliest year of data is 1979
+    for i in range(date.year-1979):
+        date -= relativedelta(years=1)
+        date = date.replace(day=15).replace(month=month)
         datestr = date.strftime(DATE_FORMAT)
         if datestr not in exclude_dates:
             new_dates.append(datestr)
@@ -139,10 +175,13 @@ def reproject(filename, s_srs='EPSG:4326', extent='-180 -89.75 180 89.75'):
     logging.debug('Reprojected {} to {}'.format(filename, new_filename))
     return new_filename
 
-def processNewRasterData(existing_dates, arctic_or_antarctic):
+def processNewRasterData(existing_dates, arctic_or_antarctic, new_or_hist, month=None):
     '''fetch, process, upload, and clean new data'''
     # 1. Determine which years to read from the ftp file
-    target_dates = getNewTargetDates(existing_dates) or []
+    if new_or_hist=='new':
+        target_dates = getNewTargetDates(existing_dates) or []
+    elif new_or_hist=='hist':
+        target_dates = getHistoricTargetDates(existing_dates, month=month) or []
     logging.debug(target_dates)
 
     # 2. Fetch datafile
@@ -168,8 +207,8 @@ def processNewRasterData(existing_dates, arctic_or_antarctic):
     # 3. Upload new files
     logging.info('Uploading {} files'.format(arctic_or_antarctic))
 
-    orig_assets = [getAssetName(tif, 'orig') for tif in orig_tifs]
-    reproj_assets = [getAssetName(tif, 'reproj') for tif in reproj_tifs]
+    orig_assets = [getAssetName(tif, 'orig', new_or_hist) for tif in orig_tifs]
+    reproj_assets = [getAssetName(tif, 'reproj', new_or_hist) for tif in reproj_tifs]
 
     dates = [getRasterDate(tif) for tif in reproj_tifs]
     datestamps = [datetime.datetime.strptime(date, DATE_FORMAT)  # list comprehension/for loop
@@ -196,14 +235,14 @@ def checkCreateCollection(collection):
         eeUtil.createFolder(collection, imageCollection=True, public=True)
         return []
 
-def deleteExcessAssets(dates, orig_or_reproj, arctic_or_antarctic, max_assets):
+def deleteExcessAssets(dates, orig_or_reproj, arctic_or_antarctic, max_assets, new_or_hist):
     '''Delete assets if too many'''
     # oldest first
     dates.sort()
     logging.debug('ordered dates: {}'.format(dates))
     if len(dates) > max_assets:
         for date in dates[:-max_assets]:
-            eeUtil.removeAsset(getAssetName(date, orig_or_reproj, arctic_or_antarctic=arctic_or_antarctic))
+            eeUtil.removeAsset(getAssetName(date, orig_or_reproj, new_or_hist, arctic_or_antarctic=arctic_or_antarctic))
 
 ###
 ## Application code
@@ -246,7 +285,7 @@ def main():
     arctic_dates_orig = [getRasterDate(a) for a in arctic_assets_orig]
     arctic_dates_reproj = [getRasterDate(a) for a in arctic_assets_reproj]
 
-    new_arctic_assets_orig, new_arctic_assets_reproj = processNewRasterData(arctic_dates_orig, 'arctic')
+    new_arctic_assets_orig, new_arctic_assets_reproj = processNewRasterData(arctic_dates_orig, 'arctic', new_or_hist='new')
     new_arctic_dates_orig = [getRasterDate(a) for a in new_arctic_assets_orig]
     new_arctic_dates_reproj = [getRasterDate(a) for a in new_arctic_assets_reproj]
 
@@ -257,7 +296,7 @@ def main():
     antarctic_dates_orig = [getRasterDate(a) for a in antarctic_assets_orig]
     antarctic_dates_reproj = [getRasterDate(a) for a in antarctic_assets_reproj]
 
-    new_antarctic_assets_orig, new_antarctic_assets_reproj  = processNewRasterData(antarctic_dates_orig, 'antarctic')
+    new_antarctic_assets_orig, new_antarctic_assets_reproj  = processNewRasterData(antarctic_dates_orig, 'antarctic', new_or_hist='new')
     new_antarctic_dates_orig = [getRasterDate(a) for a in new_antarctic_assets_orig]
     new_antarctic_dates_reproj = [getRasterDate(a) for a in new_antarctic_assets_reproj]
 
@@ -276,12 +315,76 @@ def main():
 
         logging.info('Existing {} {} assets: {}, new: {}, max: {}'.format(
             orig_or_reproj, arctic_or_antarctic, len(e), len(n), MAX_DATES))
-        deleteExcessAssets(total,orig_or_reproj,arctic_or_antarctic,MAX_DATES)
+        deleteExcessAssets(total,orig_or_reproj,arctic_or_antarctic,MAX_DATES,'new')
 
     ###
     for dataset, id in DATASET_ID.items():
         # Get most recent update date
         most_recent_date = get_most_recent_date(dataset)
         lastUpdateDate(id, most_recent_date)
+
+    ## Process historical data
+    if COLLECT_BACK_HISTORY == True:
+        for month in HISTORICAL_MONTHS:
+            logging.info('Processing historical data for month {}'.format(month))
+            ### 2. Create collection names, clear if desired
+            arctic_collection_orig = EE_COLLECTION_BY_MONTH.format(arctic_or_antarctic='arctic', orig_or_reproj='orig', month="{:02d}".format(month))
+            arctic_collection_reproj = EE_COLLECTION_BY_MONTH.format(arctic_or_antarctic='arctic', orig_or_reproj='reproj', month="{:02d}".format(month))
+            antarctic_collection_orig = EE_COLLECTION_BY_MONTH.format(arctic_or_antarctic='antarctic', orig_or_reproj='orig', month="{:02d}".format(month))
+            antarctic_collection_reproj = EE_COLLECTION_BY_MONTH.format(arctic_or_antarctic='antarctic', orig_or_reproj='reproj', month="{:02d}".format(month))
+
+            collections = [arctic_collection_orig, arctic_collection_reproj,
+                           antarctic_collection_orig, antarctic_collection_reproj]
+
+            if CLEAR_HISTORY:
+                for collection in collections:
+                    if eeUtil.exists(collection):
+                        eeUtil.removeAsset(collection, recursive=True)
+
+            ### 3. Process arctic data
+            arctic_data = collections[0:2]
+            arctic_assets_orig = checkCreateCollection(arctic_data[0])
+            arctic_assets_reproj = checkCreateCollection(arctic_data[1])
+            arctic_dates_orig = [getRasterDate(a) for a in arctic_assets_orig]
+            arctic_dates_reproj = [getRasterDate(a) for a in arctic_assets_reproj]
+
+            new_arctic_assets_orig, new_arctic_assets_reproj = processNewRasterData(arctic_dates_orig, 'arctic', new_or_hist='hist', month=month)
+            new_arctic_dates_orig = [getRasterDate(a) for a in new_arctic_assets_orig]
+            new_arctic_dates_reproj = [getRasterDate(a) for a in new_arctic_assets_reproj]
+
+            ### 4. Process antarctic data
+            antarctic_data = collections[2:]
+            antarctic_assets_orig = checkCreateCollection(antarctic_data[0])
+            antarctic_assets_reproj = checkCreateCollection(antarctic_data[1])
+            antarctic_dates_orig = [getRasterDate(a) for a in antarctic_assets_orig]
+            antarctic_dates_reproj = [getRasterDate(a) for a in antarctic_assets_reproj]
+
+            new_antarctic_assets_orig, new_antarctic_assets_reproj = processNewRasterData(antarctic_dates_orig, 'antarctic', new_or_hist='hist', month=month)
+            new_antarctic_dates_orig = [getRasterDate(a) for a in new_antarctic_assets_orig]
+            new_antarctic_dates_reproj = [getRasterDate(a) for a in new_antarctic_assets_reproj]
+
+            ### 5. Delete old assets
+            e_dates = [arctic_dates_orig, arctic_dates_reproj,
+                       antarctic_dates_orig, antarctic_dates_reproj]
+            n_dates = [new_arctic_dates_orig, new_arctic_dates_reproj,
+                       new_antarctic_dates_orig, new_antarctic_dates_reproj]
+
+            for i in range(4):
+                orig_or_reproj = 'orig' if i % 2 == 0 else 'reproj'
+                arctic_or_antarctic = 'arctic' if i < 2 else 'antarctic'
+                e = e_dates[i]
+                n = n_dates[i]
+                total = e + n
+
+                logging.info('Existing {} {} assets: {}, new: {}'.format(
+                    orig_or_reproj, arctic_or_antarctic, len(e), len(n)))
+                #uncomment if we want to put a limit on how many years of historical data we have
+                #deleteExcessAssets(total, orig_or_reproj, arctic_or_antarctic, MAX_DATES,'hist')
+
+            ###
+            for dataset, id in HIST_DATASET_ID.items():
+                # Get most recent update date
+                most_recent_date = get_most_recent_date(dataset)
+                #lastUpdateDate(id, most_recent_date)
 
     logging.info('SUCCESS')

@@ -17,6 +17,7 @@ RUN apt-get install -y \
   && apt-get clean
 
 RUN pip install oauth2client
+RUN pip install python-dateutil
 RUN pip install --upgrade pip && pip install \
     earthengine-api \
     google-cloud-storage
