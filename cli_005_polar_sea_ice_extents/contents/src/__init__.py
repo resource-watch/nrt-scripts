@@ -25,7 +25,7 @@ EE_COLLECTION = 'cli_005_{arctic_or_antarctic}_sea_ice_extent_{orig_or_reproj}'
 ASSET_NAME = 'cli_005_{arctic_or_antarctic}_sea_ice_{date}'
 
 #keep historical record of sea ice in specified months (by month number, ex: 3=March)
-HISTORICAL_MONTHS = [3]
+HISTORICAL_MONTHS = [2,3,9]
 # if COLLECT_BACK_HISTORY = True, goes back for specified months to get historical data
 #set this to true any time you add a new month to your history
 COLLECT_BACK_HISTORY = True
