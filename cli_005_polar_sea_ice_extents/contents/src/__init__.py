@@ -29,9 +29,7 @@ HISTORICAL_MONTHS = [2,3,9]
 # if COLLECT_BACK_HISTORY = True, goes back for specified months to get historical data
 #set this to true any time you add a new month to your history
 COLLECT_BACK_HISTORY = True
-EE_COLLECTION_BY_MONTH = '/projects/resource-watch-gee/cli_005_{arctic_or_antarctic}_sea_ice_extent_{orig_or_reproj}_month{month}_hist'
-#if you want to clear the historical collections, set this to True
-CLEAR_HISTORY = False
+EE_COLLECTION_BY_MONTH = '/projects/resource-watch-gee/cli_005_historical_sea_ice_extent/cli_005_{arctic_or_antarctic}_sea_ice_extent_{orig_or_reproj}_month{month}_hist'
 
 # For naming and storing assets
 DATA_DIR = 'data'
@@ -114,7 +112,7 @@ def getNewTargetDates(exclude_dates):
             new_dates.append(datestr)
     return new_dates
 
-def getHistoricTargetDates(exclude_dates, month):
+def getHistoricalTargetDates(exclude_dates, month):
     '''Get new dates excluding existing'''
     new_dates = []
     date = datetime.date.today()
@@ -181,7 +179,7 @@ def processNewRasterData(existing_dates, arctic_or_antarctic, new_or_hist, month
     if new_or_hist=='new':
         target_dates = getNewTargetDates(existing_dates) or []
     elif new_or_hist=='hist':
-        target_dates = getHistoricTargetDates(existing_dates, month=month) or []
+        target_dates = getHistoricalTargetDates(existing_dates, month=month) or []
     logging.debug(target_dates)
 
     # 2. Fetch datafile
@@ -336,10 +334,6 @@ def main():
             collections = [arctic_collection_orig, arctic_collection_reproj,
                            antarctic_collection_orig, antarctic_collection_reproj]
 
-            if CLEAR_HISTORY:
-                for collection in collections:
-                    if eeUtil.exists(collection):
-                        eeUtil.removeAsset(collection, recursive=True)
 
             ### 3. Process arctic data
             arctic_data = collections[0:2]
