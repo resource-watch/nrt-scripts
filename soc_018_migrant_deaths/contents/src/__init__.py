@@ -37,7 +37,10 @@ CARTO_SCHEMA = OrderedDict([
     ('UNSD_Geographical_Grouping', 'text'),
     ('Source_Quality', 'text')
 ])
-#Note 'Region' column name was changed on 10/09/18 from 'Region_of_Interest'
+# this data source regularly alternates between names for 'Region'
+# any time they use a new name, add it to the REGION_NAMES list
+# this script uses whichever of these is in the table as the region so that we don't get an error
+REGION_NAMES = ['Region', 'Region of Incident']
 UID_FIELD = 'uid'
 TIME_FIELD = 'Reported_Date'
 
@@ -88,7 +91,13 @@ def processData(existing_ids):
 
         # Get headers as {'key':column#, ...} replacing spaces with underscores
         headers = next(csv_reader, None)
-        idx = {k.replace(' ', '_'): v for v, k in enumerate(headers)}
+        idx = {}
+        for v, k in enumerate(headers):
+            if k in REGION_NAMES:
+                for name in REGION_NAMES:
+                    idx[name.replace(' ', '_')] = v
+            else:
+                idx[k.replace(' ', '_')] = v
         new_rows = []
 
         for row in csv_reader:
