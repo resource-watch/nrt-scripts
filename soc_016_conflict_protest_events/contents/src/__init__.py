@@ -48,7 +48,7 @@ DATA_DIR = 'data'
 LOG_LEVEL = logging.INFO
 
 # Limit 1M rows, drop older than 10yrs
-MAXROWS = 1000000
+MAXROWS = 10000000
 #MAXAGE = datetime.datetime.today() - datetime.timedelta(days=3650)
 DATASET_ID = 'ea208a8b-4559-434b-82ee-95e041596a3a'
 def lastUpdateDate(dataset, date):
