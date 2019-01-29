@@ -51,9 +51,16 @@ DATASET_ID = {
     'cli_005_arctic_sea_ice_extent_reproj': '484fbba1-ac34-402f-8623-7b1cc9c34f17',
 }
 
+#min antarctic, max antarctic, min arctic, max arctic
 HIST_DATASET_ID = {
-    '/projects/resource-watch-gee/cli_005_antarctic_sea_ice_extent_reproj_month03_hist':'',
-    '/projects/resource-watch-gee/cli_005_arctic_sea_ice_extent_reproj_month03_hist': '',
+    '/projects/resource-watch-gee/cli_005_historical_sea_ice_extent/cli_005_antarctic_sea_ice_extent_reproj_month02_hist':
+        '05fd2614-325b-460a-8b52-3155fa9dd98f',
+    '/projects/resource-watch-gee/cli_005_historical_sea_ice_extent/cli_005_antarctic_sea_ice_extent_reproj_month09_hist':
+        '7667bdd8-9adb-44de-b51c-d2d26e461af1',
+    '/projects/resource-watch-gee/cli_005_historical_sea_ice_extent/cli_005_arctic_sea_ice_extent_reproj_month09_hist':
+        'a99c5cf5-f141-4bed-a36d-b04c8e171dfa',
+    '/projects/resource-watch-gee/cli_005_historical_sea_ice_extent/cli_005_arctic_sea_ice_extent_reproj_month03_hist':
+        '15a0b176-8313-4859-af90-5c198e50a605'
 }
 
 def lastUpdateDate(dataset, date):
@@ -375,10 +382,10 @@ def main():
                 #uncomment if we want to put a limit on how many years of historical data we have
                 #deleteExcessAssets(total, orig_or_reproj, arctic_or_antarctic, MAX_DATES,'hist')
 
-            ###
-            for dataset, id in HIST_DATASET_ID.items():
-                # Get most recent update date
-                most_recent_date = get_most_recent_date(dataset)
-                #lastUpdateDate(id, most_recent_date)
+        ###
+        for dataset, id in HIST_DATASET_ID.items():
+            # Get most recent update date
+            most_recent_date = get_most_recent_date(dataset)
+            lastUpdateDate(id, most_recent_date)
 
     logging.info('SUCCESS')
