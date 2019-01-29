@@ -9,7 +9,7 @@ import requests
 
 # Constants
 LATEST_URL = 'https://api.acleddata.com/acled/read?page={page}'
-MIN_PAGES = 10
+MIN_PAGES = 15
 MAX_PAGES = 400
 CLEAR_TABLE_FIRST = False
 
@@ -77,16 +77,16 @@ def processNewData(exclude_ids):
     '''
     Iterively fetch parse and post new data
     '''
-    page = 1
+    page = 0
     new_count = 1
     new_ids = []
 
-    # get and parse each page; stop when no new results or 200 pages
+    # get and parse each page; stop when no new results or max pages
     while page <= MIN_PAGES or new_count and page < MAX_PAGES:
         try:
             # 1. Fetch new data
-            logging.info("Fetching page {}".format(page))
             page += 1
+            logging.info("Fetching page {}".format(page))
             r = requests.get(LATEST_URL.format(page=page))
 
             # 2. Parse data excluding existing observations
