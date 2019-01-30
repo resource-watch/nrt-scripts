@@ -10,30 +10,19 @@ import eeUtil
 import urllib.request
 import requests
 from bs4 import BeautifulSoup
-import urllib.request
 import copy
 import numpy as np
+import ee
 
 
 # Sources for nrt data
 #h0 version is 3 hourly data
-#h3 version is 6-hourly data for regional modelers to use as boundary conditions
-VERSION = 'h0'
-SOURCE_URL = 'https://www.acom.ucar.edu/waccm/DATA/f.e21.FWSD.f09_f09_mg17.forecast.001.cam.%s.{date}-00000.nc' %VERSION
-
-VARS = ['NO2', 'CO', 'O3', 'SO2', 'PM25_SRF', 'bc_a1', 'bc_a4']
-#most variables have 88 pressure levels; PM 2.5 only has one level (surface)
-NUM_AVAILABLE_LEVELS = [88, 88, 88, 88, 1, 88, 88]
-#need to specify which pressure level of data we was for each (level 1 being the lowest pressure)
-#the highest level is the highest pressure (992.5 hPa), and therefore, closest to surface level
-DESIRED_LEVELS = [88, 88, 88, 88, 1, 88, 88]
-
-#h0 version is 3 hourly data
-if VERSION == 'h0':
-    TIME_HOURS = list(range(0, 24, 3))
-# h3 version is 6-hourly data
-elif VERSION == 'h3':
-    TIME_HOURS = list(range(0, 24, 6))
+#h3 version is 6-hourly data
+VERSION = 'h3'
+#Data set owner has created a subset of the data for our needs on Resouce Watch
+#If you want to switch back to pulling from the original source, set the following
+#variable to False
+rw_subset = True
 
 SDS_NAME = 'NETCDF:"{fname}":{var}'
 FILENAME = 'cit_038_WACCM_atmospheric_chemistry_model_{var}_{date}'
@@ -46,7 +35,6 @@ DELETE_LOCAL = True
 
 #today plus 9 days forecast
 MAX_DAYS = 10
-MAX_ASSETS = len(TIME_HOURS) * MAX_DAYS
 DATE_FORMAT_NETCDF = '%Y-%m-%d'
 DATE_FORMAT = '%y-%m-%d_%H%M'
 TIMESTEP = {'days': 1}
@@ -55,6 +43,29 @@ LOG_LEVEL = logging.INFO
 
 DATASET_ID = 'be513af0-94e9-4d14-9332-46855ee1c3ea'
 apiToken = os.getenv('apiToken') or os.environ.get('rw_api_token') or os.environ.get('RW_API_KEY')
+
+if rw_subset==True:
+    SOURCE_URL = 'https://www.acom.ucar.edu/waccm/subsets/resourcewatch/f.e21.FWSD.f09_f09_mg17.forecast.001.cam.%s.{date}_surface_subset.nc' % VERSION
+    VARS = ['NO2', 'CO', 'O3', 'SO2', 'PM25', 'bc_a1', 'bc_a4', 'NH3', 'NO']
+    NUM_AVAILABLE_LEVELS = [1, 1, 1, 1, 1, 1, 1, 1, 1]
+    DESIRED_LEVELS = [1, 1, 1, 1, 1, 1, 1, 1, 1]
+else:
+    SOURCE_URL = 'https://www.acom.ucar.edu/waccm/DATA/f.e21.FWSD.f09_f09_mg17.forecast.001.cam.%s.{date}-00000.nc' % VERSION
+    VARS = ['NO2', 'CO', 'O3', 'SO2', 'PM25_SRF', 'bc_a1', 'bc_a4']
+    # most variables have 88 pressure levels; PM 2.5 only has one level (surface)
+    # need to specify which pressure level of data we was for each (level 1 being the lowest pressure)
+    # the highest level is the highest pressure (992.5 hPa), and therefore, closest to surface level
+    NUM_AVAILABLE_LEVELS = [88, 88, 88, 88, 1, 88, 88]
+    DESIRED_LEVELS = [88, 88, 88, 88, 1, 88, 88]
+
+#h0 version is 3 hourly data
+if VERSION == 'h0':
+    TIME_HOURS = list(range(0, 24, 3))
+# h3 version is 6-hourly data
+elif VERSION == 'h3':
+    TIME_HOURS = list(range(0, 24, 6))
+
+MAX_ASSETS = len(TIME_HOURS) * MAX_DAYS
 
 def lastUpdateDate(dataset, date):
    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
@@ -106,26 +117,21 @@ def getDate_GEE(filename):
     '''get last 8 chrs of filename CHECK THIS'''
     return os.path.splitext(os.path.basename(filename))[0][-13:-5]
 
-def getNewDates(exclude_dates):
-    '''Get new dates excluding existing'''
-    new_dates = []
-    #forecasts are supposed to go 9 days into the future
-    date = datetime.date.today() + datetime.timedelta(**{'days': 1})
-    # if anything is in the collection, check back until last uploaded date
-    if len(exclude_dates) > 0:
-        while (date.strftime(DATE_FORMAT[0:8]) not in exclude_dates):
-            datestr = date.strftime(DATE_FORMAT_NETCDF)
-            new_dates.append(datestr)  #add to new dates
-            date -= datetime.timedelta(**TIMESTEP)
-    #if the collection is empty, make list of most recent 45 days to check
+def list_available_files(url, ext=''):
+    page = requests.get(url).text
+    soup = BeautifulSoup(page, 'html.parser')
+    return [node.get('href') for node in soup.find_all('a') if type(node.get('href'))==str and node.get('href').endswith(ext)]
+
+def getNewDates(existing_dates):
+    url = os.path.split(SOURCE_URL)[0]
+    recent_files = list_available_files(url, ext='.nc')[-10:]
+    recent_file_dates = [file[-26:-18] for file in recent_files]
+    recent_file_dates.sort()
+    existing_dates.sort()
+    if existing_dates==recent_file_dates:
+        new_dates = []
     else:
-        #If collection is empty, pull three days because files are large (~7GB) and take
-        # a long time to process (~30 mins per day)
-        logging.info('Collection empty, checking for most recent 3 days')
-        for i in range(3):
-            datestr = date.strftime(DATE_FORMAT_NETCDF)
-            new_dates.append(datestr)  #add to new dates
-            date -= datetime.timedelta(**TIMESTEP)
+        new_dates = [file[-28:-18] for file in recent_files]
     return new_dates
 
 def getBands(var_num):
@@ -265,6 +271,30 @@ def get_most_recent_date(all_assets):
     most_recent_date = datetime.datetime.strptime(all_assets[-1][-13:], DATE_FORMAT)
     return most_recent_date
 
+def clearCollection():
+    logging.info('Clearing collections.')
+    for var_num in range(len(VARS)):
+        var = VARS[var_num]
+        collection = EE_COLLECTION_GEN.format(var=var)
+        if eeUtil.exists(collection):
+            if collection[0] == '/':
+                collection = collection[1:]
+            a = ee.ImageCollection(collection)
+            collection_size = a.size().getInfo()
+            if collection_size > 0:
+                list = a.toList(collection_size)
+                for item in list.getInfo():
+                    ee.data.deleteAsset(item['id'])
+
+def initialize_ee():
+    GEE_JSON = os.environ.get("GEE_JSON")
+    _CREDENTIAL_FILE = 'credentials.json'
+    GEE_SERVICE_ACCOUNT = os.environ.get("GEE_SERVICE_ACCOUNT")
+    with open(_CREDENTIAL_FILE, 'w') as f:
+        f.write(GEE_JSON)
+    auth = ee.ServiceAccountCredentials(GEE_SERVICE_ACCOUNT, _CREDENTIAL_FILE)
+    ee.Initialize(auth)
+
 def main():
     global VAR
     global EE_COLLECTION
@@ -280,16 +310,17 @@ def main():
     logging.info('STARTING')
     # Initialize eeUtil and clear collection in GEE if desired
     eeUtil.initJson()
+    initialize_ee()
     if CLEAR_COLLECTION_FIRST:
-        for var_num in range(len(VARS)):
-            VAR = VARS[var_num]
-            EE_COLLECTION = EE_COLLECTION_GEN.format(var=VAR)
-            if eeUtil.exists(EE_COLLECTION.format(var=VAR)):
-                eeUtil.removeAsset(EE_COLLECTION, recursive=True)
+        clearCollection()
     # 1. Check if collection exists and create
     existing_dates, existing_dates_by_var = checkCreateCollection(VARS)
     # Determine which files to fetch
     all_new_dates = getNewDates(existing_dates)
+    # if new data is available, clear the collection because we want to store the most
+    # recent forecast, not the old forecast
+    if all_new_dates:
+        clearCollection()
     #container only big enough to hold 3 files at once, so break into groups to process
     new_date_groups = [all_new_dates[x:x+3] for x in range(0, len(all_new_dates), 3)]
     for new_dates in new_date_groups:
