@@ -134,7 +134,7 @@ def getNewDates(existing_dates):
         new_dates = [file[-28:-18] for file in recent_files]
     return new_dates
 
-def getBands(var_num):
+def getBands(var_num, file, last_file):
     # get specified pressure level for the current variable
     level = DESIRED_LEVELS[var_num]
     # the pressure and time dimensions are flattened into one dimension in the netcdfs
@@ -148,13 +148,17 @@ def getBands(var_num):
     elif VERSION == 'h3':
         bands = [x * NUM_AVAILABLE_LEVELS[var_num] + level for x in
                  list(range(0, 4))]  # gives all times at specified pressure level
+    if file == last_file:
+        # if we are on the last file, only one time is available
+        bands = [x * NUM_AVAILABLE_LEVELS[var_num] + level for x in
+                 list(range(0, 1))]  # gives all times at specified pressure level
     return bands
 
-def convert(files, var_num):
+def convert(files, var_num, last_file):
     '''convert netcdfs to tifs'''
     tifs = []
     for f in files:
-        bands = getBands(var_num)
+        bands = getBands(var_num, f, last_file)
         logging.info('Converting {} to tiff'.format(f))
         for band in bands:
             # extract subdataset by name
@@ -166,7 +170,10 @@ def convert(files, var_num):
             #and only takes the file name (splits on last period)
             cmd = ['gdal_translate', '-b', str(band), '-q', '-a_nodata', str(NODATA_VALUE), '-a_srs', 'EPSG:4326', sds_path, tif_0_360] #'-q' means quiet so you don't see it
             subprocess.call(cmd) #using the gdal from command line from inside python
-            cmd_warp = ['gdalwarp', '-t_srs', 'EPSG:4326', '-tr', '1.250000000000000', '-0.942408376963351', tif_0_360, tif, '-wo', 'SOURCE_EXTRA=1000', '--config', 'CENTER_LONG', '0']
+            #got x and y res for data set using gdalinfo
+            xres='1.250000000000000'
+            yres= '-0.942408376963351'
+            cmd_warp = ['gdalwarp', '-t_srs', 'EPSG:4326', '-tr', xres, yres, tif_0_360, tif, '-wo', 'SOURCE_EXTRA=1000', '--config', 'CENTER_LONG', '0']
             subprocess.call(cmd_warp) #using the gdal from command line from inside python
             tifs.append(tif)
     return tifs
@@ -204,12 +211,12 @@ def fetch(new_dates):
 
     return files
 
-def processNewData(files, var_num):
+def processNewData(files, var_num, last_file):
     '''process, upload, and clean new data'''
     if files: #if files is empty list do nothing, if something in, convert netcdfs
         # Convert new files
         logging.info('Converting files')
-        tifs = convert(files, var_num) # naming tiffs
+        tifs = convert(files, var_num, last_file) # naming tiffs
 
         # Upload new files
         logging.info('Uploading files')
@@ -327,7 +334,8 @@ def main():
         # Fetch new files
         logging.info('Fetching files for {}'.format(new_dates))
         files = fetch(new_dates) #get list of locations of netcdfs in docker container
-
+        # get last date because this file only has one time output so we need to process it differently
+        last_file = files[-1]
         for var_num in range(len(VARS)):
             # get variable name
             VAR = VARS[var_num]
@@ -336,7 +344,7 @@ def main():
             GS_FOLDER=COLLECTION[1:]+'_'+VAR
             existing_assets = eeUtil.ls(EE_COLLECTION)
             # 2. Fetch, process, stage, ingest, clean
-            new_assets = processNewData(files, var_num)
+            new_assets = processNewData(files, var_num, last_file)
             new_dates = [getDateTime(a) for a in new_assets]
             # 3. Delete old assets
             all_dates = existing_dates_by_var[var_num] + new_dates
