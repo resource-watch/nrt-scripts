@@ -132,9 +132,8 @@ def main():
     cc.write(df, CARTO_TABLE, overwrite=True, privacy='public')
 
     # Get most recent update date
-    if num_rows > num_existing:
-        most_recent_date = datetime.datetime.utcnow()
-        lastUpdateDate(DATASET_ID, most_recent_date)
+    most_recent_date = datetime.datetime.utcnow()
+    lastUpdateDate(DATASET_ID, most_recent_date)
 
     ### 3. Notify results
     logging.info('Existing rows: {}'.format(num_rows))
