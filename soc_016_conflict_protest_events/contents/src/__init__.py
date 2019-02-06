@@ -8,7 +8,7 @@ import requests
 
 
 # Constants
-LATEST_URL = 'https://api.acleddata.com/acled/read?page={page}'
+LATEST_URL = 'https://api.acleddata.com/acled/read?terms=accept&page={page}'
 MIN_PAGES = 15
 MAX_PAGES = 400
 CLEAR_TABLE_FIRST = False
