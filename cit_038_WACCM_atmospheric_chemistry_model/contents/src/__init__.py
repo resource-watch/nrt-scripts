@@ -380,7 +380,3 @@ def main():
             for f in files:
                 os.remove(f)
 
-
-from rasterstats import zonal_stats
-stats = zonal_stats("tests/data/polygons.shp", "tests/data/elevation.tif",
-                         stats=['sum'])
