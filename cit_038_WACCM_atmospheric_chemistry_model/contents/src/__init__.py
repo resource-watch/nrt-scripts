@@ -368,11 +368,19 @@ def main():
             # Get most recent update date
             # to show most recent date in collection, instead of start date for forecast run
             # use get_most_recent_date(new_assets) function instead
-            most_recent_date = get_forecast_run_date(new_assets)
-            lastUpdateDate(DATASET_IDS[VAR], most_recent_date)
+            try:
+                most_recent_date = get_forecast_run_date(new_assets)
+                lastUpdateDate(DATASET_IDS[VAR], most_recent_date)
+            except KeyError:
+                continue
 
         # Delete local netcdf files
         if DELETE_LOCAL:
             logging.info('Cleaning local NETCDF files')
             for f in files:
                 os.remove(f)
+
+
+from rasterstats import zonal_stats
+stats = zonal_stats("tests/data/polygons.shp", "tests/data/elevation.tif",
+                         stats=['sum'])
