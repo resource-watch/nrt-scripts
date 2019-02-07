@@ -41,7 +41,14 @@ TIMESTEP = {'days': 1}
 
 LOG_LEVEL = logging.INFO
 
-DATASET_ID = 'be513af0-94e9-4d14-9332-46855ee1c3ea'
+DATASET_IDS = {
+    'NO2':'2c2c614a-8678-443a-8874-33335771ecc0',
+    'CO':'266ed113-396c-4c69-885a-ead30df95810',
+    'O3':'ec011d66-a99b-425c-accd-d04e75966094',
+    'SO2':'d82186a4-7885-4fa9-9e82-26799853093b',
+    'PM25':'348e4d57-a345-411d-986e-5863fffebda7',
+    'bc_a4':'fe0a0042-8430-419b-a60f-9b69ec81a0ec'
+}
 apiToken = os.getenv('apiToken') or os.environ.get('rw_api_token') or os.environ.get('RW_API_KEY')
 
 if rw_subset==True:
@@ -278,6 +285,11 @@ def get_most_recent_date(all_assets):
     most_recent_date = datetime.datetime.strptime(all_assets[-1][-13:], DATE_FORMAT)
     return most_recent_date
 
+def get_forecast_run_date(all_assets):
+    all_assets.sort()
+    most_recent_date = datetime.datetime.strptime(all_assets[0][-13:], DATE_FORMAT)
+    return most_recent_date
+
 def clearCollection():
     logging.info('Clearing collections.')
     for var_num in range(len(VARS)):
@@ -353,10 +365,11 @@ def main():
                 VAR, len(all_dates), len(new_dates), MAX_ASSETS))
             deleteExcessAssets(all_assets, (MAX_ASSETS))
             logging.info('SUCCESS for {}'.format(VAR))
-            if var_num==len(VARS)-1:
-                # Get most recent update date
-                most_recent_date = get_most_recent_date(all_assets)
-                lastUpdateDate(DATASET_ID, most_recent_date)
+            # Get most recent update date
+            # to show most recent date in collection, instead of start date for forecast run
+            # use get_most_recent_date(new_assets) function instead
+            most_recent_date = get_forecast_run_date(new_assets)
+            lastUpdateDate(DATASET_IDS[VAR], most_recent_date)
 
         # Delete local netcdf files
         if DELETE_LOCAL:
