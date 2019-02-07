@@ -141,7 +141,7 @@ def getNewDates(existing_dates):
         new_dates = [file[-28:-18] for file in recent_files]
     return new_dates
 
-def getBands(var_num, file, last_file):
+def getBands(var_num, file, last_date):
     # get specified pressure level for the current variable
     level = DESIRED_LEVELS[var_num]
     # the pressure and time dimensions are flattened into one dimension in the netcdfs
@@ -155,17 +155,17 @@ def getBands(var_num, file, last_file):
     elif VERSION == 'h3':
         bands = [x * NUM_AVAILABLE_LEVELS[var_num] + level for x in
                  list(range(0, 4))]  # gives all times at specified pressure level
-    if file == last_file:
+    if file[-13:-3] == last_date:
         # if we are on the last file, only one time is available
         bands = [x * NUM_AVAILABLE_LEVELS[var_num] + level for x in
                  list(range(0, 1))]  # gives all times at specified pressure level
     return bands
 
-def convert(files, var_num, last_file):
+def convert(files, var_num, last_date):
     '''convert netcdfs to tifs'''
     tifs = []
     for f in files:
-        bands = getBands(var_num, f, last_file)
+        bands = getBands(var_num, f, last_date)
         logging.info('Converting {} to tiff'.format(f))
         for band in bands:
             # extract subdataset by name
@@ -218,12 +218,12 @@ def fetch(new_dates):
 
     return files
 
-def processNewData(files, var_num, last_file):
+def processNewData(files, var_num, last_date):
     '''process, upload, and clean new data'''
     if files: #if files is empty list do nothing, if something in, convert netcdfs
         # Convert new files
         logging.info('Converting files')
-        tifs = convert(files, var_num, last_file) # naming tiffs
+        tifs = convert(files, var_num, last_date) # naming tiffs
 
         # Upload new files
         logging.info('Uploading files')
@@ -336,6 +336,8 @@ def main():
     existing_dates, existing_dates_by_var = checkCreateCollection(VARS)
     # Determine which files to fetch
     all_new_dates = getNewDates(existing_dates)
+    # get last date because this file only has one time output so we need to process it differently
+    last_date = all_new_dates[-1]
     # if new data is available, clear the collection because we want to store the most
     # recent forecast, not the old forecast
     if all_new_dates:
@@ -346,8 +348,6 @@ def main():
         # Fetch new files
         logging.info('Fetching files for {}'.format(new_dates))
         files = fetch(new_dates) #get list of locations of netcdfs in docker container
-        # get last date because this file only has one time output so we need to process it differently
-        last_file = files[-1]
         for var_num in range(len(VARS)):
             # get variable name
             VAR = VARS[var_num]
@@ -356,7 +356,7 @@ def main():
             GS_FOLDER=COLLECTION[1:]+'_'+VAR
             existing_assets = eeUtil.ls(EE_COLLECTION)
             # 2. Fetch, process, stage, ingest, clean
-            new_assets = processNewData(files, var_num, last_file)
+            new_assets = processNewData(files, var_num, last_date)
             new_dates = [getDateTime(a) for a in new_assets]
             # 3. Delete old assets
             all_dates = existing_dates_by_var[var_num] + new_dates
@@ -368,11 +368,15 @@ def main():
             # Get most recent update date
             # to show most recent date in collection, instead of start date for forecast run
             # use get_most_recent_date(new_assets) function instead
-            try:
-                most_recent_date = get_forecast_run_date(new_assets)
-                lastUpdateDate(DATASET_IDS[VAR], most_recent_date)
-            except KeyError:
-                continue
+    for var_num in range(len(VARS)):
+        VAR = VARS[var_num]
+        EE_COLLECTION = EE_COLLECTION_GEN.format(var=VAR)
+        existing_assets = eeUtil.ls(EE_COLLECTION)
+        try:
+            most_recent_date = get_forecast_run_date(existing_assets)
+            lastUpdateDate(DATASET_IDS[VAR], most_recent_date)
+        except KeyError:
+            continue
 
         # Delete local netcdf files
         if DELETE_LOCAL:
