@@ -33,8 +33,9 @@ COLLECTION = '/projects/resource-watch-gee/cit_038_WACCM_atmospheric_chemistry_m
 CLEAR_COLLECTION_FIRST = False
 DELETE_LOCAL = True
 
-#today plus 9 days forecast
-MAX_DAYS = 10
+# MAXDAYS = 1 only fetches today
+# maximum value of 10: today plus 9 days of forecast
+MAX_DAYS = 2
 DATE_FORMAT_NETCDF = '%Y-%m-%d'
 DATE_FORMAT = '%y-%m-%d_%H%M'
 TIMESTEP = {'days': 1}
@@ -130,16 +131,25 @@ def list_available_files(url, ext=''):
     return [node.get('href') for node in soup.find_all('a') if type(node.get('href'))==str and node.get('href').endswith(ext)]
 
 def getNewDates(existing_dates):
+    #get the date that the most recent forecast was created on
     url = os.path.split(SOURCE_URL)[0]
-    recent_files = list_available_files(url, ext='.nc')[-10:]
-    recent_file_dates = [file[-26:-18] for file in recent_files]
-    recent_file_dates.sort()
+    available_files = list_available_files(url, ext='.nc')[-10:]
+    recent_forecast_start = available_files[0]
+    recent_forecast_start_date = recent_forecast_start[-26:-18]
+    #sort and get the forecast start date for the data we already have
     existing_dates.sort()
-    if existing_dates==recent_file_dates:
+    existing_forecast_start_date = existing_dates[0]
+    #if we have the most recent forecast, we don't need new data
+    if existing_forecast_start_date==recent_forecast_start_date:
         new_dates = []
+    #otherwise, we need to go get the days of interest
     else:
+        #get start date of forecast through the day we want to show on RW
+        recent_files = available_files[:MAX_DAYS]
         new_dates = [file[-28:-18] for file in recent_files]
-    return new_dates
+    # get last date because this file only has one time output so we need to process it differently
+    last_date = available_files[-1]
+    return new_dates, last_date
 
 def getBands(var_num, file, last_date):
     # get specified pressure level for the current variable
@@ -275,9 +285,12 @@ def checkCreateCollection(VARS):
 
 def deleteExcessAssets(all_assets, max_assets):
     '''Delete assets if too many'''
-    # oldest first
     if len(all_assets) > max_assets:
-        for asset in all_assets[:-max_assets]:
+        # oldest first
+        all_assets.sort()
+        logging.info('Deleting excess assets.')
+        #delete extra assets after the number we are expecting to see
+        for asset in all_assets[max_assets:]:
             eeUtil.removeAsset(EE_COLLECTION +'/'+ asset)
 
 def get_most_recent_date(all_assets):
@@ -335,12 +348,11 @@ def main():
     # 1. Check if collection exists and create
     existing_dates, existing_dates_by_var = checkCreateCollection(VARS)
     # Determine which files to fetch
-    all_new_dates = getNewDates(existing_dates)
-    # get last date because this file only has one time output so we need to process it differently
-    last_date = all_new_dates[-1]
+    all_new_dates, last_date = getNewDates(existing_dates)
     # if new data is available, clear the collection because we want to store the most
     # recent forecast, not the old forecast
     if all_new_dates:
+        logging.info('New forecast available')
         clearCollection()
     #container only big enough to hold 3 files at once, so break into groups to process
     new_date_groups = [all_new_dates[x:x+3] for x in range(0, len(all_new_dates), 3)]
@@ -363,6 +375,7 @@ def main():
             all_assets = np.sort(np.unique(existing_assets + [os.path.split(asset)[1] for asset in new_assets]))
             logging.info('Existing assets for {}: {}, new: {}, max: {}'.format(
                 VAR, len(all_dates), len(new_dates), MAX_ASSETS))
+            #if we have shortened the time perio we are interested in, we will need to delete the extra assets
             deleteExcessAssets(all_assets, (MAX_ASSETS))
             logging.info('SUCCESS for {}'.format(VAR))
             # Get most recent update date
@@ -378,9 +391,12 @@ def main():
         except KeyError:
             continue
 
-        # Delete local netcdf files
-        if DELETE_LOCAL:
-            logging.info('Cleaning local NETCDF files')
+    # Delete local netcdf files
+    if DELETE_LOCAL:
+        try:
             for f in files:
+                logging.info('Removing {}'.format(f))
                 os.remove(f)
+        except NameError:
+            logging.info('No local files to clean.')
 
