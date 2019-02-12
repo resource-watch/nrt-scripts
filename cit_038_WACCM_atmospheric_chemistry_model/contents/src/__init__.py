@@ -95,7 +95,6 @@ def getUrl(date):
     '''get source url from datestamp'''
     return SOURCE_URL.format(date=date)
 
-
 def getAssetName(date):
     '''get asset name from datestamp'''# os.path.join('home', 'coming') = 'home/coming'
     return os.path.join(EE_COLLECTION, FILENAME.format(var=VAR, date=date))
@@ -137,8 +136,11 @@ def getNewDates(existing_dates):
     recent_forecast_start = available_files[0]
     recent_forecast_start_date = recent_forecast_start[-26:-18]
     #sort and get the forecast start date for the data we already have
-    existing_dates.sort()
-    existing_forecast_start_date = existing_dates[0]
+    if existing_dates:
+        existing_dates.sort()
+        existing_forecast_start_date = existing_dates[0]
+    else:
+        existing_forecast_start_date = None
     #if we have the most recent forecast, we don't need new data
     if existing_forecast_start_date==recent_forecast_start_date:
         new_dates = []
@@ -194,12 +196,6 @@ def convert(files, var_num, last_date):
             subprocess.call(cmd_warp) #using the gdal from command line from inside python
             tifs.append(tif)
     return tifs
-
-
-def list_available_files(url, ext=''):
-    page = requests.get(url).text
-    soup = BeautifulSoup(page, 'html.parser')
-    return [node.get('href') for node in soup.find_all('a') if type(node.get('href'))==str and node.get('href').endswith(ext)]
 
 def fetch(new_dates):
 	# 1. Set up authentication with the urllib.request library
@@ -375,8 +371,8 @@ def main():
             all_assets = np.sort(np.unique(existing_assets + [os.path.split(asset)[1] for asset in new_assets]))
             logging.info('Existing assets for {}: {}, new: {}, max: {}'.format(
                 VAR, len(all_dates), len(new_dates), MAX_ASSETS))
-            #if we have shortened the time perio we are interested in, we will need to delete the extra assets
-            deleteExcessAssets(all_assets, (MAX_ASSETS))
+            #if we have shortened the time period we are interested in, we will need to delete the extra assets
+            deleteExcessAssets(all_assets, MAX_ASSETS)
             logging.info('SUCCESS for {}'.format(VAR))
             # Get most recent update date
             # to show most recent date in collection, instead of start date for forecast run
