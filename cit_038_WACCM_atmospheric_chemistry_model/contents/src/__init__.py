@@ -39,7 +39,10 @@ MAX_DAYS = 2
 DATE_FORMAT_NETCDF = '%Y-%m-%d'
 DATE_FORMAT = '%y-%m-%d_%H%M'
 TIMESTEP = {'days': 1}
-
+#if we don't want to show the last time available for the last day, how many time steps before
+#the last is the time we want to show?
+#ex: for now, we want to show 12:00, which is 1 time step before 18:00
+TS_FROM_END = 1
 LOG_LEVEL = logging.INFO
 
 DATASET_IDS = {
@@ -175,7 +178,7 @@ def getBands(var_num, file, last_date):
 
 def convert(files, var_num, last_date):
     '''convert netcdfs to tifs'''
-    tifs = []
+    all_tifs = []
     for f in files:
         bands = getBands(var_num, f, last_date)
         logging.info('Converting {} to tiff'.format(f))
@@ -194,8 +197,10 @@ def convert(files, var_num, last_date):
             yres= '-0.942408376963351'
             cmd_warp = ['gdalwarp', '-t_srs', 'EPSG:4326', '-tr', xres, yres, tif_0_360, tif, '-wo', 'SOURCE_EXTRA=1000', '--config', 'CENTER_LONG', '0']
             subprocess.call(cmd_warp) #using the gdal from command line from inside python
-            tifs.append(tif)
-    return tifs
+            all_tifs.append(tif)
+    if TS_FROM_END>0:
+        tifs = all_tifs[:-TS_FROM_END]
+    return all_tifs, tifs
 
 def fetch(new_dates):
 	# 1. Set up authentication with the urllib.request library
@@ -229,7 +234,7 @@ def processNewData(files, var_num, last_date):
     if files: #if files is empty list do nothing, if something in, convert netcdfs
         # Convert new files
         logging.info('Converting files')
-        tifs = convert(files, var_num, last_date) # naming tiffs
+        all_tifs, tifs = convert(files, var_num, last_date) # naming tiffs
 
         # Upload new files
         logging.info('Uploading files')
@@ -242,7 +247,7 @@ def processNewData(files, var_num, last_date):
         # Delete local files
         if DELETE_LOCAL:
             logging.info('Cleaning local TIFF files')
-            for tif in tifs:
+            for tif in all_tifs:
                 os.remove(tif)
 
         return assets
