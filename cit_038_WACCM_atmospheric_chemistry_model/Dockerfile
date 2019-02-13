@@ -1,4 +1,4 @@
-FROM python:3.6
+FROM python:3.7
 MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
 
 # install core libraries
@@ -10,12 +10,11 @@ RUN apt-get install -y gdal-bin libgdal-dev
 RUN pip install -e git+https://github.com/fgassert/eeUtil#egg=eeUtil
 RUN pip install oauth2client
 RUN pip install bs4
-RUN pip install Cython
-RUN pip install netCDF4
+RUN pip install numpy==1.14.3
 
 
 #install
-RUN apt-get -y install python-gdal
+#RUN apt-get -y install python-gdal
 
 # set name
 ARG NAME=nrt-script
