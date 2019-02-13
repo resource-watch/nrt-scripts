@@ -237,11 +237,13 @@ def processNewData(files, var_num, last_date):
         all_tifs, tifs = convert(files, var_num, last_date) # naming tiffs
 
         # Upload new files
-        logging.info('Uploading files')
         dates = [getDateTime(tif) for tif in tifs] #finding date for naming tiffs, returns string
         datestamps = [datetime.datetime.strptime(date, DATE_FORMAT) #list comprehension/for loop
                       for date in dates] #returns list of datetime object
         assets = [getAssetName(date) for date in dates] #create asset nema (imagecollect +tiffname)
+        logging.info('Uploading files:')
+        for asset in assets:
+            logging.info(os.path.split(asset)[1])
         eeUtil.uploadAssets(tifs, assets, GS_FOLDER, datestamps, timeout=3000) #puts on GEE
 
         # Delete local files
