@@ -3,13 +3,9 @@ from __future__ import unicode_literals
 import os
 import sys
 import urllib.request
-import shutil
-from contextlib import closing
-#import gzip
 import datetime
 from dateutil import parser
 import logging
-#import subprocess
 from netCDF4 import Dataset
 import rasterio as rio
 import numpy as np
@@ -102,15 +98,7 @@ def fetch(filename):
     # New data may not yet be posted
     _file = SOURCE_URL.format(target_file=SOURCE_FILENAME)
     try:
-        # with closing(urllib.request.urlopen(_file)) as r:
-        #     #with gzip.open(r, "rb") as unzipped:
-        #     with open(filename, 'wb') as f:
-        #         #shutil.copyfileobj(unzipped, f)
-        #         shutil.copyfileobj(r, f)
-
         urllib.request.urlretrieve(_file, filename)
-        #cmd = ['head', filename]
-        #subprocess.call(cmd)
         #cmd = ['gdalinfo', filename]
         #subprocess.call(cmd)
 
