@@ -13,9 +13,6 @@ RUN pip install bs4
 RUN pip install numpy==1.14.3
 
 
-#install
-#RUN apt-get -y install python-gdal
-
 # set name
 ARG NAME=nrt-script
 ENV NAME ${NAME}

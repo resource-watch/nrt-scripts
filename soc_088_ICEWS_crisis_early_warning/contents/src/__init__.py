@@ -69,9 +69,9 @@ def lastUpdateDate(dataset, date):
        logging.error('[lastUpdated]: '+str(e))
 
 def list_available_files(url):
-    page = requests.get(url).text
+    page = requests.get(url).content
     soup = BeautifulSoup(page, 'html.parser')
-    json_dict = next(soup.find('script').descendants)
+    json_dict = soup.find_all('script')[2].get_text()
     dict = json.loads(json_dict)['distribution']
     fileList = [element['contentUrl'] for element in dict]
     return fileList
@@ -183,11 +183,11 @@ def deleteExcessRows(table, max_rows, time_field, max_age=''):
         logging.info('Dropped {} old rows from {}'.format(num_dropped, table))
 
 def get_most_recent_date(url):
-    page = requests.get(url).text
+    page = requests.get(url).content
     soup = BeautifulSoup(page, 'html.parser')
-    json_dict = next(soup.find('script').descendants)
-    most_recent_date_str = json.loads(json_dict)['dateModified']
-    most_recent_date = datetime.datetime.strptime(most_recent_date_str, '%Y-%m-%d')
+    json_dict = soup.find_all('script')[2].get_text()
+    most_recent_date_str = json.loads(json_dict)['distribution'][-1]['name'][0:8]
+    most_recent_date = datetime.datetime.strptime(most_recent_date_str, '%Y%m%d')
     return most_recent_date
 
 def main():
