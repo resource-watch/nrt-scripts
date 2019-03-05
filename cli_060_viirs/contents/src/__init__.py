@@ -7,8 +7,6 @@ import requests
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
-DATASETS = ['bd9f603e-a559-4cc1-84f4-de0ddc7c341f','55a1e0d5-5af9-4ebc-a261-e9c40606d81c']
-
 DAY_DATASET_ID = 'bd9f603e-a559-4cc1-84f4-de0ddc7c341f'
 DAY_RW_API = 'https://api.resourcewatch.org/v1/dataset/{dataset}/layer/'.format(dataset = DAY_DATASET_ID)
 DAY_LAYER_CONFIG = {
