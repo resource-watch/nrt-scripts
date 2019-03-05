@@ -52,7 +52,7 @@ def main():
 
     #initialize ee module
     initialize_ee()
-
+    # 1. update data sets in GEE Catalog
     for collection_name, id in DATASET_ID_BY_COLLECTION.items():
         logging.info('Updating '+collection_name)
         #load collection and get most recent asset time stamp
@@ -65,4 +65,72 @@ def main():
         # Update data set's last update date on Resource Watch
         lastUpdateDate(id, most_recent_date)
 
-    logging.info('SUCCESS')
+    logging.info('Success for GEE Catalog data sets')
+
+    # 2. update data sets on WRI-RW Carto account
+    WRIRW_DATASETS = {'modis_c6_global_7d': 'a9e33aad-eece-4453-8279-31c4b4e0583f',
+                      'df_map_2ylag_1': '25eebe25-aaf2-48fc-ab7b-186d7498f393'}
+
+    url = "https://{account}.carto.com/api/v1/synchronizations/?api_key={API_key}".format(
+        account=os.getenv('CARTO_WRI_RW_USER'), API_key=os.getenv('CARTO_WRI_RW_KEY'))
+    r = requests.get(url)
+    json = r.json()
+    sync = json['synchronizations']
+
+    for table_name, id in WRIRW_DATASETS.items():
+        logging.info('Updating ' + table_name)
+        table = next(item for item in sync if item["name"] == table_name)
+        # ran_at = The date time at which the table had its contents synched with the source file.
+        # updated_at = The date time at which the table had its contents modified.
+        # modified_at = The date time at which the table was manually modified, if applicable.
+        last_sync = table['updated_at']
+        TIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
+        last_update_time = datetime.datetime.strptime(last_sync, TIME_FORMAT)
+        lastUpdateDate(id, last_update_time)
+    logging.info('Success for WRI-RW')
+
+    # 3. update data sets on GFW Carto account
+    GFW_DATASETS = {'gfw_oil_palm': '6e05a9e8-ba07-4e6f-8337-31c5362d07fe',
+                    'gfw_wood_fiber': '83de627f-524b-4162-a10c-384dc3e8107a',
+                    'vnp14imgtdl_nrt_global_7d': '20cc5eca-8c63-4c41-8e8e-134dcf1e6d76',
+                    'forma_activity': 'e1b40fdd-04f9-43ab-b4f1-d3ceee39fea1'}
+
+    url = "https://{account}.carto.com/api/v1/synchronizations/?api_key={API_key}".format(
+        account=os.getenv('CARTO_WRI_01_USER'), API_key=os.getenv('CARTO_WRI_01_KEY'))
+
+    r = requests.get(url)
+    json = r.json()
+    sync = json['synchronizations']
+
+    for table_name, id in GFW_DATASETS.items():
+        logging.info('Updating ' + table_name)
+        table = next(item for item in sync if item["name"] == table_name)
+        # ran_at = The date time at which the table had its contents synched with the source file.
+        # updated_at = The date time at which the table had its contents modified.
+        # modified_at = The date time at which the table was manually modified, if applicable.
+        last_sync = table['updated_at']
+        TIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
+        last_update_time = datetime.datetime.strptime(last_sync, TIME_FORMAT)
+        lastUpdateDate(id, last_update_time)
+    logging.info('Success for WRI-01')
+
+    # 4. update data sets on WRI-RW Carto account
+    RWNRT_DATASETS = {'vnp14imgtdl_nrt_global_7d': '20cc5eca-8c63-4c41-8e8e-134dcf1e6d76'}
+
+    url = "https://{account}.carto.com/api/v1/synchronizations/?api_key={API_key}".format(
+        account=os.getenv('CARTO_USER'), API_key=os.getenv('CARTO_KEY'))
+    r = requests.get(url)
+    json = r.json()
+    sync = json['synchronizations']
+
+    for table_name, id in RWNRT_DATASETS.items():
+        logging.info('Updating ' + table_name)
+        table = next(item for item in sync if item["name"] == table_name)
+        # ran_at = The date time at which the table had its contents synched with the source file.
+        # updated_at = The date time at which the table had its contents modified.
+        # modified_at = The date time at which the table was manually modified, if applicable.
+        last_sync = table['updated_at']
+        TIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
+        last_update_time = datetime.datetime.strptime(last_sync, TIME_FORMAT)
+        lastUpdateDate(id, last_update_time)
+    logging.info('Success for RW-NRT')
