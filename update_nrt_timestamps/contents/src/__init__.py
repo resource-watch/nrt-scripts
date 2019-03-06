@@ -66,7 +66,7 @@ def main():
         lastUpdateDate(id, most_recent_date)
 
     logging.info('Success for GEE Catalog data sets')
-
+    '''
     # 2. update data sets on WRI-RW Carto account
     WRIRW_DATASETS = {'modis_c6_global_7d': 'a9e33aad-eece-4453-8279-31c4b4e0583f',
                       'df_map_2ylag_1': '25eebe25-aaf2-48fc-ab7b-186d7498f393'}
@@ -88,7 +88,7 @@ def main():
         last_update_time = datetime.datetime.strptime(last_sync, TIME_FORMAT)
         lastUpdateDate(id, last_update_time)
     logging.info('Success for WRI-RW')
-'''
+
     # 3. update data sets on GFW Carto account
     GFW_DATASETS = {'gfw_oil_palm': '6e05a9e8-ba07-4e6f-8337-31c5362d07fe',
                     'gfw_wood_fiber': '83de627f-524b-4162-a10c-384dc3e8107a',
@@ -113,7 +113,7 @@ def main():
         last_update_time = datetime.datetime.strptime(last_sync, TIME_FORMAT)
         lastUpdateDate(id, last_update_time)
     logging.info('Success for WRI-01')
-'''
+    '''
     # 4. update data sets on WRI-RW Carto account
     RWNRT_DATASETS = {'vnp14imgtdl_nrt_global_7d': '20cc5eca-8c63-4c41-8e8e-134dcf1e6d76'}
 
