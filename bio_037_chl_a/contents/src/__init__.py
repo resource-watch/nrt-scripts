@@ -118,8 +118,6 @@ def getNewDates(exclude_dates):
         if datestr not in exclude_dates:
             new_dates.append(datestr)
             new_datetime.append(datetime.datetime.combine(enddate,datetime.datetime.min.time()))
-
-    logging.info(new_dates)
     return new_dates,new_datetime
 
 #https://gis.stackexchange.com/questions/6669/converting-projected-geotiff-to-wgs84-with-gdal-and-python
