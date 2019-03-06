@@ -46,24 +46,6 @@ DATE_FORMAT = '%Y%m%d'
 LOG_LEVEL = logging.INFO
 DATASET_ID = 'd4e91298-b994-4e2c-947c-4f6486a66f30'
 
-def lastUpdateDate(dataset, date):
-   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
-   headers = {
-   'Content-Type': 'application/json',
-   'Authorization': os.getenv('apiToken')
-   }
-   body = {
-       "dataLastUpdated": date.isoformat()
-   }
-   try:
-       r = requests.patch(url = apiUrl, json = body, headers = headers)
-       logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
-       return 0
-   except Exception as e:
-       logging.error('[lastUpdated]: '+str(e))
-
-DATASET_ID =  'd4e91298-b994-4e2c-947c-4f6486a66f30'
-
 
 def lastUpdateDate(dataset, date):
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
@@ -136,6 +118,8 @@ def getNewDates(exclude_dates):
         if datestr not in exclude_dates:
             new_dates.append(datestr)
             new_datetime.append(datetime.datetime.combine(enddate,datetime.datetime.min.time()))
+
+    logging.info(new_dates)
     return new_dates,new_datetime
 
 #https://gis.stackexchange.com/questions/6669/converting-projected-geotiff-to-wgs84-with-gdal-and-python
