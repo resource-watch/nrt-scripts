@@ -130,7 +130,7 @@ def fetchDataFileName(SOURCE_URL):
     for fileline in ftp_contents:
         fileline = fileline.split()
         potential_filename = fileline[FILENAME_INDEX]
-        if (potential_filename.endswith(".txt") and ("V4" in potential_filename)):
+        if (potential_filename.endswith(".txt") and ("README" not in potential_filename)):
             if not ALREADY_FOUND:
                 filename = potential_filename
                 ALREADY_FOUND=True
