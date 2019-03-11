@@ -7,8 +7,8 @@ import cartosql
 import requests
 
 # Constants
-HISTORY_URL = 'http://ucdpapi.pcr.uu.se/api/gedevents/17.2?pagesize=1000&page={page}'
-LATEST_URL = 'http://ucdpapi.pcr.uu.se/api/gedevents/17.2?pagesize=1000&page={page}&StartDate={start_date}'
+HISTORY_URL = 'http://ucdpapi.pcr.uu.se/api/gedevents/18.1?pagesize=1000&page={page}'
+LATEST_URL = 'http://ucdpapi.pcr.uu.se/api/gedevents/18.1?pagesize=1000&page={page}&StartDate={start_date}'
 CLEAR_TABLE_FIRST = False
 PROCESS_HISTORY = False
 DATE_FORMAT = '%Y-%m-%d'
