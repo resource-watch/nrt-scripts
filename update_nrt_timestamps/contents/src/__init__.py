@@ -105,7 +105,7 @@ def main():
     for table_name, id in GFW_DATASETS.items():
         logging.info('Updating ' + table_name)
         table = next(item for item in sync if item["name"] == table_name)
-        # ran_at = The date time at which the table had its contents synched with the source file.
+        # ran_at = The date time at which the table had its contents synced with the source file.
         # updated_at = The date time at which the table had its contents modified.
         # modified_at = The date time at which the table was manually modified, if applicable.
         last_sync = table['updated_at']
