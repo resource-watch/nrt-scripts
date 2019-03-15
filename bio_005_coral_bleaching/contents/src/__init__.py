@@ -13,14 +13,16 @@ import json
 import requests
 
 # constants for bleaching alerts
-SOURCE_URL = 'ftp://ftp.star.nesdis.noaa.gov/pub/sod/mecb/crw/data/5km/v3/nc/v1/composite/daily/7day/baa-max/{year}/b5km_baa-max-7d_{date}.nc'
-SDS_NAME = 'NETCDF:"{fname}":CRW_BAA_max7d'
+SOURCE_URL = 'ftp://ftp.star.nesdis.noaa.gov/pub/sod/mecb/crw/data/5km/v3.1/nc/v1.0/daily/baa-max-7d/{year}/ct5km_baa-max-7d_v3.1_{date}.nc'
+SDS_NAME = 'NETCDF:"{fname}":bleaching_alert_area'
 FILENAME = 'bio_005_{date}'
-NODATA_VALUE = None
+# nodata value -5 equals 251 for Byte type?
+NODATA_VALUE = 251
 
 DATA_DIR = 'data'
 GS_FOLDER = 'bio_005_bleaching_alerts'
 EE_COLLECTION = 'bio_005_bleaching_alerts'
+CLEAR_COLLECTION_FIRST = False
 
 MAX_ASSETS = 61
 DATE_FORMAT = '%Y%m%d'
@@ -83,8 +85,7 @@ def convert(files):
         # extract subdataset by name
         sds_path = SDS_NAME.format(fname=f)
         tif = '{}.tif'.format(os.path.splitext(f)[0])
-        # nodata value -5 equals 251 for Byte type?
-        cmd = ['gdal_translate', '-q', '-a_nodata', '251', sds_path, tif]
+        cmd = ['gdal_translate', '-q', '-a_nodata', str(NODATA_VALUE), sds_path, tif]
         logging.debug('Converting {} to {}'.format(f, tif))
         subprocess.call(cmd)
         tifs.append(tif)
@@ -175,6 +176,10 @@ def main():
     eeUtil.initJson()
 
     # 1. Check if collection exists and create
+    if CLEAR_COLLECTION_FIRST:
+        if eeUtil.exists(EE_COLLECTION):
+            eeUtil.removeAsset(EE_COLLECTION, recursive=True)
+
     existing_assets = checkCreateCollection(EE_COLLECTION)
     existing_dates = [getDate(a) for a in existing_assets]
 
