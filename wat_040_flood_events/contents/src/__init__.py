@@ -9,6 +9,7 @@ import datetime
 from collections import OrderedDict
 import cartosql
 import requests
+import zipfile
 
 # Constants
 DATA_DIR = 'data'
@@ -18,12 +19,15 @@ SOURCE_URLS = {
     'f.map':'http://floodobservatory.colorado.edu/Version3/FloodArchive.MAP',
     'f.ind':'http://floodobservatory.colorado.edu/Version3/FloodArchive.IND',
     'f.tab':'http://floodobservatory.colorado.edu/Version3/FloodArchive.TAB',
+    'f_shp.zip': 'http://floodobservatory.colorado.edu/Version3/FloodsArchived_shp.zip'
 }
 TABFILE = 'f.tab'
 ENCODING = 'latin-1'
-
+SHPFILE = 'FloodsArchived_shape.shp'
 # asserting table structure rather than reading from input
 CARTO_TABLE = 'wat_040_flood_events'
+CARTO_TABLE_SHP = 'wat_040_flood_events_shp'
+
 CARTO_SCHEMA = OrderedDict([
     ('the_geom', 'geometry'),
     ('_UID', 'text'),
@@ -95,9 +99,12 @@ def processNewData(exclude_ids):
     logging.info('Fetching latest data')
     for dest, url in SOURCE_URLS.items():
         urllib.request.urlretrieve(url, os.path.join(DATA_DIR, dest))
-
-    # 2. Parse fetched data and generate unique ids
-    logging.info('Parsing data')
+        if os.path.splitext(url)[1]=='.zip':
+            zip_ref=zipfile.ZipFile(os.path.join(DATA_DIR, dest), 'r')
+            zip_ref.extractall(os.path.join(DATA_DIR))
+            zip_ref.close()
+    # 2. Parse fetched point data and generate unique ids
+    logging.info('Parsing point data')
     new_ids = []
     rows = []
     with fiona.open(os.path.join(DATA_DIR, TABFILE), 'r',
@@ -122,12 +129,43 @@ def processNewData(exclude_ids):
                         row.append(obs['properties'][field])
                 rows.append(row)
 
-    # 3. Insert new observations
+    # 3. Insert new point observations
     new_count = len(rows)
     if new_count:
         logging.info('Pushing new rows')
         cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
                             CARTO_SCHEMA.values(), rows)
+
+    # 4. Parse fetched shp data and generate unique ids
+    logging.info('Parsing point data')
+    new_ids = []
+    rows = []
+    with fiona.open(os.path.join(DATA_DIR, SHPFILE), 'r',
+                    encoding=ENCODING) as shp:
+        logging.debug(shp.schema)
+        for obs in shp:
+            uid = genUID(obs)
+            # Only add new observations unless overwrite
+            if uid not in exclude_ids and uid not in new_ids:
+                new_ids.append(uid)
+                row = []
+                for field in CARTO_SCHEMA.keys():
+                    if field == 'the_geom':
+                        geom = obs['geometry']
+                        row.append(geom)
+                    elif field == UID_FIELD:
+                        row.append(uid)
+                    else:
+                        row.append(obs['properties'][field[:10]])
+                rows.append(row)
+
+    # 5. Insert new shp observations
+    new_count = len(rows)
+    if new_count:
+        logging.info('Pushing new rows')
+        cartosql.insertRows(CARTO_TABLE_SHP, CARTO_SCHEMA.keys(),
+                            CARTO_SCHEMA.values(), rows)
+
     return new_ids
 
 
@@ -185,8 +223,7 @@ def main():
     logging.info('STARTING')
 
     # 1. Check if table exists and create table
-    existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD,
-                                    TIME_FIELD)
+    existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, TIME_FIELD)
 
     # 2. Iterively fetch, parse and post new data
     new_ids = processNewData(existing_ids)
@@ -198,6 +235,7 @@ def main():
 
     # 3. Remove old observations
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD, MAXAGE)
+    deleteExcessRows(CARTO_TABLE_SHP, MAXROWS, TIME_FIELD, MAXAGE)
 
     # Get most recent update date
     if new_count > 0:
