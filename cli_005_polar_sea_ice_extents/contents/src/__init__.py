@@ -17,6 +17,7 @@ CLEAR_COLLECTION_FIRST = False
 VERSION = '3.0'
 
 # Sources for nrt data
+#example file url name: ftp://sidads.colorado.edu/DATASETS/NOAA/G02135/north/monthly/geotiff/02_Feb/N_201902_extent_v3.0.tif
 SOURCE_URL_MEASUREMENT = 'ftp://sidads.colorado.edu/DATASETS/NOAA/G02135/{north_or_south}/monthly/geotiff/{month}/{target_file}'
 SOURCE_FILENAME_MEASUREMENT = '{N_or_S}_{date}_extent_v{version}.tif'
 LOCAL_FILE = 'cli_005_{arctic_or_antarctic}_sea_ice_{date}.tif'

@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 
-import os
 import sys
 import urllib
 import datetime
@@ -8,10 +7,8 @@ import logging
 import subprocess
 import eeUtil
 import urllib.request
-from bs4 import BeautifulSoup
 from netCDF4 import Dataset
 import os
-from http.cookiejar import CookieJar
 import calendar
 import numpy as np
 import requests
@@ -231,7 +228,6 @@ def get_most_recent_date(collection):
     existing_dates.sort()
     most_recent_date_julian = existing_dates[-1][-7:]
     most_recent_date = datetime.datetime.strptime(most_recent_date_julian, '%Y%j').date()
-    print(most_recent_date)
     return most_recent_date
 
 
