@@ -114,11 +114,12 @@ def getNewTargetDates(exclude_dates):
     '''Get new dates excluding existing'''
     new_dates = []
     date = datetime.date.today()
+    #start at previous week of data
+    date -= datetime.timedelta(**TIMESTEP)
     for i in range(MAX_DATES):
         datestr = date.strftime(DATE_FORMAT)
         if datestr not in exclude_dates:
             new_dates.append(datestr)
-        date -= datetime.timedelta(**TIMESTEP)
     return new_dates
 
 def fetch(datestr):
