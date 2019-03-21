@@ -4,7 +4,6 @@ import os
 import time
 import urllib.request
 from collections import OrderedDict
-from dateutil import parser
 import cartosql
 import requests
 import datetime
