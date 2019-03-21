@@ -104,7 +104,7 @@ def processNewData(existing_ids, existing_files):
         df = pd.read_csv(zipfile.open(zipfile.namelist()[0]), sep='\t')
         df['File ID'] = new_ids[file_num]
 
-        for row_num in range(190,df.shape[0]):
+        for row_num in range(df.shape[0]):
             row = df.iloc[row_num]
             if not len(row):
                 break

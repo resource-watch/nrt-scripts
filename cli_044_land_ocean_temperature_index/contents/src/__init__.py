@@ -10,7 +10,7 @@ import datetime
 
 
 ### Constants
-SOURCE_URL = 'ftp://podaac-ftp.jpl.nasa.gov/allData/tellus/L3/mascon/RL05/JPL/CRI/mass_variability_time_series/'
+SOURCE_URL = 'https://data.giss.nasa.gov/gistemp/graphs/graph_data/Global_Mean_Estimates_based_on_Land_and_Ocean_Data/graph.txt'
 DATE_INDEX = 0
 FILENAME_INDEX = -1
 TIMEOUT = 300
@@ -19,7 +19,7 @@ STRICT = False
 CLEAR_TABLE_FIRST = False
 
 ### Table name and structure
-CARTO_TABLE = 'cli_042_greenland_ice'
+CARTO_TABLE = 'cli_044_land_ocean_temperature_index'
 CARTO_SCHEMA = OrderedDict([
         ('date', 'timestamp'),
         ('mass', 'numeric'),
