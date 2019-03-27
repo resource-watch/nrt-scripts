@@ -7,6 +7,7 @@ RUN apk add git
 
 # install application libraries
 RUN pip install requests
+RUN pip install simplejson
 RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
 
 # set name
