@@ -1,15 +1,16 @@
 import os
 import logging
 import sys
-import requests
 from collections import OrderedDict
 import datetime
 import cartosql
 import requests
+import simplejson
 
 LOG_LEVEL = logging.INFO
 
 # Constants
+#example url: https://pmmpublisher.pps.eosdis.nasa.gov/opensearch?q=global_landslide_nowcast_3hr&limit=100000000&startTime=2018-03-27T15:57:59.904895&endTime=2019-03-27T15:59:19.100245
 URL_3HR = 'https://pmmpublisher.pps.eosdis.nasa.gov/opensearch?q=global_landslide_nowcast_3hr&limit=100000000&startTime={startTime}&endTime={endTime}'
 URL_DAILY = 'https://pmmpublisher.pps.eosdis.nasa.gov/opensearch?q=global_landslide_nowcast&limit=100000000&startTime={startTime}&endTime={endTime}'
 
@@ -81,14 +82,22 @@ def genUID(datetime, position_in_geojson):
 
 def processData(exclude_ids, table, src_url):
     new_ids = []
-    num_new = 1
 
     start_time = MAX_AGE.isoformat()
     end_time = datetime.datetime.utcnow().isoformat()
 
-    # OpenSearch endpoint returns json object of URLs with data
-    r = requests.get(src_url.format(startTime=start_time, endTime=end_time))
-    results = r.json()
+    # Pull data from source.
+    # Sometimes we have trouble loading data, so try a few times before sending error.
+    try_num = 1
+    while try_num <= 5:
+        try:
+            logging.info('Pulling data from source, try number %s' %try_num)
+            # OpenSearch endpoint returns json object of URLs with data
+            r = requests.get(src_url.format(startTime=start_time, endTime=end_time))
+            results = r.json()
+            break
+        except simplejson.errors.JSONDecodeError:
+            try_num +=1
 
     # loop until no new observations
     for item in results['items']:
