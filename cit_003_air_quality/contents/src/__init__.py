@@ -1,7 +1,6 @@
 import os
 import logging
 import sys
-import requests
 from collections import OrderedDict
 import cartosql
 import datetime
