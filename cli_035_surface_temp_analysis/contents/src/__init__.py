@@ -156,7 +156,7 @@ def extract_subdata_by_date(nc_file, dtype, nodata, available_dates, target_date
             date_ix = available_dates.index(date)
             logging.info("Date {} found! Processing...".format(date))
         except:
-            logging.error("Date {} not found in available dates".format(date))
+            logging.info("Date {} not found in available dates".format(date))
             continue
 
         # Extract data
