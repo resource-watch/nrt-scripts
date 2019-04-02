@@ -124,17 +124,18 @@ def getHistoricalTargetDates(exclude_dates, month):
     '''Get new dates excluding existing'''
     new_dates = []
     date = datetime.date.today()
-    if date.month < 3:
-        years = range(1979, date.year)
-    else:
-        years = range(1979, date.year+1)
+
     #earliest year of data is 1979
     for i in range(date.year-1979):
-        date -= relativedelta(years=1)
+        if month>date.month:
+            #if the month we are checking for data in has not happened yet this year,
+            #start with last year's data
+            date -= relativedelta(years=1)
         date = date.replace(day=15).replace(month=month)
         datestr = date.strftime(DATE_FORMAT)
         if datestr not in exclude_dates:
             new_dates.append(datestr)
+        date -= relativedelta(years=1)
     return new_dates
 
 def format_month(datestring):
