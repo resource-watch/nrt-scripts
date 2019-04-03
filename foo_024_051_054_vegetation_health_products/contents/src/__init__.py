@@ -12,7 +12,6 @@ from netCDF4 import Dataset
 import rasterio as rio
 from collections import defaultdict
 import requests
-import ee
 
 LOG_LEVEL = logging.INFO
 CLEAR_COLLECTION_FIRST = False
