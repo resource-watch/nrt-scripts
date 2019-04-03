@@ -120,6 +120,7 @@ def getNewTargetDates(exclude_dates):
         datestr = date.strftime(DATE_FORMAT)
         if datestr not in exclude_dates:
             new_dates.append(datestr)
+        date -= datetime.timedelta(**TIMESTEP)
     return new_dates
 
 def fetch(datestr):
@@ -210,18 +211,26 @@ def reproject(ncfile, rw_id, date):
     logging.info('Reprojected {} to {}'.format(ncfile, new_file))
     return new_file
 
-def _processAssets(tifs, rw_id, varname):
+def _processAssets1(tifs, rw_id, varname):
     assets = [getAssetName(tif, rw_id, varname) for tif in tifs]
     dates = [getRasterDate(tif) for tif in tifs]
     # Set date to the end of the reported week,
     # -0 corresponding to Sunday at end of week
     datestamps = [datetime.datetime.strptime(date + '-0', DATE_FORMAT_ISO)
                   for date in dates]
-    eeUtil.uploadAssets(tifs, assets, GS_PREFIX.format(rw_id=rw_id, varname=varname), datestamps, timeout=3000)
+    #try to upload data twice before quitting
+    try_num=1
+    while try_num<=2:
+        try:
+            logging.info('Upload {} try number {}'.format(varname, try_num))
+            eeUtil.uploadAssets(tifs, assets, GS_PREFIX.format(rw_id=rw_id, varname=varname), datestamps, timeout=3000)
+            break
+        except:
+            try_num+=1
     return assets
 
-def processAssets(agg, rw_id, tifs):
-    agg[rw_id] = _processAssets(tifs[rw_id], rw_id, ASSET_NAMES[rw_id])
+def processAssets2(agg, rw_id, tifs):
+    agg[rw_id] = _processAssets1(tifs[rw_id], rw_id, ASSET_NAMES[rw_id])
     return agg
 
 
@@ -261,7 +270,7 @@ def processNewRasterData(existing_dates_by_id):
 
     # 3. Upload new files
     logging.info('Uploading files')
-    new_assets = reduce(lambda agg, rw_id: processAssets(agg, rw_id, tifs), tifs, {})
+    new_assets = reduce(lambda agg, rw_id: processAssets2(agg, rw_id, tifs), tifs, {})
     logging.debug('New Assets object: {}'.format(new_assets))
 
     # 4. Delete local files
