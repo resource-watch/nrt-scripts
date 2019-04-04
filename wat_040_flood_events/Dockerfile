@@ -4,6 +4,7 @@ MAINTAINER Francis Gassert <fgassert@wri.org>
 # install core libraries
 RUN apt-get update
 
+
 # install application libraries
 RUN apt-get install -y gdal-bin libgdal-dev
 RUN pip install requests
