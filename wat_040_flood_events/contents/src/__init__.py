@@ -140,8 +140,7 @@ def processNewData(exclude_ids):
     logging.info('Parsing shapefile data')
     new_ids = []
     rows = []
-    with fiona.open(os.path.join(DATA_DIR, SHPFILE), 'r',
-                    encoding=ENCODING) as shp:
+    with fiona.open(os.path.join(DATA_DIR, SHPFILE), 'r') as shp:
         logging.debug(shp.schema)
         for obs in shp:
             uid = genUID(obs)
