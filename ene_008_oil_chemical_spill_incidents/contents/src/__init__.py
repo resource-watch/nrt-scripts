@@ -101,7 +101,7 @@ def processData(existing_ids):
     new_rows = []
 
     res = requests.get(SOURCE_URL)
-    csv_reader = csv.reader(res.content.decode('utf-8').splitlines(), delimiter=',')
+    csv_reader = csv.reader(res.iter_lines(decode_unicode=True))
     headers = next(csv_reader, None)
     idx = {k: v for v, k in enumerate(headers)}
 
@@ -192,7 +192,7 @@ def processData(existing_ids):
 def getFieldAsList(table, field, orderBy=''):
     assert isinstance(field, str), 'Field must be a single string'
     r = cartosql.getFields(field, table, order='{}'.format(orderBy),
-                           f='csv', user=os.getenv('CARTO_USER'), key =os.getenv('CARTO_KEY'))
+                           f='csv')
     return(r.text.split('\r\n')[1:-1])
 
 def checkCreateTable(table, schema, id_field, time_field):
@@ -200,7 +200,7 @@ def checkCreateTable(table, schema, id_field, time_field):
     Get existing ids or create table
     Return a list of existing ids in time order
     '''
-    if cartosql.tableExists(table, user=os.getenv('CARTO_USER'), key =os.getenv('CARTO_KEY')):
+    if cartosql.tableExists(table):
         logging.info('Table {} already exists'.format(table))
     else:
         logging.info('Creating Table {}'.format(table))
@@ -232,7 +232,7 @@ def deleteExcessRows(table, max_rows, time_field, max_age=''):
 
 #function to get most recent spill date from table
 def get_most_recent_date(table):
-    r = cartosql.getFields(TIME_FIELD, table, f='csv', post=True, user=os.getenv('CARTO_USER'), key =os.getenv('CARTO_KEY'))
+    r = cartosql.getFields(TIME_FIELD, table, f='csv', post=True)
     dates = r.text.split('\r\n')[1:-1]
     dates.sort()
     most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
