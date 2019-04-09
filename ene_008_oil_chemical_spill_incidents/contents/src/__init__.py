@@ -11,7 +11,7 @@ import requests
 
 ### Constants
 SOURCE_URL = "https://incidentnews.noaa.gov/raw/incidents.csv"
-CLEAR_TABLE_FIRST = True
+CLEAR_TABLE_FIRST = False
 ENCODING = 'utf-8'
 LOG_LEVEL = logging.INFO
 
