@@ -79,6 +79,8 @@ def main():
             # allow for longer delay for TROPOMI data because it is slow to upload
             if 'cit.035' in r['data']['attributes']['name']:
                 allowed_time = datetime.timedelta(days=45)
+            elif 'cli.039' in r['data']['attributes']['name']:
+                allowed_time = datetime.timedelta(days=60)
             # check if the time since last update surpasses the time we allow for this type of data set
             if allowed_time < time_since_update:
                 time_overdue = time_since_update - allowed_time
