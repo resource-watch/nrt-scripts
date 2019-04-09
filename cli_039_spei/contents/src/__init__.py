@@ -20,7 +20,6 @@ LOG_LEVEL = logging.INFO
 CLEAR_COLLECTION_FIRST = False
 DOWNLOAD_FILE = True
 
-# constants for bleaching alerts
 SOURCE_URL = 'http://soton.eead.csic.es/spei/10/nc/{filename}'
 SOURCE_FILENAME = 'spei{month_lag}.nc'
 FILENAME = 'cli_039_lag{lag}_{date}'
