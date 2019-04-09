@@ -48,7 +48,7 @@ TIME_FIELD = 'Event_Date'
 DATA_DIR = 'data'
 LOG_LEVEL = logging.INFO
 CLEAR_TABLE_FIRST = False
-
+BAD_FILES = ['3238491', '3396817', '3396818', '3386839', '3386904', '3390902', '3392301', '3393823']
 # Limit 1M rows, drop older than 20yrs
 MAXROWS = 10000000
 DATASET_ID = '60c7561e-6e4c-4e6c-9cc7-517f13022083'
@@ -93,8 +93,8 @@ def processNewData(existing_ids, existing_files):
     logging.info('Number of new files: {}'.format(len(new_ids)))
     all_urls = range(len(new_file_urls))
     total_new = 0
-    for file_num in all_urls[36:]:
-        if new_ids[file_num]=='3238491': #this is a bad file--can't be opened
+    for file_num in all_urls:
+        if new_ids[file_num] in BAD_FILES:
             continue
         file_url = new_file_urls[file_num]
         logging.info('Processing file {}'.format(new_ids[file_num]))
@@ -115,7 +115,11 @@ def processNewData(existing_ids, existing_files):
                     new_row = []
                     for field in CARTO_SCHEMA:
                         if field == 'uid':
-                            new_row.append(row['Event ID'])
+                            new_row.append(str(row['Event ID']))
+                        elif field == 'Event_ID':
+                            new_row.append(str(row['Event ID']))
+                        elif field == 'Event_ID':
+                            new_row.append(str(row['Event ID']))
                         elif field == 'the_geom':
                             # Check for whether valid lat lon provided, will fail if either are ''
                             lon = float(row['Longitude'])
@@ -127,15 +131,16 @@ def processNewData(existing_ids, existing_files):
                             new_row.append(geometry)
                         else:
                             # To fix trouble w/ cartosql not being able to handle '' for numeric:
-                            val = row[field.replace('_', ' ')] if row[field.replace('_', ' ')] != '' else None
+                            val=row[field.replace('_', ' ')]
+                            if val == '' or (type(val)==float and np.isnan(val)):
+                                val=None
                             new_row.append(val)
                     new_rows.append(new_row)
         num_new = len(new_rows)
 
         if num_new:
-            cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
-                    CARTO_SCHEMA.values(), new_rows)
-        total_new += num_new
+            cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), new_rows, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
+            total_new += num_new
 
     return total_new
 
@@ -155,7 +160,7 @@ def createTableWithIndex(table, schema, id_field, time_field=''):
 
 def getIds(table, id_field):
     '''get ids from table'''
-    r = cartosql.getFields(id_field, table, f='csv')
+    r = cartosql.getFields(id_field, table, f='csv', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
     return np.unique(r.text.split('\r\n')[1:-1])
 
 
