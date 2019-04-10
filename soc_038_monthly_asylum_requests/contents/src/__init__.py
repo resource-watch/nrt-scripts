@@ -131,7 +131,7 @@ def processNewData(existing_ids):
             # Decrement year
             year -= 1
     except json.decoder.JSONDecodeError:
-    logging.info('API is still down.')
+        logging.info('API is still down.')
     num_new = len(new_ids)
     return num_new
 
