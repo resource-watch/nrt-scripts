@@ -5,6 +5,7 @@ from collections import OrderedDict, defaultdict
 import datetime
 import cartosql
 import requests
+import json
 
 # Constants
 LATEST_URL = 'http://popdata.unhcr.org/api/stats/asylum_seekers_monthly.json?year={year}'
@@ -75,61 +76,62 @@ def processNewData(existing_ids):
     year = datetime.datetime.today().year
     new_count = 1
     new_ids = []
+    try:
+        while year > MAXAGE and new_count:
+            # get and parse each page; stop when no new results or 200 pages
+            # 1. Fetch new data
+            logging.info("Fetching data for year {}".format(year))
+            r = requests.get(LATEST_URL.format(year=year))
+            data = r.json()
+            logging.debug('data: {}'.format(data))
 
-    while year > MAXAGE and new_count:
-        # get and parse each page; stop when no new results or 200 pages
-        # 1. Fetch new data
-        logging.info("Fetching data for year {}".format(year))
-        r = requests.get(LATEST_URL.format(year=year))
-        data = r.json()
-        logging.debug('data: {}'.format(data))
+            # 2. Collect Totals
+            origins = defaultdict(lambda: defaultdict(int))
+            asylums = defaultdict(lambda: defaultdict(int))
+            unknown_vals_origins = defaultdict(list)
+            unknown_vals_asylums = defaultdict(list)
 
-        # 2. Collect Totals
-        origins = defaultdict(lambda: defaultdict(int))
-        asylums = defaultdict(lambda: defaultdict(int))
-        unknown_vals_origins = defaultdict(list)
-        unknown_vals_asylums = defaultdict(list)
+            for obs in data:
+                try:
+                    origins[obs['country_of_origin']][obs['month']] += obs['value']
+                except Exception as e:
+                    logging.debug("Error processing value {} for country of origin {} in {}-{}. Value set to -9999. Error: {}".format(obs['value'],obs['country_of_origin'],year,obs['month'],e))
+                    unknown_vals_origins[obs['country_of_origin']].append(obs['month'])
+                    origins[obs['country_of_origin']][obs['month']] += 0
+                try:
+                    asylums[obs['country_of_asylum']][obs['month']] += obs['value']
+                except Exception as e:
+                    logging.debug("Error processing value {} for country of asylum {} in {}-{}. Value set to -9999. Error: {}".format(obs['value'],obs['country_of_asylum'],year,obs['month'],e))
+                    unknown_vals_asylums[obs['country_of_asylum']].append(obs['month'])
+                    asylums[obs['country_of_asylum']][obs['month']] += 0
 
-        for obs in data:
-            try:
-                origins[obs['country_of_origin']][obs['month']] += obs['value']
-            except Exception as e:
-                logging.debug("Error processing value {} for country of origin {} in {}-{}. Value set to -9999. Error: {}".format(obs['value'],obs['country_of_origin'],year,obs['month'],e))
-                unknown_vals_origins[obs['country_of_origin']].append(obs['month'])
-                origins[obs['country_of_origin']][obs['month']] += 0
-            try:
-                asylums[obs['country_of_asylum']][obs['month']] += obs['value']
-            except Exception as e:
-                logging.debug("Error processing value {} for country of asylum {} in {}-{}. Value set to -9999. Error: {}".format(obs['value'],obs['country_of_asylum'],year,obs['month'],e))
-                unknown_vals_asylums[obs['country_of_asylum']].append(obs['month'])
-                asylums[obs['country_of_asylum']][obs['month']] += 0
+            # 3. Create Unique IDs, create new rows
+            new_rows = []
 
-        # 3. Create Unique IDs, create new rows
-        new_rows = []
+            logging.debug('Create data about places of origin for year {}'.format(year))
+            insert_kwargs = {
+                'data':origins,'year':year,'valuetype':'country_of_origin',
+                'existing_ids':existing_ids,'new_ids':new_ids,'new_rows':new_rows,
+                'unknown_vals':unknown_vals_origins
+            }
+            insertIfNew(**insert_kwargs)
 
-        logging.debug('Create data about places of origin for year {}'.format(year))
-        insert_kwargs = {
-            'data':origins,'year':year,'valuetype':'country_of_origin',
-            'existing_ids':existing_ids,'new_ids':new_ids,'new_rows':new_rows,
-            'unknown_vals':unknown_vals_origins
-        }
-        insertIfNew(**insert_kwargs)
+            logging.debug('Create data about places of asylum for year {}'.format(year))
+            insert_kwargs.update(data=asylums,
+                                 valuetype='country_of_asylum',
+                                 unknown_vals=unknown_vals_asylums)
+            insertIfNew(**insert_kwargs)
 
-        logging.debug('Create data about places of asylum for year {}'.format(year))
-        insert_kwargs.update(data=asylums,
-                             valuetype='country_of_asylum',
-                             unknown_vals=unknown_vals_asylums)
-        insertIfNew(**insert_kwargs)
-
-        # 4. Insert new rows
-        new_count = len(new_rows)
-        if new_count:
-            logging.info('Pushing {} new rows'.format(new_count))
-            cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
-                                CARTO_SCHEMA.values(), new_rows)
-        # Decrement year
-        year -= 1
-
+            # 4. Insert new rows
+            new_count = len(new_rows)
+            if new_count:
+                logging.info('Pushing {} new rows'.format(new_count))
+                cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
+                                    CARTO_SCHEMA.values(), new_rows)
+            # Decrement year
+            year -= 1
+    except json.decoder.JSONDecodeError:
+        logging.info('API is still down.')
     num_new = len(new_ids)
     return num_new
 
