@@ -92,6 +92,17 @@ def lastUpdateDate(dataset, date):
 def genUID(obs):
     return str(obs['properties']['ID'])
 
+def updateEndDate(source_file, table, num_obs_to_update):
+    with fiona.open(os.path.join(DATA_DIR, source_file), 'r', encoding=ENCODING) as shp:
+        logging.info('Updating end dates for point data')
+        # for each flood event, get the current listed end date
+        for obs in shp[-num_obs_to_update:]:
+            uid = genUID(obs)
+            end_date = obs['properties']['Ended']
+            requests.get(
+                "https://{username}.carto.com/api/v2/sql?q=UPDATE {table} SET {column} = '{value}' WHERE _uid = '{id}' &api_key={api_key}".format(
+                    username=os.getenv('CARTO_USER'), table=table, column='ended', value=end_date, id=uid,
+                    api_key=os.getenv('CARTO_KEY')))
 
 # Reads flood shp and returnse list of insertable rows
 def processNewData(exclude_ids):
@@ -134,7 +145,7 @@ def processNewData(exclude_ids):
     if new_count:
         logging.info('Pushing new rows')
         cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
-                            CARTO_SCHEMA.values(), rows)
+                            CARTO_SCHEMA.values(), rows, user=os.getenv('CARTO_USER'),key=os.getenv('CARTO_KEY'))
 
     # 4. Parse fetched shp data and generate unique ids
     logging.info('Parsing shapefile data')
@@ -155,6 +166,8 @@ def processNewData(exclude_ids):
                     elif field == UID_FIELD:
                         row.append(uid)
                     else:
+                        # field names get gut off after 10 characters in shapefile, so the names should be the
+                        # first 10 characters of the specified field name
                         row.append(obs['properties'][field[:10]])
                 rows.append(row)
 
@@ -163,8 +176,11 @@ def processNewData(exclude_ids):
     if new_count:
         logging.info('Pushing new rows')
         cartosql.insertRows(CARTO_TABLE_SHP, CARTO_SCHEMA.keys(),
-                            CARTO_SCHEMA.values(), rows)
+                            CARTO_SCHEMA.values(), rows, user=os.getenv('CARTO_USER'),key=os.getenv('CARTO_KEY'))
 
+    # Update end dates for most recent floods because they are updated if the flood is still happening
+    updateEndDate(TABFILE, CARTO_TABLE, 20)
+    updateEndDate(SHPFILE, CARTO_TABLE_SHP, 20)
     return new_ids
 
 
@@ -175,15 +191,15 @@ def processNewData(exclude_ids):
 
 def checkCreateTable(table, schema, id_field, time_field):
     '''Get existing ids or create table'''
-    if cartosql.tableExists(table):
+    if cartosql.tableExists(table, user=os.getenv('CARTO_USER'),key=os.getenv('CARTO_KEY')):
         logging.info('Fetching existing IDs')
-        r = cartosql.getFields(id_field, table, f='csv')
+        r = cartosql.getFields(id_field, table, f='csv', user=os.getenv('CARTO_USER'),key=os.getenv('CARTO_KEY'))
         return r.text.split('\r\n')[1:-1]
     else:
         logging.info('Table {} does not exist, creating'.format(table))
-        cartosql.createTable(table, schema)
-        cartosql.createIndex(table, id_field, unique=True)
-        cartosql.createIndex(table, time_field)
+        cartosql.createTable(table, schema, user=os.getenv('CARTO_USER'),key=os.getenv('CARTO_KEY'))
+        cartosql.createIndex(table, id_field, unique=True, user=os.getenv('CARTO_USER'),key=os.getenv('CARTO_KEY'))
+        cartosql.createIndex(table, time_field, user=os.getenv('CARTO_USER'),key=os.getenv('CARTO_KEY'))
     return []
 
 
@@ -195,23 +211,23 @@ def deleteExcessRows(table, max_rows, time_field, max_age=''):
 
     # 1. delete by age
     if max_age:
-        r = cartosql.deleteRows(table, "{} < '{}'".format(time_field, max_age))
+        r = cartosql.deleteRows(table, "{} < '{}'".format(time_field, max_age), user=os.getenv('CARTO_USER'),key=os.getenv('CARTO_KEY'))
         num_dropped = r.json()['total_rows']
 
     # 2. get sorted ids (old->new)
     r = cartosql.getFields('cartodb_id', table, order='{}'.format(time_field),
-                           f='csv')
+                           f='csv', user=os.getenv('CARTO_USER'),key=os.getenv('CARTO_KEY'))
     ids = r.text.split('\r\n')[1:-1]
 
     # 3. delete excess
     if len(ids) > max_rows:
-        r = cartosql.deleteRowsByIDs(table, ids[:-max_rows])
+        r = cartosql.deleteRowsByIDs(table, ids[:-max_rows], user=os.getenv('CARTO_USER'),key=os.getenv('CARTO_KEY'))
         num_dropped += r.json()['total_rows']
     if num_dropped:
         logging.info('Dropped {} old rows from {}'.format(num_dropped, table))
 
 def get_most_recent_date(table):
-    r = cartosql.getFields('ended', table, f='csv', post=True)
+    r = cartosql.getFields('ended', table, f='csv', post=True, user=os.getenv('CARTO_USER'),key=os.getenv('CARTO_KEY'))
     dates = r.text.split('\r\n')[1:-1]
     dates.sort()
     most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
