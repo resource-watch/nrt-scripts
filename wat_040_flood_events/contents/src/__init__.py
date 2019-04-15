@@ -92,9 +92,8 @@ def lastUpdateDate(dataset, date):
 def genUID(obs):
     return str(obs['properties']['ID'])
 
-def updateEndDate(source_file, table, num_obs_to_update):
-    with fiona.open(os.path.join(DATA_DIR, source_file), 'r', encoding=ENCODING) as shp:
-        logging.info('Updating end dates for point data')
+def updateEndDate(source_file, table, num_obs_to_update, encoding=None):
+    with fiona.open(os.path.join(DATA_DIR, source_file), 'r', encoding=encoding) as shp:
         # for each flood event, get the current listed end date
         for obs in shp[-num_obs_to_update:]:
             uid = genUID(obs)
@@ -179,7 +178,9 @@ def processNewData(exclude_ids):
                             CARTO_SCHEMA.values(), rows, user=os.getenv('CARTO_USER'),key=os.getenv('CARTO_KEY'))
 
     # Update end dates for most recent floods because they are updated if the flood is still happening
-    updateEndDate(TABFILE, CARTO_TABLE, 20)
+    logging.info('Updating end dates for point data')
+    updateEndDate(TABFILE, CARTO_TABLE, 20, encoding=ENCODING)
+    logging.info('Updating end dates for shapefile data')
     updateEndDate(SHPFILE, CARTO_TABLE_SHP, 20)
     return new_ids
 
