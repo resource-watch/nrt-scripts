@@ -603,7 +603,7 @@ def main():
         existing_alps, num_new_alps, MAXROWS))
 
     existing_interactions = num_new_interactions + len(existing_interactions)
-    logging.info('Total alps rows: {}, New: {}, Max: {}'.format(
+    logging.info('Total interaction rows: {}, New: {}, Max: {}'.format(
         existing_interactions, num_new_interactions, MAXROWS))
 
     # 3. Remove old observations
