@@ -2,12 +2,17 @@ FROM python:3.6-alpine
 MAINTAINER Nathan Suberi <nathan.suberi@wri.org>
 
 # install core libraries
-RUN apk update
-RUN apk add git
-
+RUN echo "http://mirror.leaseweb.com/alpine/edge/testing/" >> /etc/apk/repositories
+RUN apk add --no-cache geos-dev
+RUN apk update && apk upgrade && \
+   apk add --no-cache --update bash git openssl-dev build-base alpine-sdk \
+   libffi-dev gcc python3-dev musl-dev
 # install application libraries
+RUN pip install --upgrade pip
 RUN pip install requests
 RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
+RUN pip install shapely
+RUN pip install numpy
 
 # set name
 ARG NAME=nrt-script
