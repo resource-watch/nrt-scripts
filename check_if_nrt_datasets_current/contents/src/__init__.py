@@ -81,6 +81,9 @@ def main():
                 allowed_time = datetime.timedelta(days=45)
             elif 'cli.039' in r['data']['attributes']['name']:
                 allowed_time = datetime.timedelta(days=60)
+            # around the 15th of each month, this data set updates for the 15th of the PREVIOUS month
+            elif 'cli.035' in r['data']['attributes']['name']:
+                allowed_time = datetime.timedelta(days=70)
             # check if the time since last update surpasses the time we allow for this type of data set
             if allowed_time < time_since_update:
                 time_overdue = time_since_update - allowed_time
