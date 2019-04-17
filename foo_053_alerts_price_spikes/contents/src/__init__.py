@@ -119,7 +119,6 @@ def genAlpsUID(sn, date, forecast):
 
 def genMarketUID(rid, mid, mname):
     '''Generate unique id'''
-    #return '{}_{}_{}'.format(rid,mid,mname)
     id_str = '{}_{}_{}'.format(rid, mid, mname)
     return hashlib.md5(id_str.encode('utf8')).hexdigest()
 
