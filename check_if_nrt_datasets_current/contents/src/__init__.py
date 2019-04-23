@@ -84,6 +84,12 @@ def main():
             # around the 15th of each month, this data set updates for the 15th of the PREVIOUS month
             elif 'cli.035' in r['data']['attributes']['name']:
                 allowed_time = datetime.timedelta(days=70)
+            #these two disaster data sets don't always have events that occur every 10 days
+            elif 'ene.008' in r['data']['attributes']['name'] or 'wat.040' in r['data']['attributes']['name']:
+                allowed_time = datetime.timedelta(days=15)
+            #this forecast often goes offline for a few days
+            elif 'cit.038' in r['data']['attributes']['name']:
+                allowed_time = datetime.timedelta(days=5)
             # check if the time since last update surpasses the time we allow for this type of data set
             if allowed_time < time_since_update:
                 time_overdue = time_since_update - allowed_time
