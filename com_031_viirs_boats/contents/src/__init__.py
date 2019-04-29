@@ -13,8 +13,9 @@ import requests
 ### Constants
 LOG_LEVEL = logging.INFO
 DATA_DIR = 'data'
-SOURCE_URL = 'https://data.ngdc.noaa.gov/instruments/remote-sensing/passive/spectrometers-radiometers/imaging/viirs/vbd/v23/global-saa/daily/VBD_npp_d{date}_global-saa_noaa_ops_v23.csv'
-#Example file name: VBD_npp_d20180803_global-saa_noaa_ops_v23.csv
+SOURCE_URL = 'https://eogdata.mines.edu/wwwdata/viirs_products/vbd/v23/global-saa/daily/VBD_npp_d{date}_global-saa_noaa_ops_v23.csv'
+#Example URL: https://eogdata.mines.edu/wwwdata/viirs_products/vbd/v23/global-saa/daily/VBD_npp_d20170101_global-saa_noaa_ops_v23.csv
+#Example file name: VBD_npp_d20160701_global-saa_noaa_ops_v23.csv.gz
 
 #Filename for local files
 FILENAME = 'boats_{date}'
@@ -24,7 +25,9 @@ CARTO_TABLE = 'com_031_boat_detections'
 CARTO_SCHEMA = OrderedDict([
     ('the_geom', 'geometry'),
     ('QF', 'numeric'),
-    ('Scan_time', 'timestamp'),
+    ('UTC_Scan_time', 'timestamp'),
+    ('Local_Scan_time', 'timestamp'),
+    ('Land_mask', 'numeric'),
     ('long', 'numeric'),
     ('lat', 'numeric'),
     ('EEZ', 'text')
@@ -33,10 +36,12 @@ CARTO_SCHEMA = OrderedDict([
 CLEAR_TABLE_FIRST = True
 INPUT_DATE_FORMAT = '%Y%m%d'
 DATE_FORMAT = '%Y-%m-%d'
-TIME_FIELD = 'Scan_time'
+TIME_FIELD = 'UTC_Scan_time'
 MAX_TRIES = 8
 
-#Values of QF flat, denotes what type of detection it was
+
+#URL to view column definitions: https://eogdata.mines.edu/vbd/#csv_column
+#Values of QF flag, denotes what type of detection it was
 # 1    Strong detection. Detection surpassed all VBD threshold tests
 # 2    Weak detection. Detection did not pass SHI threshold test.
 # 3    Blurry detection. Detection did not pass SI threshold test.
@@ -121,11 +126,11 @@ def processData():
                 logging.error("Error fetching data for {}, and max tries reached. See source for last data update.".format(str(datetime.date.today())))
             success = False
         else:
-            df = pd.read_csv(f,header=0,usecols=['Lat_DNB','Lon_DNB','Date_Mscan','QF_Detect','EEZ'])
+            df = pd.read_csv(f, header=0, usecols=['Lat_DNB','Lon_DNB','Date_Mscan', 'Date_LTZ','QF_Detect','EEZ','Land_Mask'])
             df = df.drop(df[df.QF_Detect == 999999].index)
             df['the_geom'] = df.apply(lambda row: getGeom(row['Lon_DNB'],row['Lat_DNB']),axis=1)
 
-            df = df[['the_geom', 'QF_Detect', 'Date_Mscan', 'Lon_DNB', 'Lat_DNB','EEZ']]
+            df = df[['the_geom', 'QF_Detect', 'Date_Mscan', 'Date_LTZ', 'Land_Mask', 'Lon_DNB', 'Lat_DNB','EEZ']]
             if not cartosql.tableExists(CARTO_TABLE):
                 logging.info('Table {} does not exist'.format(CARTO_TABLE))
                 cartosql.createTable(CARTO_TABLE, CARTO_SCHEMA)
