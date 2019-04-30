@@ -79,17 +79,23 @@ def main():
             # allow for longer delay for TROPOMI data because it is slow to upload
             if 'cit.035' in r['data']['attributes']['name']:
                 allowed_time = datetime.timedelta(days=45)
-            elif 'cli.039' in r['data']['attributes']['name']:
-                allowed_time = datetime.timedelta(days=60)
-            # around the 15th of each month, this data set updates for the 15th of the PREVIOUS month
-            elif 'cli.035' in r['data']['attributes']['name']:
-                allowed_time = datetime.timedelta(days=70)
-            #these two disaster data sets don't always have events that occur every 10 days
-            elif 'ene.008' in r['data']['attributes']['name'] or 'wat.040' in r['data']['attributes']['name']:
-                allowed_time = datetime.timedelta(days=15)
             #this forecast often goes offline for a few days
             elif 'cit.038' in r['data']['attributes']['name']:
                 allowed_time = datetime.timedelta(days=5)
+            # around the 15th of each month, this data set updates for the 15th of the PREVIOUS month
+            elif 'cli.035' in r['data']['attributes']['name']:
+                allowed_time = datetime.timedelta(days=70)
+            elif 'cli.039' in r['data']['attributes']['name']:
+                allowed_time = datetime.timedelta(days=60)
+            #sea level rise data set updates at ~3 month delay
+            elif 'cli.040' in r['data']['attributes']['name']:
+                allowed_time = datetime.timedelta(days=100)
+            #NDC ratification status probably would only update once a year, after COP
+            elif 'cli.047' in r['data']['attributes']['name']:
+                allowed_time = datetime.timedelta(days=400)
+            #these two disaster data sets don't always have events that occur every 10 days
+            elif 'ene.008' in r['data']['attributes']['name'] or 'wat.040' in r['data']['attributes']['name']:
+                allowed_time = datetime.timedelta(days=15)
             # check if the time since last update surpasses the time we allow for this type of data set
             if allowed_time < time_since_update:
                 time_overdue = time_since_update - allowed_time
