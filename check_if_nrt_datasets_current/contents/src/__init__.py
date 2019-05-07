@@ -80,8 +80,11 @@ def main():
             if 'cit.035' in r['data']['attributes']['name']:
                 allowed_time = datetime.timedelta(days=45)
             #this forecast often goes offline for a few days
+            elif 'cli.005a' in r['data']['attributes']['name'] or 'cli.005b' in r['data']['attributes']['name']:
+                allowed_time = datetime.timedelta(days=70)
+            #on the 1st of each month, this data set updates for the 1st of the previous month
             elif 'cit.038' in r['data']['attributes']['name']:
-                allowed_time = datetime.timedelta(days=5)
+                allowed_time = datetime.timedelta(days=70)
             # around the 15th of each month, this data set updates for the 15th of the PREVIOUS month
             elif 'cli.035' in r['data']['attributes']['name']:
                 allowed_time = datetime.timedelta(days=70)
