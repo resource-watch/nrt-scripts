@@ -96,8 +96,11 @@ def main():
             #NDC ratification status probably would only update once a year, after COP
             elif 'cli.047' in r['data']['attributes']['name']:
                 allowed_time = datetime.timedelta(days=400)
-            #these two disaster data sets don't always have events that occur every 10 days
-            elif 'ene.008' in r['data']['attributes']['name'] or 'wat.040' in r['data']['attributes']['name']:
+            #oil spills data set doesn't always have events that occur every 10 days
+            elif 'ene.008' in r['data']['attributes']['name']:
+                allowed_time = datetime.timedelta(days=15)
+            #flood data set doesn't always have events that occur every 10 days
+            elif 'wat.040' in r['data']['attributes']['name']:
                 allowed_time = datetime.timedelta(days=15)
             # check if the time since last update surpasses the time we allow for this type of data set
             if allowed_time < time_since_update:
