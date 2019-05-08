@@ -92,7 +92,7 @@ def main():
                 allowed_time = datetime.timedelta(days=60)
             #sea level rise data set updates at ~3 month delay
             elif 'cli.040' in r['data']['attributes']['name']:
-                allowed_time = datetime.timedelta(days=100)
+                allowed_time = datetime.timedelta(days=105)
             #NDC ratification status probably would only update once a year, after COP
             elif 'cli.047' in r['data']['attributes']['name']:
                 allowed_time = datetime.timedelta(days=400)
