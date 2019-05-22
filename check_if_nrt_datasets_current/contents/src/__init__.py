@@ -58,11 +58,7 @@ def main():
             elif expected_freq.lower().strip() == 'annual':
                 allowed_time = datetime.timedelta(days=410)
             elif expected_freq.lower().strip() == 'varies':
-                if dataset['WRI ID'] == 'cli.047.nrt':
-                    # should be updating every month
-                    allowed_time = datetime.timedelta(days=40)
-                else:
-                    allowed_time = datetime.timedelta(days=10)
+                allowed_time = datetime.timedelta(days=10)
             # if on the order of day, we will let the update be 3 days overdue
             elif 'days' in expected_freq.lower():
                 x = int(expected_freq.lower()[0:-5])
@@ -92,7 +88,7 @@ def main():
                 allowed_time = datetime.timedelta(days=60)
             #sea level rise data set updates at ~3 month delay
             elif 'cli.040' in r['data']['attributes']['name']:
-                allowed_time = datetime.timedelta(days=110)
+                allowed_time = datetime.timedelta(days=120)
             #NDC ratification status probably would only update once a year, after COP
             elif 'cli.047' in r['data']['attributes']['name']:
                 allowed_time = datetime.timedelta(days=400)
