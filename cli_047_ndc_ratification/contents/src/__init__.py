@@ -8,7 +8,7 @@ import requests
 import pandas as pd
 
 # Constants
-SOURCE_URL = 'https://www.climatewatchdata.org/api/v1/data/ndc_content?indicator_ids[]=2366&page={page}'
+SOURCE_URL = 'https://www.climatewatchdata.org/api/v1/data/ndc_content?indicator_ids[]=3281&page={page}'
 
 CARTO_TABLE = 'cli_047_ndc_ratification'
 CARTO_SCHEMA = OrderedDict([
