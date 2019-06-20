@@ -16,7 +16,8 @@ DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S+00:00'
 UID_FIELD='uid'
 
 LOG_LEVEL = logging.INFO
-CLEAR_TABLE_FIRST = False
+# Clear table first each time we retrieve data because the status of events may change. This way we can easily get the latest status in the Carto table
+CLEAR_TABLE_FIRST = True
 
 ### Table name and structure
 CARTO_TABLE = 'dis_006_reliefweb_disasters'
