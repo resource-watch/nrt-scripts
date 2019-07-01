@@ -16,7 +16,7 @@ ENV NAME ${NAME}
 # copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data
 WORKDIR /opt/$NAME/
-COPY contents/ .
+COPY contents .
 VOLUME ./data
 
 RUN adduser -D $NAME
