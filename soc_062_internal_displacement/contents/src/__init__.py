@@ -204,6 +204,6 @@ def main():
     # Get most recent update date
     most_recent_date = get_most_recent_date(CARTO_TABLE)
     logging.info(most_recent_date)
-    #lastUpdateDate(DATASET_ID, most_recent_date)
+    lastUpdateDate(DATASET_ID, most_recent_date)
 
     logging.info('SUCCESS')
