@@ -103,6 +103,8 @@ def processData(existing_ids):
         for row in csv_reader:
             if not len(row):
                 break
+            if not len(row[idx['Location_Coordinates']]):
+                break
             uid = row[idx['Web_ID']]
             if uid not in existing_ids and uid not in new_ids:
                 new_ids.append(uid)
@@ -141,15 +143,15 @@ def processData(existing_ids):
 
 def checkCreateTable(table, schema, id_field, time_field):
     '''Get existing ids or create table'''
-    if cartosql.tableExists(table):
+    if cartosql.tableExists(table, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY')):
         logging.info('Fetching existing IDs')
-        r = cartosql.getFields(id_field, table, f='csv')
+        r = cartosql.getFields(id_field, table, f='csv', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
         return r.text.split('\r\n')[1:-1]
     else:
         logging.info('Table {} does not exist, creating'.format(table))
-        cartosql.createTable(table, schema)
-        cartosql.createIndex(table, id_field, unique=True)
-        cartosql.createIndex(table, time_field)
+        cartosql.createTable(table, schema, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
+        cartosql.createIndex(table, id_field, unique=True, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
+        cartosql.createIndex(table, time_field, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
     return []
 
 
