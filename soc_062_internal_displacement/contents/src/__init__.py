@@ -36,7 +36,8 @@ CARTO_SCHEMA = OrderedDict([
     ("subcategory", "text"),
     ("type", "text"),
     ("subtype", "text"),
-    ("standard_popup_text", "text")
+    ("standard_popup_text", "text"),
+    ("link", "text")
 ])
 UID_FIELD = 'id'
 TIME_FIELD = 'displacement_date_timestamp'
@@ -104,10 +105,11 @@ def processNewData(exclude_ids):
                     row.append(dt)
                 elif field == 'standard_popup_text':
                     text=obs[field].split('<a href="')[0]
-                    link=obs[field].split('<a href="')[1]
+                    row.append(text)
+                elif field == 'link':
+                    link = obs['standard_popup_text'].split('<a href="')[1]
                     link = link.split('"')[0]
-                    desc = text + '(' + link +')'
-                    row.append(desc)
+                    row.append(link)
                 else:
                     try:
                         row.append(obs[field])
