@@ -75,12 +75,12 @@ def main():
             # allow for longer delay for TROPOMI data because it is slow to upload
             if 'cit.035' in r['data']['attributes']['name']:
                 allowed_time = datetime.timedelta(days=45)
-            #this forecast often goes offline for a few days
+            #on the 1st of each month, this data set updates for the 1st of the previous month
             elif 'cli.005a' in r['data']['attributes']['name'] or 'cli.005b' in r['data']['attributes']['name']:
                 allowed_time = datetime.timedelta(days=70)
-            #on the 1st of each month, this data set updates for the 1st of the previous month
+            #this forecast often goes offline for a few days
             elif 'cit.038' in r['data']['attributes']['name']:
-                allowed_time = datetime.timedelta(days=70)
+                allowed_time = datetime.timedelta(days=5)
             # around the 15th of each month, this data set updates for the 15th of the PREVIOUS month
             elif 'cli.035' in r['data']['attributes']['name']:
                 allowed_time = datetime.timedelta(days=70)
