@@ -423,6 +423,9 @@ def processInteractions(markets_updated):
                     # get information about market
                     r = cartosql.get("SELECT * FROM {} WHERE uid='{}'".format(CARTO_MARKET_TABLE, m_uid),
                                      user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
+                    if r.json()['total_rows']==0:
+                        logging.info('No rows for interaction')
+                        continue
                     market_entry = r.json()['rows'][0]
 
                     # get information about food prices at market
@@ -581,7 +584,7 @@ def main():
 
     existing_interactions = []
     if cartosql.tableExists(CARTO_INTERACTION_TABLE, user=os.getenv('CARTO_USER'), key =os.getenv('CARTO_KEY')):
-        logging.info('Fetching existing ids')
+        logging.info('Fetching existing interaction ids')
         existing_interactions = getIds(CARTO_INTERACTION_TABLE, UID_FIELD)
     else:
         logging.info('Table {} does not exist, creating'.format(CARTO_INTERACTION_TABLE))
