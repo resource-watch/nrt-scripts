@@ -98,12 +98,20 @@ def updateEndDate(source_file, table, num_obs_to_update, encoding=None):
         for obs in shp[-num_obs_to_update:]:
             uid = genUID(obs)
             end_date = obs['properties']['Ended']
+            geom = {
+                'type': 'Point',
+                'coordinates': [obs['properties']['long'], obs['properties']['lat']]
+            }
             requests.get(
                 "https://{username}.carto.com/api/v2/sql?q=UPDATE {table} SET {column} = '{value}' WHERE _uid = '{id}' &api_key={api_key}".format(
                     username=os.getenv('CARTO_USER'), table=table, column='ended', value=end_date, id=uid,
                     api_key=os.getenv('CARTO_KEY')))
+            requests.get("https://{username}.carto.com/api/v2/sql?q=UPDATE {table} SET {column} = '{value}' WHERE _uid = '{id}' &api_key={api_key}".format(
+                username=os.getenv('CARTO_USER'), table=table, column='the_geom', value=geom, id=uid,
+                api_key=os.getenv('CARTO_KEY')))
 
-# Reads flood shp and returnse list of insertable rows
+
+            # Reads flood shp and returnse list of insertable rows
 def processNewData(exclude_ids):
     # 1. Fetch data from source
     logging.info('Fetching latest data')
