@@ -56,7 +56,7 @@ DATASET_IDS = {
 apiToken = os.getenv('apiToken') or os.environ.get('rw_api_token') or os.environ.get('RW_API_KEY')
 
 if rw_subset==True:
-    SOURCE_URL = 'https://www.acom.ucar.edu/waccm/subsets/resourcewatch/f.e21.FWSD.f09_f09_mg17.forecast.001.cam.%s.{date}_surface_subset.nc' % VERSION
+    SOURCE_URL = 'https://www.acom.ucar.edu/waccm/subsets/resourcewatch/f.e22.beta02.FWSD.f09_f09_mg17.cesm2_2_beta02.forecast.001.cam.%s.{date}_surface_subset.nc' % VERSION
     VARS = ['NO2', 'CO', 'O3', 'SO2', 'PM25', 'bc_a1', 'bc_a4', 'NH3', 'NO']
     NUM_AVAILABLE_LEVELS = [1, 1, 1, 1, 1, 1, 1, 1, 1]
     DESIRED_LEVELS = [1, 1, 1, 1, 1, 1, 1, 1, 1]
