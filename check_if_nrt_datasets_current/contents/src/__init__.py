@@ -95,6 +95,10 @@ def main():
             #oil spills data set doesn't always have events that occur every 10 days
             elif 'ene.008' in r['data']['attributes']['name']:
                 allowed_time = datetime.timedelta(days=15)
+            elif 'foo.024' in r['data']['attributes']['name']:
+                allowed_time = datetime.timedelta(days=11)
+            elif 'for.012' in r['data']['attributes']['name']:
+                allowed_time = datetime.timedelta(days=4)
             #flood data set doesn't always have events that occur every 10 days
             elif 'wat.040' in r['data']['attributes']['name']:
                 allowed_time = datetime.timedelta(days=15)
