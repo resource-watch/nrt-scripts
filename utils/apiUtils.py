@@ -3,6 +3,9 @@ import requests
 
 
 def lastUpdateDate(dataset, date):
+  """
+  This Fucntion will update the date of a dataset with the one passed by as date object
+  """
    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}'
    headers = {
    'Content-Type': 'application/json',
@@ -19,6 +22,10 @@ def lastUpdateDate(dataset, date):
        logging.error('[lastUpdated]: '+str(e))
 
 def flushTileCache(dataset, layer):
+   """
+  This function will delete the layer cache built for a GEE tiler layer.
+   """
+
    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}/layer/{layer}'
    headers = {
    'Content-Type': 'application/json',
