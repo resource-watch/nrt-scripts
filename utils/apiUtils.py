@@ -26,7 +26,7 @@ def flushTileCache(dataset, layer):
   This function will delete the layer cache built for a GEE tiler layer.
    """
 
-   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}/layer/{layer}'
+   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}/layer/{layer}/expire-cache'
    headers = {
    'Content-Type': 'application/json',
    'Authorization': os.getenv('apiToken')
