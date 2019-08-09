@@ -419,12 +419,12 @@ def processInteractions(markets_updated):
             try_num=1
             while try_num <=3:
                 try:
-                    logging.info('Processing interaction for {} at uid {}, try number {}'.format(food_category, m_uid, try_num))
+                    #logging.info('Processing interaction for {} at uid {}, try number {}'.format(food_category, m_uid, try_num))
                     # get information about market
                     r = cartosql.get("SELECT * FROM {} WHERE uid='{}'".format(CARTO_MARKET_TABLE, m_uid),
                                      user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
                     if r.json()['total_rows']==0:
-                        logging.info('No rows for interaction')
+                        #logging.info('No rows for interaction')
                         continue
                     market_entry = r.json()['rows'][0]
 
