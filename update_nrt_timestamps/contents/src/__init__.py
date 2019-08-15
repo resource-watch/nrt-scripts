@@ -129,7 +129,7 @@ def main():
         # ran_at = The date time at which the table had its contents synched with the source file.
         # updated_at = The date time at which the table had its contents modified.
         # modified_at = The date time at which the table was manually modified, if applicable.
-        last_sync = table['updated_at']
+        last_sync = table['ran_at']
         TIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
         last_update_time = datetime.datetime.strptime(last_sync, TIME_FORMAT)
         if current_date!=last_update_time:
@@ -155,7 +155,7 @@ def main():
         # ran_at = The date time at which the table had its contents synced with the source file.
         # updated_at = The date time at which the table had its contents modified.
         # modified_at = The date time at which the table was manually modified, if applicable.
-        last_sync = table['updated_at']
+        last_sync = table['ran_at']
         TIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
         last_update_time = datetime.datetime.strptime(last_sync, TIME_FORMAT)
         if current_date!=last_update_time:
@@ -178,7 +178,7 @@ def main():
         # ran_at = The date time at which the table had its contents synched with the source file.
         # updated_at = The date time at which the table had its contents modified.
         # modified_at = The date time at which the table was manually modified, if applicable.
-        last_sync = table['updated_at']
+        last_sync = table['ran_at']
         TIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
         last_update_time = datetime.datetime.strptime(last_sync, TIME_FORMAT)
         if current_date!=last_update_time:
