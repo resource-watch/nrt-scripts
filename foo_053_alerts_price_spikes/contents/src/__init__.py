@@ -13,7 +13,7 @@ import json
 import hashlib
 
 # Constants
-LOG_LEVEL = logging.INFO
+LOG_LEVEL = logging.info
 
 ALPS_URL = 'http://dataviz.vam.wfp.org/api/GetAlps?ac={country_code}'
 MARKETS_URL = 'http://dataviz.vam.wfp.org/api/GetMarkets?ac={country_code}'
@@ -319,8 +319,15 @@ def processNewData(existing_markets, existing_alps):
     while futile_tries < TOLERATE_TRIES:
         # 1. Fetch new data
         logging.info("Fetching country code {}".format(country_code))
-        markets = requests.get(MARKETS_URL.format(country_code=country_code)).json()
-        alps = requests.get(ALPS_URL.format(country_code=country_code)).json()
+        try_num=0
+        try:
+            markets = requests.get(MARKETS_URL.format(country_code=country_code)).json()
+            alps = requests.get(ALPS_URL.format(country_code=country_code)).json()
+        except Exception as e:
+            if try_num < 2:
+                try_num+=1
+            else:
+                logging.error(e)
 
         if len(markets) == len(alps) == 0:
             futile_tries += 1
@@ -413,19 +420,21 @@ def processInteractions(markets_updated):
         logging.info('Processing interactions for new ALPS data and re-processing interactions that are out of date')
         markets_to_process = markets_updated + old_ids
     #go through each market that was updated and create the correct rows for them
+    num_markets = len(markets_to_process)
+    market_num = 1
     for m_uid in markets_to_process:
         new_rows = []
         for food_category, sql_query in CATEGORIES.items():
             try_num=1
             while try_num <=3:
                 try:
-                    #logging.info('Processing interaction for {} at uid {}, try number {}'.format(food_category, m_uid, try_num))
+                    #logging.info('Processing interaction for {} at uid {}, try number {} (market {} of {})'.format(food_category, m_uid, try_num, market_num, num_markets))
                     # get information about market
                     r = cartosql.get("SELECT * FROM {} WHERE uid='{}'".format(CARTO_MARKET_TABLE, m_uid),
                                      user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
                     if r.json()['total_rows']==0:
                         #logging.info('No rows for interaction')
-                        continue
+                        break
                     market_entry = r.json()['rows'][0]
 
                     # get information about food prices at market
@@ -491,7 +500,7 @@ def processInteractions(markets_updated):
             new_rows.append(row)
             num_new_interactions+=1
         #delete old entries for the markets that were updated
-        logging.info('Deleting old interactions from Carto')
+        #logging.info('Deleting old interactions from Carto')
         try:
             cartosql.deleteRowsByIDs(CARTO_INTERACTION_TABLE, uid, id_field=UID_FIELD,
                             user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
@@ -499,9 +508,10 @@ def processInteractions(markets_updated):
             pass
         #cartosql.deleteRowsByIDs(CARTO_INTERACTION_TABLE, markets_to_process, id_field='market_id')
         #send new rows for these markets
-        logging.info('Sending new interactions to Carto')
+        #logging.info('Sending new interactions to Carto')
         cartosql.insertRows(CARTO_INTERACTION_TABLE, CARTO_INTERACTION_SCHEMA.keys(),
                             CARTO_INTERACTION_SCHEMA.values(), new_rows, blocksize=500, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
+        market_num+=1
     return num_new_interactions
 
 ##############################################################
