@@ -18,7 +18,7 @@ LOG_LEVEL = logging.INFO
 ALPS_URL = 'http://dataviz.vam.wfp.org/api/GetAlps?ac={country_code}'
 MARKETS_URL = 'http://dataviz.vam.wfp.org/api/GetMarkets?ac={country_code}'
 
-PROCESS_HISTORY_INTERACTIONS=True
+PROCESS_HISTORY_INTERACTIONS=False
 CLEAR_TABLE_FIRST = False
 TOLERATE_TRIES = 100
 DATE_FORMAT = '%Y/%m/%d'
