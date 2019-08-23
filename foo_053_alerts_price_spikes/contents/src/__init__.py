@@ -13,7 +13,7 @@ import json
 import hashlib
 
 # Constants
-LOG_LEVEL = logging.info
+LOG_LEVEL = logging.INFO
 
 ALPS_URL = 'http://dataviz.vam.wfp.org/api/GetAlps?ac={country_code}'
 MARKETS_URL = 'http://dataviz.vam.wfp.org/api/GetMarkets?ac={country_code}'
@@ -625,5 +625,5 @@ def main():
     # Get most recent update date
     most_recent_date = get_most_recent_date(CARTO_ALPS_TABLE)
     lastUpdateDate(DATASET_ID, most_recent_date)
-    
+
     logging.info('SUCCESS')
