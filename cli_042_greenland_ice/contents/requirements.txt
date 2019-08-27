@@ -7,3 +7,4 @@ python-dateutil==2.6.1
 #gsutil==4.28
 #boto3==1.4.4
 pytz==2017.3
+bs4

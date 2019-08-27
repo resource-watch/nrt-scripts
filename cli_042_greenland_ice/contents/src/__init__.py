@@ -2,15 +2,17 @@ import logging
 import sys
 import os
 import time
-import urllib.request
 from collections import OrderedDict
 import cartosql
 import requests
+from requests.auth import HTTPBasicAuth
 import datetime
+from bs4 import BeautifulSoup
 
 
 ### Constants
-SOURCE_URL = 'ftp://podaac-ftp.jpl.nasa.gov/allData/tellus/L3/mascon/RL05/JPL/CRI/mass_variability_time_series/'
+SOURCE_URL = 'https://podaac-tools.jpl.nasa.gov/drive/files/allData/tellus/L3/mascon/RL05/JPL/CRI/mass_variability_time_series/'
+
 DATE_INDEX = 0
 FILENAME_INDEX = -1
 TIMEOUT = 300
@@ -114,22 +116,17 @@ def fetchDataFileName(SOURCE_URL):
     """
     Select the appropriate file from FTP to download data from
     """
-    with urllib.request.urlopen(SOURCE_URL) as f:
-        ftp_contents = f.read().decode('utf-8').splitlines()
-
-    filename = ''
+    r = requests.get(SOURCE_URL, auth=HTTPBasicAuth(os.getenv('NASA_USER'), os.getenv('NASA_PASS')), stream=True)
+    soup = BeautifulSoup(r.text, 'html.parser')
+    s = soup.findAll('a')
     ALREADY_FOUND=False
-    for fileline in ftp_contents:
-        fileline = fileline.split()
-        logging.debug("Fileline as formatted on server: {}".format(fileline))
-        potential_filename = fileline[FILENAME_INDEX]
-        if (potential_filename.endswith(".txt") and ("greenland" in potential_filename)):
-            if not ALREADY_FOUND:
-                filename = potential_filename
-                ALREADY_FOUND=True
-            else:
+    for item in s:
+        if item['href'].endswith(".txt") and 'greenland_mass' in item['href']:
+            if ALREADY_FOUND:
                 logging.warning("There are multiple filenames which match criteria, passing most recent")
-                filename = potential_filename
+            filename = item['href'].split('/')[-1]
+            ALREADY_FOUND=True
+
     logging.info("Selected filename: {}".format(filename))
     if not ALREADY_FOUND:
         logging.warning("No valid filename found")
@@ -145,8 +142,8 @@ def tryRetrieveData(SOURCE_URL, filename, TIMEOUT, ENCODING):
     while elapsed < TIMEOUT:
         elapsed = time.time() - start
         try:
-            with urllib.request.urlopen(resource_location) as f:
-                res_rows = f.read().decode(ENCODING).splitlines()
+            with requests.get(resource_location, auth=HTTPBasicAuth(os.getenv('NASA_USER'), os.getenv('NASA_PASS')), stream=True) as f:
+                res_rows = f.content.decode(ENCODING).splitlines()
                 return(res_rows)
         except:
             logging.error("Unable to retrieve resource on this attempt.")
