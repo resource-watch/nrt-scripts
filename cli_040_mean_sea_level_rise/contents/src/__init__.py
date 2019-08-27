@@ -7,9 +7,12 @@ from collections import OrderedDict
 import cartosql
 import requests
 import datetime
+from bs4 import BeautifulSoup
+from requests.auth import HTTPBasicAuth
 
 ### Constants
-SOURCE_URL = "ftp://podaac.jpl.nasa.gov/allData/merged_alt/L2/TP_J1_OSTM/global_mean_sea_level/"
+SOURCE_URL = "https://podaac-tools.jpl.nasa.gov/drive/files/allData/merged_alt/L2/TP_J1_OSTM/global_mean_sea_level/"
+
 FILENAME_INDEX = -1
 DATETIME_INDEX = 2
 TIMEOUT = 300
@@ -122,21 +125,16 @@ def fetchDataFileName(SOURCE_URL):
     """
     Select the appropriate file from FTP to download data from
     """
-    with urllib.request.urlopen(SOURCE_URL) as f:
-        ftp_contents = f.read().decode('utf-8').splitlines()
-
-    filename = ""
+    r = requests.get(SOURCE_URL, auth=HTTPBasicAuth(os.getenv('NASA_USER'), os.getenv('NASA_PASS')), stream=True)
+    soup = BeautifulSoup(r.text, 'html.parser')
+    s = soup.findAll('a')
     ALREADY_FOUND=False
-    for fileline in ftp_contents:
-        fileline = fileline.split()
-        potential_filename = fileline[FILENAME_INDEX]
-        if (potential_filename.endswith(".txt") and ("README" not in potential_filename)):
-            if not ALREADY_FOUND:
-                filename = potential_filename
-                ALREADY_FOUND=True
-            else:
+    for item in s:
+        if item['href'].endswith(".txt") and ("README" not in item['href']):
+            if ALREADY_FOUND:
                 logging.warning("There are multiple filenames which match criteria, passing most recent")
-                filename = potential_filename
+            filename = item['href'].split('/')[-1]
+            ALREADY_FOUND=True
 
     logging.info("Selected filename: {}".format(filename))
     if not ALREADY_FOUND:
@@ -153,8 +151,8 @@ def tryRetrieveData(SOURCE_URL, filename, TIMEOUT, ENCODING):
     while elapsed < TIMEOUT:
         elapsed = time.time() - start
         try:
-            with urllib.request.urlopen(resource_location) as f:
-                res_rows = f.read().decode(ENCODING).splitlines()
+            with requests.get(resource_location, auth=HTTPBasicAuth(os.getenv('NASA_USER'), os.getenv('NASA_PASS')), stream=True) as f:
+                res_rows = f.content.decode(ENCODING).splitlines()
                 return(res_rows)
         except:
             logging.error("Unable to retrieve resource on this attempt.")
