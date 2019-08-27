@@ -11,7 +11,6 @@ from bs4 import BeautifulSoup
 from requests.auth import HTTPBasicAuth
 
 ### Constants
-#SOURCE_URL = "ftp://podaac.jpl.nasa.gov/allData/merged_alt/L2/TP_J1_OSTM/global_mean_sea_level/"
 SOURCE_URL = "https://podaac-tools.jpl.nasa.gov/drive/files/allData/merged_alt/L2/TP_J1_OSTM/global_mean_sea_level/"
 
 FILENAME_INDEX = -1
