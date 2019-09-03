@@ -13,7 +13,7 @@ import requests
 ### Constants
 LOG_LEVEL = logging.INFO
 DATA_DIR = 'data'
-SOURCE_URL = 'https://eogdata.mines.edu/wwwdata/viirs_products/vbd/v23/global-saa/daily/VBD_npp_d{date}_global-saa_noaa_ops_v23.csv'
+SOURCE_URL = 'https://eogdata.mines.edu/wwwdata/viirs_products/vbd/v23/global-saa/nrt/VBD_npp_d{date}_global-saa_noaa_ops_v23.csv'
 #Example URL: https://eogdata.mines.edu/wwwdata/viirs_products/vbd/v23/global-saa/daily/VBD_npp_d20170101_global-saa_noaa_ops_v23.csv
 #Example file name: VBD_npp_d20160701_global-saa_noaa_ops_v23.csv.gz
 
@@ -139,8 +139,9 @@ def processData():
                 cartosql.createTable(CARTO_TABLE, CARTO_SCHEMA)
             
                 rows = df.values.tolist()
-                logging.info('Success! The following includes the first ten rows added to Carto')
-                logging.info(rows[:10])
+                logging.info('Success!')
+                #logging.info('The following includes the first ten rows added to Carto:')
+                #logging.info(rows[:10])
                 if len(rows):
                     cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),CARTO_SCHEMA.values(), rows)
             tries = tries + 1
