@@ -10,7 +10,7 @@ logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 def main():
     # get 'Update Strategy' from master metadata sheet
     sheet = requests.get(os.getenv('MASTER_SHEET'))
-    master_df = pd.read_csv(pd.compat.StringIO(sheet.text), header=0, usecols=['WRI_ID', 'Archived', 'Update strategy', 'API_ID'])
+    master_df = pd.read_csv(pd.compat.StringIO(sheet.text), header=0, usecols=['WRI_ID', 'Update strategy', 'API_ID'])
 
     # Get ‘Frequency of Updates’ from Launch metadata
     sheet = requests.get(os.getenv('METADATA_SHEET'))
@@ -19,12 +19,11 @@ def main():
 
     # merge two data frames, based on their WRI ID
     df = metadata_df.merge(master_df, how='inner', left_on='WRI ID', right_on='WRI_ID').drop(['WRI_ID'],
-                                                                                             axis=1).dropna(subset=['WRI ID', 'Public Title', 'Frequency of Updates', 'API_ID', 'Update strategy'])
-
+                                                                                             axis=1).dropna()
     # get data sets marked as RT
     full_nrt_df = df[df['Update strategy'].str.startswith('RT')]
     # get rid of Archived data sets
-    full_nrt_df = full_nrt_df[full_nrt_df['Archived'].isna()]
+    full_nrt_df = full_nrt_df[~full_nrt_df['WRI ID'].str.contains('Archived')]
     # get rid of data sets I can't do anything to fix
     nrt_df = full_nrt_df[~full_nrt_df['Update strategy'].str.contains('RT - GEE')]
     nrt_df = nrt_df[~(nrt_df['Update strategy'] == 'RT')]
