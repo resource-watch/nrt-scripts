@@ -21,6 +21,7 @@ CARTO_SCHEMA = OrderedDict([
     ("year", "int"),
     ("time_precision", "int"),
     ("event_type", "text"),
+    ("sub_event_type", "text"),
     ("actor1", "text"),
     ("assoc_actor_1", "text"),
     ("inter1", "int"),
