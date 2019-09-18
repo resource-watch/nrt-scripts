@@ -2,7 +2,6 @@ import logging
 import sys
 import os
 import time
-import urllib.request
 from collections import OrderedDict
 import cartosql
 import requests
