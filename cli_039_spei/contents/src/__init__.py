@@ -3,13 +3,9 @@ from __future__ import unicode_literals
 import os
 import sys
 import urllib.request
-import shutil
-from contextlib import closing
-#import gzip
 import datetime
 from dateutil import parser
 import logging
-#import subprocess
 from netCDF4 import Dataset
 import rasterio as rio
 import eeUtil
