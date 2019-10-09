@@ -135,8 +135,9 @@ def fetchDataFileName(SOURCE_URL):
             filename = item['href'].split('/')[-1]
             ALREADY_FOUND=True
 
-    logging.info("Selected filename: {}".format(filename))
-    if not ALREADY_FOUND:
+    if ALREADY_FOUND:
+        logging.info("Selected filename: {}".format(filename))
+    else:
         logging.warning("No valid filename found")
 
     return(filename)

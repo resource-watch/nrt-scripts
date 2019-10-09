@@ -128,7 +128,7 @@ def fetchDataFileName(SOURCE_URL):
             ALREADY_FOUND=True
     if ALREADY_FOUND:
         logging.info("Selected filename: {}".format(filename))
-    if not ALREADY_FOUND:
+    else:
         logging.warning("No valid filename found")
 
     return(filename)
