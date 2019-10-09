@@ -126,8 +126,8 @@ def fetchDataFileName(SOURCE_URL):
                 logging.warning("There are multiple filenames which match criteria, passing most recent")
             filename = item['href'].split('/')[-1]
             ALREADY_FOUND=True
-
-    logging.info("Selected filename: {}".format(filename))
+    if ALREADY_FOUND:
+        logging.info("Selected filename: {}".format(filename))
     if not ALREADY_FOUND:
         logging.warning("No valid filename found")
 
