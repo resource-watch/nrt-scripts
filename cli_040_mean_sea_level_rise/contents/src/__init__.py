@@ -124,7 +124,7 @@ def fetchDataFileName(SOURCE_URL):
     """
     Select the appropriate file from FTP to download data from
     """
-    r = requests.get(SOURCE_URL, auth=HTTPBasicAuth(os.getenv('NASA_USER'), os.getenv('NASA_PASS')), stream=True)
+    r = requests.get(SOURCE_URL, auth=HTTPBasicAuth(os.getenv('EARTHDATA_USER'), os.getenv('EARTHDATA_KEY')), stream=True)
     soup = BeautifulSoup(r.text, 'html.parser')
     s = soup.findAll('a')
     ALREADY_FOUND=False
@@ -151,7 +151,7 @@ def tryRetrieveData(SOURCE_URL, filename, TIMEOUT, ENCODING):
     while elapsed < TIMEOUT:
         elapsed = time.time() - start
         try:
-            with requests.get(resource_location, auth=HTTPBasicAuth(os.getenv('NASA_USER'), os.getenv('NASA_PASS')), stream=True) as f:
+            with requests.get(resource_location, auth=HTTPBasicAuth(os.getenv('EARTHDATA_USER'), os.getenv('EARTHDATA_KEY')), stream=True) as f:
                 res_rows = f.content.decode(ENCODING).splitlines()
                 return(res_rows)
         except:
