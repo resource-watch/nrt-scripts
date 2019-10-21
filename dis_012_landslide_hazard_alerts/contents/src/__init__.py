@@ -6,6 +6,7 @@ import datetime
 import cartosql
 import requests
 import simplejson
+import time
 
 LOG_LEVEL = logging.INFO
 
@@ -36,6 +37,9 @@ CARTO_SCHEMA = OrderedDict([
 UID_FIELD = '_UID'
 TIME_FIELD = 'datetime'
 
+#If error giving during data fetching process, how many seconds do you want to wait before you try to fetch again?
+#currently, when fetching process fails, the 5 tries take 10 mins, so we will try with a wait time of 15 mins
+WAIT_TIME=15*60
 
 # Limit 100k rows, drop older than 1 yr
 MAX_ROWS = 100000
@@ -97,6 +101,8 @@ def processData(exclude_ids, table, src_url):
             results = r.json()
             break
         except simplejson.errors.JSONDecodeError:
+            logging.info('Waiting for {} seconds before trying again.'.format(WAIT_TIME))
+            time.sleep(WAIT_TIME)
             try_num +=1
 
     # loop until no new observations
