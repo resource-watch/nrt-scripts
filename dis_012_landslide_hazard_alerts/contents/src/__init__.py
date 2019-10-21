@@ -214,7 +214,18 @@ def main():
             existing_count, new_count, MAX_ROWS))
 
         # 3. Remove old observations
-        deleteExcessRows(table, MAX_ROWS, TIME_FIELD, MAX_AGE)
+        # Sometimes Carto fails to delete, so we will add multiple tries.
+        try_num = 1
+        while try_num <= 5:
+            try:
+                logging.info('Deleting excess observations.')
+                deleteExcessRows(table, MAX_ROWS, TIME_FIELD, MAX_AGE)
+                logging.info('Successfully deleted excess rows.')
+                break
+            except:
+                logging.info('Waiting for {} seconds before trying again.'.format(WAIT_TIME))
+                time.sleep(30)
+                try_num += 1
     # Get most recent update date
     most_recent_date = get_most_recent_date(TABLE_LEGACY)
     lastUpdateDate(DATASET_ID, most_recent_date)
