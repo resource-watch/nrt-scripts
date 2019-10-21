@@ -28,33 +28,6 @@ def getLastUpdate(dataset):
     lastUpdateDT = nofrag_dt.replace(microsecond=int(frag[:-1])*1000)
     return lastUpdateDT
 
-def getLayerIDs(dataset):
-    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{}?includes=layer'.format(dataset)
-    r = requests.get(apiUrl)
-    layers = r.json()['data']['attributes']['layer']
-    layerIDs =[]
-    for layer in layers:
-        if layer['attributes']['application']==['rw']:
-            layerIDs.append(layer['id'])
-    return layerIDs
-
-def flushTileCache(dataset, layer):
-   """
-  This function will delete the layer cache built for a GEE tiler layer.
-   """
-
-   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{dataset}/layer/{layer}/expire-cache'.format(dataset=dataset, layer=layer)
-   headers = {
-   'Content-Type': 'application/json',
-   'Authorization': os.getenv('apiToken')
-   }
-   try:
-       r = requests.delete(url = apiUrl, headers = headers)
-       logging.info('[Cache tiles deleted]: status code '+str(r.status_code))
-       return r.status_code
-   except Exception as e:
-       logging.error('[lastUpdated]: '+str(e))
-
 def lastUpdateDate(dataset, date):
    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
    headers = {
@@ -101,15 +74,11 @@ def main():
         most_recent_date_unix = most_recent_asset.get('system:time_end').getInfo()/1000
         #convert to datetime
         most_recent_date = datetime.datetime.fromtimestamp(most_recent_date_unix)
-        #if our timestamp is not correct, update it and clear the cache
+        #if our timestamp is not correct, update it
         if current_date!=most_recent_date:
             logging.info('Updating ' + collection_name)
             # Update data set's last update date on Resource Watch
             lastUpdateDate(id, most_recent_date)
-            layer_ids = getLayerIDs(dataset)
-            for layer_id in layer_ids:
-                #flushTileCache(id, layer_id)
-                logging.info('Cache flushed for layer: '+layer_id)
 
     logging.info('Success for GEE Catalog data sets')
     
