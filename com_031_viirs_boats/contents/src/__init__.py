@@ -107,7 +107,7 @@ def processData():
     Will first try to get the data for today three times
     Then decrease a day up until 8 tries until it finds one
     '''
-    date = datetime.date.today()
+    date = datetime.date.today()- datetime.timedelta(days=1)
     success = False
     tries = 0
     while tries < MAX_TRIES and success==False:
