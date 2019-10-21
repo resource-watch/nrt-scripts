@@ -262,9 +262,18 @@ def main():
             for param in PARAMS:
                 count = len(rows[param])
                 if count:
-                    logging.info('Pushing {} new {} rows'.format(count, param))
-                    cartosql.insertRows(CARTO_TABLES[param], CARTO_SCHEMA.keys(),
-                                        CARTO_SCHEMA.values(), rows[param], blocksize=500)
+                    try_num = 1
+                    while try_num <= 3:
+                        try:
+                            logging.info('Try {}: Pushing {} new {} rows'.format(try_num, count, param))
+                            cartosql.insertRows(CARTO_TABLES[param], CARTO_SCHEMA.keys(),
+                                                CARTO_SCHEMA.values(), rows[param], blocksize=500)
+                            logging.info('Successfully pushed {} new {} rows.'.format(count, param))
+                            break
+                        except:
+                            logging.info('Waiting for {} seconds before trying again.'.format(WAIT_TIME))
+                            time.sleep(30)
+                            try_num += 1
                     new_count += count
                 new_counts[param] += count
 
