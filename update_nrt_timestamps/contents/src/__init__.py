@@ -28,6 +28,39 @@ def getLastUpdate(dataset):
     lastUpdateDT = nofrag_dt.replace(microsecond=int(frag[:-1])*1000)
     return lastUpdateDT
 
+def getLayerIDs(dataset):
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{}?includes=layer'.format(dataset)
+    r = requests.get(apiUrl)
+    layers = r.json()['data']['attributes']['layer']
+    layerIDs =[]
+    for layer in layers:
+        if layer['attributes']['application']==['rw']:
+            layerIDs.append(layer['id'])
+    return layerIDs
+
+def flushTileCache(layer_id):
+    """
+    This function will delete the layer cache built for a GEE tiler layer.
+     """
+    apiUrl = 'http://api.resourcewatch.org/v1/layer/{}/expire-cache'.format(layer_id)
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    try_num=1
+    try:
+         r = requests.delete(url = apiUrl, headers = headers, timeout=1000)
+         if r.ok:
+             logging.info('[Cache tiles deleted] for {}: status code {}'.format(layer_id, r.status_code))
+             return r.status_code
+         else:
+             logging.error('Cache failed to flush: status code {}'.format(r.status_code))
+    except Exception as e:
+        if try_num < 4:
+            try_num+=1
+        else:
+            logging.error('Failed: {}'.format(e))
+
 def lastUpdateDate(dataset, date):
    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
    headers = {
@@ -63,9 +96,9 @@ def main():
     # 1. update data sets in GEE Catalog
 
     #Check if datasets have been updated
-    for collection_name, id in DATASET_ID_BY_COLLECTION.items():
+    for collection_name, dataset_id in DATASET_ID_BY_COLLECTION.items():
         #get last update date currently being displayed on RW
-        current_date = getLastUpdate(id)
+        current_date = getLastUpdate(dataset_id)
         #get most recent date in collection
         #load collection and get most recent asset time stamp
         collection = ee.ImageCollection(collection_name)
@@ -78,7 +111,10 @@ def main():
         if current_date!=most_recent_date:
             logging.info('Updating ' + collection_name)
             # Update data set's last update date on Resource Watch
-            lastUpdateDate(id, most_recent_date)
+            lastUpdateDate(dataset_id, most_recent_date)
+            layer_ids = getLayerIDs(dataset_id)
+            for layer_id in layer_ids:
+                flushTileCache(layer_id)
 
     logging.info('Success for GEE Catalog data sets')
     
