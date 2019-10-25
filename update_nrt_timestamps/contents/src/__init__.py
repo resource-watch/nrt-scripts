@@ -15,7 +15,7 @@ DATASET_ID_BY_COLLECTION = {
     'HYCOM/GLBu0_08/sea_temp_salinity':'e6c0dd9e-3dde-4296-91d8-87ac26ed038f',
     'HYCOM/GLBu0_08/sea_water_velocity': 'e050ee5c-0dfa-491d-862c-2274e8597793',
     'NASA_USDA/HSL/SMAP_soil_moisture': 'e7b9efb2-3836-45ae-8b6a-f8391c7bcd2f',
-    'UCSB-CHG/CHIRPS/PENTAD': '932baa47-32f4-492c-8965-89aab5be0c37',
+    'UCSB-CHG/CHIRPS/PENTAD': '55cb7e8d-a978-4184-b347-4ba64cd88ad2',
     'JAXA/GPM_L3/GSMaP/v6/operational': '1e8919fc-c1a8-4814-b819-31cdad17651e'
 }
 
@@ -169,7 +169,7 @@ def main():
     logging.info('Success for WRI-01')
 
     # 4. update data sets on WRI-RW Carto account
-    RWNRT_DATASETS = {'vnp14imgtdl_nrt_global_7d': '20cc5eca-8c63-4c41-8e8e-134dcf1e6d76'}
+    RWNRT_DATASETS = {'vnp14imgtdl_nrt_global_7d': '64c948a6-5e34-4ef2-bb69-6a6535967bd5'}
 
     url = "https://{account}.carto.com/api/v1/synchronizations/?api_key={API_key}".format(
         account=os.getenv('CARTO_USER'), API_key=os.getenv('CARTO_KEY'))
