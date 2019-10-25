@@ -54,7 +54,7 @@ def lastUpdateDate(dataset, date):
    except Exception as e:
        logging.error('[lastUpdated]: '+str(e))
 
-DATASET_ID = '4f7888d6-d661-4b2c-a60e-cf1eebd0656a'
+DATASET_ID = '609487de-0a23-4783-bafc-4335b6fe7d4b'
 
 def lastUpdateDate(dataset, date):
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
