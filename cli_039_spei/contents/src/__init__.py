@@ -11,6 +11,7 @@ import rasterio as rio
 import eeUtil
 import numpy as np
 import requests
+import time
 
 LOG_LEVEL = logging.INFO
 CLEAR_COLLECTION_FIRST = False
@@ -38,6 +39,55 @@ MAX_ASSETS = 36
 DATE_FORMAT = '%Y%m15'
 TIMESTEP = {'days': 30}
 DATASET_ID = '4f7888d6-d661-4b2c-a60e-cf1eebd0656a'
+
+def getLastUpdate(dataset):
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{}'.format(dataset)
+    r = requests.get(apiUrl)
+    lastUpdateString=r.json()['data']['attributes']['dataLastUpdated']
+    nofrag, frag = lastUpdateString.split('.')
+    nofrag_dt = datetime.datetime.strptime(nofrag, "%Y-%m-%dT%H:%M:%S")
+    lastUpdateDT = nofrag_dt.replace(microsecond=int(frag[:-1])*1000)
+    return lastUpdateDT
+
+def getLayerIDs(dataset):
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{}?includes=layer'.format(dataset)
+    r = requests.get(apiUrl)
+    layers = r.json()['data']['attributes']['layer']
+    layerIDs =[]
+    for layer in layers:
+        if layer['attributes']['application']==['rw']:
+            layerIDs.append(layer['id'])
+    return layerIDs
+
+def flushTileCache(layer_id):
+    """
+    This function will delete the layer cache built for a GEE tiler layer.
+     """
+    apiUrl = 'http://api.resourcewatch.org/v1/layer/{}/expire-cache'.format(layer_id)
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    try_num=1
+    tries=4
+    while try_num<tries:
+        try:
+            r = requests.delete(url = apiUrl, headers = headers, timeout=1000)
+            if r.ok or r.status_code==504:
+                logging.info('[Cache tiles deleted] for {}: status code {}'.format(layer_id, r.status_code))
+                return r.status_code
+            else:
+                if try_num < (tries-1):
+                    logging.info('Cache failed to flush: status code {}'.format(r.status_code))
+                    time.sleep(60)
+                    logging.info('Trying again.')
+                else:
+                    logging.error('Cache failed to flush: status code {}'.format(r.status_code))
+                    logging.error('Aborting.')
+            try_num += 1
+        except Exception as e:
+            logging.error('Failed: {}'.format(e))
+
 def lastUpdateDate(dataset, date):
    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
    headers = {
@@ -290,8 +340,16 @@ def main():
 
     # Get most recent update date
     most_recent_date = get_most_recent_date(EE_COLLECTION)
-    lastUpdateDate(DATASET_ID, most_recent_date)
+    current_date = getLastUpdate(DATASET_ID)
 
+    if current_date != most_recent_date:
+        logging.info('Updating last update date and flushing cache.')
+        # Update data set's last update date on Resource Watch
+        lastUpdateDate(DATASET_ID, most_recent_date)
+        # get layer ids and flush tile cache for each
+        layer_ids = getLayerIDs(DATASET_ID)
+        for layer_id in layer_ids:
+            flushTileCache(layer_id)
     ###
 
     logging.info('SUCCESS')
