@@ -58,7 +58,7 @@ def flushTileCache(layer_id):
             else:
                 if try_num < (tries-1):
                     logging.info('Cache failed to flush: status code {}'.format(r.status_code))
-                    time.sleep(30)
+                    time.sleep(60)
                     logging.info('Trying again.')
                 else:
                     logging.error('Cache failed to flush: status code {}'.format(r.status_code))

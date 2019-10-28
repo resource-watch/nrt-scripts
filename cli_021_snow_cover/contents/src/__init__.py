@@ -329,13 +329,13 @@ def main():
     most_recent_date = get_most_recent_date(EE_COLLECTION)
     current_date = getLastUpdate(DATASET_ID)
 
-    #if current_date != most_recent_date:
-    logging.info('Updating last update date and flushing cache.')
-    # Update data set's last update date on Resource Watch
-    lastUpdateDate(DATASET_ID, most_recent_date)
-    # get layer ids and flush tile cache for each
-    layer_ids = getLayerIDs(DATASET_ID)
-    for layer_id in layer_ids:
-        flushTileCache(layer_id)
+    if current_date != most_recent_date:
+        logging.info('Updating last update date and flushing cache.')
+        # Update data set's last update date on Resource Watch
+        lastUpdateDate(DATASET_ID, most_recent_date)
+        # get layer ids and flush tile cache for each
+        layer_ids = getLayerIDs(DATASET_ID)
+        for layer_id in layer_ids:
+            flushTileCache(layer_id)
 
     logging.info('SUCCESS')
