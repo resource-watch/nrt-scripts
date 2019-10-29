@@ -54,7 +54,7 @@ DTYPE = rio.float32
 NODATA = -999
 SCALE_FACTOR = .01
 DATASET_IDS = {'foo_051_vegetation_condition_index':'4828c405-06a2-4460-a78c-90969bce582b',
-'foo_024_vegetation_health_index':'4828c405-06a2-4460-a78c-90969bce582b'}
+'foo_024_vegetation_health_index':'c12446ce-174f-4ffb-b2f7-77ecb0116aba'}
 
 def lastUpdateDate(dataset, date):
    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
