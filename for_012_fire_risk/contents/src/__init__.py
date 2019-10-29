@@ -27,11 +27,11 @@ with this option.
 
 DATA_DIR = 'data'
 GS_FOLDER = 'for_012_fire_risk'
-EE_COLLECTION = 'for_012_fire_risk'
+EE_COLLECTION = '/projects/resource-watch-gee/for_012_fire_risk'
 CLEAR_COLLECTION_FIRST = False
 DELETE_LOCAL = True
 
-MAX_ASSETS = 7
+MAX_ASSETS = 15
 DATE_FORMAT_NETCDF = '%Y%m%d'
 DATE_FORMAT = '%Y%m%d'
 TIMESTEP = {'days': 1}
