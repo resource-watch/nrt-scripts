@@ -5,7 +5,7 @@ import sys
 import datetime
 import logging
 import ee
-
+import time
 import requests
 
 
@@ -48,17 +48,23 @@ def flushTileCache(layer_id):
     'Authorization': os.getenv('apiToken')
     }
     try_num=1
-    try:
-         r = requests.delete(url = apiUrl, headers = headers, timeout=1000)
-         if r.ok:
-             logging.info('[Cache tiles deleted] for {}: status code {}'.format(layer_id, r.status_code))
-             return r.status_code
-         else:
-             logging.error('Cache failed to flush: status code {}'.format(r.status_code))
-    except Exception as e:
-        if try_num < 4:
-            try_num+=1
-        else:
+    tries=4
+    while try_num<tries:
+        try:
+            r = requests.delete(url = apiUrl, headers = headers, timeout=1000)
+            if r.ok or r.status_code==504:
+                logging.info('[Cache tiles deleted] for {}: status code {}'.format(layer_id, r.status_code))
+                return r.status_code
+            else:
+                if try_num < (tries-1):
+                    logging.info('Cache failed to flush: status code {}'.format(r.status_code))
+                    time.sleep(60)
+                    logging.info('Trying again.')
+                else:
+                    logging.error('Cache failed to flush: status code {}'.format(r.status_code))
+                    logging.error('Aborting.')
+            try_num += 1
+        except Exception as e:
             logging.error('Failed: {}'.format(e))
 
 def lastUpdateDate(dataset, date):
