@@ -151,7 +151,8 @@ def main():
     # 3. update data sets on GFW Carto account
     GFW_DATASETS = {'gfw_oil_palm': '6e05a9e8-ba07-4e6f-8337-31c5362d07fe',
                     'gfw_wood_fiber': '83de627f-524b-4162-a10c-384dc3e8107a',
-                    'forma_activity': 'e1b40fdd-04f9-43ab-b4f1-d3ceee39fea1'}
+                    'forma_activity': 'e1b40fdd-04f9-43ab-b4f1-d3ceee39fea1',
+                    'biodiversity_hotspots': '4458eb12-8572-45d1-bf07-d5a3ee097021'}
 
     url = "https://{account}.carto.com/api/v1/synchronizations/?api_key={API_key}".format(
         account=os.getenv('CARTO_WRI_01_USER'), API_key=os.getenv('CARTO_WRI_01_KEY'))
