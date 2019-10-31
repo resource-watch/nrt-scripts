@@ -72,6 +72,8 @@ def main():
             else:
                 allowed_time = datetime.timedelta(days=1)
             # allow for longer delay for TROPOMI data because it is slow to upload
+            if 'bio.002' in r['data']['attributes']['name']:
+                allowed_time = datetime.timedelta(days=30)
             if 'cit.035' in r['data']['attributes']['name']:
                 allowed_time = datetime.timedelta(days=45)
             #on the 1st of each month, this data set updates for the 1st of the previous month
