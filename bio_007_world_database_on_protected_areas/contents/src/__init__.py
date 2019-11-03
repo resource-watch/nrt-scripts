@@ -280,7 +280,7 @@ def main():
     end_time=time.time()
     run_time=end_time-start_time
     logging.info("SUCCESS, run time: {}".format(datetime.timedelta(seconds=run_time)))
-    # Delete local netcdf files
+    # Delete local files
     if DELETE_LOCAL:
         try:
             for f in os.listdir(DATA_DIR):
