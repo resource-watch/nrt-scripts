@@ -10,8 +10,6 @@ import time
 import numpy as np
 import urllib
 import zipfile
-from socket import error as SocketError
-import errno
 import pandas as pd
 
 # WDPA API Reference document: https://api.protectedplanet.net/documentation
