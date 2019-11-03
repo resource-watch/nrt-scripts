@@ -8,6 +8,11 @@ import datetime
 import copy
 import time
 import numpy as np
+import urllib
+import zipfile
+from socket import error as SocketError
+import errno
+import pandas as pd
 
 # WDPA API Reference document: https://api.protectedplanet.net/documentation
 
@@ -73,7 +78,8 @@ JSON_LOC = {
      }
 # Table limits
 MAX_ROWS = 1000000
-
+DATA_DIR = 'data'
+DELETE_LOCAL=True
 DATASET_ID = '2442891a-157a-40e6-9092-ee596e6d30ba'
 def lastUpdateDate(dataset, date):
    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
@@ -111,10 +117,7 @@ def checkCreateTable(table, schema, id_field, time_field=''):
             cartosql.createIndex(table, time_field, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
     return []
 
-
-
-def processData(existing_ids):
-    new_data = []
+def fetch_ids_old(existing_ids):
     new_ids = []
 
     #get new ids that aren't in the table
@@ -138,6 +141,33 @@ def processData(existing_ids):
         page+=1
     new_ids = np.unique(new_ids)
     logging.info('{} new records found'.format(len(new_ids)))
+    return new_ids, all_ids
+
+def fetch_ids(existing_ids):
+    filename_csv = 'WDPA_{mo}{yr}-csv'.format(mo=datetime.datetime.today().strftime("%b"), yr=datetime.datetime.today().year)
+    url_csv = 'http://d1gam3xoknrgr2.cloudfront.net/current/{}.zip'.format(filename_csv)
+
+    urllib.request.urlretrieve(url_csv, DATA_DIR + '/' + filename_csv + '.zip')
+    zip_ref = zipfile.ZipFile(DATA_DIR + '/' + filename_csv + '.zip', 'r')
+    zip_ref.extractall(DATA_DIR + '/' + filename_csv)
+    zip_ref.close()
+
+    # read in climate change vulnerability data to pandas dataframe
+    filename = DATA_DIR + '/' + filename_csv + '/' + filename_csv + '.csv'
+    wdpa_df = pd.read_csv(filename, low_memory=False)
+
+    all_ids = wdpa_df.WDPAID.to_list()
+    logging.info('found {} ids'.format(len(all_ids)))
+    existing_ids_int = [int(i) for i in existing_ids]
+    new_ids = np.setdiff1d(all_ids, existing_ids_int)
+    logging.info('{} new ids'.format(len(new_ids)))
+
+    return new_ids, all_ids
+
+
+def processData(existing_ids):
+    new_ids, all_ids = fetch_ids(existing_ids)
+    new_data = []
 
     #go through and fetch information for new ids
     for id in new_ids:
@@ -252,3 +282,11 @@ def main():
     end_time=time.time()
     run_time=end_time-start_time
     logging.info("SUCCESS, run time: {}".format(datetime.timedelta(seconds=run_time)))
+    # Delete local netcdf files
+    if DELETE_LOCAL:
+        try:
+            for f in os.listdir(DATA_DIR):
+                logging.info('Removing {}'.format(f))
+                os.remove(DATA_DIR+'/'+f)
+        except NameError:
+            logging.info('No local files to clean.')

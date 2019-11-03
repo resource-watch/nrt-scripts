@@ -9,6 +9,7 @@ RUN pip install -U pip
 RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
 RUN pip install requests
 RUN pip install numpy
+RUN pip install pandas
 
 # set name
 ARG NAME=bio_007_wdpa
