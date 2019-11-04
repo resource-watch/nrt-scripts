@@ -19,7 +19,7 @@ import pandas as pd
 
 LOG_LEVEL = logging.INFO
 CLEAR_TABLE_FIRST = False
-
+REPLACE_ALL = True
 ### Table name and structure
 CARTO_TABLE = 'bio_007_world_database_on_protected_areas'
 UID_FIELD='wdpa_id'
@@ -141,7 +141,7 @@ def fetch_ids_old(existing_ids):
     logging.info('{} new records found'.format(len(new_ids)))
     return new_ids, all_ids
 
-def fetch_ids(existing_ids):
+def fetch_ids(existing_ids_int):
     filename_csv = 'WDPA_{mo}{yr}-csv'.format(mo=datetime.datetime.today().strftime("%b"), yr=datetime.datetime.today().year)
     url_csv = 'http://d1gam3xoknrgr2.cloudfront.net/current/{}.zip'.format(filename_csv)
 
@@ -156,7 +156,6 @@ def fetch_ids(existing_ids):
 
     all_ids = wdpa_df.WDPAID.to_list()
     logging.info('found {} ids'.format(len(all_ids)))
-    existing_ids_int = [int(i) for i in existing_ids]
     new_ids = np.setdiff1d(all_ids, existing_ids_int)
     logging.info('{} new ids'.format(len(new_ids)))
 
@@ -164,11 +163,15 @@ def fetch_ids(existing_ids):
 
 
 def processData(existing_ids):
-    new_ids, all_ids = fetch_ids(existing_ids)
+    existing_ids_int = [int(i) for i in existing_ids]
+    new_ids, all_ids = fetch_ids(existing_ids_int)
     new_data = []
-
+    if REPLACE_ALL==True:
+        id_list = all_ids
+    else:
+        id_list = new_ids
     #go through and fetch information for new ids
-    for id in new_ids:
+    for id in id_list:
         url = "https://api.protectedplanet.net/v3/protected_areas/{}?token={}".format(id, os.getenv('WDPA_key'))
         r = requests.get(url)
         try:
@@ -220,21 +223,21 @@ def processData(existing_ids):
                 logging.info('SUCCESSFULLY PULLED {}'.format(id))
         except Exception as e:
             logging.error('problem pulling {}'.format(id))
-    num_new = len(new_ids)
+    num_new = len(id_list)
     if num_new:
-        # delete all rows from table
-        #logging.info('Deleting current records')
-        #cartosql.deleteRows(CARTO_TABLE, where='cartodb_id IS NOT NULL', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
+        if REPLACE_ALL==True:
+            # delete all rows from table
+            logging.info('Deleting current records')
+            cartosql.deleteRows(CARTO_TABLE, where='cartodb_id IS NOT NULL', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
         # push new data
         logging.info('Adding {} new records'.format(num_new))
         cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), new_data, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
-    #delete rows that no longer exist
-    deleted_ids =[]
-    where = None
-    for id in existing_ids:
-        if int(id) not in all_ids:
-            deleted_ids.append(id)
-            logging.info('deleting {}'.format(id))
+    if REPLACE_ALL==False:
+        #delete rows that no longer exist
+        where = None
+        deleted_ids = np.setdiff1d(id_list, existing_ids_int)
+
+        for id in deleted_ids:
             if where:
                 where=where + ' OR wdpa_id = {}'.format(id)
             else:
@@ -242,7 +245,7 @@ def processData(existing_ids):
             if len(where)>15000:
                 cartosql.deleteRows(CARTO_TABLE, where=where, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
                 where = None
-    logging.info('{} ids deleted'.format(len(deleted_ids)))
+        logging.info('{} ids deleted'.format(len(deleted_ids)))
     return(num_new)
 
 
