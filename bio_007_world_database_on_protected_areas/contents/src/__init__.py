@@ -220,7 +220,7 @@ def processData(existing_ids):
                 row.append(key_data)
             if len(row):
                 new_data.append(row)
-                logging.info('SUCCESSFULLY PULLED {}'.format(id))
+                #logging.info('SUCCESSFULLY PULLED {}'.format(id))
         except Exception as e:
             logging.error('problem pulling {}'.format(id))
     num_new = len(id_list)
