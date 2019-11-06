@@ -221,17 +221,20 @@ def processData(existing_ids):
             if len(row):
                 new_data.append(row)
         except Exception as e:
-            logging.error('problem pulling {}'.format(id))
+            logging.error('error pulling {}'.format(id))
+        if (id_list.index(id) % 10000)==0:
+            logging.info('{} records processed.'.format(id_list.index(id)))
     num_new = len(id_list)
     if num_new:
         if REPLACE_ALL==True:
             # delete all rows from table
-            logging.info('Deleting current records')
+            logging.info('Deleting all current records')
             cartosql.deleteRows(CARTO_TABLE, where='cartodb_id IS NOT NULL', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
         # push new data
-        logging.info('Adding {} new records'.format(num_new))
+        logging.info('Adding {} new records.'.format(num_new))
         cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), new_data, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
     if REPLACE_ALL==False:
+        logging.info('Deleting records that are no longer in the database.')
         #delete rows that no longer exist
         where = None
         deleted_ids = np.setdiff1d(id_list, existing_ids_int)
