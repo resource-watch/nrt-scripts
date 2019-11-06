@@ -265,7 +265,7 @@ def main():
     # Get most recent update date
     #if new rows were added to table, make today the most recent update date
     if num_new > 0:
-        most_recent_date = datetime.datetime.utcnow()
+        most_recent_date = get_most_recent_date(CARTO_TABLE)
         lastUpdateDate(DATASET_ID, most_recent_date)
 
     logging.info("SUCCESS")
