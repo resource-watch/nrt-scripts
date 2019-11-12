@@ -213,6 +213,7 @@ def processInteractions():
             countries_with_interaction.append(ctry)
     if cartosql.tableExists(CARTO_TABLE_INTERACTION):
         cartosql.dropTable(CARTO_TABLE_INTERACTION)
+    #run to create new table
     existing_interaction_ids = checkCreateTable(CARTO_TABLE_INTERACTION, CARTO_SCHEMA_INTERACTION, UID_FIELD)
     new_interactions=[]
     for ctry in countries_with_interaction:
@@ -224,12 +225,12 @@ def processInteractions():
             event = interaction['event_name'].split(": ",1)
             if event_num == 1:
                 if len(event)==1:
-                    interaction_str = '{} ({})'.format(event, interaction['url'])
+                    interaction_str = '{} ({})'.format(event[0], interaction['url'])
                 else:
                     interaction_str = '{} ({})'.format(event[1], interaction['url'])
             else:
                 if len(event)==1:
-                    interaction_str = interaction_str + '; ' + '{} ({})'.format(event, interaction['url'])
+                    interaction_str = interaction_str + '; ' + '{} ({})'.format(event[0], interaction['url'])
                 else:
                     interaction_str = interaction_str + '; ' + '{} ({})'.format(event[1], interaction['url'])
             event_num+=1
@@ -253,7 +254,7 @@ def processInteractions():
             row.append(item)
         new_interactions.append(row)
     logging.info('Adding {} new interactions'.format(len(new_interactions)))
-    cartosql.blockInsertRows(CARTO_TABLE_INTERACTION, CARTO_SCHEMA_INTERACTION.keys(), CARTO_SCHEMA_INTERACTION.values(), new_interactions)
+    cartosql.blockInsertRows(CARTO_TABLE_INTERACTION, CARTO_SCHEMA_INTERACTION.keys(), CARTO_SCHEMA_INTERACTION.values(), new_interactions, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
 
 
 def get_most_recent_date(table):
