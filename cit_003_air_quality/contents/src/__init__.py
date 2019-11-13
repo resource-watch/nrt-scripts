@@ -201,6 +201,7 @@ def get_most_recent_date(param):
     dates = r.text.split('\r\n')[1:-1]
     dates.sort()
     most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
+    now = datetime.datetime.utcnow()
     if most_recent_date > now:
         most_recent_date = now
     return most_recent_date
