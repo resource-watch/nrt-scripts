@@ -8,7 +8,16 @@ import requests
 import pandas as pd
 
 # Constants
-SOURCE_URL = 'https://www.climatewatchdata.org/api/v1/data/ndc_content?indicator_ids[]=3281&page={page}'
+
+# The indicator id for this dataset changes somewhat regularly, which breaks this script. If no data has been returned for
+# the current ID, you will have to go to the source to find the new id.
+# 1. Go to Climate Watch Data Explorer: https://www.climatewatchdata.org/data-explorer
+# 2. Click to the 'NDC Content' data tab
+# 3. Under the 'Indicators' drop down, select 'Status of Ratification'
+# 4. At this point, in the url, you should see the parameter id indicated after 'ndc-content-indicators=' - copy this id
+#    into the indicator_id variable, below.
+indicator_id = 11300
+SOURCE_URL = 'https://www.climatewatchdata.org/api/v1/data/ndc_content?indicator_ids[]=%s&page={page}'%indicator_id
 
 CARTO_TABLE = 'cli_047_ndc_ratification'
 CARTO_SCHEMA = OrderedDict([
