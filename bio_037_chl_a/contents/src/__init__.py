@@ -212,7 +212,7 @@ def fetch(new_dates):
             #NASA does not upload the previous month's chlorophyll until the middle of the next month
             #Error is raised when trying to access this file via URL as the file has not been uploaded by NASA
             #Send this error to log file instead of paper trails
-            #logging.error('Unable to retrieve data from {}'.format(url))
+            logging.error('Unable to retrieve data from {}'.format(url))
             #logging.debug(e)
 
     return files

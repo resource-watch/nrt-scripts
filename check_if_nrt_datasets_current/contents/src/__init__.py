@@ -74,6 +74,9 @@ def main():
             # allow for longer delay for TROPOMI data because it is slow to upload
             if 'bio.002' in r['data']['attributes']['name']:
                 allowed_time = datetime.timedelta(days=30)
+             # chlorophyll updates on the 19th of each month with the previous month's data
+            if 'bio.037' in r['data']['attributes']['name']:
+                allowed_time = datetime.timedelta(days=53)
             if 'cit.035' in r['data']['attributes']['name']:
                 allowed_time = datetime.timedelta(days=45)
             #on the 1st of each month, this data set updates for the 1st of the previous month
