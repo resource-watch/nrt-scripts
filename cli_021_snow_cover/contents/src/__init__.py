@@ -35,7 +35,6 @@ DELETE_LOCAL = True
 MAX_ASSETS = 8
 DATE_FORMAT_HDF = '%Y.%m.%d'
 DATE_FORMAT = '%Y%m%d'
-TIMESTEP = {'days': 1} #check everyday so don't start on day without and miss
 
 LOG_LEVEL = logging.INFO
 DATASET_ID = '23f29e9a-ca07-4c08-a018-28a25af14b49'
@@ -146,14 +145,15 @@ def getDate(filename):
 def getNewDates(exclude_dates):
     '''Get new dates excluding existing'''
     new_dates = []
-    date = datetime.date.today()
-    #Old value for 8 day dataset
-    #for i in range(MAX_ASSETS*8): #because only updates every 8 days
-    for i in range(MAX_ASSETS*31): #because only updates every 28-31 days
-        date -= datetime.timedelta(**TIMESTEP) #substraction and assignments in one step
+    #get today's date, then replace day to be the first of the current month
+    date = datetime.date.today().replace(day=1)
+    exclude_datestr = date.strftime(DATE_FORMAT)  # of HDF because looking for new data in old format
+    while exclude_datestr not in exclude_dates:
         datestr = date.strftime(DATE_FORMAT_HDF)#of HDF because looking for new data in old format
-        if date.strftime(DATE_FORMAT) not in exclude_dates:
-            new_dates.append(datestr) #add to new dates if have not already seen
+        new_dates.append(datestr) #add to new dates if have not already seen
+        #go back to next previous month
+        date=date.replace(month=date.month-1) #subtract 1 month from data
+        exclude_datestr = date.strftime(DATE_FORMAT)
     return new_dates
 
 
@@ -179,8 +179,8 @@ def convert(files):
 
 def fetch(new_dates):
     # 1. Set up authentication with the urllib.request library
-    username = os.environ.get('NASA_USER')
-    password = os.environ.get('NASA_PASS')
+    username = os.environ.get('EARTHDATA_USER')
+    password = os.environ.get('EARTHDATA_PASS')
 
     password_manager = urllib.request.HTTPPasswordMgrWithDefaultRealm()
     password_manager.add_password(None, "https://urs.earthdata.nasa.gov", username, password)
