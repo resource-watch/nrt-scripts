@@ -26,9 +26,6 @@ COLLECTION = '/projects/resource-watch-gee/cit_002_gmao_air_quality'
 CLEAR_COLLECTION_FIRST = False
 DELETE_LOCAL = True
 
-# MAXDAYS = 1 only fetches today
-# maximum value of 10: today plus 9 days of forecast
-MAX_DAYS = 2
 #date format to use in GEE
 DATE_FORMAT = '%Y-%m-%d'
 TIMESTEP = {'days': 1}
@@ -54,7 +51,7 @@ NUM_AVAILABLE_LEVELS = [1, 1, 1, 1]
 DESIRED_LEVELS = [1, 1, 1, 1]
 
 #how many assets can be stored in the GEE collection before the oldest ones are deleted?
-MAX_ASSETS = 3
+MAX_ASSETS = 14
 
 def getLastUpdate(dataset):
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{}'.format(dataset)
