@@ -19,7 +19,7 @@ from string import ascii_uppercase
 
 # Sources for nrt data
 SDS_NAME = 'NETCDF:"{fname}":{var}'
-NODATA_VALUE = None
+NODATA_VALUE = 9.9999999E14
 
 DATA_DIR = 'data'
 COLLECTION = '/projects/resource-watch-gee/cit_002_gmao_air_quality'
@@ -193,7 +193,7 @@ def convert(files):
         # generate names for tif files that we are going to create from netcdf
         tif = getTiffname(file=f, variable=VAR)
         # translate this file from a netcdf to a tif
-        cmd = ['gdal_translate', '-b', str(band), '-q', '-a_srs', 'EPSG:4326', sds_path, tif] #'-q' means quiet so you don't see it
+        cmd = ['gdal_translate', '-b', str(band), '-q', '-a_nodata', str(NODATA_VALUE), '-a_srs', 'EPSG:4326', sds_path, tif] #'-q' means quiet so you don't see it
         subprocess.call(cmd) #using the gdal from command line from inside python
 
         # add name of tif to our list of tif files
@@ -227,6 +227,7 @@ def fetch(new_dates, unformatted_source_url):
                     logging.info('Unable to retrieve data from {}'.format(url))
                     logging.info(e)
                     tries+=1
+                    logging.info('try {}'.format(tries))
             if tries==3:
                 logging.error('Unable to retrieve data from {}'.format(url))
                 exit()
