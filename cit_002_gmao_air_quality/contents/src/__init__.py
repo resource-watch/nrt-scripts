@@ -193,7 +193,7 @@ def convert(files):
         # generate names for tif files that we are going to create from netcdf
         tif = getTiffname(file=f, variable=VAR)
         # translate this file from a netcdf to a tif
-        cmd = ['gdal_translate', '-b', str(band), '-q', '-a_nodata', str(NODATA_VALUE), '-a_srs', 'EPSG:4326', sds_path, tif] #'-q' means quiet so you don't see it
+        cmd = ['gdal_translate', '-b', str(band), '-q', '-a_srs', 'EPSG:4326', sds_path, tif] #'-q' means quiet so you don't see it
         subprocess.call(cmd) #using the gdal from command line from inside python
 
         # add name of tif to our list of tif files
