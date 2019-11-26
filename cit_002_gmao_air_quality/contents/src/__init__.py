@@ -169,6 +169,9 @@ def getNewDatesHistorical(existing_dates):
         # generate new string in same format used in GEE collection
         date_str = datetime.datetime.strftime(date, DATE_FORMAT)
     #repeat until we reach something in our existing dates
+
+    #reverse order so we pull oldest date first
+    new_dates.reverse()
     return new_dates
 
 def convert(files):
