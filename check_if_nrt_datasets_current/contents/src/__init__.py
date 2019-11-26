@@ -82,6 +82,9 @@ def main():
             #on the 1st of each month, this data set updates for the 1st of the previous month
             elif 'cli.005a' in r['data']['attributes']['name'] or 'cli.005b' in r['data']['attributes']['name']:
                 allowed_time = datetime.timedelta(days=70)
+            # within the first few days of each month, this data set updates for the 1st of the previous month
+            elif 'cli.021' in r['data']['attributes']['name']:
+                allowed_time = datetime.timedelta(days=70)
             #this forecast often goes offline for a few days
             elif 'cit.038' in r['data']['attributes']['name']:
                 allowed_time = datetime.timedelta(days=5)
@@ -102,7 +105,7 @@ def main():
             elif 'foo.024' in r['data']['attributes']['name']:
                 allowed_time = datetime.timedelta(days=11)
             elif 'for.012' in r['data']['attributes']['name']:
-                allowed_time = datetime.timedelta(days=4)
+                allowed_time = datetime.timedelta(days=10)
             #flood data set doesn't always have events that occur every 10 days
             elif 'wat.040' in r['data']['attributes']['name']:
                 allowed_time = datetime.timedelta(days=15)
