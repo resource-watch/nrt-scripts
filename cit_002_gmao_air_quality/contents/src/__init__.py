@@ -214,15 +214,21 @@ def fetch(new_dates, unformatted_source_url):
             f = DATA_DIR+'/'+url.split('/')[-1]
             logging.info('Retrieving {}'.format(f))
             #try to download file
-            try:
-                #download files from url and put in specified file location (f)
-                urllib.request.urlretrieve(url, f)
-                #add file name/location to list of files downloaded
-                files.append(f)
-            #if download fails, throw an error
-            except Exception as e:
+            tries = 0
+            while tries <3:
+                try:
+                    #download files from url and put in specified file location (f)
+                    urllib.request.urlretrieve(url, f)
+                    #add file name/location to list of files downloaded
+                    files.append(f)
+                #if download fails, throw an error
+                except Exception as e:
+                    logging.info('Unable to retrieve data from {}'.format(url))
+                    logging.info(e)
+                    tries+=1
+            if tries==3:
                 logging.error('Unable to retrieve data from {}'.format(url))
-                logging.error(e)
+                exit()
     #return list of files just downloaded
     return files
 
