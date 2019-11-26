@@ -221,6 +221,7 @@ def fetch(new_dates, unformatted_source_url):
                     urllib.request.urlretrieve(url, f)
                     #add file name/location to list of files downloaded
                     files.append(f)
+                    break
                 #if download fails, throw an error
                 except Exception as e:
                     logging.info('Unable to retrieve data from {}'.format(url))
