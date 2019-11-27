@@ -1,3 +1,4 @@
+
 FROM python:3.6
 MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
 
@@ -7,10 +8,8 @@ RUN pip install -U pip
 
 # install application libraries
 RUN apt-get install -y gdal-bin libgdal-dev
-RUN apt-get upgrade -y --fix-missing gdal-bin
 RUN pip install -e git+https://github.com/fgassert/eeUtil#egg=eeUtil
 RUN pip install oauth2client
-RUN pip install netCDF4
 RUN pip install bs4
 RUN pip install numpy==1.14.3
 
