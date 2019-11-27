@@ -7,7 +7,7 @@ RUN pip install -U pip
 
 # install application libraries
 RUN apt-get install -y gdal-bin libgdal-dev
-RUN apt-get upgrade -y gdal-bin
+RUN apt-get upgrade -y --fix-missing gdal-bin
 RUN pip install -e git+https://github.com/fgassert/eeUtil#egg=eeUtil
 RUN pip install oauth2client
 RUN pip install netCDF4
