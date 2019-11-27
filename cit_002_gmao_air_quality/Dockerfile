@@ -12,8 +12,7 @@ RUN pip install oauth2client
 RUN pip install netCDF4
 RUN pip install bs4
 RUN pip install numpy==1.14.3
-RUN apt-get -y upgrade gdal-bin
-RUN apt-get -y upgrade libgdal-dev
+
 RUN apt-get -y install python-gdal
 
 # set name
