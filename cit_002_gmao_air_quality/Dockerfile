@@ -11,6 +11,8 @@ RUN apt-get install -y gdal-bin libgdal-dev
 RUN pip install -e git+https://github.com/fgassert/eeUtil#egg=eeUtil
 RUN pip install oauth2client
 RUN pip install bs4
+# need for oauth2client for google api
+RUN pip install netCDF4
 
 RUN apt-get -y install python-gdal
 
