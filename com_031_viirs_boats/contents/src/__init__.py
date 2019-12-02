@@ -135,7 +135,7 @@ def processData():
                 logging.info('Table {} does not exist'.format(CARTO_TABLE))
                 cartosql.createTable(CARTO_TABLE, CARTO_SCHEMA)
             else:
-                cartosql.dropTable(CARTO_TABLE)
+                cartosql.deleteRows(CARTO_TABLE, 'cartodb_id IS NOT NULL')
                 cartosql.createTable(CARTO_TABLE, CARTO_SCHEMA)
             
                 rows = df.values.tolist()

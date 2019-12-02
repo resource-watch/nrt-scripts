@@ -184,7 +184,7 @@ def main():
 
     if CLEAR_TABLE_FIRST:
         if cartosql.tableExists(CARTO_TABLE):
-            cartosql.dropTable(CARTO_TABLE)
+            cartosql.deleteRows(CARTO_TABLE, 'cartodb_id IS NOT NULL')
 
     # 1. Check if table exists and create table
     existing_ids = []
