@@ -173,7 +173,7 @@ def processData():
             logging.info('Table {} does not exist'.format(CARTO_TABLE))
             cartosql.createTable(CARTO_TABLE, CARTO_SCHEMA)
         else:
-            cartosql.dropTable(CARTO_TABLE)
+            cartosql.deleteRows(CARTO_TABLE, 'cartodb_id IS NOT NULL', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
             cartosql.createTable(CARTO_TABLE, CARTO_SCHEMA)
             #Send dataframe to Carto
             logging.info('Writing to Carto')

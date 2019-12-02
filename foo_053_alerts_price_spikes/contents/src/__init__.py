@@ -569,11 +569,11 @@ def main():
 
     if CLEAR_TABLE_FIRST:
         if cartosql.tableExists(CARTO_MARKET_TABLE):
-            cartosql.dropTable(CARTO_MARKET_TABLE)
+            cartosql.deleteRows(CARTO_MARKET_TABLE, 'cartodb_id IS NOT NULL', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
         if cartosql.tableExists(CARTO_ALPS_TABLE):
-            cartosql.dropTable(CARTO_ALPS_TABLE)
+            cartosql.deleteRows(CARTO_ALPS_TABLE, 'cartodb_id IS NOT NULL', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
         if cartosql.tableExists(CARTO_INTERACTION_TABLE):
-            cartosql.dropTable(CARTO_INTERACTION_TABLE)
+            cartosql.deleteRows(CARTO_INTERACTION_TABLE, 'cartodb_id IS NOT NULL', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
 
     # 1. Check if table exists and create table
     existing_markets = []

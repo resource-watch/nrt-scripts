@@ -62,7 +62,7 @@ def processNewData():
     raw_data = r.json()['data']
     if len(raw_data)>0:
         if cartosql.tableExists(CARTO_TABLE):
-            cartosql.dropTable(CARTO_TABLE)
+            cartosql.deleteRows(CARTO_TABLE, 'cartodb_id IS NOT NULL', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
         logging.info('Updating {}'.format(CARTO_TABLE))
         createTableWithIndex(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD)
     else:

@@ -212,7 +212,7 @@ def processInteractions():
         if ctry not in countries_with_interaction:
             countries_with_interaction.append(ctry)
     if cartosql.tableExists(CARTO_TABLE_INTERACTION):
-        cartosql.dropTable(CARTO_TABLE_INTERACTION)
+        cartosql.deleteRows(CARTO_TABLE, 'cartodb_id IS NOT NULL', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
     #run to create new table
     existing_interaction_ids = checkCreateTable(CARTO_TABLE_INTERACTION, CARTO_SCHEMA_INTERACTION, UID_FIELD)
     new_interactions=[]
