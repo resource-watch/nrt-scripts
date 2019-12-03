@@ -90,14 +90,18 @@ def gen_interaction_uid(ctry_iso3):
 
 def checkCreateTable(table, schema, id_field, time_field=''):
     '''Get existing ids or create table'''
-    if cartosql.tableExists(table):
+    if cartosql.tableExists(table, user=os.getenv('CARTO_USER'),
+                            key=os.getenv('CARTO_KEY')):
         logging.info('Fetching existing IDs')
-        r = cartosql.getFields(id_field, table, f='csv', post=True)
+        r = cartosql.getFields(id_field, table, f='csv', post=True, user=os.getenv('CARTO_USER'),
+                            key=os.getenv('CARTO_KEY'))
         return r.text.split('\r\n')[1:-1]
     else:
         logging.info('Table {} does not exist, creating'.format(table))
-        cartosql.createTable(table, schema)
-        cartosql.createIndex(table, id_field, unique=True)
+        cartosql.createTable(table, schema, user=os.getenv('CARTO_USER'),
+                            key=os.getenv('CARTO_KEY'))
+        cartosql.createIndex(table, id_field, unique=True, user=os.getenv('CARTO_USER'),
+                            key=os.getenv('CARTO_KEY'))
         if time_field:
             cartosql.createIndex(table, time_field)
     return []
@@ -211,10 +215,10 @@ def processInteractions():
         ctry = interaction['country_iso3']
         if ctry not in countries_with_interaction:
             countries_with_interaction.append(ctry)
-    if cartosql.tableExists(CARTO_TABLE_INTERACTION):
+    if cartosql.tableExists(CARTO_TABLE_INTERACTION, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY')):
         cartosql.deleteRows(CARTO_TABLE, 'cartodb_id IS NOT NULL', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
     #run to create new table
-    existing_interaction_ids = checkCreateTable(CARTO_TABLE_INTERACTION, CARTO_SCHEMA_INTERACTION, UID_FIELD)
+    #existing_interaction_ids = checkCreateTable(CARTO_TABLE_INTERACTION, CARTO_SCHEMA_INTERACTION, UID_FIELD)
     new_interactions=[]
     for ctry in countries_with_interaction:
         r = cartosql.get("SELECT * FROM {} WHERE current='True' AND country_iso3='{}'".format(CARTO_TABLE, ctry),
@@ -234,25 +238,26 @@ def processInteractions():
                 else:
                     interaction_str = interaction_str + '; ' + '{} ({})'.format(event[1], interaction['url'])
             event_num+=1
-        uid = gen_interaction_uid(ctry)
-        row = []
-        for key in CARTO_SCHEMA_INTERACTION.keys():
-            try:
-                if key == 'the_geom':
-                    lon = ctry_interaction_data[0]['lon']
-                    lat = ctry_interaction_data[0]['lat']
-                    item = {
-                        'type': 'Point',
-                        'coordinates': [lon, lat]
-                    }
-                elif key=='interaction':
-                    item=interaction_str
-                else:
-                    item = ctry_interaction_data[0][key]
-            except KeyError:
-                item=None
-            row.append(item)
-        new_interactions.append(row)
+        #uid = gen_interaction_uid(ctry)
+        if ctry_interaction_data:
+            row = []
+            for key in CARTO_SCHEMA_INTERACTION.keys():
+                try:
+                    if key == 'the_geom':
+                        lon = ctry_interaction_data[0]['lon']
+                        lat = ctry_interaction_data[0]['lat']
+                        item = {
+                            'type': 'Point',
+                            'coordinates': [lon, lat]
+                        }
+                    elif key=='interaction':
+                        item=interaction_str
+                    else:
+                        item = ctry_interaction_data[0][key]
+                except KeyError:
+                    item=None
+                row.append(item)
+            new_interactions.append(row)
     logging.info('Adding {} new interactions'.format(len(new_interactions)))
     cartosql.blockInsertRows(CARTO_TABLE_INTERACTION, CARTO_SCHEMA_INTERACTION.keys(), CARTO_SCHEMA_INTERACTION.values(), new_interactions, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
 
