@@ -43,7 +43,7 @@ DATASET_IDS = {
 apiToken = os.getenv('apiToken')
 
 SOURCE_URL_HISTORICAL = 'https://portal.nccs.nasa.gov/datashare/gmao/geos-cf/v1/das/Y{year}/M{month}/D{day}/GEOS-CF.v01.rpl.chm_tavg_1hr_g1440x721_v1.{year}{month}{day}_{time}z.nc4'
-SOURCE_URL_FORECAST = 'https://portal.nccs.nasa.gov/datashare/gmao/geos-cf/v1/forecast/Y{year}/M{month}/D{day}/H12/GEOS-CF.v01.fcst.chm_tavg_1hr_g1440x721_v1.{start_year}{start_month}{start_day}_12z+{year}{month}{day}_{time}z.nc4'
+SOURCE_URL_FORECAST = 'https://portal.nccs.nasa.gov/datashare/gmao/geos-cf/v1/forecast/Y{start_year}/M{start_month}/D{start_day}/H12/GEOS-CF.v01.fcst.chm_tavg_1hr_g1440x721_v1.{start_year}{start_month}{start_day}_12z+{year}{month}{day}_{time}z.nc4'
 VARS = ['NO2', 'O3', 'PM25_RH35_GCC', 'PM25_RH35_GOCART']
 # need to specify which pressure level of data we want for each variable (out of available levels)
 # only has one pressure level available (surface)
@@ -158,7 +158,7 @@ def getNewDatesHistorical(existing_dates):
     #if the date is not in our list of existing dates:
     while (date_str not in existing_dates) and (date!=last_date):
         #general source url for this day's data folder
-        url = SOURCE_URL_HISTORICAL.split('/GEOS')[0].format(year=date.year, month=date.month, day=date.day)
+        url = SOURCE_URL_HISTORICAL.split('/GEOS')[0].format(year=date.year, month='{:02d}'.format(date.month), day='{:02d}'.format(date.day))
         # check the files available for this day:
         files = list_available_files(url, file_start='GEOS-CF.v01.rpl.chm_tavg')
         #if all 24 hourly files are available, we can process this data - add it to the list
@@ -172,6 +172,48 @@ def getNewDatesHistorical(existing_dates):
 
     #reverse order so we pull oldest date first
     new_dates.reverse()
+    return new_dates
+
+def getNewDatesForecast(existing_dates):
+    if existing_dates:
+        #get start date of last forecast
+        existing_start_date_str = existing_dates[0]
+        existing_start_date = datetime.datetime.strptime(existing_start_date_str, DATE_FORMAT)
+    else:
+        #if we don't have existing data, just choose an old date so that we keep checking back until that date
+        #let's assume we will probably have a forecast in the last 30 days, so we will check back that far for
+        # forecasts until we find one
+        existing_start_date = datetime.datetime.utcnow() - datetime.timedelta(days=30)
+    #create empty list to store dates we should process
+    new_dates = []
+
+    # start with today
+    date = datetime.datetime.utcnow()
+    #generate date string in same format used in GEE collection
+    date_str = datetime.datetime.strftime(date, DATE_FORMAT)
+
+    #if the date is not in our list of existing dates:
+    while date > existing_start_date:
+        #general source url for this day's data folder
+        url = SOURCE_URL_FORECAST.split('/GEOS')[0].format(start_year=date.year, start_month='{:02d}'.format(date.month), start_day='{:02d}'.format(date.day))
+        # check the files available for this day:
+        files = list_available_files(url, file_start='GEOS-CF.v01.fcst.chm_tavg')
+        #if all 120 files are available (5 days x 24 hours/day), we can process this data - add it to the list
+        if len(files) == 120:
+            new_dates.append(date_str)
+            #add the next five days forecast to the new dates
+            for i in range(5):
+                date = date + datetime.timedelta(days=1)
+                date_str = datetime.datetime.strftime(date, DATE_FORMAT)
+                new_dates.append(date_str)
+            #once we have found the most recent forecast we can break from the while loop
+            break
+        # go back one more day
+        date = date - datetime.timedelta(days=1)
+        # generate new string in same format used in GEE collection
+        date_str = datetime.datetime.strftime(date, DATE_FORMAT)
+    #repeat until we reach the forecast we already have
+
     return new_dates
 
 def convert(files):
@@ -203,7 +245,7 @@ def convert(files):
         tifs.append(tif)
     return tifs
 
-def fetch(new_dates, unformatted_source_url):
+def fetch(new_dates, unformatted_source_url, period):
     #Create an empty list to store file locations of netcdfs that are downloaded.
     files = []
     # create a list of hours to pull (24 hours per day, on the half-hour)
@@ -212,7 +254,18 @@ def fetch(new_dates, unformatted_source_url):
     for date in new_dates:
         for hour in hours:
             # Set up the url of the filename to download
-            url = unformatted_source_url.format(year=int(date[:4]), month=int(date[5:7]), day=int(date[8:]), time=hour)
+            if period=='historical':
+                url = unformatted_source_url.format(year=int(date[:4]), month='{:02d}'.format(int(date[5:7])), day='{:02d}'.format(int(date[8:])), time=hour)
+            elif period=='forecast':
+                #if this is the first date of the forecast, times start at 1230, so skip everything before that
+                if date == new_dates[0] and hours.index(hour)<12:
+                    continue
+                #if this is the last date of the forecast, the last time available is 1130, so skip everything after that
+                elif date == new_dates[-1] and hours.index(hour)>=12:
+                    continue
+                #for all other dates, pull every hour
+                else:
+                    url = unformatted_source_url.format(start_year=int(new_dates[0][:4]), start_month='{:02d}'.format(int(new_dates[0][5:7])), start_day='{:02d}'.format(int(new_dates[0][8:])),year=int(date[:4]), month='{:02d}'.format(int(date[5:7])), day='{:02d}'.format(int(date[8:])), time=hour)
             # Create a file name to store the netcdf in after download
             f = DATA_DIR+'/'+url.split('/')[-1]
             logging.info('Retrieving {}'.format(f))
@@ -280,15 +333,18 @@ def daily_avg(hourly_tifs, dates):
         daily_avg_tifs.append(result_tif)
     return daily_avg_tifs
 
-def processNewData(files, dates):
+def processNewData(files, dates, period):
     '''process, upload, and clean new data'''
     if files: #if files is empty list do nothing, otherwise, process data
         logging.info('Converting files')
         # Convert netcdfs to tifs
         hourly_tifs = convert(files)
-
-        #take daily average of hourly tif files
-        tifs = daily_avg(hourly_tifs, dates)
+        if period=='historical':
+            #take daily average of hourly tif files
+            tifs = daily_avg(hourly_tifs, dates)
+        elif period=='forecast':
+            #take daily average of hourly tif files for days where all 24 hours are available
+            tifs = daily_avg(hourly_tifs, dates[1:-1])
         #get new list of dates (in case order is different) from the averaged tifs
         dates = [getDateTime(tif) for tif in tifs]
         #generate datetime objects for each data
@@ -367,7 +423,7 @@ def deleteExcessAssets(all_assets, max_assets):
         all_assets.sort()
         logging.info('Deleting excess assets.')
         #delete extra assets after the number we are expecting to see
-        for asset in all_assets[max_assets:]:
+        for asset in all_assets[:-max_assets]:
             eeUtil.removeAsset(EE_COLLECTION +'/'+ asset)
 
 def get_most_recent_date(all_assets):
@@ -417,9 +473,15 @@ def main():
     global FILENAME
     global GS_FOLDER
 
+    '''Ingest new data into GEE and delete old data'''
+    # Initialize eeUtil and ee modules
+    eeUtil.initJson()
+    initialize_ee()
+
     '''
     Process Historical Data
     '''
+    logging.info('Starting Historical Data Processing')
     # generate name for dataset's parent folder on GEE which will be used to store
     # several collections - one collection per variable
     PARENT_FOLDER = COLLECTION+'_historical'
@@ -427,11 +489,6 @@ def main():
     EE_COLLECTION_GEN = PARENT_FOLDER + '/{var}'
     # generate generic string that can be formatted to name each variable's asset name
     FILENAME = PARENT_FOLDER.split('/')[-1]+'_{var}_{date}'
-
-    '''Ingest new data into GEE and delete old data'''
-    # Initialize eeUtil and ee modules
-    eeUtil.initJson()
-    initialize_ee()
 
     # Clear collection in GEE if desired
     if CLEAR_COLLECTION_FIRST:
@@ -448,18 +505,10 @@ def main():
     logging.info('Getting new dates to pull.')
     new_dates = getNewDatesHistorical(existing_dates)
 
-    # if new data is available, clear the collection because we want to store the most
-    # recent forecast, not the old forecast
-    # ? want to do this for forecast, not historical
-    # if all_new_dates:
-    #     logging.info('New forecast available')
-    #     clearCollection()
-
-
     # Fetch new files
     logging.info('Fetching files for {}'.format(new_dates))
     # Download files and get list of locations of netcdfs in docker container
-    files = fetch(new_dates, SOURCE_URL_HISTORICAL)
+    files = fetch(new_dates, SOURCE_URL_HISTORICAL, period='historical')
     for var_num in range(len(VARS)):
         logging.info('Processing {}'.format(VARS[var_num]))
         # get variable name
@@ -470,7 +519,7 @@ def main():
         GS_FOLDER=COLLECTION[1:]+'_'+VAR
 
         # Process new data files
-        new_assets, new_dates = processNewData(files, new_dates)
+        new_assets, new_dates = processNewData(files, new_dates, period='historical')
 
         # get list of all dates we now have data for by combining existing dates with new dates
         all_dates = existing_dates_by_var[var_num] + new_dates
@@ -517,3 +566,79 @@ def main():
         except NameError:
             logging.info('No local files to clean.')
 
+    '''
+    Process Forecast Data
+    '''
+    logging.info('Starting Forecast Data Processing')
+    # generate name for dataset's parent folder on GEE which will be used to store
+    # several collections - one collection per variable
+    PARENT_FOLDER = COLLECTION+'_forecast'
+    # generate generic string that can be formatted to name each variable's GEE collection
+    EE_COLLECTION_GEN = PARENT_FOLDER + '/{var}'
+    # generate generic string that can be formatted to name each variable's asset name
+    FILENAME = PARENT_FOLDER.split('/')[-1]+'_{var}_{date}'
+
+    # Clear collection in GEE if desired
+    if CLEAR_COLLECTION_FIRST:
+        clearCollection()
+
+    # Check if collection exists. If not, create it.
+    # Return a list of dates that exist for all variables collections in GEE (existing_dates),
+    # as well as a list of which dates exist for each individual variable (existing_dates_by_var).
+    # The latter will be used in case the previous script run crashed before completing the data upload for every variable.
+    logging.info('Getting existing dates.')
+    existing_dates, existing_dates_by_var = checkCreateCollection(VARS)
+
+    # Get a list of the dates that are available, minus the ones we have already uploaded correctly for all variables.
+    logging.info('Getting new dates to pull.')
+    new_dates = getNewDatesForecast(existing_dates)
+
+    # Fetch new files
+    logging.info('Fetching files for {}'.format(new_dates))
+    # Download files and get list of locations of netcdfs in docker container
+    files = fetch(new_dates, SOURCE_URL_FORECAST, period='forecast')
+
+    # if we have successfully pulled the new data is available, clear the collection because we want to store the most
+    # recent forecast, not the old forecast
+    if new_dates:
+        logging.info('New forecast available')
+        clearCollection()
+
+    for var_num in range(len(VARS)):
+        logging.info('Processing {}'.format(VARS[var_num]))
+        # get variable name
+        VAR = VARS[var_num]
+        # specify GEE collection name
+        EE_COLLECTION=EE_COLLECTION_GEN.format(var=VAR)
+        # specify Google Cloud Storage folder name
+        GS_FOLDER=COLLECTION[1:]+'_'+VAR
+
+        # Process new data files
+        new_assets, dates_added = processNewData(files, new_dates, period='forecast')
+
+        # get list of existing assets in current variable's GEE collection
+        existing_assets = eeUtil.ls(EE_COLLECTION)
+        # make list of all assets by combining existing assets with new assets
+        all_assets = np.sort(np.unique(existing_assets + [os.path.split(asset)[1] for asset in new_assets]))
+        logging.info('New assets for {}: {}, max: {}'.format(
+            VAR, len(dates_added), MAX_ASSETS))
+        logging.info('SUCCESS for {}'.format(VAR))
+        # Delete local tif files because we will run out of space
+        if DELETE_LOCAL:
+            try:
+                files_available = os.listdir(DATA_DIR)
+                for f in files_available:
+                    if f.endswith(".tif"):
+                        logging.info('Removing {}'.format(f))
+                        os.remove(DATA_DIR + '/' + f)
+            except NameError:
+                logging.info('No local tiff files to clean.')
+
+    # Delete local netcdf files
+    if DELETE_LOCAL:
+        try:
+            for f in os.listdir(DATA_DIR):
+                logging.info('Removing {}'.format(f))
+                os.remove(DATA_DIR+'/'+f)
+        except NameError:
+            logging.info('No local files to clean.')
