@@ -401,7 +401,7 @@ def deleteExcessAssets(all_assets, max_assets):
         all_assets.sort()
         logging.info('Deleting excess assets.')
         #delete extra assets after the number we are expecting to see
-        for asset in all_assets[max_assets:]:
+        for asset in all_assets[:-max_assets]:
             eeUtil.removeAsset(EE_COLLECTION +'/'+ asset)
 
 def get_most_recent_date(all_assets):
