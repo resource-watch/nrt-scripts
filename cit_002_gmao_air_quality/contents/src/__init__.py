@@ -162,8 +162,9 @@ def getNewDatesHistorical(existing_dates):
         url = SOURCE_URL_HISTORICAL.split('/GEOS')[0].format(year=date.year, month='{:02d}'.format(date.month), day='{:02d}'.format(date.day))
         # check the files available for this day:
         files = list_available_files(url, file_start='GEOS-CF.v01.rpl.chm_tavg')
-        #if all 24 hourly files are available, we can process this data - add it to the list
-        if len(files) == 24:
+        #if the first 12 hourly files are available for a day, we can process this data - add it to the list
+        # note: we are centering the averages about midnight each day, so we just need 12 hours from the most recent day and 12 hours from the previous day
+        if len(files) >= 12:
             new_dates.append(date_str)
         # go back one more day
         date = date - datetime.timedelta(days=1)
@@ -177,9 +178,9 @@ def getNewDatesHistorical(existing_dates):
 
 def getNewDatesForecast(existing_dates):
     if existing_dates:
-        #get start date of last forecast
-        existing_start_date_str = existing_dates[0]
-        existing_start_date = datetime.datetime.strptime(existing_start_date_str, DATE_FORMAT)
+        #get start date of last forecast (one day before the asset date in GEE)
+        first_date_str = existing_dates[0]
+        existing_start_date = datetime.datetime.strptime(first_date_str, DATE_FORMAT) - datetime.timedelta(days=1)
     else:
         #if we don't have existing data, just choose an old date so that we keep checking back until that date
         #let's assume we will probably have a forecast in the last 30 days, so we will check back that far for
@@ -201,7 +202,6 @@ def getNewDatesForecast(existing_dates):
         files = list_available_files(url, file_start='GEOS-CF.v01.fcst.chm_tavg')
         #if all 120 files are available (5 days x 24 hours/day), we can process this data
         if len(files) == 120:
-            new_dates.append(date_str)
             #add the next five days forecast to the new dates
             for i in range(5):
                 date = date + datetime.timedelta(days=1)
@@ -250,23 +250,27 @@ def fetch(new_dates, unformatted_source_url, period):
     #Create an empty list to store file locations of netcdfs that are downloaded.
     files = []
     # create a list of hours to pull (24 hours per day, on the half-hour)
-    hours = ['0030', '0130', '0230', '0330', '0430', '0530', '0630', '0730', '0830', '0930', '1030', '1130', '1230', '1330', '1430', '1530', '1630', '1730', '1830', '1930', '2030', '2130', '2230', '2330']
+    #starts after noon on previous day through noon of current day
+    hours = ['1230', '1330', '1430', '1530', '1630', '1730', '1830', '1930', '2030', '2130', '2230', '2330', '0030', '0130', '0230', '0330', '0430', '0530', '0630', '0730', '0830', '0930', '1030', '1130']
     # Loop over all hours of the new dates, check if there is data available, and download netcdfs
+    files_by_date = {}
     for date in new_dates:
+        files_for_current_date = []
+        first_date = datetime.datetime.strptime(new_dates[0], DATE_FORMAT) - datetime.timedelta(days=1)
+        first_date = datetime.datetime.strftime(first_date, DATE_FORMAT)
         for hour in hours:
+            # for the first half of the hours, get data from previous day
+            if hours.index(hour) < 12:
+                prev_date = datetime.datetime.strptime(date, DATE_FORMAT) - datetime.timedelta(days=1)
+                fetching_date = datetime.datetime.strftime(prev_date, DATE_FORMAT)
+            # for the second half, use the current day
+            else:
+                fetching_date = date
             # Set up the url of the filename to download
             if period=='historical':
-                url = unformatted_source_url.format(year=int(date[:4]), month='{:02d}'.format(int(date[5:7])), day='{:02d}'.format(int(date[8:])), time=hour)
+                url = unformatted_source_url.format(year=int(fetching_date[:4]), month='{:02d}'.format(int(fetching_date[5:7])), day='{:02d}'.format(int(fetching_date[8:])), time=hour)
             elif period=='forecast':
-                #if this is the first date of the forecast, times start at 1230, so skip everything before that
-                if date == new_dates[0] and hours.index(hour)<12:
-                    continue
-                #if this is the last date of the forecast, the last time available is 1130, so skip everything after that
-                elif date == new_dates[-1] and hours.index(hour)>=12:
-                    continue
-                #for all other dates, pull every hour
-                else:
-                    url = unformatted_source_url.format(start_year=int(new_dates[0][:4]), start_month='{:02d}'.format(int(new_dates[0][5:7])), start_day='{:02d}'.format(int(new_dates[0][8:])),year=int(date[:4]), month='{:02d}'.format(int(date[5:7])), day='{:02d}'.format(int(date[8:])), time=hour)
+                url = unformatted_source_url.format(start_year=int(first_date[:4]), start_month='{:02d}'.format(int(first_date[5:7])), start_day='{:02d}'.format(int(first_date[8:])),year=int(fetching_date[:4]), month='{:02d}'.format(int(fetching_date[5:7])), day='{:02d}'.format(int(fetching_date[8:])), time=hour)
             # Create a file name to store the netcdf in after download
             f = DATA_DIR+'/'+url.split('/')[-1]
             logging.info('Retrieving {}'.format(f))
@@ -278,6 +282,7 @@ def fetch(new_dates, unformatted_source_url, period):
                     urllib.request.urlretrieve(url, f)
                     #add file name/location to list of files downloaded
                     files.append(f)
+                    files_for_current_date.append(f)
                     break
                 #if download fails, throw an error
                 except Exception as e:
@@ -288,80 +293,70 @@ def fetch(new_dates, unformatted_source_url, period):
             if tries==3:
                 logging.error('Unable to retrieve data from {}'.format(url))
                 exit()
+        files_by_date[date]=files_for_current_date
     #return list of files just downloaded
-    return files
+    return files, files_by_date
 
-def daily_avg(hourly_tifs, dates):
-    #create an empty list to store the names of the daily avg tifs we create
-    daily_avg_tifs= []
-    #process daily tifs, one day at a time
-    for date in dates:
-        #create and emply list to store the files that should be averaged for this date
-        tifs_for_date = []
-        #for each file in our list of hourly tifs, check if if is for the current data
-        for file in hourly_tifs:
-            if date in file:
-                #if this file is for the current date, append it to the list of tifs to average for this day
-                tifs_for_date.append(file)
+def daily_avg(date, tifs_for_date, period):
+    # Calculating the daily average:
+    # create a list to store the tifs and variable names to be used in gdal_calc
+    gdal_tif_list=[]
+    #set up calc input for gdal_calc
+    calc = '--calc="('
+    #go through each hour in the day to be averaged
+    for i in range(len(tifs_for_date)):
+        #generate a letter variable for that tif to use in gdal_calc
+        letter = ascii_uppercase[i]
+        gdal_tif_list.append('-'+letter)
+        #pull the tif name
+        tif = tifs_for_date[i]
+        gdal_tif_list.append('"'+tif+'"')
+        #add the variable to the calc input for gdal_calc
+        if i==0:
+            calc= calc +letter
+        else:
+            calc = calc+'+'+letter
+    #calculate the number of tifs we are averaging and finish creating calc input
+    num_tifs = len(tifs_for_date)
+    calc= calc + ')/{}"'.format(num_tifs)
+    #generate a file name for the daily average tif
+    result_tif = DATA_DIR+'/'+FILENAME.format(var=VAR, date=date)+'.tif'
+    #create the gdal command to calculate the average by putting it all together
+    cmd = ('gdal_calc.py {} --outfile="{}" {}').format(' '.join(gdal_tif_list), result_tif, calc)
+    # using gdal from command line from inside python
+    subprocess.check_output(cmd, shell=True)
+    return result_tif
 
-        # Calculating the daily average:
-        # create a list to store the tifs and variable names to be used in gdal_calc
-        gdal_tif_list=[]
-        #set up calc input for gdal_calc
-        calc = '--calc="('
-        #go through each hour in the day to be averaged
-        for i in range(len(tifs_for_date)):
-            #generate a letter variable for that tif to use in gdal_calc
-            letter = ascii_uppercase[i]
-            gdal_tif_list.append('-'+letter)
-            #pull the tif name
-            tif = tifs_for_date[i]
-            gdal_tif_list.append('"'+tif+'"')
-            #add the variable to the calc input for gdal_calc
-            if i==0:
-                calc= calc +letter
-            else:
-                calc = calc+'+'+letter
-        #calculate the number of tifs we are averaging and finish creating calc input
-        num_tifs = len(tifs_for_date)
-        calc= calc + ')/{}"'.format(num_tifs)
-        #generate a file name for the daily average tif
-        result_tif = DATA_DIR+'/'+FILENAME.format(var=VAR, date=date)+'.tif'
-        #create the gdal command to calculate the average by putting it all together
-        cmd = ('gdal_calc.py {} --outfile="{}" {}').format(' '.join(gdal_tif_list), result_tif, calc)
-        # using gdal from command line from inside python
-        subprocess.check_output(cmd, shell=True)
-        daily_avg_tifs.append(result_tif)
-    return daily_avg_tifs
-
-def processNewData(files, dates, period):
+def processNewData(all_files, files_by_date, period):
     '''process, upload, and clean new data'''
-    if files: #if files is empty list do nothing, otherwise, process data
-        logging.info('Converting files')
-        # Convert netcdfs to tifs
-        hourly_tifs = convert(files)
-        if period=='historical':
+    if all_files: #if files is empty list do nothing, otherwise, process data
+        tifs = []
+        assets=[]
+        dates = []
+        datestamps = []
+        for date, files in files_by_date.items():
+            logging.info('Converting files')
+            # Convert netcdfs to tifs
+            hourly_tifs = convert(files)
             #take daily average of hourly tif files for days we have pulled
-            tifs = daily_avg(hourly_tifs, dates)
-        elif period=='forecast':
-            #take daily average of hourly tif files for days where all 24 hours are available - first and last day only have 12 hours
-            tifs = daily_avg(hourly_tifs, dates[1:-1])
-        #get new list of dates (in case order is different) from the averaged tifs
-        dates = [getDateTime(tif) for tif in tifs]
-        #generate datetime objects for each data
-        datestamps = [datetime.datetime.strptime(date, DATE_FORMAT) for date in dates]
-        #create asset names for each data
-        assets = [getAssetName(date) for date in dates]
+            tif = daily_avg(date, hourly_tifs, period)
+            tifs.append(tif)
+            #create asset names for each data
+            assets.append(getAssetName(date))
+            #get new list of dates (in case order is different) from the averaged tifs
+            dates.append(getDateTime(tif))
+            #generate datetime objects for each data
+            datestamps.append(datetime.datetime.strptime(date, DATE_FORMAT))
         # Upload new files to GEE
         logging.info('Uploading files:')
         for asset in assets:
             logging.info(os.path.split(asset)[1])
         eeUtil.uploadAssets(tifs, assets, GS_FOLDER, datestamps, timeout=3000)
 
-        return assets, dates
+        return assets
     #if no new assets, return empty list
     else:
-        return [], []
+        return []
 
 def checkCreateCollection(VARS):
     #create a master list (not variable-specific) of which dates we already have data for
@@ -460,12 +455,62 @@ def initialize_ee():
         f.write(GEE_JSON)
     auth = ee.ServiceAccountCredentials(GEE_SERVICE_ACCOUNT, _CREDENTIAL_FILE)
     ee.Initialize(auth)
+
 #function to create headers when we overwrite layers on API
 def create_headers():
     return {
         'Content-Type': "application/json",
         'Authorization': "{}".format(os.getenv('apiToken')),
     }
+
+def pull_layers_from_API(dataset_id):
+    # generate url to access layer configs for this dataset in back office
+    rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer'.format(dataset_id)
+    # request data
+    r = requests.get(rw_api_url)
+    # convert response into json and make dictionary of layers
+    layer_dict = json.loads(r.content.decode('utf-8'))['data']
+    return layer_dict
+
+def update_layer(layer, new_date):
+    # get name of asset - drop first / in string or asset won't be pulled into RW
+    asset = getAssetName(new_date)[1:]
+
+    # get previous date being used from
+    old_date = getDate_GEE(layer['attributes']['layerConfig']['assetId'])
+    # convert to datetime
+    old_date_dt = datetime.datetime.strptime(old_date, DATE_FORMAT)
+    # change to layer name text of date
+    old_date_text = old_date_dt.strftime("%B %-d, %Y")
+
+    # get text for new date
+    new_date_dt = datetime.datetime.strptime(new_date, DATE_FORMAT)
+    new_date_text = new_date_dt.strftime("%B %-d, %Y")
+
+    # replace date in layer's title with new date
+    layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
+
+    # replace the asset id in the layer def with new asset id
+    layer['attributes']['layerConfig']['assetId'] = asset
+
+    # send patch to API to replace layers
+
+    # generate url to patch layer
+    rw_api_url_layer = "https://api.resourcewatch.org/v1/dataset/{dataset_id}/layer/{layer_id}".format(
+        dataset_id=layer['attributes']['dataset'], layer_id=layer['id'])
+    # create payload with new title and layer configuration
+    payload = {
+        'application': ['rw'],
+        'layerConfig': layer['attributes']['layerConfig'],
+        'name': layer['attributes']['name']
+    }
+    # patch API with updates
+    r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
+    # check response
+    if r.ok:
+        logging.info('Layer replaced: {}'.format(layer['id']))
+    else:
+        logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
 
 def main():
     #set logging levels
@@ -510,12 +555,12 @@ def main():
 
     # Get a list of the dates that are available, minus the ones we have already uploaded correctly for all variables.
     logging.info('Getting new dates to pull.')
-    new_dates = getNewDatesHistorical(existing_dates)
-
+    #new_dates_historical = getNewDatesHistorical(existing_dates)
+    new_dates_historical=[]
     # Fetch new files
-    logging.info('Fetching files for {}'.format(new_dates))
+    logging.info('Fetching files for {}'.format(new_dates_historical))
     # Download files and get list of locations of netcdfs in docker container
-    files = fetch(new_dates, SOURCE_URL_HISTORICAL, period='historical')
+    files, files_by_date = fetch(new_dates_historical, SOURCE_URL_HISTORICAL, period='historical')
     for var_num in range(len(VARS)):
         logging.info('Processing {}'.format(VARS[var_num]))
         # get variable name
@@ -526,22 +571,189 @@ def main():
         GS_FOLDER=COLLECTION[1:]+'_'+VAR
 
         # Process new data files
-        new_assets_historical, dates_added_historical = processNewData(files, new_dates, period='historical')
+        new_assets_historical = processNewData(files, files_by_date, period='historical')
 
         # get list of all dates we now have data for by combining existing dates with new dates
-        all_dates = existing_dates_by_var[var_num] + dates_added_historical
+        all_dates = existing_dates_by_var[var_num] + new_dates_historical
         # get list of existing assets in current variable's GEE collection
         existing_assets = eeUtil.ls(EE_COLLECTION)
         # make list of all assets by combining existing assets with new assets
         all_assets_historical = np.sort(np.unique(existing_assets + [os.path.split(asset)[1] for asset in new_assets_historical]))
 
         logging.info('Existing assets for {}: {}, new: {}, max: {}'.format(
-            VAR, len(all_dates), len(dates_added_historical), MAX_ASSETS))
+            VAR, len(all_dates), len(new_dates_historical), MAX_ASSETS))
         # Delete extra assets, past our maximum number allowed that we have set
         deleteExcessAssets(all_assets_historical, MAX_ASSETS)
         logging.info('SUCCESS for {}'.format(VAR))
 
-    #Update Last Update Date and flush tile cache on RW
+        # Delete local tif files because we will run out of space
+        if DELETE_LOCAL:
+            try:
+                files_available = os.listdir(DATA_DIR)
+                for f in files_available:
+                    if f.endswith(".tif"):
+                        logging.info('Removing {}'.format(f))
+                        os.remove(DATA_DIR + '/' + f)
+            except NameError:
+                logging.info('No local tiff files to clean.')
+
+    # Delete local netcdf files
+    if DELETE_LOCAL:
+        try:
+            for f in os.listdir(DATA_DIR):
+                logging.info('Removing {}'.format(f))
+                os.remove(DATA_DIR+'/'+f)
+        except NameError:
+            logging.info('No local files to clean.')
+    '''
+    Process Forecast Data
+    '''
+    logging.info('Starting Forecast Data Processing')
+    # generate name for dataset's parent folder on GEE which will be used to store
+    # several collections - one collection per variable
+    PARENT_FOLDER = COLLECTION+'_forecast'
+    # generate generic string that can be formatted to name each variable's GEE collection
+    EE_COLLECTION_GEN = PARENT_FOLDER + '/{var}'
+    # generate generic string that can be formatted to name each variable's asset name
+    FILENAME = PARENT_FOLDER.split('/')[-1]+'_{var}_{date}'
+
+    # Clear collection in GEE if desired
+    if CLEAR_COLLECTION_FIRST:
+        clearCollection()
+
+    # Check if collection exists. If not, create it.
+    # Return a list of dates that exist for all variables collections in GEE (existing_dates),
+    # as well as a list of which dates exist for each individual variable (existing_dates_by_var).
+    # The latter will be used in case the previous script run crashed before completing the data upload for every variable.
+    logging.info('Getting existing dates.')
+    existing_dates, existing_dates_by_var = checkCreateCollection(VARS)
+
+    # Get a list of the dates that are available, minus the ones we have already uploaded correctly for all variables.
+    logging.info('Getting new dates to pull.')
+    #new_dates_forecast = getNewDatesForecast(existing_dates)
+    new_dates_forecast = []
+    # Fetch new files
+    logging.info('Fetching files for {}'.format(new_dates_forecast))
+    # Download files and get list of locations of netcdfs in docker container
+    files, files_by_date = fetch(new_dates_forecast, SOURCE_URL_FORECAST, period='forecast')
+
+    # if we have successfully pulled the new data is available, clear the collection because we want to store the most
+    # recent forecast, not the old forecast
+    if new_dates_forecast:
+        logging.info('New forecast available')
+        clearCollection()
+
+    for var_num in range(len(VARS)):
+        logging.info('Processing {}'.format(VARS[var_num]))
+        # get variable name
+        VAR = VARS[var_num]
+        # specify GEE collection name
+        EE_COLLECTION=EE_COLLECTION_GEN.format(var=VAR)
+        # specify Google Cloud Storage folder name
+        GS_FOLDER=COLLECTION[1:]+'_'+VAR
+
+        # Process new data files
+        new_assets_forecast = processNewData(files, files_by_date, period='forecast')
+
+        # get list of existing assets in current variable's GEE collection
+        existing_assets = eeUtil.ls(EE_COLLECTION)
+        # make list of all assets by combining existing assets with new assets
+        all_assets_forecast = np.sort(np.unique(existing_assets + [os.path.split(asset)[1] for asset in new_assets_forecast]))
+
+        logging.info('New assets for {}: {}, max: {}'.format(
+            VAR, len(new_dates_forecast), MAX_ASSETS))
+        logging.info('SUCCESS for {}'.format(VAR))
+        # Delete local tif files because we will run out of space
+        if DELETE_LOCAL:
+            try:
+                files_available = os.listdir(DATA_DIR)
+                for f in files_available:
+                    if f.endswith(".tif"):
+                        logging.info('Removing {}'.format(f))
+                        os.remove(DATA_DIR + '/' + f)
+            except NameError:
+                logging.info('No local tiff files to clean.')
+
+    # Delete local netcdf files
+    if DELETE_LOCAL:
+        try:
+            for f in os.listdir(DATA_DIR):
+                logging.info('Removing {}'.format(f))
+                os.remove(DATA_DIR+'/'+f)
+        except NameError:
+            logging.info('No local files to clean.')
+
+
+
+    '''
+    Update layers in Resource Watch back office.
+    '''
+    new_dates_forecast = ['2019-12-11', '2019-12-12', '2019-12-13', '2019-12-14', '2019-12-15']
+    new_dates_historical = ['2019-12-09', '2019-12-10']
+    if new_dates_historical and new_dates_forecast:
+        logging.info('Updating Resource Watch Layers')
+        for VAR, ds_id in DATASET_IDS.items():
+            logging.info('Updating {}'.format(VAR))
+            #pull dictionary of current layers from API
+            layer_dict = pull_layers_from_API(ds_id)
+            #go through each layer, pull the definition and update
+            for layer in layer_dict:
+                #check which point on the timeline this is
+                order = layer['attributes']['layerConfig']['order']
+
+                #if this is the first point on the timeline, we want to replace it the most recent historical data
+                if order==1:
+                    # generate name for dataset's parent folder on GEE which will be used to store
+                    # several collections - one collection per variable
+                    PARENT_FOLDER = COLLECTION + '_historical'
+                    # generate generic string that can be formatted to name each variable's GEE collection
+                    EE_COLLECTION_GEN = PARENT_FOLDER + '/{var}'
+                    # generate generic string that can be formatted to name each variable's asset name
+                    FILENAME = PARENT_FOLDER.split('/')[-1] + '_{var}_{date}'
+                    # specify GEE collection name
+                    EE_COLLECTION = EE_COLLECTION_GEN.format(var=VAR)
+
+                    #get date of most recent asset added
+                    date = new_dates_historical[-1]
+
+                    #replace layer asset and title date with new
+                    update_layer(layer, date)
+
+
+                # otherwise, we want to replace it with the appropriate forecast data
+                else:
+                    # generate name for dataset's parent folder on GEE which will be used to store
+                    # several collections - one collection per variable
+                    PARENT_FOLDER = COLLECTION + '_forecast'
+                    # generate generic string that can be formatted to name each variable's GEE collection
+                    EE_COLLECTION_GEN = PARENT_FOLDER + '/{var}'
+                    # generate generic string that can be formatted to name each variable's asset name
+                    FILENAME = PARENT_FOLDER.split('/')[-1] + '_{var}_{date}'
+                    # specify GEE collection name
+                    EE_COLLECTION = EE_COLLECTION_GEN.format(var=VAR)
+
+                    #forecast layers start at order 2, and we will want this point on the timeline to be the first forecast asset
+                    # order 4 will be the second asset, and so on
+                    #get date of appropriate asset
+                    date = new_dates_forecast[order-2]
+
+                    #replace layer asset and title date with new
+                    update_layer(layer, date)
+
+    elif not new_dates_historical and not new_dates_forecast:
+        logging.info('Layers do not need to be updated.')
+    else:
+        if not new_dates_historical:
+            logging.error('Historical data was not updated, but forecast was.')
+        if not new_dates_forecast:
+            logging.error('Forecast data was not updated, but historical was.')
+    '''
+    Update Last Update Date and flush tile cache on RW
+    '''
+    # generate name for dataset's parent folder on GEE - we will set date based on 'historical' data
+    PARENT_FOLDER = COLLECTION + '_historical'
+    # generate generic string that can be formatted to name each variable's GEE collection
+    EE_COLLECTION_GEN = PARENT_FOLDER + '/{var}'
     for var_num in range(len(VARS)):
         VAR = VARS[var_num]
         EE_COLLECTION = EE_COLLECTION_GEN.format(var=VAR)
@@ -574,197 +786,4 @@ def main():
         except NameError:
             logging.info('No local files to clean.')
 
-    '''
-    Process Forecast Data
-    '''
-    logging.info('Starting Forecast Data Processing')
-    # generate name for dataset's parent folder on GEE which will be used to store
-    # several collections - one collection per variable
-    PARENT_FOLDER = COLLECTION+'_forecast'
-    # generate generic string that can be formatted to name each variable's GEE collection
-    EE_COLLECTION_GEN = PARENT_FOLDER + '/{var}'
-    # generate generic string that can be formatted to name each variable's asset name
-    FILENAME = PARENT_FOLDER.split('/')[-1]+'_{var}_{date}'
-
-    # Clear collection in GEE if desired
-    if CLEAR_COLLECTION_FIRST:
-        clearCollection()
-
-    # Check if collection exists. If not, create it.
-    # Return a list of dates that exist for all variables collections in GEE (existing_dates),
-    # as well as a list of which dates exist for each individual variable (existing_dates_by_var).
-    # The latter will be used in case the previous script run crashed before completing the data upload for every variable.
-    logging.info('Getting existing dates.')
-    existing_dates, existing_dates_by_var = checkCreateCollection(VARS)
-
-    # Get a list of the dates that are available, minus the ones we have already uploaded correctly for all variables.
-    logging.info('Getting new dates to pull.')
-    new_dates = getNewDatesForecast(existing_dates)
-
-    # Fetch new files
-    logging.info('Fetching files for {}'.format(new_dates))
-    # Download files and get list of locations of netcdfs in docker container
-    files = fetch(new_dates, SOURCE_URL_FORECAST, period='forecast')
-
-    # if we have successfully pulled the new data is available, clear the collection because we want to store the most
-    # recent forecast, not the old forecast
-    if new_dates:
-        logging.info('New forecast available')
-        clearCollection()
-
-    for var_num in range(len(VARS)):
-        logging.info('Processing {}'.format(VARS[var_num]))
-        # get variable name
-        VAR = VARS[var_num]
-        # specify GEE collection name
-        EE_COLLECTION=EE_COLLECTION_GEN.format(var=VAR)
-        # specify Google Cloud Storage folder name
-        GS_FOLDER=COLLECTION[1:]+'_'+VAR
-
-        # Process new data files
-        new_assets_forecast, dates_added_forecast = processNewData(files, new_dates, period='forecast')
-
-        # get list of existing assets in current variable's GEE collection
-        existing_assets = eeUtil.ls(EE_COLLECTION)
-        # make list of all assets by combining existing assets with new assets
-        all_assets_forecast = np.sort(np.unique(existing_assets + [os.path.split(asset)[1] for asset in new_assets_forecast]))
-
-        logging.info('New assets for {}: {}, max: {}'.format(
-            VAR, len(dates_added_forecast), MAX_ASSETS))
-        logging.info('SUCCESS for {}'.format(VAR))
-        # Delete local tif files because we will run out of space
-        if DELETE_LOCAL:
-            try:
-                files_available = os.listdir(DATA_DIR)
-                for f in files_available:
-                    if f.endswith(".tif"):
-                        logging.info('Removing {}'.format(f))
-                        os.remove(DATA_DIR + '/' + f)
-            except NameError:
-                logging.info('No local tiff files to clean.')
-
-    # Delete local netcdf files
-    if DELETE_LOCAL:
-        try:
-            for f in os.listdir(DATA_DIR):
-                logging.info('Removing {}'.format(f))
-                os.remove(DATA_DIR+'/'+f)
-        except NameError:
-            logging.info('No local files to clean.')
-
-
-
-    '''
-    Update layers in Resource Watch back office.
-    '''
-    if dates_added_historical and dates_added_forecast:
-        logging.info('Updating Resource Watch Layers')
-        for VAR, ds_id in DATASET_IDS.items():
-            logging.info('Updating {}'.format(VAR))
-
-            #generate url to access layer configs for this dataset in back office
-            rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer'.format(ds_id)
-            #request data
-            r = requests.get(rw_api_url)
-            #convert response into json and make dictionary of layers
-            layer_dict = json.loads(r.content.decode('utf-8'))['data']
-            #go through each layer, pull the definition and update
-            for layer in layer_dict:
-                #check which point on the timeline this is
-                order = layer['attributes']['layerConfig']['order']
-
-                #if this is the first point on the timeline, we want to replace it the most recent historical data
-                if order==1:
-                    # generate name for dataset's parent folder on GEE which will be used to store
-                    # several collections - one collection per variable
-                    PARENT_FOLDER = COLLECTION + '_historical'
-                    # generate generic string that can be formatted to name each variable's GEE collection
-                    EE_COLLECTION_GEN = PARENT_FOLDER + '/{var}'
-                    # generate generic string that can be formatted to name each variable's asset name
-                    FILENAME = PARENT_FOLDER.split('/')[-1] + '_{var}_{date}'
-                    # specify GEE collection name
-                    EE_COLLECTION = EE_COLLECTION_GEN.format(var=VAR)
-
-                    #get date of most recent asset added
-                    date = dates_added_historical[-1]
-                    #get name of asset - drop first / in string or asset won't be pulled into RW
-                    asset = getAssetName(date)[1:]
-
-                    #get previous date being used from
-                    old_date = getDate_GEE(layer['attributes']['layerConfig']['assetId'])
-                    #convert to datetime
-                    old_date_dt = datetime.datetime.strptime(old_date, DATE_FORMAT)
-                    #change to layer name text of date
-                    old_date_text = old_date_dt.strftime("%B %-d, %Y")
-
-                    #get text for new date
-                    new_date_dt = datetime.datetime.strptime(date, DATE_FORMAT)
-                    new_date_text = new_date_dt.strftime("%B %-d, %Y")
-
-                    #replace date in layer's title with new date
-                    layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
-
-                    #replace the asset id in the layer def with new asset id
-                    layer['attributes']['layerConfig']['assetId'] = asset
-
-                # otherwise, we want to replace it with the appropriate forecast data
-                else:
-                    # generate name for dataset's parent folder on GEE which will be used to store
-                    # several collections - one collection per variable
-                    PARENT_FOLDER = COLLECTION + '_forecast'
-                    # generate generic string that can be formatted to name each variable's GEE collection
-                    EE_COLLECTION_GEN = PARENT_FOLDER + '/{var}'
-                    # generate generic string that can be formatted to name each variable's asset name
-                    FILENAME = PARENT_FOLDER.split('/')[-1] + '_{var}_{date}'
-                    # specify GEE collection name
-                    EE_COLLECTION = EE_COLLECTION_GEN.format(var=VAR)
-
-                    #forecast layers start at order 3, and we will want this point on the timeline to be the first forecast asset
-                    # order 4 will be the second asset, and so on
-                    #get date of appropriate asset
-                    date = dates_added_forecast[order-3]
-                    #get name of asset
-                    asset = getAssetName(date)[1:]
-
-                    #get previous date being used from
-                    old_date = getDate_GEE(layer['attributes']['layerConfig']['assetId'])
-                    #convert to datetime
-                    old_date_dt = datetime.datetime.strptime(old_date, DATE_FORMAT)
-                    #change to layer name text of date
-                    old_date_text = old_date_dt.strftime("%B %-d, %Y")
-
-                    #get text for new date
-                    new_date_dt = datetime.datetime.strptime(date, DATE_FORMAT)
-                    new_date_text = new_date_dt.strftime("%B %-d, %Y")
-
-                    #replace date in layer's title with new date
-                    layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
-
-                    #replace the asset id in the layer def with new asset id
-                    layer['attributes']['layerConfig']['assetId'] = asset
-
-                #send patch to API to replace layers
-
-                #generate url to patch layer
-                rw_api_url_layer= "https://api.resourcewatch.org/v1/dataset/{dataset_id}/layer/{layer_id}".format(dataset_id=layer['attributes']['dataset'], layer_id=layer['id'])
-                #create payload with new title and layer configuration
-                payload = {
-                    'application': ['rw'],
-                    'layerConfig': layer['attributes']['layerConfig'],
-                    'name': layer['attributes']['name']
-                }
-                #patch API with updates
-                r = requests.request('PATCH',rw_api_url_layer,data=json.dumps(payload),headers=create_headers())
-                #check response
-                if r.ok:
-                    logging.info('Layer replaced: {}'.format(layer['id']))
-                else:
-                    logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
-    elif not dates_added_historical and not dates_added_forecast:
-        logging.info('Layers do not need to be updated.')
-    else:
-        if not dates_added_historical:
-            logging.error('Historical data was not updated, but forecast was.')
-        if not dates_added_forecast:
-            logging.error('Forecast data was not updated, but historical was.')
     logging.info('SUCCESS')
