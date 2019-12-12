@@ -555,8 +555,8 @@ def main():
 
     # Get a list of the dates that are available, minus the ones we have already uploaded correctly for all variables.
     logging.info('Getting new dates to pull.')
-    #new_dates_historical = getNewDatesHistorical(existing_dates)
-    new_dates_historical=[]
+    new_dates_historical = getNewDatesHistorical(existing_dates)
+
     # Fetch new files
     logging.info('Fetching files for {}'.format(new_dates_historical))
     # Download files and get list of locations of netcdfs in docker container
@@ -630,8 +630,8 @@ def main():
 
     # Get a list of the dates that are available, minus the ones we have already uploaded correctly for all variables.
     logging.info('Getting new dates to pull.')
-    #new_dates_forecast = getNewDatesForecast(existing_dates)
-    new_dates_forecast = []
+    new_dates_forecast = getNewDatesForecast(existing_dates)
+
     # Fetch new files
     logging.info('Fetching files for {}'.format(new_dates_forecast))
     # Download files and get list of locations of netcdfs in docker container
