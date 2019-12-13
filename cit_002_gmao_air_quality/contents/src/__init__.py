@@ -700,7 +700,7 @@ def main():
                 order = layer['attributes']['layerConfig']['order']
 
                 #if this is the first point on the timeline, we want to replace it the most recent historical data
-                if order==1:
+                if order==0:
                     # generate name for dataset's parent folder on GEE which will be used to store
                     # several collections - one collection per variable
                     PARENT_FOLDER = COLLECTION + '_historical'
@@ -730,10 +730,10 @@ def main():
                     # specify GEE collection name
                     EE_COLLECTION = EE_COLLECTION_GEN.format(var=VAR)
 
-                    #forecast layers start at order 2, and we will want this point on the timeline to be the first forecast asset
+                    #forecast layers start at order 1, and we will want this point on the timeline to be the first forecast asset
                     # order 4 will be the second asset, and so on
                     #get date of appropriate asset
-                    date = new_dates_forecast[order-2]
+                    date = new_dates_forecast[order-1]
 
                     #replace layer asset and title date with new
                     update_layer(layer, date)
