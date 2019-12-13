@@ -7,6 +7,7 @@ import requests
 import datetime
 import json
 import hashlib
+import time
 
 ### Constants
 LIMIT = 1000
@@ -200,23 +201,35 @@ def processData(existing_ids):
                         item=None
                     row.append(item)
                 new_data.append(row)
+
     num_new = len(new_ids)
     if num_new:
         logging.info('Adding {} new records'.format(num_new))
-        cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), new_data, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
+        cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), new_data)
     return(num_new)
 
 def processInteractions():
     r = cartosql.get("SELECT * FROM {} WHERE current='True'".format(CARTO_TABLE),
                      user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
     interaction_data = r.json()['rows']
+    try_num = 0
+    #if we didn't get data back, wait a few minutes and try again
+    while not len(interaction_data):
+        logging.info('Sleeping and trying again.')
+        try_num+=1
+        time.sleep(300)
+        interaction_data = r.json()['rows']
+        if try_num >5:
+            logging.error('Problem fetching data to generate interactions')
+            exit()
+
     countries_with_interaction=[]
     for interaction in interaction_data:
         ctry = interaction['country_iso3']
         if ctry not in countries_with_interaction:
             countries_with_interaction.append(ctry)
     if cartosql.tableExists(CARTO_TABLE_INTERACTION, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY')):
-        cartosql.deleteRows(CARTO_TABLE, 'cartodb_id IS NOT NULL', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
+        cartosql.deleteRows(CARTO_TABLE_INTERACTION, 'cartodb_id IS NOT NULL', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
     #run to create new table
     #existing_interaction_ids = checkCreateTable(CARTO_TABLE_INTERACTION, CARTO_SCHEMA_INTERACTION, UID_FIELD)
     new_interactions=[]
