@@ -40,7 +40,6 @@ GS_PREFIX = 'cli_005_polar_sea_ice_extent'
 # Times two because of North / South parallels
 MAX_DATES = 12
 DATE_FORMAT = '%Y%m'
-GEE_UPLOAD_DATE_FORMAT = '%Y-%m-%dT%H:%M'
 TIMESTEP = {'days': 30}
 
 # environmental variables
@@ -268,9 +267,8 @@ def processNewRasterData(existing_dates, arctic_or_antarctic, new_or_hist, month
     reproj_assets = [getAssetName(tif, 'reproj', new_or_hist) for tif in reproj_tifs]
 
     dates = [getRasterDate(tif) for tif in reproj_tifs]
-    datestamps = [datetime.datetime.strftime(datetime.datetime.strptime(date, DATE_FORMAT), GEE_UPLOAD_DATE_FORMAT)  # list comprehension/for loop
+    datestamps = [datetime.datetime.strptime(date, DATE_FORMAT)  # list comprehension/for loop
                   for date in dates]  # returns list of datetime object
-    logging.info(datestamps)
     eeUtil.uploadAssets(orig_tifs, orig_assets, GS_PREFIX, datestamps, timeout=3000)
     eeUtil.uploadAssets(reproj_tifs, reproj_assets, GS_PREFIX, datestamps, timeout=3000)
 
