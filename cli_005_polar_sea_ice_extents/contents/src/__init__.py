@@ -40,7 +40,7 @@ GS_PREFIX = 'cli_005_polar_sea_ice_extent'
 # Times two because of North / South parallels
 MAX_DATES = 12
 DATE_FORMAT = '%Y%m'
-GEE_UPLOAD_DATE_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
+GEE_UPLOAD_DATE_FORMAT = '%Y-%m-%dT%H:%M'
 TIMESTEP = {'days': 30}
 
 # environmental variables
