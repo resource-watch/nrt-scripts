@@ -13,7 +13,7 @@ RUN pip install Cython
 RUN pip install netCDF4
 RUN pip install --upgrade pip && pip install \
     earthengine-api \
-    google-cloud-storage
+    google-cloud-storage\
     googleapis-common-protos
 RUN pip install -e git+https://github.com/fgassert/eeUtil#egg=eeUtil
 
