@@ -422,6 +422,7 @@ def processInteractions(markets_updated):
     #go through each market that was updated and create the correct rows for them
     num_markets = len(markets_to_process)
     market_num = 1
+    logging.info('{} markets to update interactions for'.format(len(markets_to_process)))
     for m_uid in markets_to_process:
         new_rows = []
         for food_category, sql_query in CATEGORIES.items():
