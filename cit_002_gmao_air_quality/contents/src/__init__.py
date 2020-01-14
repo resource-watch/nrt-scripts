@@ -45,7 +45,7 @@ apiToken = os.getenv('apiToken')
 
 SOURCE_URL_HISTORICAL = 'https://portal.nccs.nasa.gov/datashare/gmao/geos-cf/v1/das/Y{year}/M{month}/D{day}/GEOS-CF.v01.rpl.chm_tavg_1hr_g1440x721_v1.{year}{month}{day}_{time}z.nc4'
 SOURCE_URL_FORECAST = 'https://portal.nccs.nasa.gov/datashare/gmao/geos-cf/v1/forecast/Y{start_year}/M{start_month}/D{start_day}/H12/GEOS-CF.v01.fcst.chm_tavg_1hr_g1440x721_v1.{start_year}{start_month}{start_day}_12z+{year}{month}{day}_{time}z.nc4'
-VARS = ['NO2', 'O3', 'PM25_RH35_GCC', 'PM25_RH35_GOCART']
+VARS = ['NO2', 'O3', 'PM25_RH35_GCC']
 # need to specify which pressure level of data we want for each variable (out of available levels)
 # only has one pressure level available (surface)
 NUM_AVAILABLE_LEVELS = [1, 1, 1, 1]
