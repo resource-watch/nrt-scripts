@@ -55,17 +55,17 @@ apiToken = os.getenv('apiToken')
 
 if rw_subset==True:
     SOURCE_URL = 'https://www.acom.ucar.edu/waccm/subsets/resourcewatch/f.e22.beta02.FWSD.f09_f09_mg17.cesm2_2_beta02.forecast.001.cam.%s.{date}_surface_subset.nc' % VERSION
-    VARS = ['NO2', 'CO', 'O3', 'SO2', 'PM25', 'bc_a1', 'bc_a4', 'NH3', 'NO']
-    NUM_AVAILABLE_LEVELS = [1, 1, 1, 1, 1, 1, 1, 1, 1]
-    DESIRED_LEVELS = [1, 1, 1, 1, 1, 1, 1, 1, 1]
+    VARS = ['NO2', 'CO', 'O3', 'SO2', 'PM25', 'bc_a4']
+    NUM_AVAILABLE_LEVELS = [1, 1, 1, 1, 1, 1]
+    DESIRED_LEVELS = [1, 1, 1, 1, 1, 1]
 else:
     SOURCE_URL = 'https://www.acom.ucar.edu/waccm/DATA/f.e21.FWSD.f09_f09_mg17.forecast.001.cam.%s.{date}-00000.nc' % VERSION
-    VARS = ['NO2', 'CO', 'O3', 'SO2', 'PM25_SRF', 'bc_a1', 'bc_a4']
+    VARS = ['NO2', 'CO', 'O3', 'SO2', 'PM25_SRF', 'bc_a4']
     # most variables have 88 pressure levels; PM 2.5 only has one level (surface)
     # need to specify which pressure level of data we was for each (level 1 being the lowest pressure)
     # the highest level is the highest pressure (992.5 hPa), and therefore, closest to surface level
-    NUM_AVAILABLE_LEVELS = [88, 88, 88, 88, 1, 88, 88]
-    DESIRED_LEVELS = [88, 88, 88, 88, 1, 88, 88]
+    NUM_AVAILABLE_LEVELS = [88, 88, 88, 88, 1, 88]
+    DESIRED_LEVELS = [88, 88, 88, 88, 1, 88]
 
 # get time intervals in each day - specific to version number
 #h0 version is 3 hourly data
