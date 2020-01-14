@@ -29,27 +29,30 @@ DELETE_LOCAL = True
 
 #date format to use in GEE
 DATE_FORMAT = '%Y-%m-%d'
-TIMESTEP = {'days': 1}
-
-#set last time you want to call
-END_TIME = None
 
 LOG_LEVEL = logging.INFO
 
+# define RW back office ids for each variable
 DATASET_IDS = {
     'NO2':'ecce902d-a322-4d13-a3d6-e1a36fc5573e',
     'O3':'ebc079a1-51d8-4622-ba25-d8f3b4fcf8b3',
     'PM25_RH35_GCC':'645fe192-28db-4949-95b9-79d898f4226b',
 }
-apiToken = os.getenv('apiToken')
 
+# url for historical data
 SOURCE_URL_HISTORICAL = 'https://portal.nccs.nasa.gov/datashare/gmao/geos-cf/v1/das/Y{year}/M{month}/D{day}/GEOS-CF.v01.rpl.chm_tavg_1hr_g1440x721_v1.{year}{month}{day}_{time}z.nc4'
+# url for forecast data
 SOURCE_URL_FORECAST = 'https://portal.nccs.nasa.gov/datashare/gmao/geos-cf/v1/forecast/Y{start_year}/M{start_month}/D{start_day}/H12/GEOS-CF.v01.fcst.chm_tavg_1hr_g1440x721_v1.{start_year}{start_month}{start_day}_12z+{year}{month}{day}_{time}z.nc4'
+
+#list variables (as named in netcdf) that we want to pull
 VARS = ['NO2', 'O3', 'PM25_RH35_GCC']
-# need to specify which pressure level of data we want for each variable (out of available levels)
-# only has one pressure level available (surface)
-NUM_AVAILABLE_LEVELS = [1, 1, 1, 1]
-DESIRED_LEVELS = [1, 1, 1, 1]
+
+#define unit conversion factors for each compound
+CONVERSION_FACTORS = {
+    'NO2':1e9, #mol/mol to ppb
+    'O3':1e9, #mol/mol to ppb
+    'PM25_RH35_GCC': 1, #keep original units
+}
 
 #how many assets can be stored in the GEE collection before the oldest ones are deleted?
 MAX_ASSETS = 14
@@ -106,7 +109,7 @@ def lastUpdateDate(dataset, date):
    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
    headers = {
    'Content-Type': 'application/json',
-   'Authorization': apiToken
+   'Authorization': os.getenv('apiToken')
    }
    body = {
        "dataLastUpdated": date.isoformat()
@@ -119,7 +122,7 @@ def lastUpdateDate(dataset, date):
        logging.error('[lastUpdated]: '+str(e))
 
 def getAssetName(date):
-    '''get asset name from datestamp'''# os.path.join('home', 'coming') = 'home/coming'
+    '''get asset name from datestamp'''
     return os.path.join(EE_COLLECTION, FILENAME.format(var=VAR, date=date))
 
 def getTiffname(file, variable):
@@ -132,7 +135,7 @@ def getTiffname(file, variable):
     return name
 
 def getDateTime(filename):
-    '''get last 8 chrs of filename CHECK THIS'''
+    '''get last 10 chrs of filename CHECK THIS'''
     return os.path.splitext(os.path.basename(filename))[0][-10:]
 
 def getDate_GEE(filename):
@@ -318,7 +321,7 @@ def daily_avg(date, tifs_for_date, period):
             calc = calc+'+'+letter
     #calculate the number of tifs we are averaging and finish creating calc input
     num_tifs = len(tifs_for_date)
-    calc= calc + ')/{}"'.format(num_tifs)
+    calc= calc + ')*{}/{}"'.format(CONVERSION_FACTORS[VAR], num_tifs)
     #generate a file name for the daily average tif
     result_tif = DATA_DIR+'/'+FILENAME.format(var=VAR, date=date)+'.tif'
     #create the gdal command to calculate the average by putting it all together
