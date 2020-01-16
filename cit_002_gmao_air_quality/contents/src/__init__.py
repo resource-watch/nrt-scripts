@@ -379,7 +379,6 @@ def processNewData(all_files, files_by_date, period):
             #take relevant metric (daily average or maximum) of hourly tif files for days we have pulled
             metric = METRIC_BY_COMPOUND[VAR]
             tif = globals()[metric](date, hourly_tifs)
-            #tif = daily_avg(date, hourly_tifs)
             tifs.append(tif)
             #create asset names for each data
             assets.append(getAssetName(date))
