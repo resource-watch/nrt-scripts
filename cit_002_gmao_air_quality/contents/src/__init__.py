@@ -188,9 +188,9 @@ def getNewDatesHistorical(existing_dates):
 
 def getNewDatesForecast(existing_dates):
     if existing_dates:
-        #get start date of last forecast (one day before the asset date in GEE)
+        #get start date of last forecast
         first_date_str = existing_dates[0]
-        existing_start_date = datetime.datetime.strptime(first_date_str, DATE_FORMAT) - datetime.timedelta(days=1)
+        existing_start_date = datetime.datetime.strptime(first_date_str, DATE_FORMAT)
     else:
         #if we don't have existing data, just choose an old date so that we keep checking back until that date
         #let's assume we will probably have a forecast in the last 30 days, so we will check back that far for
@@ -201,8 +201,6 @@ def getNewDatesForecast(existing_dates):
 
     # start with today
     date = datetime.datetime.utcnow()
-    #generate date string in same format used in GEE collection
-    date_str = datetime.datetime.strftime(date, DATE_FORMAT)
 
     #while the date is newer than the most recent forecast that we pulled:
     while date > existing_start_date:
@@ -221,8 +219,6 @@ def getNewDatesForecast(existing_dates):
             break
         # if there was no forecast for this day, go back one more day
         date = date - datetime.timedelta(days=1)
-        # generate new string in same format used in GEE collection
-        date_str = datetime.datetime.strftime(date, DATE_FORMAT)
     #repeat until we reach the forecast we already have
 
     return new_dates
@@ -728,7 +724,6 @@ def main():
     '''
     Update layers in Resource Watch back office.
     '''
-    new_dates_historical=['2020-01-15']
     if new_dates_historical and new_dates_forecast:
         logging.info('Updating Resource Watch Layers')
         for VAR, ds_id in DATASET_IDS.items():
@@ -790,7 +785,7 @@ def main():
     Update Last Update Date and flush tile cache on RW
     '''
     # generate name for dataset's parent folder on GEE - we will set date based on 'historical' data
-    PARENT_FOLDER = COLLECTION + '_historical'
+    PARENT_FOLDER = COLLECTION + '_historical_{metric}'
     # generate generic string that can be formatted to name each variable's GEE collection
     EE_COLLECTION_GEN = PARENT_FOLDER + '/{var}'
     for var_num in range(len(VARS)):
@@ -803,16 +798,16 @@ def main():
             # use get_most_recent_date(new_assets) function instead
             most_recent_date = get_most_recent_date(existing_assets)
             logging.info(most_recent_date)
-            current_date = getLastUpdate(DATASET_IDS[VAR]) #comment for testing
+            current_date = getLastUpdate(DATASET_IDS[VAR])
 
             if current_date != most_recent_date: #comment for testing
-                logging.info('Updating last update date and flushing cache.') #comment for testing
+                logging.info('Updating last update date and flushing cache.')
                 # Update data set's last update date on Resource Watch
-                lastUpdateDate(DATASET_IDS[VAR], most_recent_date) #comment for testing
+                lastUpdateDate(DATASET_IDS[VAR], most_recent_date)
                 # get layer ids and flush tile cache for each
-                layer_ids = getLayerIDs(DATASET_IDS[VAR]) #comment for testing
-                for layer_id in layer_ids: #comment for testing
-                    flushTileCache(layer_id) #comment for testing
+                layer_ids = getLayerIDs(DATASET_IDS[VAR])
+                for layer_id in layer_ids:
+                    flushTileCache(layer_id)
         except KeyError:
             continue
 
