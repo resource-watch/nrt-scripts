@@ -724,6 +724,8 @@ def main():
     '''
     Update layers in Resource Watch back office.
     '''
+    new_dates_historical =  ['2020-01-16']
+    new_dates_forecast = ['2020-01-17', '2020-01-18', '2020-01-19', '2020-01-20', '2020-01-21']
     if new_dates_historical and new_dates_forecast:
         logging.info('Updating Resource Watch Layers')
         for VAR, ds_id in DATASET_IDS.items():
@@ -739,7 +741,7 @@ def main():
                 if order==0:
                     # generate name for dataset's parent folder on GEE which will be used to store
                     # several collections - one collection per variable
-                    PARENT_FOLDER = COLLECTION + '_historical'
+                    PARENT_FOLDER = COLLECTION + '_historical_{metric}'
                     # generate generic string that can be formatted to name each variable's GEE collection
                     EE_COLLECTION_GEN = PARENT_FOLDER + '/{var}'
                     # generate generic string that can be formatted to name each variable's asset name
@@ -758,7 +760,7 @@ def main():
                 else:
                     # generate name for dataset's parent folder on GEE which will be used to store
                     # several collections - one collection per variable
-                    PARENT_FOLDER = COLLECTION + '_forecast'
+                    PARENT_FOLDER = COLLECTION + '_forecast_{metric}'
                     # generate generic string that can be formatted to name each variable's GEE collection
                     EE_COLLECTION_GEN = PARENT_FOLDER + '/{var}'
                     # generate generic string that can be formatted to name each variable's asset name
