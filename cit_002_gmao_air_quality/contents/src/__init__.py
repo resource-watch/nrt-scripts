@@ -724,8 +724,6 @@ def main():
     '''
     Update layers in Resource Watch back office.
     '''
-    new_dates_historical =  ['2020-01-16']
-    new_dates_forecast = ['2020-01-17', '2020-01-18', '2020-01-19', '2020-01-20', '2020-01-21']
     if new_dates_historical and new_dates_forecast:
         logging.info('Updating Resource Watch Layers')
         for VAR, ds_id in DATASET_IDS.items():
