@@ -21,7 +21,7 @@ RUN pip install python-dateutil
 RUN pip install --upgrade pip && pip install \
     earthengine-api \
     google-cloud-storage
-RUN pip install -e git+https://github.com/fgassert/eeUtil#egg=eeUtil
+RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
 
 # copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data

@@ -193,7 +193,7 @@ def getNewDatesForecast(existing_dates):
     date = datetime.datetime.utcnow()
     #generate date string in same format used in GEE collection
     date_str = datetime.datetime.strftime(date, DATE_FORMAT)
-
+    logging.info(date_str)
     #while the date is newer than the most recent forecast that we pulled:
     while date > existing_start_date:
         #general source url for this day's forecast data folder
@@ -351,6 +351,7 @@ def processNewData(all_files, files_by_date, period):
         logging.info('Uploading files:')
         for asset in assets:
             logging.info(os.path.split(asset)[1])
+        logging.info(datestamps)
         eeUtil.uploadAssets(tifs, assets, GS_FOLDER, datestamps, timeout=3000)
 
         return assets

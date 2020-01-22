@@ -6,7 +6,7 @@ RUN apt-get update
 RUN pip install -U pip
 
 # install application libraries
-RUN pip install -e git+https://github.com/fgassert/eeUtil#egg=eeUtil
+RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
 RUN pip install bs4
 RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
 RUN pip install pandas

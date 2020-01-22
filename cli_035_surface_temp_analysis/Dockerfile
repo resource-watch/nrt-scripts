@@ -16,7 +16,7 @@ RUN apt-get install -y \
   cron \
   && apt-get clean
 
-RUN pip install -e git+https://github.com/fgassert/eeUtil#egg=eeUtil
+RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
 RUN pip install oauth2client
 RUN pip install numpy #Install this ahead of rasterio for appropriate applications
 RUN pip install --upgrade pip && pip install \
