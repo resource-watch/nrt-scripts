@@ -20,9 +20,8 @@ RUN pip install --upgrade pip && pip install numpy
 RUN pip install rasterio \
     earthengine-api \
     google-cloud-storage
-
-RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
 RUN pip install oauth2client
+RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
 
 # copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data
