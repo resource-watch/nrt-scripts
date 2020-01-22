@@ -278,11 +278,11 @@ def fetch(new_dates, unformatted_source_url, period):
                 url = unformatted_source_url.format(start_year=int(first_date[:4]), start_month='{:02d}'.format(int(first_date[5:7])), start_day='{:02d}'.format(int(first_date[8:])),year=int(fetching_date[:4]), month='{:02d}'.format(int(fetching_date[5:7])), day='{:02d}'.format(int(fetching_date[8:])), time=hour)
             # Create a file name to store the netcdf in after download
             f = DATA_DIR+'/'+url.split('/')[-1]
-            logging.info('Retrieving {}'.format(f))
             #try to download file
             tries = 0
             while tries <3:
                 try:
+                    logging.info('Retrieving {}'.format(f))
                     #download files from url and put in specified file location (f)
                     urllib.request.urlretrieve(url, f)
                     #add file name/location to list of files downloaded
