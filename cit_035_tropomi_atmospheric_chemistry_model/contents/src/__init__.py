@@ -50,14 +50,6 @@ DATASET_IDS = {
     'AER_AI': '793e4cc9-c060-4b7f-a4a2-0b1fbbe71b69',
     'O3': 'ada81921-28ff-4fbb-b971-7aa1f3ccdb22'
 }
-'''
-if DAYS_TO_AVERAGE == 1:
-    DATASET_ID = '4eadb2ae-d47b-4171-988f-186c38989fdb'
-elif DAYS_TO_AVERAGE == 7:
-    DATASET_ID = 'dbf86e93-03d3-47b6-b846-c5138f726dfe'
-elif DAYS_TO_AVERAGE == 30:
-    DATASET_ID = 'f324b8e5-fde0-45a6-b019-059e05ce5b25'
-'''
 
 apiToken = os.getenv('apiToken') or os.environ.get('rw_api_token') or os.environ.get('RW_API_KEY')
 
