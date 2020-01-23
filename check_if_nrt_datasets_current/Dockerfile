@@ -6,7 +6,7 @@ RUN apt-get update && pip install -U pip
 
 # install application libraries
 RUN pip install requests
-RUN pip install pandas
+RUN pip install pandas==0.24.2
 
 # set name
 ARG NAME=nrt-script
