@@ -385,7 +385,6 @@ def processNewData(all_files, files_by_date, period):
         logging.info('Uploading files:')
         for asset in assets:
             logging.info(os.path.split(asset)[1])
-        logging.info(datestamps)
         eeUtil.uploadAssets(tifs, assets, GS_FOLDER, datestamps, timeout=3000)
 
         return assets
