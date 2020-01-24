@@ -13,13 +13,6 @@ import requests
 SOURCE_URL = 'COPERNICUS/S5P/OFFL/L3_{var}'
 VARS = ['NO2', 'CO', 'AER_AI', 'O3']
 BANDS = ['tropospheric_NO2_column_number_density', 'CO_column_number_density', 'absorbing_aerosol_index', 'O3_column_number_density']
-NODATA_VALUE = None
-'''
-GDAL: Assign a specified nodata value to output bands. Starting with GDAL 1.8.0, can be set to none to avoid setting
-a nodata value to the output file if one exists for the source file. Note that, if the input dataset has a nodata 
-value, this does not cause pixel values that are equal to that nodata value to be changed to the value specified 
-with this option.
-'''
 
 DATA_DIR = 'data'
 CLEAR_COLLECTION_FIRST = False
