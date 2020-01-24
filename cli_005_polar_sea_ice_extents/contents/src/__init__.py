@@ -160,9 +160,9 @@ def getNewTargetDates(exclude_dates):
     '''Get new dates excluding existing'''
     new_dates = []
     date = datetime.date.today()
+    date = date.replace(day=15)
     for i in range(MAX_DATES):
-        date -= datetime.timedelta(**TIMESTEP)
-        date = date.replace(day=15)
+        date = date - relativedelta(months=1) #subtract 1 month from data
         datestr = date.strftime(DATE_FORMAT)
         if datestr not in exclude_dates:
             new_dates.append(datestr)

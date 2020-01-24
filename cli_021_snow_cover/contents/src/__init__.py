@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 
-import os
 import sys
 import urllib
 import datetime
@@ -13,6 +12,7 @@ import os
 from http.cookiejar import CookieJar
 import requests
 import time
+from dateutil.relativedelta import relativedelta
 
 # constants for bleaching alerts
 #Old values for 8 day dataset
@@ -152,7 +152,7 @@ def getNewDates(exclude_dates):
         datestr = date.strftime(DATE_FORMAT_HDF)#of HDF because looking for new data in old format
         new_dates.append(datestr) #add to new dates if have not already seen
         #go back to next previous month
-        date=date.replace(month=date.month-1) #subtract 1 month from data
+        date=date - relativedelta(months=1) #subtract 1 month from data
         exclude_datestr = date.strftime(DATE_FORMAT)
     return new_dates
 

@@ -22,6 +22,7 @@ RUN pip install --upgrade pip && pip install \
     google-cloud-storage
 RUN pip install oauth2client
 RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
+RUN pip install python-dateutil==2.8.1
 
 # copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data
