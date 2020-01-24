@@ -160,10 +160,9 @@ def getNewTargetDates(exclude_dates):
     '''Get new dates excluding existing'''
     new_dates = []
     date = datetime.date.today()
-    date.replace(day=15)
     for i in range(MAX_DATES):
         date -= datetime.timedelta(**TIMESTEP)
-        date.replace(day=15)
+        date = date.replace(day=15)
         datestr = date.strftime(DATE_FORMAT)
         if datestr not in exclude_dates:
             new_dates.append(datestr)
@@ -341,7 +340,7 @@ def main():
     arctic_dates_orig = [getRasterDate(a) for a in arctic_assets_orig]
     arctic_dates_reproj = [getRasterDate(a) for a in arctic_assets_reproj]
 
-    new_arctic_assets_orig, new_arctic_assets_reproj = processNewRasterData(arctic_dates_orig, 'arctic', new_or_hist='new')
+    new_arctic_assets_orig, new_arctic_assets_reproj = processNewRasterData(arctic_dates_reproj, 'arctic', new_or_hist='new')
     new_arctic_dates_orig = [getRasterDate(a) for a in new_arctic_assets_orig]
     new_arctic_dates_reproj = [getRasterDate(a) for a in new_arctic_assets_reproj]
 
@@ -352,7 +351,7 @@ def main():
     antarctic_dates_orig = [getRasterDate(a) for a in antarctic_assets_orig]
     antarctic_dates_reproj = [getRasterDate(a) for a in antarctic_assets_reproj]
 
-    new_antarctic_assets_orig, new_antarctic_assets_reproj  = processNewRasterData(antarctic_dates_orig, 'antarctic', new_or_hist='new')
+    new_antarctic_assets_orig, new_antarctic_assets_reproj  = processNewRasterData(antarctic_dates_reproj, 'antarctic', new_or_hist='new')
     new_antarctic_dates_orig = [getRasterDate(a) for a in new_antarctic_assets_orig]
     new_antarctic_dates_reproj = [getRasterDate(a) for a in new_antarctic_assets_reproj]
 
