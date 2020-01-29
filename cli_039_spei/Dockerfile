@@ -1,5 +1,5 @@
 FROM python:3.6
-MAINTAINER Nathan Suberi <nathan.suberi@wri.org>
+MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
 ARG NAME=cli_039
 ENV NAME ${NAME}
 
