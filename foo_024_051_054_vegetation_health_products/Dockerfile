@@ -1,5 +1,5 @@
 FROM python:3-stretch
-MAINTAINER Nathan Suberi <nathan.suberi@wri.org>
+MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
 
 # install core libraries
 RUN apt-get update

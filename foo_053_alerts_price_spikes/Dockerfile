@@ -1,5 +1,5 @@
 FROM python:3.6-alpine
-MAINTAINER Nathan Suberi <nathan.suberi@wri.org>
+MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
 
 # install core libraries
 RUN echo "http://mirror.leaseweb.com/alpine/edge/testing/" >> /etc/apk/repositories

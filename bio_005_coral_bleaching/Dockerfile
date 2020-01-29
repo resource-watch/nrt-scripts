@@ -1,5 +1,5 @@
 FROM python:3.6
-MAINTAINER Francis Gassert <fgassert@wri.org>
+MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
 
 # install core libraries
 RUN apt-get update && pip install -U pip
