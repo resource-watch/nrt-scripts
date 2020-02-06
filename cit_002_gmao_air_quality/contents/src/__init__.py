@@ -528,6 +528,10 @@ def update_layer(layer, new_date):
     # replace the asset id in the layer def with new asset id
     layer['attributes']['layerConfig']['assetId'] = asset
 
+    # replace the asset id in the interaction config with new asset id
+    old_asset = getAssetName(old_date)[1:]
+    layer['attributes']['interactionConfig']['config']['url'] = layer['attributes']['interactionConfig']['config']['url'].replace(old_asset,asset)
+
     # send patch to API to replace layers
 
     # generate url to patch layer
@@ -537,7 +541,8 @@ def update_layer(layer, new_date):
     payload = {
         'application': ['rw'],
         'layerConfig': layer['attributes']['layerConfig'],
-        'name': layer['attributes']['name']
+        'name': layer['attributes']['name'],
+        'interactionConfig': layer['attributes']['interactionConfig']
     }
     # patch API with updates
     r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
