@@ -8,7 +8,7 @@ RUN pip install -U pip
 # install application libraries
 RUN pip install --upgrade pip
 RUN pip install requests
-RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
+RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 RUN pip install numpy
 RUN pip install requests
 RUN pip install pandas numpy

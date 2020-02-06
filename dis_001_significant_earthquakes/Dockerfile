@@ -7,7 +7,7 @@ RUN apk add git
 
 # install application libraries
 RUN pip install --upgrade pip && pip install requests
-RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
+RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 
 # Env
 ARG NAME=nrt-script
