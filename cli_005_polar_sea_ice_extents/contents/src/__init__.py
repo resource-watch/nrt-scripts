@@ -172,6 +172,8 @@ def getHistoricalTargetDates(exclude_dates, month):
     '''Get new dates excluding existing'''
     new_dates = []
     date = datetime.date.today()
+    date = date.replace(day=15)
+    date = date - relativedelta(months=1)  # subtract 1 month from data
 
     #earliest year of data is 1979
     for i in range(date.year-1979):
