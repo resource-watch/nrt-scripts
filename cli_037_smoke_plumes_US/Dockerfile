@@ -3,7 +3,7 @@ MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
 
 # install application libraries
 RUN pip install --upgrade pip && \
-    pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql && \
+    pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql && \
     pip install requests fiona
 
 # set name

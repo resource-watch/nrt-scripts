@@ -8,7 +8,7 @@ RUN apk add git
 # install application libraries
 RUN pip install requests
 RUN pip install simplejson
-RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
+RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 
 # set name
 ARG NAME=dis_012

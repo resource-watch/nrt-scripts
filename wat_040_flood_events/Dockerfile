@@ -8,7 +8,7 @@ RUN apt-get update
 # install application libraries
 RUN apt-get install -y gdal-bin libgdal-dev
 RUN pip install requests
-RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
+RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 RUN pip install fiona
 
 # set name

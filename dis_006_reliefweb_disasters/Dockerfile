@@ -9,7 +9,7 @@ RUN apt-get update
 RUN apt-get install -y cron
 
 # install application libraries
-RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
+RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 RUN pip install -U pip \
     requests
 
