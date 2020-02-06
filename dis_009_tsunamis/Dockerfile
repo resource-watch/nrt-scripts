@@ -11,7 +11,6 @@ RUN apt-get install -y cron
 RUN pip install --upgrade pip && pip install \
     requests==2.22.0
 RUN pip install cartoframes==0.9.2
-RUN pip install docopt==0.6.2
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 
 # Copy the application folder inside the container
