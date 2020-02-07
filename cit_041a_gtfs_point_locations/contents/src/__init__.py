@@ -197,5 +197,5 @@ def main():
     logging.info('STARTING')
     processData()
     # Push update date
-    # lastUpdateDate(DATASET_ID, datetime.datetime.now())
+    lastUpdateDate(DATASET_ID, datetime.datetime.now())
     logging.info('SUCCESS')
