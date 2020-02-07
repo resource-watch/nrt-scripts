@@ -7,14 +7,13 @@ RUN pip install -U pip
 
 # install application libraries
 RUN pip install --upgrade pip
-RUN pip install requests
+RUN pip install requests==2.22.0
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
-RUN pip install numpy
-RUN pip install requests
-RUN pip install pandas numpy
-RUN pip install boto3
-RUN pip install shapely
-RUN pip install carto cartoframes
+RUN pip install numpy==1.18.1
+RUN pip install pandas==0.25.3 numpy==1.18.1
+RUN pip install boto3==1.11.8
+RUN pip install shapely==1.6.4
+RUN pip install carto==1.8.4 cartoframes==0.9.2
 
 
 # set name
