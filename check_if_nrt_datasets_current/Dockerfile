@@ -5,7 +5,7 @@ MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
 RUN apt-get update && pip install -U pip
 
 # install application libraries
-RUN pip install requests
+RUN pip install requests==2.22.0
 RUN pip install pandas==0.24.2
 
 # set name
