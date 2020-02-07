@@ -424,6 +424,7 @@ def processInteractions(markets_updated):
     market_num = 1
     logging.info('{} markets to update interactions for'.format(len(markets_to_process)))
     for m_uid in markets_to_process:
+        logging.info('processing {} out of {} markets'.format(market_num, len(markets_to_process)))
         new_rows = []
         for food_category, sql_query in CATEGORIES.items():
             try_num=1
@@ -435,6 +436,7 @@ def processInteractions(markets_updated):
                                      user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
                     if r.json()['total_rows']==0:
                         #logging.info('No rows for interaction')
+                        alps_entries=[]
                         break
                     market_entry = r.json()['rows'][0]
 
@@ -449,57 +451,58 @@ def processInteractions(markets_updated):
                     break
                 except:
                     try_num += 1
-            uid = genInteractionUID(market_entry['region_id'], market_entry['market_id'], market_entry['market_name'], food_category)
-            commodity_num=1
-            for entry in alps_entries:
-                if commodity_num==1:
-                    interaction_string = INTERACTION_STRING_FORMAT.format(num=commodity_num, commodity=entry['cmname'], alps=entry['alps'].lower(), date=entry['date'][:10])
-                else:
-                    interaction_string = interaction_string + '; ' + INTERACTION_STRING_FORMAT.format(num=commodity_num, commodity=entry['cmname'], alps=entry['alps'].lower(), date=entry['date'][:10])
-                commodity_num+=1
-            # create new Carto row
-            row = []
-            for field in CARTO_INTERACTION_SCHEMA.keys():
-                if field == 'uid':
-                    row.append(uid)
-                elif field == 'market_id':
-                    row.append(int(market_entry['market_id']))
-                elif field == 'the_geom':
-                    shapely_point = wkb.loads(market_entry['the_geom'], hex=True)
-                    json_point = json.loads(json.dumps(shapely.geometry.mapping(shapely_point)))
-                    row.append(json_point)
-                elif field == 'region_name':
-                    row.append(market_entry['region_name'])
-                elif field == 'region_id':
-                    row.append(market_entry['region_id'])
-                elif field == 'market_name':
-                    row.append(market_entry['market_name'])
-                elif field == 'market_interaction':
-                    if len(alps_entries) == 0:
-                        row.append(None)
+            if alps_entries:
+                uid = genInteractionUID(market_entry['region_id'], market_entry['market_id'], market_entry['market_name'], food_category)
+                commodity_num=1
+                for entry in alps_entries:
+                    if commodity_num==1:
+                        interaction_string = INTERACTION_STRING_FORMAT.format(num=commodity_num, commodity=entry['cmname'], alps=entry['alps'].lower(), date=entry['date'][:10])
                     else:
-                        row.append(interaction_string)
-                elif field == 'category':
-                    row.append(food_category)
-                elif field == 'highest_pewi':
-                    if len(alps_entries) == 0:
-                        row.append(None)
-                    else:
-                        highest_pewi = max([entry['pewi'] for entry in alps_entries])
-                        row.append(highest_pewi)
-                elif field == 'highest_alps':
-                    if len(alps_entries) == 0:
-                        row.append(None)
-                    else:
-                        highest_alps_category = assignALPS(highest_pewi)
-                        row.append(highest_alps_category)
-                elif field == INTERACTION_TIME_FIELD:
-                    if len(alps_entries) == 0:
-                        row.append(None)
-                    else:
-                        row.append(min(entry['date'] for entry in alps_entries))
-            new_rows.append(row)
-            num_new_interactions+=1
+                        interaction_string = interaction_string + '; ' + INTERACTION_STRING_FORMAT.format(num=commodity_num, commodity=entry['cmname'], alps=entry['alps'].lower(), date=entry['date'][:10])
+                    commodity_num+=1
+                # create new Carto row
+                row = []
+                for field in CARTO_INTERACTION_SCHEMA.keys():
+                    if field == 'uid':
+                        row.append(uid)
+                    elif field == 'market_id':
+                        row.append(int(market_entry['market_id']))
+                    elif field == 'the_geom':
+                        shapely_point = wkb.loads(market_entry['the_geom'], hex=True)
+                        json_point = json.loads(json.dumps(shapely.geometry.mapping(shapely_point)))
+                        row.append(json_point)
+                    elif field == 'region_name':
+                        row.append(market_entry['region_name'])
+                    elif field == 'region_id':
+                        row.append(market_entry['region_id'])
+                    elif field == 'market_name':
+                        row.append(market_entry['market_name'])
+                    elif field == 'market_interaction':
+                        if len(alps_entries) == 0:
+                            row.append(None)
+                        else:
+                            row.append(interaction_string)
+                    elif field == 'category':
+                        row.append(food_category)
+                    elif field == 'highest_pewi':
+                        if len(alps_entries) == 0:
+                            row.append(None)
+                        else:
+                            highest_pewi = max([entry['pewi'] for entry in alps_entries])
+                            row.append(highest_pewi)
+                    elif field == 'highest_alps':
+                        if len(alps_entries) == 0:
+                            row.append(None)
+                        else:
+                            highest_alps_category = assignALPS(highest_pewi)
+                            row.append(highest_alps_category)
+                    elif field == INTERACTION_TIME_FIELD:
+                        if len(alps_entries) == 0:
+                            row.append(None)
+                        else:
+                            row.append(min(entry['date'] for entry in alps_entries))
+                new_rows.append(row)
+                num_new_interactions+=1
         #delete old entries for the markets that were updated
         #logging.info('Deleting old interactions from Carto')
         try:
@@ -576,34 +579,36 @@ def main():
         if cartosql.tableExists(CARTO_INTERACTION_TABLE):
             cartosql.deleteRows(CARTO_INTERACTION_TABLE, 'cartodb_id IS NOT NULL', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
 
-    # 1. Check if table exists and create table
-    existing_markets = []
-    if cartosql.tableExists(CARTO_MARKET_TABLE, user=os.getenv('CARTO_USER'), key =os.getenv('CARTO_KEY')):
-        logging.info('Fetching existing ids')
-        existing_markets = getIds(CARTO_MARKET_TABLE, UID_FIELD)
-    else:
-        logging.info('Table {} does not exist, creating'.format(CARTO_MARKET_TABLE))
-        createTableWithIndex(CARTO_MARKET_TABLE, CARTO_MARKET_SCHEMA, UID_FIELD)
-
-    existing_alps = []
-    if cartosql.tableExists(CARTO_ALPS_TABLE, user=os.getenv('CARTO_USER'), key =os.getenv('CARTO_KEY')):
-        logging.info('Fetching existing ids')
-        existing_alps = getIds(CARTO_ALPS_TABLE, UID_FIELD)
-    else:
-        logging.info('Table {} does not exist, creating'.format(CARTO_ALPS_TABLE))
-        createTableWithIndex(CARTO_ALPS_TABLE, CARTO_ALPS_SCHEMA, UID_FIELD, TIME_FIELD)
-
-    existing_interactions = []
-    if cartosql.tableExists(CARTO_INTERACTION_TABLE, user=os.getenv('CARTO_USER'), key =os.getenv('CARTO_KEY')):
-        logging.info('Fetching existing interaction ids')
-        existing_interactions = getIds(CARTO_INTERACTION_TABLE, UID_FIELD)
-    else:
-        logging.info('Table {} does not exist, creating'.format(CARTO_INTERACTION_TABLE))
-        createTableWithIndex(CARTO_INTERACTION_TABLE, CARTO_INTERACTION_SCHEMA, UID_FIELD, INTERACTION_TIME_FIELD)
-
-    # 2. Iterively fetch, parse and post new data
-    num_new_markets, num_new_alps, markets_updated = processNewData(existing_markets, existing_alps)
-
+    # # 1. Check if table exists and create table
+    # existing_markets = []
+    # if cartosql.tableExists(CARTO_MARKET_TABLE, user=os.getenv('CARTO_USER'), key =os.getenv('CARTO_KEY')):
+    #     logging.info('Fetching existing ids')
+    #     existing_markets = getIds(CARTO_MARKET_TABLE, UID_FIELD)
+    # else:
+    #     logging.info('Table {} does not exist, creating'.format(CARTO_MARKET_TABLE))
+    #     createTableWithIndex(CARTO_MARKET_TABLE, CARTO_MARKET_SCHEMA, UID_FIELD)
+    #
+    # existing_alps = []
+    # if cartosql.tableExists(CARTO_ALPS_TABLE, user=os.getenv('CARTO_USER'), key =os.getenv('CARTO_KEY')):
+    #     logging.info('Fetching existing ids')
+    #     existing_alps = getIds(CARTO_ALPS_TABLE, UID_FIELD)
+    # else:
+    #     logging.info('Table {} does not exist, creating'.format(CARTO_ALPS_TABLE))
+    #     createTableWithIndex(CARTO_ALPS_TABLE, CARTO_ALPS_SCHEMA, UID_FIELD, TIME_FIELD)
+    #
+    # existing_interactions = []
+    # if cartosql.tableExists(CARTO_INTERACTION_TABLE, user=os.getenv('CARTO_USER'), key =os.getenv('CARTO_KEY')):
+    #     logging.info('Fetching existing interaction ids')
+    #     existing_interactions = getIds(CARTO_INTERACTION_TABLE, UID_FIELD)
+    # else:
+    #     logging.info('Table {} does not exist, creating'.format(CARTO_INTERACTION_TABLE))
+    #     createTableWithIndex(CARTO_INTERACTION_TABLE, CARTO_INTERACTION_SCHEMA, UID_FIELD, INTERACTION_TIME_FIELD)
+    #
+    # # 2. Iterively fetch, parse and post new data
+    # num_new_markets, num_new_alps, markets_updated = processNewData(existing_markets, existing_alps)
+    num_new_markets=[]
+    num_new_alps=[]
+    markets_updated=[]
     # Update Interaction table
     num_new_interactions = processInteractions(markets_updated)
 
