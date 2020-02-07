@@ -1,14 +1,13 @@
 import pandas as pd
-from shapely.geometry import Point
 import requests
 import logging
-import json
 import os
 import cartoframes
 import datetime
 import cartosql
 from collections import OrderedDict
 import numpy as np
+import sys
 
 ### Constants
 LOG_LEVEL = logging.INFO
@@ -42,7 +41,6 @@ CARTO_SCHEMA = OrderedDict([
     ('gtfs_zip','text'),
     ('gtfs_txt','text')
 ])
-CLEAR_TABLE_FIRST = True
 INPUT_DATE_FORMAT = '%Y%m%d'
 DATE_FORMAT = '%Y-%m-%d'
 TIME_FIELD = 'ts_latest'
@@ -50,14 +48,12 @@ MAX_TRIES = 8
 CARTO_URL = 'https://{}.carto.com/api/v2/sql'
 CARTO_USER = os.environ.get('CARTO_USER')
 CARTO_KEY = os.environ.get('CARTO_KEY')
-STRICT = True
-USR_BASE_URL = "https://{user}.carto.com/".format(user=CARTO_USER)
 
 ###
 ## Accessing remote data
 ###
 
-DATASET_ID = '41b08616-8039-4069-aaa9-f6dafcc8adf6'
+DATASET_ID = 'ca607a0d-3ab9-4b22-b4fe-5c43b17e47c4'
 def lastUpdateDate(dataset, date):
    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
    headers = {
@@ -160,6 +156,8 @@ def processData():
         logging.info('Try running feeds, try number = {}'.format(tries))
         try:
             df = feeds()
+            logging.info(df.columns)
+            logging.info(df.iloc[0])
             success = True
         except Exception as inst:
             logging.info(inst)
@@ -172,19 +170,24 @@ def processData():
         if not cartosql.tableExists(CARTO_TABLE):
             logging.info('Table {} does not exist'.format(CARTO_TABLE))
             cartosql.createTable(CARTO_TABLE, CARTO_SCHEMA)
-        else:
-            cartosql.deleteRows(CARTO_TABLE, 'cartodb_id IS NOT NULL', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
-            cartosql.createTable(CARTO_TABLE, CARTO_SCHEMA)
             #Send dataframe to Carto
             logging.info('Writing to Carto')
-            cc = cartoframes.CartoContext(base_url=USR_BASE_URL,
+            cc = cartoframes.CartoContext(base_url="https://{user}.carto.com/".format(user=CARTO_USER),
                                           api_key=CARTO_KEY)
-            cc.write(df, CARTO_TABLE, overwrite=True)
+            cc.write(df, CARTO_TABLE, overwrite=True, privacy='public')
+        else:
+            cartosql.deleteRows(CARTO_TABLE, 'cartodb_id IS NOT NULL', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
+            #Send dataframe to Carto
+            logging.info('Writing to Carto')
+            cc = cartoframes.CartoContext(base_url="https://{user}.carto.com/".format(user=CARTO_USER),
+                                          api_key=CARTO_KEY)
+            cc.write(df, CARTO_TABLE, overwrite=True, privacy='public')
 
 
 def main():
+    logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
     logging.info('STARTING')
     processData()
     # Push update date
-    lastUpdateDate(DATASET_ID, datetime.datetime.now())
+    #lastUpdateDate(DATASET_ID, datetime.datetime.now())
     logging.info('SUCCESS')

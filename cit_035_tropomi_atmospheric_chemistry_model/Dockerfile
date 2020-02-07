@@ -6,7 +6,7 @@ RUN apt-get update
 RUN pip install -U pip
 
 # install application libraries
-RUN pip install oauth2client
+RUN pip install oauth2client==4.1.3
 RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
 
 # set name
