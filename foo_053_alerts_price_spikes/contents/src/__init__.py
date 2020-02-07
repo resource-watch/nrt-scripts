@@ -606,9 +606,7 @@ def main():
 
     # 2. Iterively fetch, parse and post new data
     num_new_markets, num_new_alps, markets_updated = processNewData(existing_markets, existing_alps)
-    num_new_markets=[]
-    num_new_alps=[]
-    markets_updated=[]
+    
     # Update Interaction table
     num_new_interactions = processInteractions(markets_updated)
 
