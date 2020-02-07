@@ -579,33 +579,33 @@ def main():
         if cartosql.tableExists(CARTO_INTERACTION_TABLE):
             cartosql.deleteRows(CARTO_INTERACTION_TABLE, 'cartodb_id IS NOT NULL', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
 
-    # # 1. Check if table exists and create table
-    # existing_markets = []
-    # if cartosql.tableExists(CARTO_MARKET_TABLE, user=os.getenv('CARTO_USER'), key =os.getenv('CARTO_KEY')):
-    #     logging.info('Fetching existing ids')
-    #     existing_markets = getIds(CARTO_MARKET_TABLE, UID_FIELD)
-    # else:
-    #     logging.info('Table {} does not exist, creating'.format(CARTO_MARKET_TABLE))
-    #     createTableWithIndex(CARTO_MARKET_TABLE, CARTO_MARKET_SCHEMA, UID_FIELD)
-    #
-    # existing_alps = []
-    # if cartosql.tableExists(CARTO_ALPS_TABLE, user=os.getenv('CARTO_USER'), key =os.getenv('CARTO_KEY')):
-    #     logging.info('Fetching existing ids')
-    #     existing_alps = getIds(CARTO_ALPS_TABLE, UID_FIELD)
-    # else:
-    #     logging.info('Table {} does not exist, creating'.format(CARTO_ALPS_TABLE))
-    #     createTableWithIndex(CARTO_ALPS_TABLE, CARTO_ALPS_SCHEMA, UID_FIELD, TIME_FIELD)
-    #
-    # existing_interactions = []
-    # if cartosql.tableExists(CARTO_INTERACTION_TABLE, user=os.getenv('CARTO_USER'), key =os.getenv('CARTO_KEY')):
-    #     logging.info('Fetching existing interaction ids')
-    #     existing_interactions = getIds(CARTO_INTERACTION_TABLE, UID_FIELD)
-    # else:
-    #     logging.info('Table {} does not exist, creating'.format(CARTO_INTERACTION_TABLE))
-    #     createTableWithIndex(CARTO_INTERACTION_TABLE, CARTO_INTERACTION_SCHEMA, UID_FIELD, INTERACTION_TIME_FIELD)
-    #
-    # # 2. Iterively fetch, parse and post new data
-    # num_new_markets, num_new_alps, markets_updated = processNewData(existing_markets, existing_alps)
+    # 1. Check if table exists and create table
+    existing_markets = []
+    if cartosql.tableExists(CARTO_MARKET_TABLE, user=os.getenv('CARTO_USER'), key =os.getenv('CARTO_KEY')):
+        logging.info('Fetching existing ids')
+        existing_markets = getIds(CARTO_MARKET_TABLE, UID_FIELD)
+    else:
+        logging.info('Table {} does not exist, creating'.format(CARTO_MARKET_TABLE))
+        createTableWithIndex(CARTO_MARKET_TABLE, CARTO_MARKET_SCHEMA, UID_FIELD)
+
+    existing_alps = []
+    if cartosql.tableExists(CARTO_ALPS_TABLE, user=os.getenv('CARTO_USER'), key =os.getenv('CARTO_KEY')):
+        logging.info('Fetching existing ids')
+        existing_alps = getIds(CARTO_ALPS_TABLE, UID_FIELD)
+    else:
+        logging.info('Table {} does not exist, creating'.format(CARTO_ALPS_TABLE))
+        createTableWithIndex(CARTO_ALPS_TABLE, CARTO_ALPS_SCHEMA, UID_FIELD, TIME_FIELD)
+
+    existing_interactions = []
+    if cartosql.tableExists(CARTO_INTERACTION_TABLE, user=os.getenv('CARTO_USER'), key =os.getenv('CARTO_KEY')):
+        logging.info('Fetching existing interaction ids')
+        existing_interactions = getIds(CARTO_INTERACTION_TABLE, UID_FIELD)
+    else:
+        logging.info('Table {} does not exist, creating'.format(CARTO_INTERACTION_TABLE))
+        createTableWithIndex(CARTO_INTERACTION_TABLE, CARTO_INTERACTION_SCHEMA, UID_FIELD, INTERACTION_TIME_FIELD)
+
+    # 2. Iterively fetch, parse and post new data
+    num_new_markets, num_new_alps, markets_updated = processNewData(existing_markets, existing_alps)
     num_new_markets=[]
     num_new_alps=[]
     markets_updated=[]
