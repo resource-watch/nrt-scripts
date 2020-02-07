@@ -137,7 +137,6 @@ def feeds():
             feed_list.append(feed_feeds[0])
         except:
             continue
-    df = pd.DataFrame(feed_list)
     df_3 = pd.DataFrame(feed_list)
     df_2 = pd.concat([df_3.drop(['l'], axis=1), df_3['l'].apply(pd.Series)], axis=1)
     df_1 = pd.concat([df_2.drop(['latest'], axis=1), df_2['latest'].apply(pd.Series)], axis=1)
@@ -175,7 +174,7 @@ def processData():
                 logging.error("Error fetching data, and max tries reached. See source for last data update.")
             success = False
     if success == True:
-        if not cartosql.tableExists(CARTO_TABLE):
+        if not cartosql.tableExists(CARTO_TABLE, user=os.getenv('CARTO_USER'), key =os.getenv('CARTO_KEY')):
             logging.info('Table {} does not exist'.format(CARTO_TABLE))
             cartosql.createTable(CARTO_TABLE, CARTO_SCHEMA)
             # Send dataframe to Carto

@@ -23,10 +23,10 @@ ENV NAME ${NAME}
 # copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data
 WORKDIR /opt/$NAME/
-COPY contents/ .
+COPY contents .
 
 RUN useradd -r $NAME
 RUN chown -R $NAME:$NAME /opt/$NAME
-USER $NAME
+#USER $NAME
 
 CMD ["python", "main.py"]
