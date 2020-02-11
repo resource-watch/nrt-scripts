@@ -577,7 +577,7 @@ def main():
     # 1. Check if table exists and create table
     existing_markets = []
     if cartosql.tableExists(CARTO_MARKET_TABLE, user=os.getenv('CARTO_USER'), key =os.getenv('CARTO_KEY')):
-        logging.info('Fetching existing marked ids')
+        logging.info('Fetching existing market ids')
         existing_markets = getIds(CARTO_MARKET_TABLE, UID_FIELD)
     else:
         logging.info('Table {} does not exist, creating'.format(CARTO_MARKET_TABLE))
