@@ -11,6 +11,7 @@ import shapely
 import numpy as np
 import json
 import hashlib
+import pandas as pd
 
 # Constants
 LOG_LEVEL = logging.INFO
@@ -20,7 +21,6 @@ MARKETS_URL = 'http://dataviz.vam.wfp.org/api/GetMarkets?ac={country_code}'
 
 PROCESS_HISTORY_INTERACTIONS=False
 CLEAR_TABLE_FIRST = False
-TOLERATE_TRIES = 100
 DATE_FORMAT = '%Y/%m/%d'
 TIME_STEP = {'days':31}
 
@@ -310,13 +310,15 @@ def processNewData(existing_markets, existing_alps):
     '''
     Iterively fetch parse and post new data
     '''
-    futile_tries = 0
-    country_code = 0
     num_new_markets = 0
     num_new_alps = 0
     markets_updated = []
+
+    #get list of country codes
+    countries = pd.read_csv('http://vam.wfp.org/sites/data/api/adm0code.csv')
+    country_codes=countries['ADM0_CODE'].tolist()
     # get and parse each page; stop when no new results or 200 pages
-    while futile_tries < TOLERATE_TRIES:
+    for country_code in country_codes:
         # 1. Fetch new data
         logging.info("Fetching country code {}".format(country_code))
         try_num=0
@@ -328,14 +330,6 @@ def processNewData(existing_markets, existing_alps):
                 try_num+=1
             else:
                 logging.error(e)
-
-        if len(markets) == len(alps) == 0:
-            futile_tries += 1
-            country_code += 1
-            continue
-        else:
-            futile_tries = 0
-            country_code += 1
 
         # 2. Parse data excluding existing observations
         new_markets = [parseMarkets(mkt, existing_markets) for mkt in markets]
@@ -413,12 +407,13 @@ def processInteractions(markets_updated):
 
     else:
         logging.info('Getting IDs of interactions that should be updated')
-        r = cartosql.getFields('uid', CARTO_INTERACTION_TABLE, where="{} < current_date - interval '{}' month".format(INTERACTION_TIME_FIELD, LOOKBACK),
+        r = cartosql.getFields(['region_id', 'market_id', 'market_name'], CARTO_INTERACTION_TABLE, where="{} < current_date - interval '{}' month".format(INTERACTION_TIME_FIELD, LOOKBACK),
                                f='csv', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
-        old_ids = r.text.split('\r\n')[1:-1]
+        old_ids = [market.split(',') for market in r.text.split('\r\n')[1:-1]]
+        old_market_uids = [genMarketUID(old_id[0], old_id[1], old_id[2]) for old_id in old_ids]
 
         logging.info('Processing interactions for new ALPS data and re-processing interactions that are out of date')
-        markets_to_process = markets_updated + old_ids
+        markets_to_process = markets_updated + old_market_uids
     #go through each market that was updated and create the correct rows for them
     num_markets = len(markets_to_process)
     market_num = 1
@@ -437,7 +432,7 @@ def processInteractions(markets_updated):
                     if r.json()['total_rows']==0:
                         #logging.info('No rows for interaction')
                         alps_entries=[]
-                        break
+                        #break
                     market_entry = r.json()['rows'][0]
 
                     # get information about food prices at market
@@ -605,23 +600,25 @@ def main():
         createTableWithIndex(CARTO_INTERACTION_TABLE, CARTO_INTERACTION_SCHEMA, UID_FIELD, INTERACTION_TIME_FIELD)
 
     # 2. Iterively fetch, parse and post new data
-    num_new_markets, num_new_alps, markets_updated = processNewData(existing_markets, existing_alps)
-    
+    #num_new_markets, num_new_alps, markets_updated = processNewData(existing_markets, existing_alps)
+    num_new_markets=[]
+    num_new_alps=[]
+    markets_updated=[]
     # Update Interaction table
     num_new_interactions = processInteractions(markets_updated)
 
     # Report new data count
-    existing_markets = num_new_markets + len(existing_markets)
+    num_existing_markets = num_new_markets + len(existing_markets)
     logging.info('Total market rows: {}, New: {}, Max: {}'.format(
-        existing_markets, num_new_markets, MAXROWS))
+        num_existing_markets, num_new_markets, MAXROWS))
 
-    existing_alps = num_new_alps + len(existing_alps)
+    num_existing_alps = num_new_alps + len(existing_alps)
     logging.info('Total alps rows: {}, New: {}, Max: {}'.format(
-        existing_alps, num_new_alps, MAXROWS))
+        num_existing_alps, num_new_alps, MAXROWS))
 
-    existing_interactions = num_new_interactions + len(existing_interactions)
+    num_existing_interactions = num_new_interactions + len(existing_interactions)
     logging.info('Total interaction rows: {}, New: {}, Max: {}'.format(
-        existing_interactions, num_new_interactions, MAXROWS))
+        num_existing_interactions, num_new_interactions, MAXROWS))
 
     # 3. Remove old observations
     deleteExcessRows(CARTO_ALPS_TABLE, MAXROWS, TIME_FIELD) # MAXAGE)
