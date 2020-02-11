@@ -413,7 +413,7 @@ def processInteractions(markets_updated):
         old_market_uids = [genMarketUID(old_id[0], old_id[1], old_id[2]) for old_id in old_ids]
 
         logging.info('Processing interactions for new ALPS data and re-processing interactions that are out of date')
-        markets_to_process = markets_updated + old_market_uids
+        markets_to_process = np.unique(markets_updated + old_market_uids)
     #go through each market that was updated and create the correct rows for them
     num_markets = len(markets_to_process)
     market_num = 1
@@ -577,7 +577,7 @@ def main():
     # 1. Check if table exists and create table
     existing_markets = []
     if cartosql.tableExists(CARTO_MARKET_TABLE, user=os.getenv('CARTO_USER'), key =os.getenv('CARTO_KEY')):
-        logging.info('Fetching existing ids')
+        logging.info('Fetching existing market ids')
         existing_markets = getIds(CARTO_MARKET_TABLE, UID_FIELD)
     else:
         logging.info('Table {} does not exist, creating'.format(CARTO_MARKET_TABLE))
@@ -585,7 +585,7 @@ def main():
 
     existing_alps = []
     if cartosql.tableExists(CARTO_ALPS_TABLE, user=os.getenv('CARTO_USER'), key =os.getenv('CARTO_KEY')):
-        logging.info('Fetching existing ids')
+        logging.info('Fetching existing ALPS ids')
         existing_alps = getIds(CARTO_ALPS_TABLE, UID_FIELD)
     else:
         logging.info('Table {} does not exist, creating'.format(CARTO_ALPS_TABLE))
@@ -600,10 +600,8 @@ def main():
         createTableWithIndex(CARTO_INTERACTION_TABLE, CARTO_INTERACTION_SCHEMA, UID_FIELD, INTERACTION_TIME_FIELD)
 
     # 2. Iterively fetch, parse and post new data
-    #num_new_markets, num_new_alps, markets_updated = processNewData(existing_markets, existing_alps)
-    num_new_markets=[]
-    num_new_alps=[]
-    markets_updated=[]
+    num_new_markets, num_new_alps, markets_updated = processNewData(existing_markets, existing_alps)
+
     # Update Interaction table
     num_new_interactions = processInteractions(markets_updated)
 
