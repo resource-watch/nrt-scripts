@@ -446,8 +446,9 @@ def processInteractions(markets_updated):
                     break
                 except:
                     try_num += 1
+            uid = genInteractionUID(market_entry['region_id'], market_entry['market_id'], market_entry['market_name'],
+                                    food_category)
             if alps_entries:
-                uid = genInteractionUID(market_entry['region_id'], market_entry['market_id'], market_entry['market_name'], food_category)
                 commodity_num=1
                 for entry in alps_entries:
                     if commodity_num==1:
