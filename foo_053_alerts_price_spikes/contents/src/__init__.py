@@ -432,7 +432,7 @@ def processInteractions(markets_updated):
                     if r.json()['total_rows']==0:
                         #logging.info('No rows for interaction')
                         alps_entries=[]
-                        #break
+                        break
                     market_entry = r.json()['rows'][0]
 
                     # get information about food prices at market
@@ -498,18 +498,19 @@ def processInteractions(markets_updated):
                             row.append(min(entry['date'] for entry in alps_entries))
                 new_rows.append(row)
                 num_new_interactions+=1
-        #delete old entries for the markets that were updated
-        #logging.info('Deleting old interactions from Carto')
-        try:
-            cartosql.deleteRowsByIDs(CARTO_INTERACTION_TABLE, uid, id_field=UID_FIELD,
-                            user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
-        except:
-            pass
+            #delete old entries for the markets that were updated
+            #logging.info('Deleting old interactions from Carto')
+            try:
+                cartosql.deleteRows(CARTO_INTERACTION_TABLE, "{} = '{}'".format(UID_FIELD, uid), user=os.getenv('CARTO_USER'),
+                                    key=os.getenv('CARTO_KEY'))
+            except:
+                pass
         #cartosql.deleteRowsByIDs(CARTO_INTERACTION_TABLE, markets_to_process, id_field='market_id')
         #send new rows for these markets
         #logging.info('Sending new interactions to Carto')
-        cartosql.insertRows(CARTO_INTERACTION_TABLE, CARTO_INTERACTION_SCHEMA.keys(),
-                            CARTO_INTERACTION_SCHEMA.values(), new_rows, blocksize=500, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
+        if new_rows:
+            cartosql.insertRows(CARTO_INTERACTION_TABLE, CARTO_INTERACTION_SCHEMA.keys(),
+                                CARTO_INTERACTION_SCHEMA.values(), new_rows, blocksize=500, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
         market_num+=1
     return num_new_interactions
 
