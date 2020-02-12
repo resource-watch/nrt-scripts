@@ -383,13 +383,13 @@ def processNewData(existing_markets, existing_alps):
 
         # 3. Insert new rows
 
-        if num_new_markets:
-            logging.info('Pushing {} new Markets rows'.format(num_new_markets))
+        if len(new_markets):
+            logging.info('Pushing {} new Markets rows'.format(len(new_markets)))
             cartosql.insertRows(CARTO_MARKET_TABLE, CARTO_MARKET_SCHEMA.keys(),
                                 CARTO_MARKET_SCHEMA.values(), new_markets,
                                 user=os.getenv('CARTO_USER'), key =os.getenv('CARTO_KEY'))
-        if num_new_alps:
-            logging.info('Pushing {} new ALPS rows'.format(num_new_alps))
+        if len(new_alps):
+            logging.info('Pushing {} new ALPS rows'.format(len(new_alps)))
             cartosql.insertRows(CARTO_ALPS_TABLE, CARTO_ALPS_SCHEMA.keys(),
                                 CARTO_ALPS_SCHEMA.values(), new_alps,
                                 user=os.getenv('CARTO_USER'), key =os.getenv('CARTO_KEY'))
