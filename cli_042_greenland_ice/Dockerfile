@@ -15,7 +15,7 @@ COPY contents/requirements.txt .
 # install application libraries
 #RUN pip install numpy #Install this ahead of rasterio for appropriate applications
 RUN pip install --upgrade pip && pip install -r requirements.txt
-RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
+RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 
 # Copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data
