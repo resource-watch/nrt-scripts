@@ -16,14 +16,14 @@ RUN apt-get install -y \
   cron \
   && apt-get clean
 
-RUN pip install oauth2client
+RUN pip install oauth2client==4.1.3
 RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
-RUN pip install numpy #Install this ahead of rasterio for appropriate applications
+RUN pip install numpy==1.18.1 #Install this ahead of rasterio for appropriate applications
 RUN pip install --upgrade pip && pip install \
-    requests \
-    rasterio \
-    netCDF4 \
-    python-dateutil
+    requests==2.22.0 \
+    rasterio==1.1.2 \
+    netCDF4==1.5.3 \
+    python-dateutil==2.8.0
 
 
 # copy the application folder inside the container

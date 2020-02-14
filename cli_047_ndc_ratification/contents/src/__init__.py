@@ -16,7 +16,7 @@ import pandas as pd
 # 3. Under the 'Indicators' drop down, select 'Status of Ratification'
 # 4. At this point, in the url, you should see the parameter id indicated after 'ndc-content-indicators=' - copy this id
 #    into the indicator_id variable, below.
-indicator_id = 11300
+indicator_id = 15220
 SOURCE_URL = 'https://www.climatewatchdata.org/api/v1/data/ndc_content?indicator_ids[]=%s&page={page}'%indicator_id
 
 CARTO_TABLE = 'cli_047_ndc_ratification'
@@ -64,7 +64,6 @@ def processNewData():
         if cartosql.tableExists(CARTO_TABLE):
             cartosql.deleteRows(CARTO_TABLE, 'cartodb_id IS NOT NULL', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
         logging.info('Updating {}'.format(CARTO_TABLE))
-        createTableWithIndex(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD)
     else:
         logging.error("Source data missing. Table will not update.")
     new_rows = []

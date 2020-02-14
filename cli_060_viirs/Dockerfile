@@ -5,7 +5,7 @@ MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
 RUN apk update
 
 # install application libraries
-RUN pip install requests
+RUN pip install requests==2.22.0
 
 # set name
 ARG NAME=nrt-script

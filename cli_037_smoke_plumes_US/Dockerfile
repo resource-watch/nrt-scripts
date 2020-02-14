@@ -4,7 +4,7 @@ MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
 # install application libraries
 RUN pip install --upgrade pip && \
     pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql && \
-    pip install requests fiona
+    pip install requests==2.22.0 fiona==1.8.13
 
 # set name
 ARG NAME=cli_037
