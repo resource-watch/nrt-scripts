@@ -7,7 +7,7 @@ RUN pip install -U pip
 
 # install application libraries
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
-RUN pip install pandas
+RUN pip install pandas==0.25.3
 
 # set name
 ARG NAME=nrt-script
