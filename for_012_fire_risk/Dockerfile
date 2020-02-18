@@ -7,11 +7,11 @@ RUN pip install -U pip
 
 # install application libraries
 RUN apt-get install -y gdal-bin libgdal-dev
-RUN pip install oauth2client
+RUN pip install oauth2client==4.1.3
 RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
-RUN pip install bs4
-RUN pip install Cython
-RUN pip install netCDF4
+RUN pip install bs4==0.0.1
+RUN pip install Cython==0.29.15
+RUN pip install netCDF4==1.5.3
 
 #install
 RUN apt-get -y install python-gdal
