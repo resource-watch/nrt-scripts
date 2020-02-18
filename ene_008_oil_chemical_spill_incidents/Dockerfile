@@ -7,7 +7,7 @@ RUN apk add git
 RUN pip install --upgrade pip
 
 # install application libraries
-RUN pip install requests
+RUN pip install requests==2.22.0
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 
 # env
