@@ -16,12 +16,11 @@ RUN apt-get install -y \
   cron \
   && apt-get clean
 
-RUN pip install --upgrade pip && pip install numpy
-RUN pip install rasterio \
-    earthengine-api \
-    google-cloud-storage
-RUN pip install oauth2client
-RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
+RUN pip install --upgrade pip && pip install numpy==1.18.1
+RUN pip install rasterio==1.1.2
+RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
+RUN pip install oauth2client==4.1.3
+RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 
 # copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data
