@@ -11,7 +11,7 @@ RUN apt-get install -y cron
 # install application libraries
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 RUN pip install -U pip \
-    requests
+    requests==2.22.0
 
 # Copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data
