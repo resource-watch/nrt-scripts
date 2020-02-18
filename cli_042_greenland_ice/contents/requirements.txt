@@ -1,4 +1,0 @@
-requests==2.22.0
-python-dateutil==2.6.1
-pytz==2017.3
-bs4
