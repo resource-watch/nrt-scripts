@@ -6,8 +6,8 @@ RUN apk update
 RUN apk add git
 
 # install application libraries
-RUN pip install requests
-RUN pip install simplejson
+RUN pip install requests==2.22.0
+RUN pip install simplejson==3.17.0
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 
 # set name
