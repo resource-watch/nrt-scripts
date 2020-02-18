@@ -8,7 +8,7 @@ RUN apt-get update
 RUN pip install --upgrade pip
 
 # install application libraries
-RUN pip install fiona shapely python-dateutil requests
+RUN pip install fiona==1.8.13 shapely==1.6.4 python-dateutil==2.8.0 requests==2.22.0
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 
 # Copy the application folder inside the container
