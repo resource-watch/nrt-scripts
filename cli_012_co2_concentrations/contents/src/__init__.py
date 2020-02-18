@@ -6,7 +6,7 @@ import sys
 import datetime
 import logging
 import subprocess
-from . import eeUtil
+import eeUtil
 import rasterio as rio
 from affine import Affine
 import numpy as np
@@ -39,18 +39,6 @@ MAX_YEARS = 5
 MAX_DATES = MAX_YEARS*12
 DATE_FORMAT = '%Y%m'
 TIMESTEP = {'days': 30}
-
-GCS_JSON = os.getenv('GCS_JSON') or os.getenv('GEE_JSON')
-
-# environmental variables
-with open('gcsPrivateKey.json','w') as f:
-    f.write(GCS_JSON)
-
-GEE_SERVICE_ACCOUNT = os.environ.get("GEE_SERVICE_ACCOUNT")
-GOOGLE_APPLICATION_CREDENTIALS = os.environ.get(
-    "GOOGLE_APPLICATION_CREDENTIALS")
-GEE_STAGING_BUCKET = os.environ.get("GEE_STAGING_BUCKET")
-GCS_PROJECT = os.environ.get("CLOUDSDK_CORE_PROJECT")
 
 NASA_USER = os.environ.get("EARTHDATA_USER")
 NASA_PASS = os.environ.get("EARTHDATA_KEY")
@@ -256,7 +244,7 @@ def processNewData(existing_dates):
         logging.info('Uploading files')
         dates = [getDate(tif) for tif in tifs]
         assets = [getAssetName(tif) for tif in tifs]
-        eeUtil.uploadAssets(tifs, assets, GS_PREFIX, dates, dateformat=DATE_FORMAT, public=True, timeout=3000)
+        eeUtil.uploadAssets(tifs, assets, GS_PREFIX, dates=[datetime.datetime.strptime(date, DATE_FORMAT) for date in dates], public=True, timeout=3000)
         new_assets.extend(assets)
 
     clearDir()
@@ -292,8 +280,7 @@ def main():
     logging.info('STARTING')
 
     # Initialize eeUtil
-    eeUtil.init(GEE_SERVICE_ACCOUNT, GOOGLE_APPLICATION_CREDENTIALS,
-                GCS_PROJECT, GEE_STAGING_BUCKET)
+    eeUtil.initJson()
 
     if CLEAR_COLLECTION_FIRST:
         eeUtil.removeAsset(EE_COLLECTION, recursive=True)
