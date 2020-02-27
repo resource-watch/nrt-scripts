@@ -7,8 +7,6 @@ import pandas as pd
 import cartoframes
 import requests
 import numpy as np
-import math
-
 
 ### Constants
 SOURCE_URL = "https://ngdc.noaa.gov/nndc/struts/results?type_0=Exact&query_0=$ID&t=101650&s=69&d=59&dfn=tsevent.txt"
