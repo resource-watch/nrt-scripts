@@ -11,7 +11,7 @@ RUN apt-get install -y cron
 RUN pip install --upgrade pip && pip install \
     requests==2.22.0
 RUN pip install cartoframes==0.9.2
-RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
+RUN pip install numpy==1.18.1
 
 # Copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data
