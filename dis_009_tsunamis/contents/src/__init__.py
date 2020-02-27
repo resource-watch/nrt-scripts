@@ -6,8 +6,7 @@ import datetime
 import pandas as pd
 import cartoframes
 import requests
-import cartosql
-
+import numpy as np
 
 ### Constants
 SOURCE_URL = "https://ngdc.noaa.gov/nndc/struts/results?type_0=Exact&query_0=$ID&t=101650&s=69&d=59&dfn=tsevent.txt"
@@ -56,23 +55,18 @@ def lastUpdateDate(dataset, date):
 ## Accessing remote data
 ###
 
-def create_date(year, month, day, hour, minute, second):
-    if year:
-        try:
-            year = int(year)
-            month = int(month) if month else 1
-            day = int(day) if day else 1
-            hour = int(hour) if hour else 1
-            minute = int(minute) if minute else 1
-            second = int(float(second)) if second else 1
-            return datetime(year, month, day, hour, minute, second).strftime(DATE_FORMAT)
-        except Exception as e:
-            pass
-            #logging.error(year, month, day, hour, minute, second)
-            #logging.error(e)
+def create_geom(lat, lon):
+    if lat:
+        geom = {
+            "type": "Point",
+            "coordinates": [
+                lon,
+                lat
+            ]
+        }
+        return geom
     else:
-        pass
-        #logging.error('No year!')
+        return None
 
 def processData():
     """
@@ -88,8 +82,14 @@ def processData():
     rows = lines[1:]
     df = pd.DataFrame(rows)
     df.columns = header
-    df['datetime'] = list(map(lambda dates: create_date(*dates), zip(df['YEAR'],df['MONTH'], df['DAY'], df['HOUR'], df['MINUTE'], df['SECOND'])))
+    df['the_geom'] = list(map(lambda coords: create_geom(*coords), zip(df['LATITUDE'],df['LONGITUDE'])))
 
+    text_cols = ['the_geom', 'COUNTRY', 'STATE', 'LOCATION_NAME']
+    number_cols = [x for x in df.columns if x not in text_cols]
+    df = df.replace(r'^\s*$', np.nan, regex=True)
+    for col in number_cols:
+        print(col)
+        df[col] =  pd.to_numeric(df[col], errors='coerce')
     return(df)
 
 def get_most_recent_date(table):
@@ -120,11 +120,6 @@ def main():
 
     cc = cartoframes.CartoContext(base_url='https://{}.carto.com/'.format(CARTO_USER),
                                   api_key=CARTO_KEY)
-    #check size of old table
-    r = cartosql.getFields('datetime', CARTO_TABLE, f='csv')
-    existing_ids = r.text.split('\r\n')[1:-1]
-    num_existing = len(existing_ids)
-
     ### 2. Fetch data from FTP, dedupe, process
     df = processData()
 
@@ -132,7 +127,7 @@ def main():
     cc.write(df, CARTO_TABLE, overwrite=True, privacy='public')
 
     # Get most recent update date
-    most_recent_date = datetime.datetime.utcnow()
+    most_recent_date =  get_most_recent_date(df)
     lastUpdateDate(DATASET_ID, most_recent_date)
 
     ### 3. Notify results
