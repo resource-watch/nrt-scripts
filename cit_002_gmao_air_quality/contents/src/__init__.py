@@ -381,16 +381,23 @@ def processNewData(all_files, files_by_date, period):
             dates.append(getDateTime(tif))
             #generate datetime objects for each data
             datestamps.append(datetime.datetime.strptime(date, DATE_FORMAT))
+        if period = 'historical':
+            assets_to_delete == []
+        elif period == 'forecast':
+            # if we have successfully pulled and converted the new data available, get a list of the assets we will want
+            # to delete after we update the layers
+            assets_to_delete = listAllCollections()
+
         # Upload new files to GEE
         logging.info('Uploading files:')
         for asset in assets:
             logging.info(os.path.split(asset)[1])
         eeUtil.uploadAssets(tifs, assets, GS_FOLDER, datestamps, timeout=3000)
 
-        return assets
+        return assets, assets_to_delete
     #if no new assets, return empty list
     else:
-        return []
+        return [], []
 
 def checkCreateCollection(VARS):
     #create a master list (not variable-specific) of which dates we already have data for
@@ -481,6 +488,22 @@ def clearCollection():
                 list = a.toList(collection_size)
                 for item in list.getInfo():
                     ee.data.deleteAsset(item['id'])
+
+def listAllCollections():
+    all_assets = []
+    for var_num in range(len(VARS)):
+        var = VARS[var_num]
+        collection = EE_COLLECTION_GEN.format(metric=METRIC_BY_COMPOUND[var], var=var)
+        if eeUtil.exists(collection):
+            if collection[0] == '/':
+                collection = collection[1:]
+            a = ee.ImageCollection(collection)
+            collection_size = a.size().getInfo()
+            if collection_size > 0:
+                list = a.toList(collection_size)
+                for item in list.getInfo():
+                    all_assets.append(item['id'])
+    return all_assets
 
 def initialize_ee():
     GEE_JSON = os.environ.get("GEE_JSON")
@@ -611,7 +634,7 @@ def main():
         GS_FOLDER=COLLECTION[1:]+'_'+VAR
 
         # Process new data files
-        new_assets_historical = processNewData(files, files_by_date, period='historical')
+        new_assets_historical, assets_to_delete = processNewData(files, files_by_date, period='historical')
 
         # get list of all dates we now have data for by combining existing dates with new dates
         all_dates = existing_dates_by_var[var_num] + new_dates_historical
@@ -677,11 +700,8 @@ def main():
     # Download files and get list of locations of netcdfs in docker container
     files, files_by_date = fetch(new_dates_forecast, SOURCE_URL_FORECAST, period='forecast')
 
-    # if we have successfully pulled the new data is available, clear the collection because we want to store the most
-    # recent forecast, not the old forecast
     if new_dates_forecast:
         logging.info('New forecast available')
-        clearCollection()
 
     for var_num in range(len(VARS)):
         logging.info('Processing {}'.format(VARS[var_num]))
@@ -693,7 +713,7 @@ def main():
         GS_FOLDER=COLLECTION[1:]+'_'+VAR
 
         # Process new data files
-        new_assets_forecast = processNewData(files, files_by_date, period='forecast')
+        new_assets_forecast, assets_to_delete = processNewData(files, files_by_date, period='forecast')
 
         # get list of existing assets in current variable's GEE collection
         existing_assets = eeUtil.ls(EE_COLLECTION)
@@ -777,7 +797,9 @@ def main():
 
                     #replace layer asset and title date with new
                     update_layer(layer, date)
-
+        # delete the old forecast assets that we don't need
+        for asset in assets_to_delete:
+            eeUtil.removeAsset(asset)
     elif not new_dates_historical and not new_dates_forecast:
         logging.info('Layers do not need to be updated.')
     else:
