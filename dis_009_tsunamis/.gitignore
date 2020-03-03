@@ -1,6 +1,0 @@
-*.env
-*#
-*.py[c|o]
-*.DS_Store
-data/*
-credentials.json
