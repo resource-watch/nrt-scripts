@@ -246,6 +246,7 @@ def main():
 
     current_date = getLastUpdate(DATASET_ID)
 
+    # Update Resource Watch
     if current_date != most_recent_date:
         logging.info('Updating last update date and flushing cache.')
         # Update data set's last update date on Resource Watch
