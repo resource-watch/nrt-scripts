@@ -381,7 +381,7 @@ def processNewData(all_files, files_by_date, period):
             dates.append(getDateTime(tif))
             #generate datetime objects for each data
             datestamps.append(datetime.datetime.strptime(date, DATE_FORMAT))
-        if period = 'historical':
+        if period == 'historical':
             assets_to_delete == []
         elif period == 'forecast':
             # if we have successfully pulled and converted the new data available, get a list of the assets we will want
