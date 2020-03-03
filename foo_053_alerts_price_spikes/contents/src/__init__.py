@@ -441,7 +441,7 @@ def processInteractions(markets_updated):
                     # SQL gets most recent entry for each commodity at each market that is NOT a forecast
                     request = "SELECT DISTINCT ON (mktid, cmname) * FROM {table} WHERE mktid={market_id} AND mktname='{market_name}' AND adm1id={region_id} AND category LIKE '{cat_name}' AND date > current_date - interval '{x}' month AND forecast = 'False' ORDER  BY mktid, cmname, date desc".format(
                         table=CARTO_ALPS_TABLE, market_id=market_entry['market_id'],
-                        market_name=market_entry['market_name'], region_id=market_entry['region_id'],
+                        market_name=market_entry['market_name'].replace("'", "''"), region_id=market_entry['region_id'],
                         cat_name=sql_query, x=LOOKBACK)
                     r = cartosql.get(request, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
                     alps_entries = r.json()['rows']
