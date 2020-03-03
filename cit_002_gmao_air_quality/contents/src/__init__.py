@@ -381,12 +381,13 @@ def processNewData(all_files, files_by_date, period):
             dates.append(getDateTime(tif))
             #generate datetime objects for each data
             datestamps.append(datetime.datetime.strptime(date, DATE_FORMAT))
-        if period == 'historical':
-            assets_to_delete = []
-        elif period == 'forecast':
+        if period == 'forecast':
             # if we have successfully pulled and converted the new data available, get a list of the assets we will want
             # to delete after we update the layers
             assets_to_delete = listAllCollections()
+            # delete the old forecast assets that we don't need
+            for asset in assets_to_delete:
+                ee.data.deleteAsset(asset)
 
         # Upload new files to GEE
         logging.info('Uploading files:')
@@ -797,9 +798,6 @@ def main():
 
                     #replace layer asset and title date with new
                     update_layer(layer, date)
-        # delete the old forecast assets that we don't need
-        for asset in assets_to_delete:
-            eeUtil.removeAsset(asset)
     elif not new_dates_historical and not new_dates_forecast:
         logging.info('Layers do not need to be updated.')
     else:
