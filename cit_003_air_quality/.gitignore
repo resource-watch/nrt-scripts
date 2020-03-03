@@ -1,9 +1,0 @@
-.env
-*.py[c|o]
-.DS_Store
-
-data/*
-__pycache__
-
-*.csv
-*#
