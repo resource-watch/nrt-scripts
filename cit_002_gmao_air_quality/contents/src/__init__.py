@@ -395,7 +395,7 @@ def processNewData(all_files, files_by_date, period):
             logging.info(os.path.split(asset)[1])
         eeUtil.uploadAssets(tifs, assets, GS_FOLDER, datestamps, timeout=3000)
 
-        return assets, assets_to_delete
+        return assets
     #if no new assets, return empty list
     else:
         return [], []
@@ -635,7 +635,7 @@ def main():
         GS_FOLDER=COLLECTION[1:]+'_'+VAR
 
         # Process new data files
-        new_assets_historical, assets_to_delete = processNewData(files, files_by_date, period='historical')
+        new_assets_historical = processNewData(files, files_by_date, period='historical')
 
         # get list of all dates we now have data for by combining existing dates with new dates
         all_dates = existing_dates_by_var[var_num] + new_dates_historical
@@ -714,7 +714,7 @@ def main():
         GS_FOLDER=COLLECTION[1:]+'_'+VAR
 
         # Process new data files
-        new_assets_forecast, assets_to_delete = processNewData(files, files_by_date, period='forecast')
+        new_assets_forecast = processNewData(files, files_by_date, period='forecast')
 
         # get list of existing assets in current variable's GEE collection
         existing_assets = eeUtil.ls(EE_COLLECTION)
