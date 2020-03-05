@@ -388,6 +388,7 @@ def processNewData(all_files, files_by_date, period):
             # delete the old forecast assets that we don't need
             for asset in assets_to_delete:
                 ee.data.deleteAsset(asset)
+                logging.info(f'Deleteing {asset}')
 
         # Upload new files to GEE
         logging.info('Uploading files:')
@@ -398,7 +399,7 @@ def processNewData(all_files, files_by_date, period):
         return assets
     #if no new assets, return empty list
     else:
-        return [], []
+        return []
 
 def checkCreateCollection(VARS):
     #create a master list (not variable-specific) of which dates we already have data for
