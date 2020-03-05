@@ -1,5 +1,6 @@
 FROM python:3-stretch
 MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
+#Note this script was originally developed by Nathan Suberi <nathan.suberi@wri.org>
 
 # install core libraries
 RUN apt-get update

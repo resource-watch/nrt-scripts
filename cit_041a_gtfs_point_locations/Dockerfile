@@ -1,5 +1,6 @@
 FROM python:3.6
 MAINTAINER Kristine Lister <kristine.lister@wri.org>
+#Note this script was originally developed by Ken Wakabayashi <ken.wakabayashi@wri.org> and Kristine Lister <kristine.lister@wri.org>
 
 # install core libraries
 RUN apt-get update

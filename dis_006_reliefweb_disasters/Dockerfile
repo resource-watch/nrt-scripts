@@ -1,5 +1,7 @@
 FROM python:3.6
 MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
+#Note this script was originally developed by Amelia Snyder <amelia.snyder@wri.org>
+
 ARG NAME=dis_006_reliefweb_disasters
 ENV NAME ${NAME}
 
