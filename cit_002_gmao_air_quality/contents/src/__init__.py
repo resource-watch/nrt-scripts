@@ -62,7 +62,7 @@ METRIC_BY_COMPOUND = {
 }
 
 #how many assets can be stored in the GEE collection before the oldest ones are deleted?
-MAX_ASSETS = 14
+MAX_ASSETS = 100
 
 def getLastUpdate(dataset):
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{}'.format(dataset)
@@ -360,7 +360,7 @@ def daily_max(date, tifs_for_date):
     subprocess.check_output(cmd, shell=True)
     return result_tif
 
-def processNewData(all_files, files_by_date, period):
+def processNewData(all_files, files_by_date, period, assets_to_delete):
     '''process, upload, and clean new data'''
     if all_files: #if files is empty list do nothing, otherwise, process data
         tifs = []
@@ -381,14 +381,9 @@ def processNewData(all_files, files_by_date, period):
             dates.append(getDateTime(tif))
             #generate datetime objects for each data
             datestamps.append(datetime.datetime.strptime(date, DATE_FORMAT))
-        if period == 'forecast':
-            # if we have successfully pulled and converted the new data available, get a list of the assets we will want
-            # to delete after we update the layers
-            assets_to_delete = listAllCollections()
-            # delete the old forecast assets that we don't need
-            for asset in assets_to_delete:
-                ee.data.deleteAsset(asset)
-                logging.info(f'Deleteing {asset}')
+        for asset in assets_to_delete:
+            ee.data.deleteAsset(asset)
+            logging.info(f'Deleteing {asset}')
 
         # Upload new files to GEE
         logging.info('Uploading files:')
@@ -493,18 +488,16 @@ def clearCollection():
 
 def listAllCollections():
     all_assets = []
-    for var_num in range(len(VARS)):
-        var = VARS[var_num]
-        collection = EE_COLLECTION_GEN.format(metric=METRIC_BY_COMPOUND[var], var=var)
-        if eeUtil.exists(collection):
-            if collection[0] == '/':
-                collection = collection[1:]
-            a = ee.ImageCollection(collection)
-            collection_size = a.size().getInfo()
-            if collection_size > 0:
-                list = a.toList(collection_size)
-                for item in list.getInfo():
-                    all_assets.append(item['id'])
+    collection = EE_COLLECTION_GEN.format(metric=METRIC_BY_COMPOUND[VAR], var=VAR)
+    if eeUtil.exists(collection):
+        if collection[0] == '/':
+            collection = collection[1:]
+        a = ee.ImageCollection(collection)
+        collection_size = a.size().getInfo()
+        if collection_size > 0:
+            list = a.toList(collection_size)
+            for item in list.getInfo():
+                all_assets.append(item['id'])
     return all_assets
 
 def initialize_ee():
@@ -635,8 +628,11 @@ def main():
         # specify Google Cloud Storage folder name
         GS_FOLDER=COLLECTION[1:]+'_'+VAR
 
+        # Get list of old assets to delete (none for historical)
+        assets_to_delete = []
+
         # Process new data files
-        new_assets_historical = processNewData(files, files_by_date, period='historical')
+        new_assets_historical = processNewData(files, files_by_date, period='historical', assets_to_delete=assets_to_delete)
 
         # get list of all dates we now have data for by combining existing dates with new dates
         all_dates = existing_dates_by_var[var_num] + new_dates_historical
@@ -714,8 +710,11 @@ def main():
         # specify Google Cloud Storage folder name
         GS_FOLDER=COLLECTION[1:]+'_'+VAR
 
+        # Get list of old assets to delete (all currently in collection)
+        assets_to_delete = listAllCollections()
+
         # Process new data files
-        new_assets_forecast = processNewData(files, files_by_date, period='forecast')
+        new_assets_forecast = processNewData(files, files_by_date, period='forecast', assets_to_delete=assets_to_delete)
 
         # get list of existing assets in current variable's GEE collection
         existing_assets = eeUtil.ls(EE_COLLECTION)
