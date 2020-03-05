@@ -1,5 +1,6 @@
 FROM python:3.6
 MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
+#Note this script was originally developed by Francis Gassert <fgassert@wri.org>
 
 # set name
 ARG NAME=nrt-script

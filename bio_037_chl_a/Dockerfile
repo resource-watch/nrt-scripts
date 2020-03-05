@@ -1,5 +1,6 @@
 FROM python:3-stretch
 MAINTAINER Kristine Lister <kristine.lister@wri.org>
+#Note this script was originally developed by Kristine Lister <kristine.lister@wri.org>
 
 # install core libraries
 RUN apt-get update

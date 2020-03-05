@@ -1,5 +1,6 @@
 FROM python:3.6
 MAINTAINER Liz Saccoccia <elizabeth.saccoccia@wri.org>
+#Note this script was originally developed by Liz Saccoccia <elizabeth.saccoccia@wri.org>
 
 # install core libraries
 RUN apt-get update

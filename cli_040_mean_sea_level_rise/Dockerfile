@@ -1,5 +1,7 @@
 FROM python:3.6
 MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
+#Note this script was originally developed by Nathan Suberi <nathan.suberi@wri.org>
+
 ARG NAME=cli_040
 ENV NAME ${NAME}
 
