@@ -5,7 +5,7 @@ This file describes the near real-time script that retrieves and processes the [
 
 {Describe the steps used to process the data, e.g., "convert variable X from the original netcdf file to a tif to upload to Google Earth Engine."}
 
-Please see the [Python script](https://github.com/Taufiq06/nrt-scripts/blob/master/cli_035_surface_temp_analysis/contents/src/__init__.py) for more details on this processing.
+Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/cli_035_surface_temp_analysis/contents/src/__init__.py) for more details on this processing.
 
 You can view the processed Combined Sea Surface and Air Temperature Anomalies dataset [on Resource Watch](https://resourcewatch.org/data/explore/cli_035_Surface-Temperature-Anomalies).
 
