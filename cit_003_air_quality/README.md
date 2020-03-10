@@ -2,9 +2,9 @@
 This file describes the near real-time script that retrieves and processes the [OpenAQ Air Quality Readings dataset](https://gmao.gsfc.nasa.gov/weather_prediction/GEOS-CF/) to display real-time station level outdoor measurements of
 * [Fine Particulate Matter (PM2.5)](https://resourcewatch.org/data/explore/cit003anrt-Air-Quality-Measurements-PM-25)
 * [Particulate Matter (PM10)](https://resourcewatch.org/data/explore/cit003bnrt-Air-Quality-Measurements-PM-10)
-* [Sulfur Dioxide (SO₂) concentrations](https://resourcewatch.org/data/explore/cit003cairqualityso2)
-* [Nitrogen Dioxide (NO₂) concentrations](https://resourcewatch.org/data/explore/cit003dnrt-Air-Quality-Measurements-NO)
-* [Ozone (O₃) concentrations](https://resourcewatch.org/data/explore/cit003cnrt-Air-Quality-Measurements-O)
+* [Sulfur Dioxide (SO₂)](https://resourcewatch.org/data/explore/cit003cairqualityso2)
+* [Nitrogen Dioxide (NO₂)](https://resourcewatch.org/data/explore/cit003dnrt-Air-Quality-Measurements-NO)
+* [Ozone (O₃)](https://resourcewatch.org/data/explore/cit003cnrt-Air-Quality-Measurements-O)
 * [Carbon Monoxide (CO)](https://resourcewatch.org/data/explore/cit003fnrt-Air-Quality-Measurements-CO)
 * [Black Carbon](https://resourcewatch.org/data/explore/cit003gnrt-Air-Quality-Measurements-BC_1)
 <br>on Resource Watch.
