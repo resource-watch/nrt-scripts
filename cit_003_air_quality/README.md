@@ -7,7 +7,8 @@ This file describes the near real-time script that retrieves and processes the [
 * [Ozone (O₃)](https://resourcewatch.org/data/explore/cit003cnrt-Air-Quality-Measurements-O)
 * [Carbon Monoxide (CO)](https://resourcewatch.org/data/explore/cit003fnrt-Air-Quality-Measurements-CO)
 * [Black Carbon](https://resourcewatch.org/data/explore/cit003gnrt-Air-Quality-Measurements-BC_1)
-<br>on Resource Watch.
+
+on Resource Watch.
 
 {Describe how the original data came from the source.}
 
@@ -28,4 +29,4 @@ You can view the processed
 
 This script is run daily. The exact time that the script is run to update the dataset can be found in the the `time.cron` file. This time is in Coordinated Universal Time (UTC), expressed in cron format.
 
-###### Note: This script was originally written by [Amelia Snyder](https://www.wri.org/profile/amelia-snyder), and is currently maintained by [Amelia Snyder](https://www.wri.org/profile/amelia-snyder).
+###### Note: This script was originally written by [Francis Gassert](https://www.wri.org/profile/francis-gassert), and is currently maintained by [Amelia Snyder](https://www.wri.org/profile/amelia-snyder).
