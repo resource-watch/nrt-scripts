@@ -10,7 +10,7 @@ on Resource Watch.
 
 {Describe the steps used to process the data, e.g., "convert variable X from the original netcdf file to a tif to upload to Google Earth Engine."}
 
-Please see the [Python script](https://github.com/Taufiq06/nrt-scripts/blob/master/cit_002_gmao_air_quality/contents/src/__init__.py) for more details on this processing.
+Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/cit_002_gmao_air_quality/contents/src/__init__.py) for more details on this processing.
 
 You can view the processed 
 * Air Quality: Nitrogen Dioxide (NO₂) Modeled 5-day Forecast dataset [on Resource Watch](https://resourcewatch.org/data/explore/cit002-GMAO-Air-Quality-Forecast-NO2).
