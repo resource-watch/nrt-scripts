@@ -4,7 +4,8 @@ This file describes the near real-time script that retrieves and processes the [
 * [Carbon Monoxide (CO)](https://resourcewatch.org/data/explore/Air-Quality-Measurements-TROPOMI-CO)
 * [Aerosol Index](https://resourcewatch.org/data/explore/Air-Quality-Measurements-TROPOMI-AER-AI)
 * [Ozone (O₃)](https://resourcewatch.org/data/explore/Air-Quality-Measurements-TROPOMI-O)
-<br>on Resource Watch.
+
+on Resource Watch.
 
 {Describe how the original data came from the source.}
 
