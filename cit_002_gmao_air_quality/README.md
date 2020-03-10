@@ -3,7 +3,6 @@ This file describes the near real-time script that retrieves and processes the [
 * [NO₂ concentrations](https://resourcewatch.org/data/explore/cit002-GMAO-Air-Quality-Forecast-NO2)
 * [Fine Particulate Matter (PM2.5) concentrations](https://resourcewatch.org/data/explore/cit002-GMAO-Air-Quality-Forecast-PM25)
 * [Ozone (O₃) concentrations](https://resourcewatch.org/data/explore/cit002-GMAO-Air-Quality-Forecast-O3)
-
 <br>on Resource Watch.
 
 {Describe how the original data came from the source.}
