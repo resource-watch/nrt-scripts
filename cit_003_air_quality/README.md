@@ -14,7 +14,7 @@ on Resource Watch.
 
 {Describe the steps used to process the data, e.g., "convert variable X from the original netcdf file to a tif to upload to Google Earth Engine."}
 
-Please see the [Python script](https://github.com/Taufiq06/nrt-scripts/blob/master/cit_003_air_quality/contents/src/__init__.py) for more details on this processing.
+Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/cit_003_air_quality/contents/src/__init__.py) for more details on this processing.
 
 You can view the processed 
 * Air Quality: Fine Particulate Matter (PM2.5) Station Measurements dataset [on Resource Watch](https://resourcewatch.org/data/explore/cit003anrt-Air-Quality-Measurements-PM-25).
