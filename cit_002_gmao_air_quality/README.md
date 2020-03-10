@@ -3,7 +3,7 @@ This file describes the near real-time script that retrieves and processes the [
 * [NO₂ concentrations](https://resourcewatch.org/data/explore/cit002-GMAO-Air-Quality-Forecast-NO2)
 * [Fine Particulate Matter (PM2.5) concentrations](https://resourcewatch.org/data/explore/cit002-GMAO-Air-Quality-Forecast-PM25)
 * [Ozone (O₃) concentrations](https://resourcewatch.org/data/explore/cit002-GMAO-Air-Quality-Forecast-O3)
-on Resource Watch.
+<br>on Resource Watch.
 
 {Describe how the original data came from the source.}
 
@@ -12,9 +12,9 @@ on Resource Watch.
 Please see the [Python script](https://github.com/Taufiq06/nrt-scripts/blob/master/cit_002_gmao_air_quality/contents/src/__init__.py) for more details on this processing.
 
 You can view the processed 
-* Nitrogen Dioxide (NO₂) Modeled 5-day Forecast dataset [on Resource Watch](https://resourcewatch.org/data/explore/cit002-GMAO-Air-Quality-Forecast-NO2).
-* Fine Particulate Matter (PM2.5) Modeled 5-day Forecast dataset [on Resource Watch](https://resourcewatch.org/data/explore/cit002-GMAO-Air-Quality-Forecast-PM25).
-* Ozone (O₃) Modeled 5-day Forecast dataset [on Resource Watch](https://resourcewatch.org/data/explore/cit002-GMAO-Air-Quality-Forecast-O3).
+* Air Quality: Nitrogen Dioxide (NO₂) Modeled 5-day Forecast dataset [on Resource Watch](https://resourcewatch.org/data/explore/cit002-GMAO-Air-Quality-Forecast-NO2).
+* Air Quality: Fine Particulate Matter (PM2.5) Modeled 5-day Forecast dataset [on Resource Watch](https://resourcewatch.org/data/explore/cit002-GMAO-Air-Quality-Forecast-PM25).
+* Air Quality: Ozone (O₃) Modeled 5-day Forecast dataset [on Resource Watch](https://resourcewatch.org/data/explore/cit002-GMAO-Air-Quality-Forecast-O3).
 
 **Schedule**
 
