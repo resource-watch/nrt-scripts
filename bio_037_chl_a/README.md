@@ -11,6 +11,6 @@ You can view the processed Chlorophyll Concentration dataset [on Resource Watch]
 
 **Schedule**
 
-This script is run at 02:30 on 19th of each month. The exact time that the script is run to update the dataset can be found in the the `time.cron` file. This time is in Coordinated Universal Time (UTC), expressed in cron format.
+This script is run once every month. The exact time that the script is run to update the dataset can be found in the the `time.cron` file. This time is in Coordinated Universal Time (UTC), expressed in cron format.
 
 ###### Note: This script was originally written by [Kristine Lister](https://www.wri.org/profile/kristine-lister), and is currently maintained by [Kristine Lister](https://www.wri.org/profile/kristine-lister).
