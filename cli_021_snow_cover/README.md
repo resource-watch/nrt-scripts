@@ -11,6 +11,6 @@ You can view the processed Snow Cover dataset [on Resource Watch](https://resour
 
 **Schedule**
 
-This script is run at 23:50 on first nine days of each month. The exact time that the script is run to update the dataset can be found in the the `time.cron` file. This time is in Coordinated Universal Time (UTC), expressed in cron format.
+This script is run first nine days of every month. The exact time that the script is run to update the dataset can be found in the the `time.cron` file. This time is in Coordinated Universal Time (UTC), expressed in cron format.
 
 ###### Note: This script was originally written by [Liz Saccoccia](https://www.wri.org/profile/liz-saccoccia), and is currently maintained by [Liz Saccoccia](https://www.wri.org/profile/liz-saccoccia).
