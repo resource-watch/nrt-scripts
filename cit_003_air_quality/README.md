@@ -1,5 +1,5 @@
 ## Air Quality: Fine Particulate Matter (PM2.5)/Particulate Matter (PM10)/Sulfur Dioxide (SO₂)/Nitrogen Dioxide (NO₂)/Ozone (O₃)/Carbon Monoxide (CO)/Black Carbon Station Measurements Dataset Near Real-time Script
-This file describes the near real-time script that retrieves and processes the [OpenAQ Air Quality Readings dataset](https://gmao.gsfc.nasa.gov/weather_prediction/GEOS-CF/) to display real-time station level outdoor measurements of
+This file describes the near real-time script that retrieves and processes the [OpenAQ Air Quality Readings dataset](https://openaq.org/) to display real-time station level outdoor measurements of
 * [Fine Particulate Matter (PM2.5)](https://resourcewatch.org/data/explore/cit003anrt-Air-Quality-Measurements-PM-25)
 * [Particulate Matter (PM10)](https://resourcewatch.org/data/explore/cit003bnrt-Air-Quality-Measurements-PM-10)
 * [Sulfur Dioxide (SO₂)](https://resourcewatch.org/data/explore/cit003cairqualityso2)
