@@ -19,7 +19,7 @@ ENV NAME ${NAME}
 # copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data
 WORKDIR /opt/$NAME/
-COPY contents/ .
+COPY contents .
 
 RUN useradd $NAME
 RUN chown -R $NAME:$NAME .

@@ -24,6 +24,7 @@ NODATA_VALUE = 9.9999999E14
 
 DATA_DIR = 'data'
 COLLECTION = '/projects/resource-watch-gee/cit_002_gmao_air_quality'
+# do you want to delete everything currently in the GEE collection when you run this script?
 CLEAR_COLLECTION_FIRST = False
 DELETE_LOCAL = True
 
@@ -32,7 +33,7 @@ DATE_FORMAT = '%Y-%m-%d'
 
 LOG_LEVEL = logging.INFO
 
-# define RW back office ids for each variable
+# input RW API ids for each variable
 DATASET_IDS = {
     'NO2':'ecce902d-a322-4d13-a3d6-e1a36fc5573e',
     'O3':'ebc079a1-51d8-4622-ba25-d8f3b4fcf8b3',
