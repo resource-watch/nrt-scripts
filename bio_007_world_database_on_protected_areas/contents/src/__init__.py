@@ -192,7 +192,7 @@ def processData(existing_ids):
             try:
                 r = requests.get(url)
             except:
-                time.sleep(30)
+                time.sleep(60)
                 try_num+=1
         else:
             logging.info(f'Could not fetch {id}')
