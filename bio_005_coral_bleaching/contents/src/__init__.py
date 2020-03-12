@@ -53,7 +53,7 @@ DATASET_ID = 'e2a2d074-8428-410e-920c-325bbe363a2e'
 '''
 FUNCTIONS FOR ALL DATASETS
 
-The Functions below must go in every near real-time script.
+The functions below must go in every near real-time script.
 Their format should not need to be changed.
 '''
 
@@ -78,10 +78,35 @@ def getLastUpdate(dataset):
     lastUpdateDT = nofrag_dt.replace(microsecond=int(frag[:-1])*1000)
     return lastUpdateDT
 
+
+def lastUpdateDate(dataset, date):
+    '''
+    Given a Resource Watch dataset's API ID and a datetime,
+    this function will update the dataset's 'last update date' on the API with the given datetime
+    '''
+    # generate the API url for this dataset
+    apiUrl = f'http://api.resourcewatch.org/v1/dataset/{dataset}'
+    # create headers to send with the request to update the 'last update date'
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    # create the json data to send in the request
+    body = {
+        "dataLastUpdated": date.isoformat() # date should be a string in the format 'YYYY-MM-DDTHH:MM:SS'
+    }
+    # send the request
+    try:
+        r = requests.patch(url = apiUrl, json = body, headers = headers)
+        logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+        return 0
+    except Exception as e:
+        logging.error('[lastUpdated]: '+str(e))
+
 '''
 FUNCTIONS FOR RASTER DATASETS
 
-The Functions below must go in every near real-time script for a RASTER dataset.
+The functions below must go in every near real-time script for a RASTER dataset.
 Their format should not need to be changed.
 '''
 
@@ -148,35 +173,10 @@ def flushTileCache(layer_id):
         except Exception as e:
             logging.error('Failed: {}'.format(e))
 
-def lastUpdateDate(dataset, date):
-    '''
-    Given a Resource Watch dataset's API ID and a datetime,
-    this function will update the dataset's 'last update date' on the API with the given datetime
-    '''
-    # generate the API url for this dataset
-    apiUrl = f'http://api.resourcewatch.org/v1/dataset/{dataset}'
-    # create headers to send with the request to update the 'last update date'
-    headers = {
-    'Content-Type': 'application/json',
-    'Authorization': os.getenv('apiToken')
-    }
-    # create the json data to send in the request
-    body = {
-        "dataLastUpdated": date.isoformat() # date should be a string in the format 'YYYY-MM-DDTHH:MM:SS'
-    }
-    # send the request
-    try:
-        r = requests.patch(url = apiUrl, json = body, headers = headers)
-        logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
-        return 0
-    except Exception as e:
-        logging.error('[lastUpdated]: '+str(e))
-
-
 '''
 FUNCTIONS FOR THIS DATASET
 
-The Functions below have been tailored to this specific dataset.
+The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
 
