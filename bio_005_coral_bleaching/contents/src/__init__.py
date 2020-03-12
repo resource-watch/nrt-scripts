@@ -1,5 +1,4 @@
 from __future__ import unicode_literals
-
 import os
 import sys
 import urllib
@@ -8,11 +7,11 @@ import logging
 import subprocess
 import eeUtil
 import time
-
 import requests
 
-# constants for bleaching alerts
+# url for bleaching alert data
 SOURCE_URL = 'ftp://ftp.star.nesdis.noaa.gov/pub/sod/mecb/crw/data/5km/v3.1/nc/v1.0/daily/baa-max-7d/{year}/ct5km_baa-max-7d_v3.1_{date}.nc'
+
 SDS_NAME = 'NETCDF:"{fname}":bleaching_alert_area'
 FILENAME = 'bio_005_{date}'
 # nodata value -5 equals 251 for Byte type?
@@ -21,12 +20,15 @@ NODATA_VALUE = 251
 DATA_DIR = 'data'
 GS_FOLDER = 'bio_005_bleaching_alerts'
 EE_COLLECTION = 'bio_005_bleaching_alerts'
+# do you want to delete everything currently in the GEE collection when you run this script?
 CLEAR_COLLECTION_FIRST = False
 
+#how many assets can be stored in the GEE collection before the oldest ones are deleted?
 MAX_ASSETS = 61
 DATE_FORMAT = '%Y%m%d'
 TIMESTEP = {'days': 1}
 
+# input RW API id
 DATASET_ID = 'e2a2d074-8428-410e-920c-325bbe363a2e'
 
 def getLastUpdate(dataset):
