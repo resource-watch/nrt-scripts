@@ -309,45 +309,51 @@ def get_most_recent_date(collection):
     most_recent_date = datetime.datetime.strptime(existing_dates[-1], DATE_FORMAT)
     return most_recent_date
 
+def updateResourceWatch():
+    # Get the most recent date from the data in the GEE collection
+    most_recent_date = get_most_recent_date(EE_COLLECTION)
+    # Get the current 'last update date' from the dataset on Resource Watch
+    current_date = getLastUpdate(DATASET_ID)
+    # If the most recent date from the GEE collection does not match the 'last update date' on the RW API, update it
+    if current_date != most_recent_date:
+        logging.info('Updating last update date and flushing cache.')
+        # Update dataset's last update date on Resource Watch
+        lastUpdateDate(DATASET_ID, most_recent_date)
+        # get layer ids and flush tile cache for each
+        layer_ids = getLayerIDs(DATASET_ID)
+        for layer_id in layer_ids:
+            flushTileCache(layer_id)
+
 def main():
-    '''Ingest new data into EE and delete old data'''
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
 
     # Initialize eeUtil
     eeUtil.initJson()
 
-    # 1. Check if collection exists and create
+    # Clear the GEE collection, if specified above
     if CLEAR_COLLECTION_FIRST:
         if eeUtil.exists(EE_COLLECTION):
             eeUtil.removeAsset(EE_COLLECTION, recursive=True)
 
+    # Check if collection exists, create it if it does not
+    # If it exists return the list of assets currently in the collection
     existing_assets = checkCreateCollection(EE_COLLECTION)
+    # Get a list of the dates of data we already have in the collection
     existing_dates = [getDate(a) for a in existing_assets]
 
-    # 2. Fetch, process, stage, ingest, clean
+    # Fetch, process, and upload the new data
     new_assets = processNewData(existing_dates)
+    # Get the dates of the new data we have added
     new_dates = [getDate(a) for a in new_assets]
 
-    # 3. Delete old assets
-    existing_dates = existing_dates + new_dates
-    logging.info('Existing assets: {}, new: {}, max: {}'.format(
+    logging.info('Previous assets: {}, new: {}, max: {}'.format(
         len(existing_dates), len(new_dates), MAX_ASSETS))
+
+    # Delete excess assets
     deleteExcessAssets(existing_dates, MAX_ASSETS)
 
-    # 4. After asset update lets reflect it on the dataset
-    most_recent_date = get_most_recent_date(EE_COLLECTION)
-
-    current_date = getLastUpdate(DATASET_ID)
-
     # Update Resource Watch
-    if current_date != most_recent_date:
-        logging.info('Updating last update date and flushing cache.')
-        # Update data set's last update date on Resource Watch
-        lastUpdateDate(DATASET_ID, most_recent_date)
-        # get layer ids and flush tile cache for each
-        layer_ids = getLayerIDs(DATASET_ID)
-        for layer_id in layer_ids:
-            flushTileCache(layer_id)
+    updateResourceWatch()
 
     logging.info('SUCCESS')
