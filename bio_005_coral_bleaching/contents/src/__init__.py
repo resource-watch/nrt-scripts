@@ -12,66 +12,135 @@ import requests
 # url for bleaching alert data
 SOURCE_URL = 'ftp://ftp.star.nesdis.noaa.gov/pub/sod/mecb/crw/data/5km/v3.1/nc/v1.0/daily/baa-max-7d/{year}/ct5km_baa-max-7d_v3.1_{date}.nc'
 
+# subdataset to be converted to tif
+# should be of the format 'NETCDF:"filename.nc":variable'
 SDS_NAME = 'NETCDF:"{fname}":bleaching_alert_area'
+
+# filename format for GEE
 FILENAME = 'bio_005_{date}'
-# nodata value -5 equals 251 for Byte type?
+
+# nodata value for netcdf
+# this netcdf has a nodata value of -5
+# GEE can't accept a negative no data value, set to 251 for Byte type?
 NODATA_VALUE = 251
 
+# name of data directory in Docker container
 DATA_DIR = 'data'
+
+# name of folder to store data in Google Cloud Storage
 GS_FOLDER = 'bio_005_bleaching_alerts'
+
+# name of collection in GEE where we will upload the final data
 EE_COLLECTION = 'bio_005_bleaching_alerts'
+
 # do you want to delete everything currently in the GEE collection when you run this script?
 CLEAR_COLLECTION_FIRST = False
 
-#how many assets can be stored in the GEE collection before the oldest ones are deleted?
+# how many assets can be stored in the GEE collection before the oldest ones are deleted?
 MAX_ASSETS = 61
+
+# format of date
 DATE_FORMAT = '%Y%m%d'
+
 TIMESTEP = {'days': 1}
 
-# input RW API id
+# Resource Watch dataset API ID
+# Important! Before testing this script:
+# Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
+# Failing to do so will overwrite the last update date on a different dataset on Resource Watch
 DATASET_ID = 'e2a2d074-8428-410e-920c-325bbe363a2e'
 
+'''
+FUNCTIONS FOR ALL DATASETS
+
+The Functions below must go in every near real-time script.
+Their format should not need to be changed.
+'''
+
 def getLastUpdate(dataset):
-    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{}'.format(dataset)
+    '''
+    Given a Resource Watch dataset's API ID,
+    this function will get the current 'last update date' from the API
+    and return it as a datetime
+    '''
+    # generate the API url for this dataset
+    apiUrl = f'http://api.resourcewatch.org/v1/dataset/{dataset}'
+    # pull the dataset from the API
     r = requests.get(apiUrl)
+    # find the 'last update date'
     lastUpdateString=r.json()['data']['attributes']['dataLastUpdated']
+    # split this date into two pieces at the seconds decimal so that the datetime module can read it:
+    # ex: '2020-03-11T00:00:00.000Z' will become '2020-03-11T00:00:00' (nofrag) and '000Z' (frag)
     nofrag, frag = lastUpdateString.split('.')
+    # generate a datetime object
     nofrag_dt = datetime.datetime.strptime(nofrag, "%Y-%m-%dT%H:%M:%S")
+    # add back the microseconds to the datetime
     lastUpdateDT = nofrag_dt.replace(microsecond=int(frag[:-1])*1000)
     return lastUpdateDT
 
+'''
+FUNCTIONS FOR RASTER DATASETS
+
+The Functions below must go in every near real-time script for a RASTER dataset.
+Their format should not need to be changed.
+'''
+
 def getLayerIDs(dataset):
-    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{}?includes=layer'.format(dataset)
+    '''
+    Given a Resource Watch dataset's API ID,
+    this function will return a list of all the layer IDs associated with it
+    '''
+    # generate the API url for this dataset - this must include the layers
+    apiUrl = f'http://api.resourcewatch.org/v1/dataset/{dataset}?includes=layer'
+    # pull the datasetfrom the API
     r = requests.get(apiUrl)
+    #get a list of all the layers
     layers = r.json()['data']['attributes']['layer']
+    # create an empty list to store the layer IDs
     layerIDs =[]
+    # go through each layer and add its ID to the list
     for layer in layers:
+        # only add layers that have Resource Watch listed as its application
         if layer['attributes']['application']==['rw']:
             layerIDs.append(layer['id'])
     return layerIDs
 
 def flushTileCache(layer_id):
     """
-    This function will delete the layer cache built for a GEE tiler layer.
-     """
-    apiUrl = 'http://api.resourcewatch.org/v1/layer/{}/expire-cache'.format(layer_id)
+    Given the API ID for a GEE layer on Resource Watch,
+    this function will clear the layer cache.
+    If the cache is not cleared, when you view the dataset on Resource Watch, old and new tiles will be mixed together.
+    """
+    # generate the API url for this layer's cache
+    apiUrl = f'http://api.resourcewatch.org/v1/layer/{layer_id}/expire-cache'
+    # create headers to send with the request to clear the cache
     headers = {
     'Content-Type': 'application/json',
     'Authorization': os.getenv('apiToken')
     }
+
+    # clear the cache for the layer
+    # sometimetimes this fails, so we will try multiple times, if it does
+
+    # specify that we are on the first try
     try_num=1
-    tries=4
-    while try_num<tries:
+    while try_num<4:
         try:
+            # try to delete the cache
             r = requests.delete(url = apiUrl, headers = headers, timeout=1000)
+            # if we get a 200, the cache has been deleted
+            # if we get a 504 (gateway timeout) - the tiles are still being deleted, but it worked
             if r.ok or r.status_code==504:
                 logging.info('[Cache tiles deleted] for {}: status code {}'.format(layer_id, r.status_code))
                 return r.status_code
+            # if we don't get a 200 or 504:
             else:
+                # if we are not on our last try, wait 60 seconds and try to clear the cache again
                 if try_num < (tries-1):
                     logging.info('Cache failed to flush: status code {}'.format(r.status_code))
                     time.sleep(60)
                     logging.info('Trying again.')
+                # if we are on our last try, log that the cache flush failed
                 else:
                     logging.error('Cache failed to flush: status code {}'.format(r.status_code))
                     logging.error('Aborting.')
@@ -80,20 +149,36 @@ def flushTileCache(layer_id):
             logging.error('Failed: {}'.format(e))
 
 def lastUpdateDate(dataset, date):
-   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
-   headers = {
-   'Content-Type': 'application/json',
-   'Authorization': os.getenv('apiToken')
-   }
-   body = {
-       "dataLastUpdated": date.isoformat()
-   }
-   try:
-       r = requests.patch(url = apiUrl, json = body, headers = headers)
-       logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
-       return 0
-   except Exception as e:
-       logging.error('[lastUpdated]: '+str(e))
+    '''
+    Given a Resource Watch dataset's API ID and a datetime,
+    this function will update the dataset's 'last update date' on the API with the given datetime
+    '''
+    # generate the API url for this dataset
+    apiUrl = f'http://api.resourcewatch.org/v1/dataset/{dataset}'
+    # create headers to send with the request to update the 'last update date'
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    # create the json data to send in the request
+    body = {
+        "dataLastUpdated": date.isoformat() # date should be a string in the format 'YYYY-MM-DDTHH:MM:SS'
+    }
+    # send the request
+    try:
+        r = requests.patch(url = apiUrl, json = body, headers = headers)
+        logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+        return 0
+    except Exception as e:
+        logging.error('[lastUpdated]: '+str(e))
+
+
+'''
+FUNCTIONS FOR THIS DATASET
+
+The Functions below have been tailored to this specific dataset.
+They should all be checked because their format likely will need to be changed.
+'''
 
 def getUrl(date):
     '''get source url from datestamp'''
@@ -130,14 +215,21 @@ def getNewDates(exclude_dates):
 
 def convert(files):
     '''convert bleaching alert ncs to tifs'''
+
+    # create and empty list to store the names of the tifs we generate
     tifs = []
+
+    #go through each netcdf file and translate
     for f in files:
-        # extract subdataset by name
+        # generate the subdatset name for current netcdf file
         sds_path = SDS_NAME.format(fname=f)
+        # generate a name to save the tif file we will translate the netcdf file into
         tif = '{}.tif'.format(os.path.splitext(f)[0])
+        # tranlate the netcdf into a tif
         cmd = ['gdal_translate', '-q', '-a_nodata', str(NODATA_VALUE), sds_path, tif]
         logging.debug('Converting {} to {}'.format(f, tif))
         subprocess.call(cmd)
+        # add the new tif files to the list of tifs
         tifs.append(tif)
     return tifs
 
