@@ -154,9 +154,9 @@ def fetch_ids(existing_ids_int):
     filename = DATA_DIR + '/' + filename_csv + '/' + filename_csv + '.csv'
     wdpa_df = pd.read_csv(filename, low_memory=False)
 
-    all_ids = np.unique(wdpa_df.WDPAID.to_list())
+    all_ids = np.unique(wdpa_df.WDPAID.to_list()).tolist()
     logging.info('found {} ids'.format(len(all_ids)))
-    new_ids = np.unique(np.setdiff1d(all_ids, existing_ids_int))
+    new_ids = np.unique(np.setdiff1d(all_ids, existing_ids_int)).tolist()
     logging.info('{} new ids'.format(len(new_ids)))
 
     return new_ids, all_ids
