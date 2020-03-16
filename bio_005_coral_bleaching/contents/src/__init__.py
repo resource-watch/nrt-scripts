@@ -39,10 +39,8 @@ CLEAR_COLLECTION_FIRST = False
 # how many assets can be stored in the GEE collection before the oldest ones are deleted?
 MAX_ASSETS = 61
 
-# format of date
+# format of date (used in both the source data files and GEE)
 DATE_FORMAT = '%Y%m%d'
-
-TIMESTEP = {'days': 1}
 
 # Resource Watch dataset API ID
 # Important! Before testing this script:
@@ -202,19 +200,38 @@ def getDate(filename):
 
 
 def getNewDates(exclude_dates):
-    '''Get new dates excluding existing'''
+    '''
+    Get new dates for which we want to try to fetch data
+
+    INPUT
+        exclude_dates: list of dates that we already have in GEE
+    RETURN
+        new_dates: list of new dates we want to try to fetch
+    '''
+    # create empty list to store dates we want to fetch
     new_dates = []
+    # start with today's date
     date = datetime.date.today()
     for i in range(MAX_ASSETS):
-        date -= datetime.timedelta(**TIMESTEP)
+        # go back one day at a time
+        date -= datetime.timedelta(days=1)
+        # generate a string from the date
         datestr = date.strftime(DATE_FORMAT)
+        # if the date string is not the list of dates we already have, add it to the list of new dates to try and fetch
         if datestr not in exclude_dates:
             new_dates.append(datestr)
     return new_dates
 
 
 def convert(files):
-    '''convert bleaching alert ncs to tifs'''
+    '''
+    Convert netcdf files to tifs
+
+    INPUT
+        files: list of file names for netcdfs that have already been downloaded
+    RETURN
+        tifs: list of file names for tifs that have been generated
+    '''
 
     # create and empty list to store the names of the tifs we generate
     tifs = []
@@ -260,9 +277,10 @@ def processNewData(existing_dates):
     logging.info('Fetching files')
     files = fetch(new_dates)
 
+    # If we have successfully been able to fetch new data files
     if files:
-        # 3. Convert new files
-        logging.info('Converting files')
+        # Convert new files from netcdf to tif files
+        logging.info('Converting files to tifs')
         tifs = convert(files)
 
         # 4. Upload new files
@@ -310,6 +328,10 @@ def get_most_recent_date(collection):
     return most_recent_date
 
 def updateResourceWatch():
+    '''
+    This function should update Resource Watch to reflect the new data.
+    This may include updating the 'last update date', flushing the tile cache, and updating any dates on layers
+    '''
     # Get the most recent date from the data in the GEE collection
     most_recent_date = get_most_recent_date(EE_COLLECTION)
     # Get the current 'last update date' from the dataset on Resource Watch
@@ -323,6 +345,7 @@ def updateResourceWatch():
         layer_ids = getLayerIDs(DATASET_ID)
         for layer_id in layer_ids:
             flushTileCache(layer_id)
+    # Update the dates on layer legends - TO BE ADDED IN FUTURE
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
