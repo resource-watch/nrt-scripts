@@ -11,6 +11,7 @@ import numpy as np
 import urllib
 import zipfile
 import pandas as pd
+import shutil
 
 # WDPA API Reference document: https://api.protectedplanet.net/documentation
 
@@ -185,7 +186,7 @@ def processData(existing_ids):
     #go through and fetch information for new ids
     new_data = []
     send_list=[]
-    for id in id_list:
+    for id in [2898, 365152, 555557932, 555638687, 555643543]:
         try_num=0
         url = "https://api.protectedplanet.net/v3/protected_areas/{}?token={}".format(id, os.getenv('WDPA_key'))
         if try_num <3:
@@ -307,7 +308,10 @@ def main():
     if DELETE_LOCAL:
         try:
             for f in os.listdir(DATA_DIR):
-                logging.info('Removing {}'.format(f))
-                os.remove(DATA_DIR+'/'+f)
+                try:
+                    logging.info('Removing {}'.format(f))
+                    os.remove(DATA_DIR+'/'+f)
+                except:
+                    shutil.rmtree(f)
         except NameError:
             logging.info('No local files to clean.')
