@@ -195,13 +195,13 @@ def getFilename(date):
 
 
 def getDate(filename):
-    '''get last 8 chrs of filename'''
+    '''get date from filename (last 8 characters of filename after removing extension)'''
     return os.path.splitext(os.path.basename(filename))[0][-8:]
 
 
 def getNewDates(exclude_dates):
     '''
-    Get new dates for which we want to try to fetch data
+    Get new dates we want to try to fetch data for
 
     INPUT
         exclude_dates: list of dates that we already have in GEE
