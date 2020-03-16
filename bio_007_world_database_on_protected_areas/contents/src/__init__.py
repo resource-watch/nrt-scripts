@@ -186,7 +186,7 @@ def processData(existing_ids):
     #go through and fetch information for new ids
     new_data = []
     send_list=[]
-    for id in [2898, 365152, 555557932, 555638687, 555643543]:
+    for id in id_list:
         try_num=0
         url = "https://api.protectedplanet.net/v3/protected_areas/{}?token={}".format(id, os.getenv('WDPA_key'))
         if try_num <3:
