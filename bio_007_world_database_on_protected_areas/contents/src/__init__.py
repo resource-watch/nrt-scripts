@@ -11,6 +11,7 @@ import numpy as np
 import urllib
 import zipfile
 import pandas as pd
+import shutil
 
 # WDPA API Reference document: https://api.protectedplanet.net/documentation
 
@@ -307,7 +308,10 @@ def main():
     if DELETE_LOCAL:
         try:
             for f in os.listdir(DATA_DIR):
-                logging.info('Removing {}'.format(f))
-                os.remove(DATA_DIR+'/'+f)
+                try:
+                    logging.info('Removing {}'.format(f))
+                    os.remove(DATA_DIR+'/'+f)
+                except:
+                    shutil.rmtree(f)
         except NameError:
             logging.info('No local files to clean.')
