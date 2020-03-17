@@ -179,34 +179,44 @@ They should all be checked because their format likely will need to be changed.
 '''
 
 def getUrl(date):
-    '''get source url from datestamp'''
+    '''
+    format source url with date
+    INPUT   date: string of date in the format YYYYMMDD
+    RETURN  source url to download data, formatted for the input date
+    '''
     return SOURCE_URL.format(year=date[:4], date=date)
 
 
 def getAssetName(date):
-    '''get asset name from datestamp'''
+    '''get asset name from datestamp
+    INPUT   date: string of date in the format  of the DATE_FORMAT variable
+    RETURN  GEE asset name for input date
+    '''
     return os.path.join(EE_COLLECTION, FILENAME.format(date=date))
 
 
 def getFilename(date):
-    '''get filename from datestamp'''
-    return os.path.join(DATA_DIR, '{}.nc'.format(
-        FILENAME.format(date=date)))
+    '''get netcdf filename to save source file as from datestamp
+    INPUT   date: string of date in the format  of the DATE_FORMAT variable
+    RETURN  file name to save netcdf from source under (for input date)
+    '''
+    return os.path.join(DATA_DIR, '{}.nc'.format(FILENAME.format(date=date)))
 
 
 def getDate(filename):
-    '''get date from filename (last 8 characters of filename after removing extension)'''
+    '''
+    get date from filename (last 8 characters of filename after removing extension)
+    INPUT   filename: file name that ends in a date of the format YYYYMMDD
+    RETURN  string of date in the format YYYYMMDD
+    '''
     return os.path.splitext(os.path.basename(filename))[0][-8:]
 
 
 def getNewDates(exclude_dates):
     '''
     Get new dates we want to try to fetch data for
-
-    INPUT
-        exclude_dates: list of dates that we already have in GEE
-    RETURN
-        new_dates: list of new dates we want to try to fetch
+    INPUT   exclude_dates: list of dates that we already have in GEE
+    RETURN  new_dates: list of new dates we want to try to fetch in the format of the DATE_FORMAT variable
     '''
     # create empty list to store dates we want to fetch
     new_dates = []
@@ -226,11 +236,8 @@ def getNewDates(exclude_dates):
 def convert(files):
     '''
     Convert netcdf files to tifs
-
-    INPUT
-        files: list of file names for netcdfs that have already been downloaded
-    RETURN
-        tifs: list of file names for tifs that have been generated
+    INPUT   files: list of file names for netcdfs that have already been downloaded
+    RETURN  tifs: list of file names for tifs that have been generated
     '''
 
     # create and empty list to store the names of the tifs we generate
@@ -252,28 +259,43 @@ def convert(files):
 
 
 def fetch(dates):
-    '''Fetch files by datestamp'''
+    '''
+    Fetch files by datestamp
+    INPUT   dates:  list of dates we want to try to fetch in the format YYYYMMDD
+    RETURN  files: list of file names for netcdfs that have been downloaded
+    '''
+    # make an empty list to store names of the files we downloaded
     files = []
+    # go through each input date
     for date in dates:
+        # get the url to download the file from the source for the given down
         url = getUrl(date)
+        # get the filename we want to save the file under locally
         f = getFilename(date)
         logging.debug('Fetching {}'.format(url))
-        # New data may not yet be posted
         try:
+            # try to download the data
             urllib.request.urlretrieve(url, f)
+            # if successful, add the file to the list of files we have downloaded
             files.append(f)
         except Exception as e:
+            # if unsuccessful, log that the file was not downloaded
+            # (could be because we are attempting to download a file that is not available yet)
             logging.warning('Could not fetch {}'.format(url))
             logging.debug(e)
     return files
 
 
 def processNewData(existing_dates):
-    '''fetch, process, upload, and clean new data'''
-    # 1. Determine which files to fetch
+    '''
+    fetch, process, upload, and clean new data
+    INPUT   existing_dates:  list of dates we already have in GEE
+    RETURN  assets: list of file names for netcdfs that have been downloaded
+    '''
+    # Get list of new dates we want to try to fetch data for
     new_dates = getNewDates(existing_dates)
 
-    # 2. Fetch new files
+    # Fetch new files
     logging.info('Fetching files')
     files = fetch(new_dates)
 
@@ -283,15 +305,17 @@ def processNewData(existing_dates):
         logging.info('Converting files to tifs')
         tifs = convert(files)
 
-        # 4. Upload new files
         logging.info('Uploading files')
+        # Get a list of the dates we have to upload from the tif file names
         dates = [getDate(tif) for tif in tifs]
-        datestamps = [datetime.datetime.strptime(date, DATE_FORMAT)
-                      for date in dates]
+        # Get a list of datetimes from these dates for each of the dates we are uploading
+        datestamps = [datetime.datetime.strptime(date, DATE_FORMAT) for date in dates]
+        # Get a list of the names we want to use for the assets once we upload the files to GEE
         assets = [getAssetName(date) for date in dates]
+        # Upload new files (tifs) to GEE
         eeUtil.uploadAssets(tifs, assets, GS_FOLDER, datestamps)
 
-        # 5. Delete local files
+        # Delete local files
         logging.info('Cleaning local files')
         for tif in tifs:
             os.remove(tif)
@@ -303,9 +327,15 @@ def processNewData(existing_dates):
 
 
 def checkCreateCollection(collection):
-    '''List assests in collection else create new collection'''
+    '''
+    List assests in collection if it exists, else create new collection
+    INPUT   collection: GEE collection to check or create
+    RETURN  list of assets in collection
+    '''
+    # if collection exists, return list of assets in collection
     if eeUtil.exists(collection):
         return eeUtil.ls(collection)
+    # if collection does not exist, create it and return an empty list (because no assets are in the collection)
     else:
         logging.info('{} does not exist, creating'.format(collection))
         eeUtil.createFolder(collection, True, public=True)
@@ -313,17 +343,33 @@ def checkCreateCollection(collection):
 
 
 def deleteExcessAssets(dates, max_assets):
-    '''Delete assets if too many'''
-    # oldest first
+    '''
+    Delete oldest assets, if more than specified in max_assets variable
+    INPUT   dates: list of strings of dates for all the assets currently in the GEE collection; dates should be in
+                    the format specified in DATE_FORMAT variable
+            max_assets: maximum number of assets allowed in the collection
+    '''
+    # sort the list of dates so that the oldest is first
     dates.sort()
+    # if we have more dates of data than allowed,
     if len(dates) > max_assets:
+        # go through each date, starting with the oldest, and delete until we only have the max number of assets left
         for date in dates[:-max_assets]:
             eeUtil.removeAsset(getAssetName(date))
 
 def get_most_recent_date(collection):
-    existing_assets = checkCreateCollection(collection)  # make image collection if doesn't have one
+    '''
+    Get most recent data it
+    INPUT   collection: GEE collection to check dates for
+    RETURN  most_recent_date: most recent date in GEE collection as a datetime object
+    '''
+    # get list of assets in collection
+    existing_assets = checkCreateCollection(collection)
+    # get a list of strings of dates in the collection
     existing_dates = [getDate(a) for a in existing_assets]
+    # sort these dates oldest to newest
     existing_dates.sort()
+    # get the most recent date (last in the list) and turn it into a datetime
     most_recent_date = datetime.datetime.strptime(existing_dates[-1], DATE_FORMAT)
     return most_recent_date
 
@@ -374,7 +420,7 @@ def main():
         len(existing_dates), len(new_dates), MAX_ASSETS))
 
     # Delete excess assets
-    deleteExcessAssets(existing_dates, MAX_ASSETS)
+    deleteExcessAssets(existing_dates+new_dates, MAX_ASSETS)
 
     # Update Resource Watch
     updateResourceWatch()
