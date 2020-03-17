@@ -60,6 +60,8 @@ def getLastUpdate(dataset):
     Given a Resource Watch dataset's API ID,
     this function will get the current 'last update date' from the API
     and return it as a datetime
+    INPUT   dataset: Resource Watch API dataset ID (string)
+    RETURN  lastUpdateDT: current 'last update date' for the input dataset (datetime)
     '''
     # generate the API url for this dataset
     apiUrl = f'http://api.resourcewatch.org/v1/dataset/{dataset}'
@@ -81,6 +83,8 @@ def lastUpdateDate(dataset, date):
     '''
     Given a Resource Watch dataset's API ID and a datetime,
     this function will update the dataset's 'last update date' on the API with the given datetime
+    INPUT   dataset: Resource Watch API dataset ID (string)
+            date: date to set as the 'last update date' for the input dataset (datetime)
     '''
     # generate the API url for this dataset
     apiUrl = f'http://api.resourcewatch.org/v1/dataset/{dataset}'
@@ -112,6 +116,8 @@ def getLayerIDs(dataset):
     '''
     Given a Resource Watch dataset's API ID,
     this function will return a list of all the layer IDs associated with it
+    INPUT   dataset: Resource Watch API dataset ID (string)
+    RETURN  layerIDs: Resource Watch API layer IDs for the input dataset (list of strings)
     '''
     # generate the API url for this dataset - this must include the layers
     apiUrl = f'http://api.resourcewatch.org/v1/dataset/{dataset}?includes=layer'
@@ -133,6 +139,7 @@ def flushTileCache(layer_id):
     Given the API ID for a GEE layer on Resource Watch,
     this function will clear the layer cache.
     If the cache is not cleared, when you view the dataset on Resource Watch, old and new tiles will be mixed together.
+    INPUT   layer_id: Resource Watch API layer ID (string)
     """
     # generate the API url for this layer's cache
     apiUrl = f'http://api.resourcewatch.org/v1/layer/{layer_id}/expire-cache'
@@ -181,24 +188,26 @@ They should all be checked because their format likely will need to be changed.
 def getUrl(date):
     '''
     format source url with date
-    INPUT   date: string of date in the format YYYYMMDD
-    RETURN  source url to download data, formatted for the input date
+    INPUT   date: date in the format YYYYMMDD (string)
+    RETURN  source url to download data, formatted for the input date (string)
     '''
     return SOURCE_URL.format(year=date[:4], date=date)
 
 
 def getAssetName(date):
-    '''get asset name from datestamp
-    INPUT   date: string of date in the format  of the DATE_FORMAT variable
-    RETURN  GEE asset name for input date
+    '''
+    get asset name
+    INPUT   date: date in the format of the DATE_FORMAT variable (string)
+    RETURN  GEE asset name for input date (string)
     '''
     return os.path.join(EE_COLLECTION, FILENAME.format(date=date))
 
 
 def getFilename(date):
-    '''get netcdf filename to save source file as from datestamp
-    INPUT   date: string of date in the format  of the DATE_FORMAT variable
-    RETURN  file name to save netcdf from source under (for input date)
+    '''
+    get netcdf filename to save source file as
+    INPUT   date: date in the format of the DATE_FORMAT variable (string)
+    RETURN  file name to save netcdf from source under (string)
     '''
     return os.path.join(DATA_DIR, '{}.nc'.format(FILENAME.format(date=date)))
 
@@ -206,8 +215,8 @@ def getFilename(date):
 def getDate(filename):
     '''
     get date from filename (last 8 characters of filename after removing extension)
-    INPUT   filename: file name that ends in a date of the format YYYYMMDD
-    RETURN  string of date in the format YYYYMMDD
+    INPUT   filename: file name that ends in a date of the format YYYYMMDD (string)
+    RETURN  date in the format YYYYMMDD (string)
     '''
     return os.path.splitext(os.path.basename(filename))[0][-8:]
 
@@ -215,8 +224,8 @@ def getDate(filename):
 def getNewDates(exclude_dates):
     '''
     Get new dates we want to try to fetch data for
-    INPUT   exclude_dates: list of dates that we already have in GEE
-    RETURN  new_dates: list of new dates we want to try to fetch in the format of the DATE_FORMAT variable
+    INPUT   exclude_dates: list of dates that we already have in GEE (list of strings)
+    RETURN  new_dates: list of new dates we want to try to get in the format of the DATE_FORMAT variable (list of strings)
     '''
     # create empty list to store dates we want to fetch
     new_dates = []
@@ -236,8 +245,8 @@ def getNewDates(exclude_dates):
 def convert(files):
     '''
     Convert netcdf files to tifs
-    INPUT   files: list of file names for netcdfs that have already been downloaded
-    RETURN  tifs: list of file names for tifs that have been generated
+    INPUT   files: list of file names for netcdfs that have already been downloaded (list of strings)
+    RETURN  tifs: list of file names for tifs that have been generated (list of strings)
     '''
 
     # create and empty list to store the names of the tifs we generate
@@ -261,8 +270,8 @@ def convert(files):
 def fetch(dates):
     '''
     Fetch files by datestamp
-    INPUT   dates:  list of dates we want to try to fetch in the format YYYYMMDD
-    RETURN  files: list of file names for netcdfs that have been downloaded
+    INPUT   dates: list of dates we want to try to fetch in the format YYYYMMDD (list of strings)
+    RETURN  files: list of file names for netcdfs that have been downloaded (list of strings)
     '''
     # make an empty list to store names of the files we downloaded
     files = []
@@ -289,8 +298,8 @@ def fetch(dates):
 def processNewData(existing_dates):
     '''
     fetch, process, upload, and clean new data
-    INPUT   existing_dates:  list of dates we already have in GEE
-    RETURN  assets: list of file names for netcdfs that have been downloaded
+    INPUT   existing_dates: list of dates we already have in GEE (list of strings)
+    RETURN  assets: list of file names for netcdfs that have been downloaded (list of strings)
     '''
     # Get list of new dates we want to try to fetch data for
     new_dates = getNewDates(existing_dates)
@@ -329,8 +338,8 @@ def processNewData(existing_dates):
 def checkCreateCollection(collection):
     '''
     List assests in collection if it exists, else create new collection
-    INPUT   collection: GEE collection to check or create
-    RETURN  list of assets in collection
+    INPUT   collection: GEE collection to check or create (string)
+    RETURN  list of assets in collection (list of strings)
     '''
     # if collection exists, return list of assets in collection
     if eeUtil.exists(collection):
@@ -345,9 +354,9 @@ def checkCreateCollection(collection):
 def deleteExcessAssets(dates, max_assets):
     '''
     Delete oldest assets, if more than specified in max_assets variable
-    INPUT   dates: list of strings of dates for all the assets currently in the GEE collection; dates should be in
-                    the format specified in DATE_FORMAT variable
-            max_assets: maximum number of assets allowed in the collection
+    INPUT   dates: dates for all the assets currently in the GEE collection; dates should be in the format specified
+                    in DATE_FORMAT variable (list of strings)
+            max_assets: maximum number of assets allowed in the collection (int)
     '''
     # sort the list of dates so that the oldest is first
     dates.sort()
@@ -360,8 +369,8 @@ def deleteExcessAssets(dates, max_assets):
 def get_most_recent_date(collection):
     '''
     Get most recent data it
-    INPUT   collection: GEE collection to check dates for
-    RETURN  most_recent_date: most recent date in GEE collection as a datetime object
+    INPUT   collection: GEE collection to check dates for (string)
+    RETURN  most_recent_date: most recent date in GEE collection (datetime)
     '''
     # get list of assets in collection
     existing_assets = checkCreateCollection(collection)
