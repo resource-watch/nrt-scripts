@@ -1,14 +1,12 @@
 ## Air Quality: Fine Particulate Matter (PM2.5)/Particulate Matter (PM10)/Sulfur Dioxide (SO₂)/Nitrogen Dioxide (NO₂)/Ozone (O₃)/Carbon Monoxide (CO)/Black Carbon Station Measurements Dataset Near Real-time Script
-This file describes the near real-time script that retrieves and processes the [OpenAQ Air Quality Readings dataset](https://openaq.org/) to display real-time station level outdoor measurements of
-* [Fine Particulate Matter (PM2.5)](https://resourcewatch.org/data/explore/cit003anrt-Air-Quality-Measurements-PM-25)
-* [Particulate Matter (PM10)](https://resourcewatch.org/data/explore/cit003bnrt-Air-Quality-Measurements-PM-10)
-* [Sulfur Dioxide (SO₂)](https://resourcewatch.org/data/explore/cit003cairqualityso2)
-* [Nitrogen Dioxide (NO₂)](https://resourcewatch.org/data/explore/cit003dnrt-Air-Quality-Measurements-NO)
-* [Ozone (O₃)](https://resourcewatch.org/data/explore/cit003cnrt-Air-Quality-Measurements-O)
-* [Carbon Monoxide (CO)](https://resourcewatch.org/data/explore/cit003fnrt-Air-Quality-Measurements-CO)
-* [Black Carbon](https://resourcewatch.org/data/explore/cit003gnrt-Air-Quality-Measurements-BC_1)
-
-on Resource Watch.
+This file describes the near real-time script that retrieves and processes the [OpenAQ Air Quality Readings dataset](https://openaq.org/) for display on Resource Watch as the following datasets:
+* [Air Quality: Fine Particulate Matter (PM2.5) Station Measurements](https://resourcewatch.org/data/explore/cit003anrt-Air-Quality-Measurements-PM-25)
+* [Air Quality: Particulate Matter (PM10) Station Measurements](https://resourcewatch.org/data/explore/cit003bnrt-Air-Quality-Measurements-PM-10)
+* [Air Quality: Sulfur Dioxide (SO₂) Station Measurements](https://resourcewatch.org/data/explore/cit003cairqualityso2)
+* [Air Quality: Nitrogen Dioxide (NO₂) Station Measurements](https://resourcewatch.org/data/explore/cit003dnrt-Air-Quality-Measurements-NO)
+* [Air Quality: Ozone (O₃) Station Measurements](https://resourcewatch.org/data/explore/cit003cnrt-Air-Quality-Measurements-O)
+* [Air Quality: Carbon Monoxide (CO) Station Measurements](https://resourcewatch.org/data/explore/cit003fnrt-Air-Quality-Measurements-CO)
+* [Air Quality: Black Carbon Station Measurements](https://resourcewatch.org/data/explore/cit003gnrt-Air-Quality-Measurements-BC_1)
 
 {Describe how the original data came from the source.}
 
