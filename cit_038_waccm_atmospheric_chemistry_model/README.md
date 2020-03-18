@@ -1,13 +1,11 @@
 ## Air Quality: Sulfur Dioxide (SO₂)/Fine Particulate Matter (PM2.5)/Black Carbon/Ozone (O₃)/Nitrogen Dioxide (NO₂)/Carbon Monoxide (CO) Modeled Next-day Forecast Dataset Near Real-time Script
-This file describes the near real-time script that retrieves and processes the [Whole Atmosphere Community Climate Model (WACCM) dataset](https://www2.acom.ucar.edu/gcm/waccm) to display next day forecast for
-* [Sulfur Dioxide (SO₂) concentrations](https://resourcewatch.org/data/explore/cit038-Air-Quality-Modeled-Forecast-WACCM-SO)
-* [Fine Particulate Matter (PM2.5) concentrations](https://resourcewatch.org/data/explore/cit038-Air-Quality-Modeled-Forecast-WACCM-PM-25)
-* [Black Carbon concentrations](https://resourcewatch.org/data/explore/cit038-Air-Quality-Modeled-Forecast-WACCM-Black-Carbon)
-* [Ozone (O₃) concentrations](https://resourcewatch.org/data/explore/cit038-Air-Quality-Modeled-Forecast-WACCM-O)
-* [Nitrogen Dioxide (NO₂) concentrations](https://resourcewatch.org/data/explore/cit038-Air-Quality-Modeled-Forecast-WACCM-NO)
-* [Carbon Monoxide (CO) concentrations](https://resourcewatch.org/data/explore/cit038-Air-Quality-Modeled-Forecast-WACCM-CO)
-
-on Resource Watch.
+This file describes the near real-time script that retrieves and processes the [Whole Atmosphere Community Climate Model (WACCM) dataset](https://www2.acom.ucar.edu/gcm/waccm) for display on Resource Watch as the following datasets:
+* [Air Quality: Sulfur Dioxide (SO₂) Modeled Next-day Forecast](https://resourcewatch.org/data/explore/cit038-Air-Quality-Modeled-Forecast-WACCM-SO)
+* [Air Quality: Fine Particulate Matter (PM2.5) Modeled Next-day Forecast](https://resourcewatch.org/data/explore/cit038-Air-Quality-Modeled-Forecast-WACCM-PM-25)
+* [Air Quality: Black Carbon Modeled Next-day Forecast](https://resourcewatch.org/data/explore/cit038-Air-Quality-Modeled-Forecast-WACCM-Black-Carbon)
+* [Air Quality: Ozone (O₃) Modeled Next-day Forecast](https://resourcewatch.org/data/explore/cit038-Air-Quality-Modeled-Forecast-WACCM-O)
+* [Air Quality: Nitrogen Dioxide (NO₂) Modeled Next-day Forecast](https://resourcewatch.org/data/explore/cit038-Air-Quality-Modeled-Forecast-WACCM-NO)
+* [Air Quality: Carbon Monoxide (CO) Modeled Next-day Forecast](https://resourcewatch.org/data/explore/cit038-Air-Quality-Modeled-Forecast-WACCM-CO)
 
 {Describe how the original data came from the source.}
 
