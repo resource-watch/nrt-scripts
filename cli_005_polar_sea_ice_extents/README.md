@@ -1,9 +1,7 @@
 ## Arctic/Antarctic Sea Ice Extent Dataset Near Real-time Script
-This file describes the near real-time script that retrieves and processes the [Sea Ice Index, Version 3 dataset](http://nsidc.org/data/g02135) to display monthly sea ice extents in the
-* [Arctic](https://resourcewatch.org/data/explore/cli_005b_Arctic-Sea-Ice)
-* [Antarctic](https://resourcewatch.org/data/explore/cli_005a_Antarctic-Sea-Ice)
-
-on Resource Watch.
+This file describes the near real-time script that retrieves and processes the [Sea Ice Index, Version 3 dataset](http://nsidc.org/data/g02135) for display on Resource Watch as the following datasets:
+* [Arctic Sea Ice Extent](https://resourcewatch.org/data/explore/cli_005b_Arctic-Sea-Ice)
+* [Antarctic Sea Ice Extent](https://resourcewatch.org/data/explore/cli_005a_Antarctic-Sea-Ice)
 
 {Describe how the original data came from the source.}
 
