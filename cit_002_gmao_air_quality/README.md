@@ -1,5 +1,5 @@
 ## Air Quality: Nitrogen Dioxide (NO₂)/Fine Particulate Matter (PM2.5)/Ozone (O₃) Modeled 5-day Forecast Dataset Near Real-time Script
-This file describes the near real-time script that retrieves and processes the [Goddard Earth Observing System Composition Forecast (GEOS-CF) dataset](https://gmao.gsfc.nasa.gov/weather_prediction/GEOS-CF/) to display on Resource Watch as the following datasets:
+This file describes the near real-time script that retrieves and processes the [Goddard Earth Observing System Composition Forecast (GEOS-CF) dataset](https://gmao.gsfc.nasa.gov/weather_prediction/GEOS-CF/) for display on Resource Watch as the following datasets:
 * [Air Quality: Nitrogen Dioxide (NO₂) Modeled 5-day Forecast](https://resourcewatch.org/data/explore/cit002-GMAO-Air-Quality-Forecast-NO2)
 * [Air Quality: Fine Particulate Matter (PM2.5) Modeled 5-day Forecast](https://resourcewatch.org/data/explore/cit002-GMAO-Air-Quality-Forecast-PM25)
 * [Air Quality: Ozone (O₃) Modeled 5-day Forecast](https://resourcewatch.org/data/explore/cit002-GMAO-Air-Quality-Forecast-O3)
