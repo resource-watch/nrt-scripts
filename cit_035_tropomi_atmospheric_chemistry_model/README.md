@@ -1,11 +1,9 @@
 ## Air Quality: Nitrogen Dioxide (NO₂)/Carbon Monoxide (CO)/Aerosol Index/Ozone (O₃) Satellite Measurements Dataset Near Real-time Script
-This file describes the near real-time script that retrieves and processes the [Sentinel 5 Precursor Tropospheric Monitoring Instrument (S5P/TROPOMI) Offline (OFFL) Nitrogen Dioxide (NO₂) L3 Monthly Averages dataset](https://sentinel.esa.int/web/sentinel/missions/sentinel-5p) to display average monthly density of
-* [Nitrogen Dioxide (NO₂)](https://resourcewatch.org/data/explore/Air-Quality-Measurements-TROPOMI-NO)
-* [Carbon Monoxide (CO)](https://resourcewatch.org/data/explore/Air-Quality-Measurements-TROPOMI-CO)
-* [Aerosol Index](https://resourcewatch.org/data/explore/Air-Quality-Measurements-TROPOMI-AER-AI)
-* [Ozone (O₃)](https://resourcewatch.org/data/explore/Air-Quality-Measurements-TROPOMI-O)
-
-on Resource Watch.
+This file describes the near real-time script that retrieves and processes the [Sentinel 5 Precursor Tropospheric Monitoring Instrument (S5P/TROPOMI) Offline (OFFL) Nitrogen Dioxide (NO₂) L3 Monthly Averages dataset](https://sentinel.esa.int/web/sentinel/missions/sentinel-5p) for display on Resource Watch as the following datasets:
+* [Air Quality: Nitrogen Dioxide (NO₂) Satellite Measurements](https://resourcewatch.org/data/explore/Air-Quality-Measurements-TROPOMI-NO)
+* [Air Quality: Carbon Monoxide (CO) Satellite Measurements](https://resourcewatch.org/data/explore/Air-Quality-Measurements-TROPOMI-CO)
+* [Air Quality: Aerosol Index Satellite Measurements](https://resourcewatch.org/data/explore/Air-Quality-Measurements-TROPOMI-AER-AI)
+* [Air Quality: Ozone (O₃) Satellite Measurements](https://resourcewatch.org/data/explore/Air-Quality-Measurements-TROPOMI-O)
 
 {Describe how the original data came from the source.}
 
