@@ -55,30 +55,6 @@ The functions below must go in every near real-time script.
 Their format should not need to be changed.
 '''
 
-def getLastUpdate(dataset):
-    '''
-    Given a Resource Watch dataset's API ID,
-    this function will get the current 'last update date' from the API
-    and return it as a datetime
-    INPUT   dataset: Resource Watch API dataset ID (string)
-    RETURN  lastUpdateDT: current 'last update date' for the input dataset (datetime)
-    '''
-    # generate the API url for this dataset
-    apiUrl = f'http://api.resourcewatch.org/v1/dataset/{dataset}'
-    # pull the dataset from the API
-    r = requests.get(apiUrl)
-    # find the 'last update date'
-    lastUpdateString=r.json()['data']['attributes']['dataLastUpdated']
-    # split this date into two pieces at the seconds decimal so that the datetime module can read it:
-    # ex: '2020-03-11T00:00:00.000Z' will become '2020-03-11T00:00:00' (nofrag) and '000Z' (frag)
-    nofrag, frag = lastUpdateString.split('.')
-    # generate a datetime object
-    nofrag_dt = datetime.datetime.strptime(nofrag, "%Y-%m-%dT%H:%M:%S")
-    # add back the microseconds to the datetime
-    lastUpdateDT = nofrag_dt.replace(microsecond=int(frag[:-1])*1000)
-    return lastUpdateDT
-
-
 def lastUpdateDate(dataset, date):
     '''
     Given a Resource Watch dataset's API ID and a datetime,
@@ -111,6 +87,29 @@ FUNCTIONS FOR RASTER DATASETS
 The functions below must go in every near real-time script for a RASTER dataset.
 Their format should not need to be changed.
 '''
+
+def getLastUpdate(dataset):
+    '''
+    Given a Resource Watch dataset's API ID,
+    this function will get the current 'last update date' from the API
+    and return it as a datetime
+    INPUT   dataset: Resource Watch API dataset ID (string)
+    RETURN  lastUpdateDT: current 'last update date' for the input dataset (datetime)
+    '''
+    # generate the API url for this dataset
+    apiUrl = f'http://api.resourcewatch.org/v1/dataset/{dataset}'
+    # pull the dataset from the API
+    r = requests.get(apiUrl)
+    # find the 'last update date'
+    lastUpdateString=r.json()['data']['attributes']['dataLastUpdated']
+    # split this date into two pieces at the seconds decimal so that the datetime module can read it:
+    # ex: '2020-03-11T00:00:00.000Z' will become '2020-03-11T00:00:00' (nofrag) and '000Z' (frag)
+    nofrag, frag = lastUpdateString.split('.')
+    # generate a datetime object
+    nofrag_dt = datetime.datetime.strptime(nofrag, "%Y-%m-%dT%H:%M:%S")
+    # add back the microseconds to the datetime
+    lastUpdateDT = nofrag_dt.replace(microsecond=int(frag[:-1])*1000)
+    return lastUpdateDT
 
 def getLayerIDs(dataset):
     '''
