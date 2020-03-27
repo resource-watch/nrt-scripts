@@ -44,3 +44,20 @@ Standard `time.cron` should be one line without commands or breaks. E.g. run dai
 ### Deploy
 
 Run locally with http://github.com/fgassert/nrt-container .
+
+**Run**
+
+To run this script on your own computer: 
+  1. This script is run in a Docker container. Before you can run this script, make sure you have downloaded [Docker](https://www.docker.com/).
+    <br><br>
+  2. You must also have a [Google Cloud Storage](https://cloud.google.com/) account/project set up.
+    <br><br>
+  3. [Clone the nrt-scripts repository](https://help.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository) to your computer.
+    <br><br>
+  4. Change the environmental variable sample file in this script's root folder (`.env.sample`) to `.env`, and replace the field after each variable with the indicated Google Cloud Storage service account credentials. Alternatively, you can create one master `.env` file on your computer with these credentials and create a symbolic link to the master copy of your .env file using the following command:
+    <br>`ln -s /home/path/to/.env .`
+    <br><br>
+  5. Navigate to the root folder for this script (`bio_005_coral_bleaching`) in the command line, and run this script:
+    <br>`./start.sh`
+    
+If you want this script to run automatically on your computer, you must set up a crontab. Alternatively, you can run the `./start.sh` command each time you want to update the data.

@@ -11,6 +11,7 @@ import numpy as np
 import urllib
 import zipfile
 import pandas as pd
+import shutil
 
 # WDPA API Reference document: https://api.protectedplanet.net/documentation
 
@@ -154,26 +155,48 @@ def fetch_ids(existing_ids_int):
     filename = DATA_DIR + '/' + filename_csv + '/' + filename_csv + '.csv'
     wdpa_df = pd.read_csv(filename, low_memory=False)
 
-    all_ids = wdpa_df.WDPAID.to_list()
+    all_ids = np.unique(wdpa_df.WDPAID.to_list()).tolist()
     logging.info('found {} ids'.format(len(all_ids)))
-    new_ids = np.setdiff1d(all_ids, existing_ids_int)
+    new_ids = np.unique(np.setdiff1d(all_ids, existing_ids_int)).tolist()
     logging.info('{} new ids'.format(len(new_ids)))
 
     return new_ids, all_ids
 
+def delete_carto_entries(id_list, column):
+    where = None
+    for delete_id in id_list:
+        if where:
+            where += f' OR {column} = {delete_id}'
+        else:
+            where = f'{column} = {delete_id}'
+        # if where statement is long or we are on the last id, delete rows
+        if len(where) > 15000 or delete_id == id_list[-1]:
+            cartosql.deleteRows(CARTO_TABLE, where=where, user=os.getenv('CARTO_USER'),
+                                key=os.getenv('CARTO_KEY'))
+            where = None
 
 def processData(existing_ids):
     existing_ids_int = [int(i) for i in existing_ids]
+    # Fetching list of new WDPA IDs
     new_ids, all_ids = fetch_ids(existing_ids_int)
-    new_data = []
     if REPLACE_ALL==True:
         id_list = all_ids
     else:
         id_list = new_ids
     #go through and fetch information for new ids
+    new_data = []
+    send_list=[]
     for id in id_list:
+        try_num=0
         url = "https://api.protectedplanet.net/v3/protected_areas/{}?token={}".format(id, os.getenv('WDPA_key'))
-        r = requests.get(url)
+        if try_num <3:
+            try:
+                r = requests.get(url)
+            except:
+                time.sleep(60)
+                try_num+=1
+        else:
+            logging.info(f'Could not fetch {id}')
         try:
             data = r.json()['protected_area']
             row = []
@@ -211,6 +234,7 @@ def processData(existing_ids):
                             key_data = int(key_data)
                         else:
                             key_data=int(id)
+                        send_list.append(key_data)
                     if key == 'no_tk_area' or key == 'rep_area' or key == 'rep_m_area':
                         key_data=float(key_data)
                     if key == 'legal_status_updated_at':
@@ -222,32 +246,27 @@ def processData(existing_ids):
                 new_data.append(row)
         except Exception as e:
             logging.error('error pulling {}'.format(id))
-        if (id_list.index(id) % 10000)==0:
+        if (id_list.index(id) % 1000)==0 and id_list.index(id)>1:
             logging.info('{} records processed.'.format(id_list.index(id)))
-    num_new = len(id_list)
-    if num_new:
-        if REPLACE_ALL==True:
-            # delete all rows from table
-            logging.info('Deleting all current records')
-            cartosql.deleteRows(CARTO_TABLE, where='cartodb_id IS NOT NULL', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
-        # push new data
-        logging.info('Adding {} new records.'.format(num_new))
-        cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), new_data, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
-    if REPLACE_ALL==False:
-        logging.info('Deleting records that are no longer in the database.')
-        #delete rows that no longer exist
-        where = None
-        deleted_ids = np.setdiff1d(id_list, existing_ids_int)
+            num_new = len(new_data)
+            if num_new:
+                logging.info('Deleting old records in this batch')
+                delete_carto_entries(send_list, 'wdpa_id')
 
-        for id in deleted_ids:
-            if where:
-                where=where + ' OR wdpa_id = {}'.format(id)
-            else:
-                where='wdpa_id = {}'.format(id)
-            if len(where)>15000:
-                cartosql.deleteRows(CARTO_TABLE, where=where, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
-                where = None
-        logging.info('{} ids deleted'.format(len(deleted_ids)))
+                # push new data
+                logging.info('Adding {} new records.'.format(num_new))
+                cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), new_data, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
+                new_data = []
+                send_list = []
+    logging.info('Deleting records that are no longer in the database.')
+
+
+    '''
+    delete rows that no longer exist
+    '''
+    deleted_ids = np.setdiff1d(existing_ids_int, id_list)
+    delete_carto_entries(deleted_ids, 'wdpa_id')
+    logging.info('{} ids deleted'.format(len(deleted_ids)))
     return(num_new)
 
 
@@ -289,7 +308,10 @@ def main():
     if DELETE_LOCAL:
         try:
             for f in os.listdir(DATA_DIR):
-                logging.info('Removing {}'.format(f))
-                os.remove(DATA_DIR+'/'+f)
+                try:
+                    logging.info('Removing {}'.format(f))
+                    os.remove(DATA_DIR+'/'+f)
+                except:
+                    shutil.rmtree(f)
         except NameError:
             logging.info('No local files to clean.')

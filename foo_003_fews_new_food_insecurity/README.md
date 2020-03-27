@@ -7,8 +7,6 @@ This file describes the near real-time script that retrieves and processes the [
 
 Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/foo_003_fews_new_food_insecurity/contents/src/__init__.py) for more details on this processing.
 
-You can view the processed Current and Projected Food Insecurity dataset [on Resource Watch](https://resourcewatch.org/data/explore/foo003nrt-Food-Insecurity_replacement).
-
 **Schedule**
 
 This script is run daily. The exact time that the script is run to update the dataset can be found in the the `time.cron` file. This time is in Coordinated Universal Time (UTC), expressed in cron format.

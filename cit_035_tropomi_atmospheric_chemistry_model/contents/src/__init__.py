@@ -34,7 +34,7 @@ DATE_FORMAT = '%Y-%m-%d'
 TIMESTEP = {'days': 1}
 TIMEOUT = 5000
 
-COLLECTION = 'cit_035_tropomi_atmospheric_chemistry_model'
+COLLECTION = 'projects/resource-watch-gee/cit_035_tropomi_atmospheric_chemistry_model'
 
 LOG_LEVEL = logging.INFO
 DATASET_IDS = {
@@ -226,7 +226,7 @@ def processNewData(existing_dates):
     if dates: #if files is an empty list do nothing, if something in it:
         # 4. Upload new files
         logging.info('Uploading files')
-        assets = [('users/resourcewatch_wri/' + getAssetName(date)) for date in dates]
+        assets = [getAssetName(date) for date in dates]
         lon = 179.999
         lat = 89.999
         scale = RESOLUTION*1000
@@ -260,9 +260,9 @@ def processNewData(existing_dates):
 
 def checkCreateCollection(collection):
     '''List assests in collection else create new collection'''
-    if not eeUtil.exists(PARENT_FOLDER):
+    if not eeUtil.exists('/'+PARENT_FOLDER):
         logging.info('{} does not exist, creating'.format(PARENT_FOLDER))
-        eeUtil.createFolder(PARENT_FOLDER, public=True)
+        eeUtil.createFolder('/'+PARENT_FOLDER, public=True)
     if eeUtil.exists(collection):
         return eeUtil.ls(collection)
     else:
@@ -277,7 +277,7 @@ def deleteExcessAssets(dates, max_assets):
     dates.sort()
     if len(dates) > max_assets:
         for date in dates[:-max_assets]:
-            eeUtil.removeAsset(getAssetName(date))
+            eeUtil.removeAsset('/'+getAssetName(date))
 
 def initialize_ee():
     GEE_JSON = os.environ.get("GEE_JSON")
@@ -289,7 +289,7 @@ def initialize_ee():
     ee.Initialize(auth)
 
 def get_most_recent_date(collection):
-    existing_assets = checkCreateCollection(collection)  # make image collection if doesn't have one
+    existing_assets = checkCreateCollection('/'+collection)  # make image collection if doesn't have one
     existing_dates = [getDate(a) for a in existing_assets]
     existing_dates.sort()
     most_recent_date = datetime.datetime.strptime(existing_dates[-1], DATE_FORMAT)
@@ -309,11 +309,11 @@ def main():
     if DAYS_TO_AVERAGE == 1:
         PARENT_FOLDER = COLLECTION
         EE_COLLECTION_GEN = COLLECTION + '/{var}'
-        FILENAME = COLLECTION+'_{var}_{date}'
+        FILENAME = COLLECTION.split('/')[-1]+'_{var}_{date}'
     else:
         PARENT_FOLDER = COLLECTION + '_{days}day_avg'.format(days=DAYS_TO_AVERAGE)
         EE_COLLECTION_GEN = COLLECTION + '_%sday_avg/{var}' %DAYS_TO_AVERAGE
-        FILENAME = COLLECTION+'_{days}day_avg_{var}_{date}'
+        FILENAME = COLLECTION.split('/')[-1]+'_{days}day_avg_{var}_{date}'
     for i in range(len(VARS)):
         VAR = VARS[i]
         logging.info('STARTING {var}'.format(var=VAR))
@@ -322,15 +322,16 @@ def main():
         # Clear collection in GEE if desired
         if CLEAR_COLLECTION_FIRST:
             if eeUtil.exists(EE_COLLECTION):
-                eeUtil.removeAsset(EE_COLLECTION, recursive=True)
+                eeUtil.removeAsset('/'+EE_COLLECTION, recursive=True)
         # 1. Check if collection exists and create
-        existing_assets = checkCreateCollection(EE_COLLECTION) #make image collection if doesn't have one
+        existing_assets = checkCreateCollection('/'+EE_COLLECTION) #make image collection if doesn't have one
         existing_dates = [getDate(a) for a in existing_assets]
         # 2. Fetch, process, stage, ingest, clean
         new_assets = processNewData(existing_dates)
         new_dates = [getDate(a) for a in new_assets]
         # 3. Delete old assets
         existing_dates = existing_dates + new_dates
+        logging.info(existing_dates)
         logging.info('Existing assets: {}, new: {}, max: {}'.format(
             len(existing_dates), len(new_dates), MAX_ASSETS))
         deleteExcessAssets(existing_dates, MAX_ASSETS)

@@ -5,8 +5,6 @@ This dataset was provided by the source as a netcdf file. The data shown on Reso
 
 Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/bio_005_coral_bleaching/contents/src/__init__.py) for more details on this processing.
 
-You can view the processed Coral Bleaching dataset [on Resource Watch](https://resourcewatch.org/data/explore/bio005-Coral-Reef-Bleaching-Alerts).
-
 **Schedule**
 
 This script is run daily. The exact time that the script is run to update the dataset can be found in the the `time.cron` file. This time is in Coordinated Universal Time (UTC), expressed in cron format.
