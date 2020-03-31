@@ -18,7 +18,7 @@ from dateutil.relativedelta import relativedelta
 SOURCE_URL = 'https://n5eil01u.ecs.nsidc.org/MOST/MOD10CM.006/{date}'
 
 # subdataset to be converted to tif
-# should be of the format 'HDF4_EOS:EOS_GRID:"filename.nc":variable'
+# should be of the format 'HDF4_EOS:EOS_GRID:"filename.hdf":variable'
 SDS_NAME = 'HDF4_EOS:EOS_GRID:"{fname}":MOD_CMG_Snow_5km:Snow_Cover_Monthly_CMG'
 
 # filename format for GEE
@@ -220,8 +220,7 @@ def getFilename(date):
     INPUT   date: date in the format of the DATE_FORMAT variable (string)
     RETURN  file name to save netcdf from source under (string)
     '''
-    return os.path.join(DATA_DIR, '{}.hdf'.format(
-        FILENAME.format(date=date)))
+    return os.path.join(DATA_DIR, '{}.hdf'.format(FILENAME.format(date=date)))
 
 
 def getDate(filename):
