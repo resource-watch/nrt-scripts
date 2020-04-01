@@ -199,7 +199,7 @@ They should all be checked because their format likely will need to be changed.
 def getUrl(date):
     '''
     format source url with date
-    INPUT   date: date in the format YYYYMMDD (string)
+    INPUT   date: date in the format YYYY.MM.DD (string)
     RETURN  source url to download data, formatted for the input date (string)
     '''
     return SOURCE_URL.format(date=date)
