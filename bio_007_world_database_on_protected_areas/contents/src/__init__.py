@@ -18,12 +18,24 @@ import shutil
 ### Constants
 #API documentation: https://api.protectedplanet.net/documentation#get-v3protectedareas
 
-LOG_LEVEL = logging.INFO
+# do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = False
+
+# do you want to update all the entries in the table when you run this script?
+# True - update entire table
+# False - just check for new areas added or areas deleted
+# for now, we will replace everything in the table because there is no way to see if an area has been updated
 REPLACE_ALL = True
-### Table name and structure
+
+# name of table in Carto where we will upload the data
 CARTO_TABLE = 'bio_007_world_database_on_protected_areas'
+
+# column of table that can be used as a unique ID (UID)
 UID_FIELD='wdpa_id'
+
+# column names and types for data table
+# column names should be lowercase
+# column types should be one of the following: geometry, text, numeric, timestamp
 CARTO_SCHEMA = OrderedDict([
     ("the_geom", "geometry"),
     ("name", "text"),
@@ -50,6 +62,7 @@ CARTO_SCHEMA = OrderedDict([
     ("status_yr", "numeric"),
 ])
 
+# column names and types for data table
 JSON_LOC = {
     "the_geom": ["geojson", "geometry"],
     "name": ["name"],
@@ -79,26 +92,52 @@ JSON_LOC = {
 MAX_ROWS = 1000000
 DATA_DIR = 'data'
 DELETE_LOCAL=True
-DATASET_ID = '2442891a-157a-40e6-9092-ee596e6d30ba'
-def lastUpdateDate(dataset, date):
-   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
-   headers = {
-   'Content-Type': 'application/json',
-   'Authorization': os.getenv('apiToken')
-   }
-   body = {
-       "dataLastUpdated": date.isoformat()
-   }
-   try:
-       r = requests.patch(url = apiUrl, json = body, headers = headers)
-       logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
-       return 0
-   except Exception as e:
-       logging.error('[lastUpdated]: '+str(e))
 
-###
-## Carto code
-###
+# Resource Watch dataset API ID
+# Important! Before testing this script:
+# Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
+# Failing to do so will overwrite the last update date on a different dataset on Resource Watch
+DATASET_ID = '2442891a-157a-40e6-9092-ee596e6d30ba'
+
+'''
+FUNCTIONS FOR ALL DATASETS
+
+The functions below must go in every near real-time script.
+Their format should not need to be changed.
+'''
+
+def lastUpdateDate(dataset, date):
+    '''
+    Given a Resource Watch dataset's API ID and a datetime,
+    this function will update the dataset's 'last update date' on the API with the given datetime
+    INPUT   dataset: Resource Watch API dataset ID (string)
+            date: date to set as the 'last update date' for the input dataset (datetime)
+    '''
+    # generate the API url for this dataset
+    apiUrl = f'http://api.resourcewatch.org/v1/dataset/{dataset}'
+    # create headers to send with the request to update the 'last update date'
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    # create the json data to send in the request
+    body = {
+        "dataLastUpdated": date.isoformat() # date should be a string in the format 'YYYY-MM-DDTHH:MM:SS'
+    }
+    # send the request
+    try:
+        r = requests.patch(url = apiUrl, json = body, headers = headers)
+        logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+        return 0
+    except Exception as e:
+        logging.error('[lastUpdated]: '+str(e))
+
+'''
+FUNCTIONS FOR VECTOR DATASETS
+
+The functions below must go in every near real-time script for a VECTOR dataset.
+Their format should not need to be changed.
+'''
 
 
 def checkCreateTable(table, schema, id_field, time_field=''):
@@ -272,7 +311,7 @@ def processData(existing_ids):
 
 def main():
     start_time=time.time()
-    logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
+    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
 
     if CLEAR_TABLE_FIRST:
