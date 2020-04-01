@@ -354,7 +354,6 @@ def fetch(new_dates):
 
             except Exception as e:
                 # if unsuccessful, log that the file was not downloaded
-                # (could be because we are attempting to download a file that is not available yet)
                 logging.error('Unable to retrieve data from {}'.format(url))
                 logging.debug(e)
 
