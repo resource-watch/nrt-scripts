@@ -285,7 +285,7 @@ def convert(files):
 def fetch(new_dates):
     '''
     Fetch files by datestamp
-    INPUT   new_dates: list of dates we want to try to fetch in the format YYYYMMDD (list of strings)
+    INPUT   new_dates: list of dates we want to try to fetch, in the format YYYY.MM.DD (list of strings)
     RETURN  files: list of file names for hdfs that have been downloaded (list of strings)
     '''
 
