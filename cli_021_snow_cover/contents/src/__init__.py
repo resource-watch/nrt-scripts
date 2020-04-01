@@ -242,7 +242,7 @@ def getNewDates(exclude_dates):
     new_dates = []
     # get today's date, then replace day to be the first of the current month
     date = datetime.date.today().replace(day=1)
-    # change the format of date to match the format used in GEE
+    # turn the date into a string in the same format used for the dates in the exclude_dates list
     exclude_datestr = date.strftime(DATE_FORMAT)
     # if the date string is not the list of dates we already have, add it to the list of new dates to try and fetch
     while exclude_datestr not in exclude_dates:
