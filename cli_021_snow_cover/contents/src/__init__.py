@@ -310,7 +310,7 @@ def fetch(new_dates):
     files = []
     # go through each input date
     for date in new_dates:
-        # get the url to download the file from the source for the given date
+        # get the url where data for the given date is stored at the source
         url = getUrl(date)
         # change date string from format used in HDF to format used in GEE
         # input date is initially a string, strptime changes it to datetime object, strftime reformats into string
