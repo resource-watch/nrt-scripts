@@ -218,7 +218,7 @@ def getFilename(date):
     '''
     get hdf filename to save source file as
     INPUT   date: date in the format of the DATE_FORMAT variable (string)
-    RETURN  file name to save netcdf from source under (string)
+    RETURN  file name to save hdf from source under (string)
     '''
     return os.path.join(DATA_DIR, '{}.hdf'.format(FILENAME.format(date=date)))
 
