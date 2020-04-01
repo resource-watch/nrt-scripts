@@ -334,7 +334,6 @@ def fetch(new_dates):
                 if 'hdf' in str_a:
                     # get the name of the hdf file
                     ext = str_a.index('.hdf')
-                    # slice the id of the .hdf files using the index
                     hdf = str_a[9:ext+4]
                     # add the hdf file name to the list of files to download
                     hdfs.append(hdf)
