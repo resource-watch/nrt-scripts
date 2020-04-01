@@ -332,7 +332,7 @@ def fetch(new_dates):
                 str_a = str(a)
                 # if one of the links available to download contains the word 'hdf'
                 if 'hdf' in str_a:
-                    # find the index of '.hdf'
+                    # get the name of the hdf file
                     ext = str_a.index('.hdf')
                     # slice the id of the .hdf files using the index
                     hdf = str_a[9:ext+4]
