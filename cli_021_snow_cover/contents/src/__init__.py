@@ -353,7 +353,7 @@ def fetch(new_dates):
                 logging.info('Successfully retrieved {}'.format(f))
 
             except Exception as e:
-                # if unsuccessful, log that the file was not downloaded
+                # if unsuccessful, log an error that the file was not downloaded
                 logging.error('Unable to retrieve data from {}'.format(url))
                 logging.debug(e)
 
