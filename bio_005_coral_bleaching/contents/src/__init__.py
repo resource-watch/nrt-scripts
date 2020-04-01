@@ -120,7 +120,7 @@ def getLayerIDs(dataset):
     '''
     # generate the API url for this dataset - this must include the layers
     apiUrl = f'http://api.resourcewatch.org/v1/dataset/{dataset}?includes=layer'
-    # pull the datasetfrom the API
+    # pull the dataset from the API
     r = requests.get(apiUrl)
     #get a list of all the layers
     layers = r.json()['data']['attributes']['layer']
@@ -276,7 +276,7 @@ def fetch(dates):
     files = []
     # go through each input date
     for date in dates:
-        # get the url to download the file from the source for the given down
+        # get the url to download the file from the source for the given date
         url = getUrl(date)
         # get the filename we want to save the file under locally
         f = getFilename(date)
