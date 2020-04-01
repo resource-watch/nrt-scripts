@@ -41,7 +41,7 @@ EE_COLLECTION = 'cli_021_snow_cover_monthly'
 # do you want to delete everything currently in the GEE collection when you run this script?
 CLEAR_COLLECTION_FIRST = False
 
-# do you want to delete the netcdf and tif files once the tif files are uploaded to GEE?
+# do you want to delete the hdf and tif files downloaded to the Docker container once the tif files are uploaded to GEE?
 DELETE_LOCAL = True
 
 # how many assets can be stored in the GEE collection before the oldest ones are deleted?
