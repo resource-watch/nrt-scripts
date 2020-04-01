@@ -312,6 +312,7 @@ def fetch(new_dates):
     for date in new_dates:
         # get the url to download the file from the source for the given date
         url = getUrl(date)
+        # change date string from format used in HDF to format used in GEE
         # input date is initially a string, strptime changes it to datetime object, strftime reformats into string
         file_date = datetime.datetime.strptime(date, DATE_FORMAT_HDF).strftime(DATE_FORMAT)
         # get the filename we want to save the file under locally
