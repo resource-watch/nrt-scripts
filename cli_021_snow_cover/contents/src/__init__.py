@@ -326,7 +326,8 @@ def fetch(new_dates):
             soup = BeautifulSoup(content, 'html.parser')
 
             hdfs = []
-            # extract all the <a> tags within the content, the goal is to find id of all the hdf files
+            # Extract all the <a> tags within the html content. The <a> tags are used to mark links, so 
+            # we will be able to find the files available for download marked with these tags.
             for a in soup.find_all('a'):
                 str_a = str(a)
                 # if one of the links available to download contains the word 'hdf'
