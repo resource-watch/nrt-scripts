@@ -329,7 +329,7 @@ def fetch(new_dates):
             # extract all the <a> tags within the content, the goal is to find id of all the hdf files
             for a in soup.find_all('a'):
                 str_a = str(a)
-                # if an <a> tag contain the word 'hdf'
+                # if one of the links available to download contains the word 'hdf'
                 if 'hdf' in str_a:
                     # find the index of '.hdf'
                     ext = str_a.index('.hdf')
