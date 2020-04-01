@@ -25,7 +25,6 @@ SDS_NAME = 'HDF4_EOS:EOS_GRID:"{fname}":MOD_CMG_Snow_5km:Snow_Cover_Monthly_CMG'
 FILENAME = 'cli_021_{date}'
 
 # nodata value for hdf
-# GEE can't accept a negative no data value, set to 251 for Byte type?
 NODATA_VALUE = 255
 
 # name of data directory in Docker container
