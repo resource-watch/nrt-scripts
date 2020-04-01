@@ -235,7 +235,7 @@ def getDate(filename):
 def getNewDates(exclude_dates):
     '''
     Get new dates we want to try to fetch data for
-    INPUT   exclude_dates: list of dates that we already have in GEE (list of strings)
+    INPUT   exclude_dates: list of dates that we already have in GEE, in the format of the DATE_FORMAT variable (list of strings)
     RETURN  new_dates: list of new dates we want to try to get in the format of the DATE_FORMAT variable (list of strings)
     '''
     # create empty list to store dates we want to fetch
