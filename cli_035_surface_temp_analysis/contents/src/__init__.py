@@ -20,10 +20,6 @@ SOURCE_URL = 'ftp://ftp.cdc.noaa.gov/Datasets/gistemp/combined/250km/{target_fil
 # name of target_file to be joined with SOURCE_URL
 SOURCE_FILENAME = 'air.2x2.250.mon.anom.comb.nc'
 
-# subdataset to be converted to tif
-# should be of the format 'NETCDF:"filename.nc":variable'
-SDS_NAME = 'NETCDF:\"{nc_name}\":{var_name}'
-
 # filename format for GEE
 FILENAME = 'cli_035_{date}'
 
