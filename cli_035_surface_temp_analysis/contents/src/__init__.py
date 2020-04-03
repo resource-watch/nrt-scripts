@@ -250,7 +250,7 @@ def fetch(filename):
     RETURN  filename: file name for netcdf that have been downloaded (string)
     '''
     # get the url to download the file from the source for the given file name
-    url = getUrl(target_file)
+    url = getUrl()
     try:
         # try to download the data
         urllib.request.urlretrieve(url, filename)
