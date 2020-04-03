@@ -322,7 +322,7 @@ def extract_subdata_by_date(nc_file, dtype, nodata, available_dates, target_date
     nc = Dataset(nc_file)
     # create and empty list to store the names of the tifs we generate
     sub_tifs = []
-    #go through each dates we want to try to get and check if they are avaialble in netcdf
+    # go through each date we want to try to get and check if it is available in the netcdf
     for date in target_dates:
         # find index in available date, if not available, skip this date
         try:
