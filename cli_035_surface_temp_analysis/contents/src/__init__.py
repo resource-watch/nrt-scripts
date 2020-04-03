@@ -315,7 +315,7 @@ def extract_subdata_by_date(nc_file, dtype, nodata, available_dates, target_date
             dtype: data type of the input netcdf (string)
             nodata: nodata value for netcdf (float)
             available_dates: list of dates for which input netcdf is available (list of strings)
-            target_dates: list of new dates we want to try to get
+            target_dates: list of new dates we want to try to get (list of strings)
     RETURN  sub_tifs: list of file names for tifs that have been generated (list of strings)
     '''
     # open the netcdf file and create an instance of the ncCDF4 class
