@@ -380,7 +380,7 @@ def processNewData(existing_dates):
     '''
     fetch, process, upload, and clean new data
     INPUT   existing_dates: list of dates we already have in GEE, in the format of the DATE_FORMAT variable (list of strings)
-    RETURN  assets: list of file names for netcdfs that have been downloaded (list of strings)
+    RETURN  assets: list of GEE assets that have been created (list of strings)
     '''
     # Get list of new dates we want to try to fetch data for
     target_dates = getNewDates(existing_dates)
