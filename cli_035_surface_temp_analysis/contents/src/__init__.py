@@ -290,7 +290,7 @@ def retrieve_formatted_dates(nc_file, date_pattern=DATE_FORMAT):
     '''
     # open the netcdf file and create an instance of the ncCDF4 class
     nc = Dataset(nc_file)
-    # extract time variable range from netcdf
+    # extract time variable from netcdf
     time_displacements = nc[TIME_NAME]
     # delete the instance of the ncCDF4 class from memory
     del nc
