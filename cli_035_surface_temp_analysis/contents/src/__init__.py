@@ -236,7 +236,6 @@ def getNewDates(exclude_dates):
     for i in range(MAX_ASSETS):
         # go back one month at a time
         date -= relativedelta(months=1)
-        date.replace(day=15)
         # generate a string from the date
         datestr = date.strftime(DATE_FORMAT)
         # if the date string is not the list of dates we already have, add it to the list of new dates to try and fetch
