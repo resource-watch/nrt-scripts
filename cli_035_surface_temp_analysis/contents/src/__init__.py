@@ -395,7 +395,7 @@ def processNewData(existing_dates):
     logging.info('type: ' + dtype)
     logging.info('nodata val: ' + str(nodata))
 
-    # If we have successfully been able to fetch new data files
+    # If there are dates we expect to be able to fetch data for
     if target_dates:
         # Create new tifs from netcdf file for available dates
         logging.info('Converting files')
