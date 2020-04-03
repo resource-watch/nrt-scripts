@@ -388,7 +388,7 @@ def processNewData(existing_dates):
     # Fetch data file from source
     logging.info('Fetching files')
     nc_file = fetch(os.path.join(DATA_DIR,'nc_file.nc'))
-    # Fetch date from netcdf and format date according to DATE_FORMAT
+    # Get a list of dates of data available from netcdf file, in the format of the DATE_FORMAT variable
     available_dates = retrieve_formatted_dates(nc_file)
     # Fetch metadata from netcdf 
     dtype, nodata = extract_metadata(nc_file)
