@@ -238,7 +238,7 @@ def getNewDates(exclude_dates):
     date.replace(day=15)
     for i in range(MAX_ASSETS):
         # go back 30 day at a time; 30 was set by TIMESTEP variable
-        date -= datetime.timedelta(**TIMESTEP)
+        date -= relativedelta(months=1)
         # replace day to be the fifteen of the current month
         date.replace(day=15)
         # generate a string from the date
