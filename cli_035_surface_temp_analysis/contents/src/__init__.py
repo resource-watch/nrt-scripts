@@ -385,7 +385,7 @@ def processNewData(existing_dates):
     # Get list of new dates we want to try to fetch data for
     target_dates = getNewDates(existing_dates)
 
-    # Fetch new files
+    # Fetch data file from source
     logging.info('Fetching files')
     nc_file = fetch(os.path.join(DATA_DIR,'nc_file.nc'))
     # Fetch date from netcdf and format date according to DATE_FORMAT
