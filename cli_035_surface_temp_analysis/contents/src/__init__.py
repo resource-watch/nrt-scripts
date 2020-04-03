@@ -32,7 +32,6 @@ TIME_NAME = 'time'
 # nodata value for netcdf
 NODATA_VALUE = None
 
-DATA_TYPE = 'Byte' 
 
 # attribute name for missing value in netcdf file
 MISSING_VALUE_NAME = "missing_value"
