@@ -313,7 +313,7 @@ def extract_subdata_by_date(nc_file, dtype, nodata, available_dates, target_date
     INPUT   nc_file: file name for netcdf that have already been downloaded (string)
             dtype: data type of the input netcdf (string)
             nodata: nodata value for netcdf (float)
-            available_dates: list of dates for which input netcdf is available (list of strings)
+            available_dates: list of dates available in input netcdf (list of strings)
             target_dates: list of new dates we want to try to get (list of strings)
     RETURN  sub_tifs: list of file names for tifs that have been generated (list of strings)
     '''
