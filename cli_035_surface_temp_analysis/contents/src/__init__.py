@@ -263,7 +263,7 @@ def fetch(filename):
 def extract_metadata(nc_file):
     '''
     Fetch metadata from netcdf by filename
-    INPUT   nc_file: file name for netcdf for which we want to try to fetch metadata(string)
+    INPUT   nc_file: file name for netcdf for which we want to try to fetch metadata (string)
     RETURN  dtype: data type of the input netcdf (string)
             nodata: nodata value for netcdf (float)
     '''
