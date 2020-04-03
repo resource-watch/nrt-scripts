@@ -298,6 +298,7 @@ def retrieve_formatted_dates(nc_file, date_pattern=DATE_FORMAT):
     # get time units from the netcdf
     time_units = time_displacements.getncattr('units')
     logging.debug("Time units: {}".format(time_units))
+    # time units are given in time since a reference date, pull that reference date out
     # fuzzy=True allows the parser to pick the date out from a string with other text
     ref_time = parser.parse(time_units, fuzzy=True)
     logging.debug("Reference time: {}".format(ref_time))
