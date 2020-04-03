@@ -303,7 +303,7 @@ def retrieve_formatted_dates(nc_file, date_pattern=DATE_FORMAT):
     ref_time = parser.parse(time_units, fuzzy=True)
     logging.debug("Reference time: {}".format(ref_time))
 
-    # format times according to the variable DATE_FORMAT
+    # get list of times associated with data in netcdf file and format it according to the DATE_FORMAT variable
     formatted_dates = [(ref_time + datetime.timedelta(days=int(time_disp))).strftime(date_pattern) for time_disp in time_displacements]
     logging.debug('Dates available: {}'.format(formatted_dates))
     return(formatted_dates)
