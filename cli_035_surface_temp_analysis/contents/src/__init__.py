@@ -52,7 +52,6 @@ MAX_ASSETS = 36
 
 # format of date (used in both the source data files and GEE)
 DATE_FORMAT = '%Y%m15'
-# be for 30 days before today's date 
 TIMESTEP = {'days': 30}
 
 # Resource Watch dataset API ID
