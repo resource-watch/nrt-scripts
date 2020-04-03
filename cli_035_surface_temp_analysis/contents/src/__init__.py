@@ -199,7 +199,6 @@ They should all be checked because their format likely will need to be changed.
 def getUrl():
     '''
     format source url with target file name
-    INPUT   target_file: name of target file (string)
     RETURN  source url to download data, formatted for target file name (string)
     '''
     return SOURCE_URL.format(target_file=SOURCE_FILENAME)
