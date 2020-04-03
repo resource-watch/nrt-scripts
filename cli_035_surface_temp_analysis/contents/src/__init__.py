@@ -234,7 +234,7 @@ def getNewDates(exclude_dates):
     new_dates = []
     # start with today's date
     date = datetime.date.today()
-    # replace day to be the fifteen of the current month
+    # replace day to be the fifteenth of the current month
     date.replace(day=15)
     for i in range(MAX_ASSETS):
         # go back 30 day at a time; 30 was set by TIMESTEP variable
