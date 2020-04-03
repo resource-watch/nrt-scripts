@@ -196,7 +196,7 @@ The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
 
-def getUrl(target_file):
+def getUrl():
     '''
     format source url with target file name
     INPUT   target_file: name of target file (string)
