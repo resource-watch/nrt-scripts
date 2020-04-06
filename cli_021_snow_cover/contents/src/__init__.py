@@ -80,7 +80,7 @@ def lastUpdateDate(dataset, date):
     }
     # create the json data to send in the request
     body = {
-         "dataLastUpdated": date.isoformat()
+         "dataLastUpdated": date.isoformat() # date should be a string in the format 'YYYY-MM-DDTHH:MM:SS'
     }
     # send the request
     try:
