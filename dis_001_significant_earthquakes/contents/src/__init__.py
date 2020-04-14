@@ -173,7 +173,7 @@ def processData(existing_ids):
                                      CARTO_SCHEMA.values(), new_data)
         elif not PROCESS_HISTORY:
             # Break if no results for a week otherwise keep going
-            return 0
+            break
 
     return(len(new_ids))
 
