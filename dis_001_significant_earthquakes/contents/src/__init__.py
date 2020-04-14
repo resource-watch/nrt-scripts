@@ -202,6 +202,7 @@ def main():
     r = cartosql.getFields(UID_FIELD, CARTO_TABLE,
                            order='{} desc'.format(TIME_FIELD), f='csv')
     existing_ids = r.text.split('\r\n')[1:-1]
+    existing_ids = [id.replace('"', '') for id in existing_ids]
     num_existing = len(existing_ids)
 
     ### 3. Fetch data from FTP, dedupe, process
