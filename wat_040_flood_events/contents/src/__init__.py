@@ -248,7 +248,7 @@ def main():
 
     # 1. Check if table exists and create table
     existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, TIME_FIELD)
-    existing_ids = [id.replace('"', '') for id in existing_ids]
+
     # 2. Iterively fetch, parse and post new data
     new_ids = processNewData(existing_ids)
 
