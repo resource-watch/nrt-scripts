@@ -17,95 +17,188 @@ import time
 from string import ascii_uppercase
 import json
 
-
-# Sources for nrt data
-SDS_NAME = 'NETCDF:"{fname}":{var}'
-NODATA_VALUE = 9.9999999E14
-
-DATA_DIR = 'data'
-COLLECTION = '/projects/resource-watch-gee/cit_002_gmao_air_quality'
-# do you want to delete everything currently in the GEE collection when you run this script?
-CLEAR_COLLECTION_FIRST = False
-DELETE_LOCAL = True
-
-#date format to use in GEE
-DATE_FORMAT = '%Y-%m-%d'
-
-LOG_LEVEL = logging.INFO
-
-# input RW API ids for each variable
-DATASET_IDS = {
-    'NO2':'ecce902d-a322-4d13-a3d6-e1a36fc5573e',
-    'O3':'ebc079a1-51d8-4622-ba25-d8f3b4fcf8b3',
-    'PM25_RH35_GCC':'645fe192-28db-4949-95b9-79d898f4226b',
-}
-
-# url for historical data
+# url for historical air quality data
 SOURCE_URL_HISTORICAL = 'https://portal.nccs.nasa.gov/datashare/gmao/geos-cf/v1/das/Y{year}/M{month}/D{day}/GEOS-CF.v01.rpl.chm_tavg_1hr_g1440x721_v1.{year}{month}{day}_{time}z.nc4'
-# url for forecast data
+
+# url for forecast air quality data
 SOURCE_URL_FORECAST = 'https://portal.nccs.nasa.gov/datashare/gmao/geos-cf/v1/forecast/Y{start_year}/M{start_month}/D{start_day}/H12/GEOS-CF.v01.fcst.chm_tavg_1hr_g1440x721_v1.{start_year}{start_month}{start_day}_12z+{year}{month}{day}_{time}z.nc4'
 
-#list variables (as named in netcdf) that we want to pull
+# subdataset to be converted to tif
+# should be of the format 'NETCDF:"filename.nc":variable'
+SDS_NAME = 'NETCDF:"{fname}":{var}'
+
+# list variables (as named in netcdf) that we want to pull
 VARS = ['NO2', 'O3', 'PM25_RH35_GCC']
 
-#define unit conversion factors for each compound
+# define unit conversion factors for each compound
 CONVERSION_FACTORS = {
-    'NO2': 1e9, #mol/mol to ppb
-    'O3': 1e9, #mol/mol to ppb
-    'PM25_RH35_GCC': 1, #keep original units
+    # mol/mol to ppb
+    'NO2': 1e9, 
+    'O3': 1e9,
+    # keep original units
+    'PM25_RH35_GCC': 1, 
 }
 
-#define metrics to calculate for each compound
+# define metrics to calculate for each compound
 METRIC_BY_COMPOUND = {
     'NO2': 'daily_avg',
     'O3': 'daily_max',
     'PM25_RH35_GCC': 'daily_avg',
 }
 
+# nodata value for netcdf
+NODATA_VALUE = 9.9999999E14
+
+# name of data directory in Docker container
+DATA_DIR = 'data'
+
+# name of collection in GEE where we will upload the final data
+COLLECTION = '/projects/resource-watch-gee/cit_002_gmao_air_quality'
+
+# do you want to delete everything currently in the GEE collection when you run this script?
+CLEAR_COLLECTION_FIRST = False
+
+# do you want to delete local tif and netcdf files?
+DELETE_LOCAL = True
+
 #how many assets can be stored in the GEE collection before the oldest ones are deleted?
 MAX_ASSETS = 100
 
+# date format to use in GEE
+DATE_FORMAT = '%Y-%m-%d'
+
+# Resource Watch dataset API IDs
+# Important! Before testing this script:
+# Please change these IDs OR comment out the getLayerIDs(DATASET_ID) function in the script below
+# Failing to do so will overwrite the last update date on different datasets on Resource Watch
+DATASET_IDS = {
+    'NO2':'ecce902d-a322-4d13-a3d6-e1a36fc5573e',
+    'O3':'ebc079a1-51d8-4622-ba25-d8f3b4fcf8b3',
+    'PM25_RH35_GCC':'645fe192-28db-4949-95b9-79d898f4226b',
+}
+
+'''
+FUNCTIONS FOR ALL DATASETS
+
+The functions below must go in every near real-time script.
+Their format should not need to be changed.
+'''
+
+def lastUpdateDate(dataset, date):
+    '''
+    Given a Resource Watch dataset's API ID and a datetime,
+    this function will update the dataset's 'last update date' on the API with the given datetime
+    INPUT   dataset: Resource Watch API dataset ID (string)
+            date: date to set as the 'last update date' for the input dataset (datetime)
+    '''
+    # generate the API url for this dataset
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+    # create headers to send with the request to update the 'last update date'
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    # create the json data to send in the request
+    body = {
+        "dataLastUpdated": date.isoformat() # date should be a string in the format 'YYYY-MM-DDTHH:MM:SS'
+    }
+    # send the request
+    try:
+        r = requests.patch(url = apiUrl, json = body, headers = headers)
+        logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+        return 0
+    except Exception as e:
+        logging.error('[lastUpdated]: '+str(e))
+
+'''
+FUNCTIONS FOR RASTER DATASETS
+
+The functions below must go in every near real-time script for a RASTER dataset.
+Their format should not need to be changed.
+'''
+
 def getLastUpdate(dataset):
+    '''
+    Given a Resource Watch dataset's API ID,
+    this function will get the current 'last update date' from the API
+    and return it as a datetime
+    INPUT   dataset: Resource Watch API dataset ID (string)
+    RETURN  lastUpdateDT: current 'last update date' for the input dataset (datetime)
+    '''
+    # generate the API url for this dataset
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{}'.format(dataset)
+    # pull the dataset from the API
     r = requests.get(apiUrl)
+    # find the 'last update date'
     lastUpdateString=r.json()['data']['attributes']['dataLastUpdated']
+    # split this date into two pieces at the seconds decimal so that the datetime module can read it:
+    # ex: '2020-03-11T00:00:00.000Z' will become '2020-03-11T00:00:00' (nofrag) and '000Z' (frag)
     nofrag, frag = lastUpdateString.split('.')
+    # generate a datetime object
     nofrag_dt = datetime.datetime.strptime(nofrag, "%Y-%m-%dT%H:%M:%S")
+    # add back the microseconds to the datetime
     lastUpdateDT = nofrag_dt.replace(microsecond=int(frag[:-1])*1000)
     return lastUpdateDT
 
 def getLayerIDs(dataset):
+    '''
+    Given a Resource Watch dataset's API ID,
+    this function will return a list of all the layer IDs associated with it
+    INPUT   dataset: Resource Watch API dataset ID (string)
+    RETURN  layerIDs: Resource Watch API layer IDs for the input dataset (list of strings)
+    '''
+    # generate the API url for this dataset - this must include the layers
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{}?includes=layer'.format(dataset)
+    # pull the dataset from the API
     r = requests.get(apiUrl)
+    #get a list of all the layers
     layers = r.json()['data']['attributes']['layer']
+    # create an empty list to store the layer IDs
     layerIDs =[]
+    # go through each layer and add its ID to the list
     for layer in layers:
+        # only add layers that have Resource Watch listed as its application
         if layer['attributes']['application']==['rw']:
             layerIDs.append(layer['id'])
     return layerIDs
 
 def flushTileCache(layer_id):
     """
-    This function will delete the layer cache built for a GEE tiler layer.
-     """
+    Given the API ID for a GEE layer on Resource Watch,
+    this function will clear the layer cache.
+    If the cache is not cleared, when you view the dataset on Resource Watch, old and new tiles will be mixed together.
+    INPUT   layer_id: Resource Watch API layer ID (string)
+    """
+    # generate the API url for this layer's cache
     apiUrl = 'http://api.resourcewatch.org/v1/layer/{}/expire-cache'.format(layer_id)
+    # create headers to send with the request to clear the cache
     headers = {
     'Content-Type': 'application/json',
     'Authorization': os.getenv('apiToken')
     }
+
+    # clear the cache for the layer
+    # sometimetimes this fails, so we will try multiple times, if it does
+
+    # specify that we are on the first try
     try_num=1
-    tries=4
-    while try_num<tries:
+    while try_num<4:
         try:
+            # try to delete the cache
             r = requests.delete(url = apiUrl, headers = headers, timeout=1000)
+            # if we get a 200, the cache has been deleted
+            # if we get a 504 (gateway timeout) - the tiles are still being deleted, but it worked
             if r.ok or r.status_code==504:
                 logging.info('[Cache tiles deleted] for {}: status code {}'.format(layer_id, r.status_code))
                 return r.status_code
+            # if we don't get a 200 or 504:
             else:
+                # if we are not on our last try, wait 60 seconds and try to clear the cache again
                 if try_num < (tries-1):
                     logging.info('Cache failed to flush: status code {}'.format(r.status_code))
                     time.sleep(60)
                     logging.info('Trying again.')
+                # if we are on our last try, log that the cache flush failed
                 else:
                     logging.error('Cache failed to flush: status code {}'.format(r.status_code))
                     logging.error('Aborting.')
@@ -113,67 +206,92 @@ def flushTileCache(layer_id):
         except Exception as e:
             logging.error('Failed: {}'.format(e))
 
-def lastUpdateDate(dataset, date):
-   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
-   headers = {
-   'Content-Type': 'application/json',
-   'Authorization': os.getenv('apiToken')
-   }
-   body = {
-       "dataLastUpdated": date.isoformat()
-   }
-   try:
-       r = requests.patch(url = apiUrl, json = body, headers = headers)
-       logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
-       return 0
-   except Exception as e:
-       logging.error('[lastUpdated]: '+str(e))
+'''
+FUNCTIONS FOR THIS DATASET
+
+The functions below have been tailored to this specific dataset.
+They should all be checked because their format likely will need to be changed.
+'''
 
 def getAssetName(date):
-    '''get asset name from datestamp'''
+    '''
+    get asset name
+    INPUT   date: date in the format of the DATE_FORMAT variable (string)
+    RETURN  GEE asset name for input date (string)
+    '''
     return os.path.join(EE_COLLECTION, FILENAME.format(metric=METRIC_BY_COMPOUND[VAR], var=VAR, date=date))
 
 def getTiffname(file, variable):
-    '''get filename from datestamp CHECK FILE TYPE'''
+    '''
+    generate names for tif files that we are going to create from netcdf
+    INPUT   file: netcdf filename (string)
+            variable: variable that we want to pull (string)
+    RETURN  file name to save tif file created from netcdf (string)
+    '''
+    # get year, month, day and time from netcdf filename 
     year = file.split('/')[1][-18:-14]
     month = file.split('/')[1][-14:-12]
     day = file.split('/')[1][-12:-10]
     time = file.split('/')[1][-9:-5]
+
     name = os.path.join(DATA_DIR, FILENAME.format(metric=METRIC_BY_COMPOUND[VAR], var=variable, date=year+'-'+month+'-'+day +'_'+time))+'.tif'
     return name
 
 def getDateTime(filename):
-    '''get last 10 chrs of filename CHECK THIS'''
+    '''
+    get date from filename (last 10 characters of filename after removing extension)
+    INPUT   filename: file name that ends in a date of the format YYYYMMDDTT (string)
+    RETURN  date in the format YYYYMMDDTT (string)
+    '''
     return os.path.splitext(os.path.basename(filename))[0][-10:]
 
 def getDate_GEE(filename):
-    '''get last 10 chrs of filename CHECK THIS'''
+    '''
+    get date from Google Earth Engine asset name (last 10 characters of filename after removing extension)
+    INPUT   filename: asset name that ends in a date of the format YYYYMMDDTT (string)
+    RETURN  date in the format YYYYMMDDTT (string)
+    '''
     return os.path.splitext(os.path.basename(filename))[0][-10:]
 
 def list_available_files(url, file_start=''):
+    '''
+    get the files available for a given day using a source url formatted with date
+    INPUT   url: source url for the given day's data folder (string)
+            file_start: a string that is present in the begining of every source netcdf filename (string)
+    RETURN  list of files available for the given url (list of strings)
+    '''
+    # open and read the url
     page = requests.get(url).text
+    # use BeautifulSoup to read the content as a nested data structure
     soup = BeautifulSoup(page, 'html.parser')
+    # Extract all the <a> tags within the html content to find the files available for download marked with these tags.
+    # Get only the files that starts with a certain word present in the begining of every source netcdf filename
     return [node.get('href') for node in soup.find_all('a') if type(node.get('href'))==str and node.get('href').startswith(file_start)]
 
 def getNewDatesHistorical(existing_dates):
+    '''
+    Get new dates we want to try to fetch historical data for
+    INPUT   existing_dates: list of dates that we already have in GEE, in the format of the DATE_FORMAT variable (list of strings)
+    RETURN  new_dates: list of new dates we want to try to get, in the format of the DATE_FORMAT variable (list of strings)
+    '''
     #create empty list to store dates we should process
     new_dates = []
 
-    # start with today
+    # start with today's date and time
     date = datetime.datetime.utcnow()
-    #generate date string in same format used in GEE collection
+    # generate date string in same format used in GEE collection
     date_str = datetime.datetime.strftime(date, DATE_FORMAT)
 
-    #generate date to stop at if collection is empty
+    # find date beyond which we don't want to go back since that will exceed the maximum allowable assets in GEE
     last_date = date - datetime.timedelta(days=MAX_ASSETS)
 
-    #if the date is not in our list of existing dates:
+    # if the date string is not in our list of existing dates and don't go beyond max allowable dates:
     while (date_str not in existing_dates) and (date!=last_date):
-        #general source url for this day's data folder
+        # general source url for the given dates data folder
         url = SOURCE_URL_HISTORICAL.split('/GEOS')[0].format(year=date.year, month='{:02d}'.format(date.month), day='{:02d}'.format(date.day))
-        # check the files available for this day:
+        # get the list of files available for the given date
         files = list_available_files(url, file_start='GEOS-CF.v01.rpl.chm_tavg')
-        #if the first 12 hourly files are available for a day, we can process this data - add it to the list
+        # if the first 12 hourly files are available for a day, we can process this data - add it to the list
         # note: we are centering the averages about midnight each day, so we just need 12 hours from the most recent day and 12 hours from the previous day
         if len(files) >= 12:
             new_dates.append(date_str)
@@ -188,43 +306,54 @@ def getNewDatesHistorical(existing_dates):
     return new_dates
 
 def getNewDatesForecast(existing_dates):
+    '''
+    Get new dates we want to try to fetch forecasted data for
+    INPUT   existing_dates: list of dates that we already have in GEE, in the format of the DATE_FORMAT variable (list of strings)
+    RETURN  new_dates: list of new dates we want to try to get, in the format of the DATE_FORMAT variable (list of strings)
+    '''
     if existing_dates:
-        #get start date of last forecast
+        # get start date of last forecast
         first_date_str = existing_dates[0]
+        # generate date string in same format used in GEE collection
         existing_start_date = datetime.datetime.strptime(first_date_str, DATE_FORMAT)
     else:
-        #if we don't have existing data, just choose an old date so that we keep checking back until that date
-        #let's assume we will probably have a forecast in the last 30 days, so we will check back that far for
+        # if we don't have existing data, just choose an old date so that we keep checking back until that date
+        # let's assume we will probably have a forecast in the last 30 days, so we will check back that far for
         # forecasts until we find one
         existing_start_date = datetime.datetime.utcnow() - datetime.timedelta(days=30)
     #create empty list to store dates we should process
     new_dates = []
 
-    # start with today
+    # start with today's date and time
     date = datetime.datetime.utcnow()
-    #while the date is newer than the most recent forecast that we pulled:
+    # while the date is newer than the most recent forecast that we pulled:
     while date > existing_start_date:
-        #general source url for this day's forecast data folder
+        # general source url for this day's forecast data folder
         url = SOURCE_URL_FORECAST.split('/GEOS')[0].format(start_year=date.year, start_month='{:02d}'.format(date.month), start_day='{:02d}'.format(date.day))
         # check the files available for this day:
         files = list_available_files(url, file_start='GEOS-CF.v01.fcst.chm_tavg')
-        #if all 120 files are available (5 days x 24 hours/day), we can process this data
+        # if all 120 files are available (5 days x 24 hours/day), we can process this data
         if len(files) == 120:
             #add the next five days forecast to the new dates
             for i in range(5):
                 date = date + datetime.timedelta(days=1)
+                # generate a string from the date
                 date_str = datetime.datetime.strftime(date, DATE_FORMAT)
                 new_dates.append(date_str)
-            #once we have found the most recent forecast we can break from the while loop because we only want to process the most recent forecast
+            # once we have found the most recent forecast we can break from the while loop because we only want to process the most recent forecast
             break
         # if there was no forecast for this day, go back one more day
         date = date - datetime.timedelta(days=1)
-    #repeat until we reach the forecast we already have
+    # repeat until we reach the forecast we already have
 
     return new_dates
 
 def convert(files):
-    '''convert netcdfs to tifs'''
+    '''
+    Convert netcdf files to tifs
+    INPUT   files: list of file names for netcdfs that have already been downloaded (list of strings)
+    RETURN  tifs: list of file names for tifs that have been generated (list of strings)
+    '''
     #create an empty list to store the names of tif files that we create
     tifs = []
     for f in files:
@@ -573,7 +702,7 @@ def update_layer(layer, new_date):
 
 def main():
     #set logging levels
-    logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
+    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
 
     #create global variables that will be used in many functions
