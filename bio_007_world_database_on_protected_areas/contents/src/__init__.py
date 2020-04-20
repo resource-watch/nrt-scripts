@@ -139,7 +139,7 @@ Their format should not need to be changed.
 
 def checkCreateTable(table, schema, id_field, time_field=''):
     '''
-    Get existing ids or create table
+    Create the table if it does not exist, and pull list of IDs already in the table if it does
     INPUT   table: Carto table to check or create (string)
             schema: dictionary of column names and types, used if we are creating the table for the first time (dictionary)
             id_field: name of column that we want to use as a unique ID for this table; this will be used to compare the
@@ -170,23 +170,40 @@ def checkCreateTable(table, schema, id_field, time_field=''):
         # return an empty list because there are no IDs in the new table yet
         return []
 
-def fetch_ids(existing_ids_int):
+'''
+FUNCTIONS FOR THIS DATASET
 
-    #Note IDs are pulled from this csv and not the API because querying the API is very slow, so it is much faster to get a list of all the IDS from this csv
+The functions below have been tailored to this specific dataset.
+They should all be checked because their format likely will need to be changed.
+'''
+
+def fetch_ids(existing_ids_int):
+    '''
+    Get a list of WDPA IDs in the version of the dataset we are pulling
+    INPUT   existing_ids_int:  (list of integers)
+    RETURN  new_ids:  (list of strings)
+            all_ids:  (list of strings)
+    '''
+    # pull current csv containing WDPA IDs
+    # note: IDs are pulled from this csv and not the API because querying the API is very slow, so it is much faster
+    # to get a list of all the IDS from this csv
     filename_csv = 'WDPA_{mo}{yr}-csv'.format(mo=datetime.datetime.today().strftime("%b"), yr=datetime.datetime.today().year)
     url_csv = 'http://d1gam3xoknrgr2.cloudfront.net/current/{}.zip'.format(filename_csv)
-
     urllib.request.urlretrieve(url_csv, DATA_DIR + '/' + filename_csv + '.zip')
+
+    # unzip file containing csv
     zip_ref = zipfile.ZipFile(DATA_DIR + '/' + filename_csv + '.zip', 'r')
     zip_ref.extractall(DATA_DIR + '/' + filename_csv)
     zip_ref.close()
 
-    # read in climate change vulnerability data to pandas dataframe
+    # read in WDPA csv as a pandas dataframe
     filename = DATA_DIR + '/' + filename_csv + '/' + filename_csv + '.csv'
     wdpa_df = pd.read_csv(filename, low_memory=False)
 
+    # get a list of all IDs in the table
     all_ids = np.unique(wdpa_df.WDPAID.to_list()).tolist()
     logging.info('found {} ids'.format(len(all_ids)))
+    # get a list of the IDs in the table that we don't already have in our existing IDs
     new_ids = np.unique(np.setdiff1d(all_ids, existing_ids_int)).tolist()
     logging.info('{} new ids'.format(len(new_ids)))
 
@@ -206,16 +223,20 @@ def delete_carto_entries(id_list, column):
             where = None
 
 def processData(existing_ids):
+    # turn list of ids from strings into integers
     existing_ids_int = [int(i) for i in existing_ids]
-    # Fetching list of new WDPA IDs
+    # fetch list of WDPA IDs (all IDs and just new ones) so that we can pull info from the API about each area
     new_ids, all_ids = fetch_ids(existing_ids_int)
+    # if we have designated that we want to replace all the ids, then the list of IDs we will query (id_list) will
+    # include all the IDs available; otherwise, we will just pull the new IDs
     if REPLACE_ALL==True:
         id_list = all_ids
     else:
         id_list = new_ids
-    #go through and fetch information for new ids
+    # create empty lists to store data we will be sending to Carto table
     new_data = []
     send_list=[]
+    # go through and fetch information for new ids
     for id in id_list:
         try_num=0
         # WDPA API Reference document: https://api.protectedplanet.net/documentation#get-v3protectedareas
@@ -302,7 +323,6 @@ def processData(existing_ids):
 
 
 def main():
-    start_time=time.time()
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
 
@@ -332,9 +352,6 @@ def main():
         logging.error('No new data.')
 
     logging.info('Existing rows: {},  New rows: {}'.format(total, num_new))
-    end_time=time.time()
-    run_time=end_time-start_time
-    logging.info("SUCCESS, run time: {}".format(datetime.timedelta(seconds=run_time)))
     # Delete local files
     try:
         for f in os.listdir(DATA_DIR):
