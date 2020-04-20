@@ -181,8 +181,8 @@ def fetch_ids(existing_ids_int):
     '''
     Get a list of WDPA IDs in the version of the dataset we are pulling
     INPUT   existing_ids_int:  (list of integers)
-    RETURN  new_ids:  (list of strings)
-            all_ids:  (list of strings)
+    RETURN  new_ids: list of IDs in the WDPA table that we don't already have in our existing IDs (list of strings)
+            all_ids: list of all IDs in the WDPA table (list of strings)
     '''
     # pull current csv containing WDPA IDs
     # note: IDs are pulled from this csv and not the API because querying the API is very slow, so it is much faster
