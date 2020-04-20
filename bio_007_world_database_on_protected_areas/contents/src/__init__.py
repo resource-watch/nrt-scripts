@@ -13,13 +13,15 @@ import zipfile
 import pandas as pd
 import shutil
 
-# WDPA API Reference document: https://api.protectedplanet.net/documentation
-
-### Constants
-#API documentation: https://api.protectedplanet.net/documentation#get-v3protectedareas
-
 # do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = False
+
+# name of data directory in Docker container
+DATA_DIR = 'data'
+
+# Carto username and API key for account where we will store the data
+CARTO_USER = os.getenv('CARTO_USER')
+CARTO_KEY = os.getenv('CARTO_KEY')
 
 # do you want to update all the entries in the table when you run this script?
 # True - update entire table
@@ -62,7 +64,7 @@ CARTO_SCHEMA = OrderedDict([
     ("status_yr", "numeric"),
 ])
 
-# column names and types for data table
+# column names and paths to find them in the json returned by the source
 JSON_LOC = {
     "the_geom": ["geojson", "geometry"],
     "name": ["name"],
@@ -88,10 +90,6 @@ JSON_LOC = {
     "legal_status_updated_at": ["legal_status_updated_at"],
     "status_yr": ["legal_status_updated_at"],
      }
-# Table limits
-MAX_ROWS = 1000000
-DATA_DIR = 'data'
-DELETE_LOCAL=True
 
 # Resource Watch dataset API ID
 # Important! Before testing this script:
@@ -133,69 +131,79 @@ def lastUpdateDate(dataset, date):
         logging.error('[lastUpdated]: '+str(e))
 
 '''
-FUNCTIONS FOR VECTOR DATASETS
+FUNCTIONS FOR CARTO DATASETS
 
-The functions below must go in every near real-time script for a VECTOR dataset.
+The functions below must go in every near real-time script for a Carto dataset.
 Their format should not need to be changed.
 '''
 
-
 def checkCreateTable(table, schema, id_field, time_field=''):
-    '''Get existing ids or create table'''
-    if cartosql.tableExists(table, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY')):
+    '''
+    Create the table if it does not exist, and pull list of IDs already in the table if it does
+    INPUT   table: Carto table to check or create (string)
+            schema: dictionary of column names and types, used if we are creating the table for the first time (dictionary)
+            id_field: name of column that we want to use as a unique ID for this table; this will be used to compare the
+                    source data to the our table each time we run the script so that we only have to pull data we
+                    haven't previously uploaded (string)
+            time_field:  optional, name of column that will store datetime information (string)
+    RETURN  list of existing IDs in the table, pulled from the id_field column (list of strings)
+    '''
+    # check it the table already exists in Carto
+    if cartosql.tableExists(table, user=CARTO_USER, key=CARTO_KEY):
+        # if the table does exist, get a list of all the values in the id_field column
         logging.info('Fetching existing IDs')
-        r = cartosql.getFields(id_field, table, f='csv', post=True, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
+        r = cartosql.getFields(id_field, table, f='csv', post=True, user=CARTO_USER, key=CARTO_KEY)
+        # turn the response into a list of strings, removing the first and last entries (header and an empty space at end)
         return r.text.split('\r\n')[1:-1]
     else:
+        # if the table does not exist, create it with columns based on the schema input
         logging.info('Table {} does not exist, creating'.format(table))
-        cartosql.createTable(table, schema, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
+        cartosql.createTable(table, schema, user=CARTO_USER, key=CARTO_KEY)
+        # if a unique ID field is specified, set it as a unique index in the Carto table; when you upload data, Carto
+        # will ensure no two rows have the same entry in this column and return an error if you try to upload a row with
+        # a duplicate unique ID
         if id_field:
-            cartosql.createIndex(table, id_field, unique=True, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
+            cartosql.createIndex(table, id_field, unique=True, user=CARTO_USER, key=CARTO_KEY)
+        # if a time_field is specified, set it as an index in the Carto table; this is not a unique index
         if time_field:
-            cartosql.createIndex(table, time_field, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
-    return []
+            cartosql.createIndex(table, time_field, user=CARTO_USER, key=CARTO_KEY)
+        # return an empty list because there are no IDs in the new table yet
+        return []
 
-def fetch_ids_old(existing_ids):
-    new_ids = []
+'''
+FUNCTIONS FOR THIS DATASET
 
-    #get new ids that aren't in the table
-    page = 1
-    all_ids=[]
-
-    #pull the first page of ids and continue to do so as long as we are still receiving data
-    url = "https://api.protectedplanet.net/v3/protected_areas?token={}".format(os.getenv('WDPA_key'))
-    while page ==1 or r.json()['protected_areas']:
-        #don't download geometries for all areas because it takes a very long time
-        logging.info('Fetching page {}'.format(page))
-        params = {'with_geometry': 'False',
-                  'page': str(page),
-                  'per_page': '50'}
-        r = requests.get(url, params=params)
-        for response in r.json()['protected_areas']:
-            id = response['wdpa_id']
-            all_ids.append(id)
-            if str(id) not in existing_ids:
-                new_ids.append(id)
-        page+=1
-    new_ids = np.unique(new_ids)
-    logging.info('{} new records found'.format(len(new_ids)))
-    return new_ids, all_ids
+The functions below have been tailored to this specific dataset.
+They should all be checked because their format likely will need to be changed.
+'''
 
 def fetch_ids(existing_ids_int):
+    '''
+    Get a list of WDPA IDs in the version of the dataset we are pulling
+    INPUT   existing_ids_int:  (list of integers)
+    RETURN  new_ids: list of IDs in the WDPA table that we don't already have in our existing IDs (list of strings)
+            all_ids: list of all IDs in the WDPA table (list of strings)
+    '''
+    # pull current csv containing WDPA IDs
+    # note: IDs are pulled from this csv and not the API because querying the API is very slow, so it is much faster
+    # to get a list of all the IDS from this csv
     filename_csv = 'WDPA_{mo}{yr}-csv'.format(mo=datetime.datetime.today().strftime("%b"), yr=datetime.datetime.today().year)
     url_csv = 'http://d1gam3xoknrgr2.cloudfront.net/current/{}.zip'.format(filename_csv)
-
     urllib.request.urlretrieve(url_csv, DATA_DIR + '/' + filename_csv + '.zip')
+
+    # unzip file containing csv
     zip_ref = zipfile.ZipFile(DATA_DIR + '/' + filename_csv + '.zip', 'r')
     zip_ref.extractall(DATA_DIR + '/' + filename_csv)
     zip_ref.close()
 
-    # read in climate change vulnerability data to pandas dataframe
+    # read in WDPA csv as a pandas dataframe
     filename = DATA_DIR + '/' + filename_csv + '/' + filename_csv + '.csv'
     wdpa_df = pd.read_csv(filename, low_memory=False)
 
+    # get a list of all IDs in the table
     all_ids = np.unique(wdpa_df.WDPAID.to_list()).tolist()
     logging.info('found {} ids'.format(len(all_ids)))
+    # get a list of the IDs in the table that we don't already have in our existing IDs
     new_ids = np.unique(np.setdiff1d(all_ids, existing_ids_int)).tolist()
     logging.info('{} new ids'.format(len(new_ids)))
 
@@ -210,23 +218,28 @@ def delete_carto_entries(id_list, column):
             where = f'{column} = {delete_id}'
         # if where statement is long or we are on the last id, delete rows
         if len(where) > 15000 or delete_id == id_list[-1]:
-            cartosql.deleteRows(CARTO_TABLE, where=where, user=os.getenv('CARTO_USER'),
-                                key=os.getenv('CARTO_KEY'))
+            cartosql.deleteRows(CARTO_TABLE, where=where, user=CARTO_USER,
+                                key=CARTO_KEY)
             where = None
 
 def processData(existing_ids):
+    # turn list of ids from strings into integers
     existing_ids_int = [int(i) for i in existing_ids]
-    # Fetching list of new WDPA IDs
+    # fetch list of WDPA IDs (all IDs and just new ones) so that we can pull info from the API about each area
     new_ids, all_ids = fetch_ids(existing_ids_int)
+    # if we have designated that we want to replace all the ids, then the list of IDs we will query (id_list) will
+    # include all the IDs available; otherwise, we will just pull the new IDs
     if REPLACE_ALL==True:
         id_list = all_ids
     else:
         id_list = new_ids
-    #go through and fetch information for new ids
+    # create empty lists to store data we will be sending to Carto table
     new_data = []
     send_list=[]
+    # go through and fetch information for new ids
     for id in id_list:
         try_num=0
+        # WDPA API Reference document: https://api.protectedplanet.net/documentation#get-v3protectedareas
         url = "https://api.protectedplanet.net/v3/protected_areas/{}?token={}".format(id, os.getenv('WDPA_key'))
         if try_num <3:
             try:
@@ -294,7 +307,7 @@ def processData(existing_ids):
 
                 # push new data
                 logging.info('Adding {} new records.'.format(num_new))
-                cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), new_data, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
+                cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), new_data, user=CARTO_USER, key=CARTO_KEY)
                 new_data = []
                 send_list = []
     logging.info('Deleting records that are no longer in the database.')
@@ -310,14 +323,13 @@ def processData(existing_ids):
 
 
 def main():
-    start_time=time.time()
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
 
     if CLEAR_TABLE_FIRST:
         logging.info('Clearing Table')
-        if cartosql.tableExists(CARTO_TABLE, user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY')):
-            cartosql.deleteRows(CARTO_TABLE, 'cartodb_id IS NOT NULL', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
+        if cartosql.tableExists(CARTO_TABLE, user=CARTO_USER, key=CARTO_KEY):
+            cartosql.deleteRows(CARTO_TABLE, 'cartodb_id IS NOT NULL', user=CARTO_USER, key=CARTO_KEY)
 
     ### 1. Check if table exists, if not, create it
     logging.info('Checking if table exists and getting existing IDs.')
@@ -340,17 +352,13 @@ def main():
         logging.error('No new data.')
 
     logging.info('Existing rows: {},  New rows: {}'.format(total, num_new))
-    end_time=time.time()
-    run_time=end_time-start_time
-    logging.info("SUCCESS, run time: {}".format(datetime.timedelta(seconds=run_time)))
     # Delete local files
-    if DELETE_LOCAL:
-        try:
-            for f in os.listdir(DATA_DIR):
-                try:
-                    logging.info('Removing {}'.format(f))
-                    os.remove(DATA_DIR+'/'+f)
-                except:
-                    shutil.rmtree(f)
-        except NameError:
-            logging.info('No local files to clean.')
+    try:
+        for f in os.listdir(DATA_DIR):
+            try:
+                logging.info('Removing {}'.format(f))
+                os.remove(DATA_DIR+'/'+f)
+            except:
+                shutil.rmtree(f)
+    except NameError:
+        logging.info('No local files to clean.')

@@ -194,7 +194,6 @@ def convert(files):
 
 
 def fetch(new_dates):
-
     # 2. Loop over the new dates, check if there is data available, and attempt to download the hdfs
     files = []
     for date in new_dates:
