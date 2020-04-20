@@ -7,7 +7,6 @@ import logging
 import subprocess
 import eeUtil
 import urllib.request
-from http.cookiejar import CookieJar
 from netCDF4 import Dataset
 import os
 import calendar
@@ -195,22 +194,6 @@ def convert(files):
 
 
 def fetch(new_dates):
-    # 1. Set up authentication with the urllib.request library
-    username = os.environ.get('EARTHDATA_USER')
-    password = os.environ.get('EARTHDATA_PASS')
-
-    password_manager = urllib.request.HTTPPasswordMgrWithDefaultRealm()
-    password_manager.add_password(None, url, username, password)
-
-    cookie_jar = CookieJar()
-
-    opener = urllib.request.build_opener(
-        urllib.request.HTTPBasicAuthHandler(password_manager), #tab bc part of opener
-        #urllib2.HTTPHandler(debuglevel=1),    # Uncomment these two lines to see
-        #urllib2.HTTPSHandler(debuglevel=1),   # details of the requests/responses
-        urllib.request.HTTPCookieProcessor(cookie_jar))
-
-    urllib.request.install_opener(opener) #install opener to library
     # 2. Loop over the new dates, check if there is data available, and attempt to download the hdfs
     files = []
     for date in new_dates:
