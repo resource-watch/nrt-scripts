@@ -222,7 +222,7 @@ def getNewDates(exclude_dates):
     '''
     Get new dates we want to try to fetch data for
     INPUT   exclude_dates: list of date ranges that we already have in GEE, given as a Julian start and end date in the format YYYYDDDYYYYDDD (list of strings)
-    RETURN  new_dates: list of new dates we want to try to get, in the format YYYYDDDYYYYDDD (list of strings)
+    RETURN  new_dates: list of new dates we want to try to get, given as a Julian start and end date in the format YYYYDDDYYYYDDD (list of strings)
             new_datetime: list of new dates we want to try to get, in the format '%Y%m%d' (list of strings)
     '''
     # create empty list to store dates we want to fetch
