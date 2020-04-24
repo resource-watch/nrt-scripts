@@ -214,7 +214,7 @@ def getDate(filename):
     '''
     get string containing start date and end date from filename (last 14 characters of filename after removing extension)
     INPUT   filename: file name that ends in the start date and end date in the format YYYYDDDYYYYDDD, where DDD is the day of year (string)
-    RETURN  date in the format YYYYMMDD (string)
+    RETURN Julian start and end dates in the format YYYYDDDYYYYDDD (string)
     '''
     return os.path.splitext(os.path.basename(filename))[0][14:28]
 
