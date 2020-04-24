@@ -229,7 +229,7 @@ def getNewDates(exclude_dates):
     new_dates = []
     new_datetime = []
     # start with today's date
-    date = datetime.date.today()    # example output: 2020-04-07
+    date = datetime.date.today()
     for i in range(MAX_ASSETS):
         # get current month from today's date
         current_month = date.month        # example output: 4
