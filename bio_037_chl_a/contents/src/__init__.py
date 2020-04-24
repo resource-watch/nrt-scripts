@@ -198,6 +198,7 @@ def getAssetName(date):
     INPUT   date: date in the format {start year}{julian day of the first of the month}{end year}{julian day of the end of the month} (string)
     RETURN  GEE asset name for input date (string)
     '''
+    # Example asset name: users/resourcewatch_wri/bio_037_chl_a/bio_037_chl_a_20181822018212
     return os.path.join(EE_COLLECTION, FILENAME.format(date=date))
 
 def getFilename(date):
