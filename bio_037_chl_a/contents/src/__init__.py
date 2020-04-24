@@ -212,7 +212,7 @@ def getFilename(date):
         
 def getDate(filename):
     '''
-    get date from filename (last 14 characters of filename after removing extension)
+    get string containing start date and end date from filename (last 14 characters of filename after removing extension)
     INPUT   filename: file name that ends in the start date and end date in the format YYYYDDDYYYYDDD, where DDD is the day of year (string)
     RETURN  date in the format YYYYMMDD (string)
     '''
