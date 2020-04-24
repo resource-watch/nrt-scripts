@@ -232,7 +232,7 @@ def getNewDates(exclude_dates):
     date = datetime.date.today()
     for i in range(MAX_ASSETS):
         # get current month from today's date
-        current_month = date.month        # example output: 4
+        current_month = date.month        # returns integer
         # replace day to be the first of the current month
         date = date.replace(day=1)  # example output: 2020-04-01
         # if the current month is January
