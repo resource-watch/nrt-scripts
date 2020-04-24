@@ -15,6 +15,7 @@ import requests
 import time
 
 # url for chlorophyll concentration data
+# example netcdf file name from source: A20181822018212.L3m_MO_CHL_chlor_a_9km.nc
 SOURCE_URL = 'https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/A{date}.L3m_MO_CHL_chlor_a_4km.nc'
 
 # subdataset to be converted to tif
