@@ -362,7 +362,7 @@ def convert(files):
         band = 1
         # generate a name to save the tif file we will translate the netcdf file into
         tif = getTiffname(file=f, variable=VAR)
-        # tranlate the netcdf into a tif
+        # translate the netcdf into a tif
         cmd = ['gdal_translate', '-b', str(band), '-q', '-a_nodata', str(NODATA_VALUE), '-a_srs', 'EPSG:4326', sds_path, tif]
         # add the new tif files to the list of tifs
         tifs.append(tif)
