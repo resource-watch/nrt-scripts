@@ -332,7 +332,6 @@ def processNewData(existing_dates):
     # go through each date we want to pull data for, pull out the year, and add it to the years list
     for date in target_dates:
         years.append(date[0:4])
-    # ATTENTION AMELIA AMELIA AMELIA ATTENTION !!!
     # create a set for years to remove duplicate years from the list     
     years = set(years)
     logging.info(years)
