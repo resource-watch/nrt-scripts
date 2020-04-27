@@ -251,7 +251,7 @@ def getNewDates(exclude_dates):
         # get the first day of the current month for start date
         startdate = date
         # get the last day of the current month for end date
-        enddate = date.replace(day=calendar.monthrange(startdate.year, startdate.month)[1]) # example output: 2020-03-31
+        enddate = date.replace(day=calendar.monthrange(startdate.year, startdate.month)[1])
         
         # get equivalent julian day from the start date
         start_jday = str(startdate.timetuple().tm_yday) # example output: 61
