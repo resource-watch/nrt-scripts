@@ -277,7 +277,6 @@ def extract_metadata(nc_file):
     nc = Dataset(nc_file)
     # extract data from netcdf file
     logging.debug(nc)
-    logging.debug(nc[VAR_NAME])
     # Get data type of the netcdf
     dtype = str(nc[VAR_NAME].dtype)
     # Get nodata value of the netcdf
