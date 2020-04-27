@@ -277,7 +277,7 @@ def getNewDates(exclude_dates):
         # if the date string is not the list of dates we already have, add it to the list of new dates to try and fetch
         if datestr not in exclude_dates:
             new_dates.append(datestr)   
-            # get enddate in the format '%Y%m%d' so that it can be interepreted by GEE
+            # turn end date into a datetime object and add it to the new_datetime list
             # example output: (2020, 3, 31, 0, 0) for the input: 2020-03-31
             new_datetime.append(datetime.datetime.combine(enddate,datetime.datetime.min.time()))
 
