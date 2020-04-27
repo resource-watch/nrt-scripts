@@ -270,7 +270,7 @@ def extract_metadata(nc_file):
     '''
     Fetch metadata from netcdf by filename
     INPUT   nc_file: file name for netcdf for which we want to try to fetch metadata (string)
-    RETURN  dtype: data type of the input netcdf (string)
+    RETURN  dtype: type of data contained in each pixel of the input netcdf (string)
             nodata: nodata value for netcdf (float)
     '''
     # open the netcdf file and create an instance of the ncCDF4 class
