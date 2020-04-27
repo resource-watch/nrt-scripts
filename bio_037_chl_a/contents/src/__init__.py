@@ -278,7 +278,6 @@ def getNewDates(exclude_dates):
         if datestr not in exclude_dates:
             new_dates.append(datestr)   
             # turn end date into a datetime object and add it to the new_datetime list
-            # example output: (2020, 3, 31, 0, 0) for the input: 2020-03-31
             new_datetime.append(datetime.datetime.combine(enddate,datetime.datetime.min.time()))
 
     return new_dates,new_datetime
