@@ -354,7 +354,7 @@ def processNewData(existing_dates):
     INPUT   existing_dates: list of dates we already have in GEE, in the format of the DATE_FORMAT variable (list of strings)
     RETURN  assets: list of file names for netcdfs that have been downloaded (list of strings)
     '''
-    # Get list of new dates we want to try to fetch data for
+    # Get list of new dates we want to try to fetch data for as strings and datetimes
     new_dates,new_datetimes = getNewDates(existing_dates)
 
     # Fetch new files
