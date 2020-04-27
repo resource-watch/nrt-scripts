@@ -255,7 +255,7 @@ def getNewDates(exclude_dates):
         # get equivalent julian day from the start date
         start_jday = str(startdate.timetuple().tm_yday) # example output: '61'
         # julian days are 3 digit numbers
-        # if start_jday is 2 digit then add a "0" in the begining to make it 3 digit
+        # if start_jday is 2 digits then add a "0" in the beginning to make it 3 digits
         if len(start_jday)==2:
             start_jday = '0'+start_jday    # example output: '061'
         # if start_jday is 1 digit then add two "0" in the begining to make it 3 digit
