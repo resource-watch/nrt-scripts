@@ -61,7 +61,7 @@ DATE_FORMAT = '%Y%m15'
 # Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
 # Failing to do so will overwrite the last update date on a different dataset on Resource Watch
 
-# We might want to delete this id since it's for PREP and it has no function in this script
+# PREP ID (stored for if we need to start updating in future)
 DATASET_ID = '4f7888d6-d661-4b2c-a60e-cf1eebd0656a'
 
 DATASET_ID = '609487de-0a23-4783-bafc-4335b6fe7d4b'
