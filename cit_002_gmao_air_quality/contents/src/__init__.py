@@ -56,9 +56,6 @@ COLLECTION = '/projects/resource-watch-gee/cit_002_gmao_air_quality'
 # do you want to delete everything currently in the GEE collection when you run this script?
 CLEAR_COLLECTION_FIRST = False
 
-# do you want to delete local tif and netcdf files?
-DELETE_LOCAL = True
-
 #how many assets can be stored in the GEE collection before the oldest ones are deleted?
 MAX_ASSETS = 100
 
@@ -582,7 +579,7 @@ def checkCreateCollection(VARS):
     existing_dates_by_var = []
     # loop through each variables that we want to pull
     for VAR in VARS:
-        # For one of the variables, get the date of the most recent data set
+        # For one of the variables, get the date of the most recent dataset
         # All variables come from the same file
         # If we have one for a particular data, we should have them all
         collection = EE_COLLECTION_GEN.format(metric=METRIC_BY_COMPOUND[VAR], var=VAR)
@@ -862,24 +859,22 @@ def main():
         logging.info('SUCCESS for {}'.format(VAR))
 
         # Delete local tif files because we will run out of space
-        if DELETE_LOCAL:
-            try:
-                files_available = os.listdir(DATA_DIR)
-                for f in files_available:
-                    if f.endswith(".tif"):
-                        logging.info('Removing {}'.format(f))
-                        os.remove(DATA_DIR + '/' + f)
-            except NameError:
-                logging.info('No local tiff files to clean.')
+        try:
+            files_available = os.listdir(DATA_DIR)
+            for f in files_available:
+                if f.endswith(".tif"):
+                    logging.info('Removing {}'.format(f))
+                    os.remove(DATA_DIR + '/' + f)
+        except NameError:
+            logging.info('No local tiff files to clean.')
 
     # Delete local netcdf files
-    if DELETE_LOCAL:
-        try:
-            for f in os.listdir(DATA_DIR):
-                logging.info('Removing {}'.format(f))
-                os.remove(DATA_DIR+'/'+f)
-        except NameError:
-            logging.info('No local files to clean.')
+    try:
+        for f in os.listdir(DATA_DIR):
+            logging.info('Removing {}'.format(f))
+            os.remove(DATA_DIR+'/'+f)
+    except NameError:
+        logging.info('No local files to clean.')
     '''
     Process Forecast Data
     '''
@@ -941,25 +936,22 @@ def main():
             VAR, len(new_dates_forecast), MAX_ASSETS))
         logging.info('SUCCESS for {}'.format(VAR))
         # Delete local tif files because we will run out of space
-        if DELETE_LOCAL:
-            try:
-                files_available = os.listdir(DATA_DIR)
-                for f in files_available:
-                    if f.endswith(".tif"):
-                        logging.info('Removing {}'.format(f))
-                        os.remove(DATA_DIR + '/' + f)
-            except NameError:
-                logging.info('No local tiff files to clean.')
+        try:
+            files_available = os.listdir(DATA_DIR)
+            for f in files_available:
+                if f.endswith(".tif"):
+                    logging.info('Removing {}'.format(f))
+                    os.remove(DATA_DIR + '/' + f)
+        except NameError:
+            logging.info('No local tiff files to clean.')
 
     # Delete local netcdf files
-    if DELETE_LOCAL:
-        try:
-            for f in os.listdir(DATA_DIR):
-                logging.info('Removing {}'.format(f))
-                os.remove(DATA_DIR+'/'+f)
-        except NameError:
-            logging.info('No local files to clean.')
-
+    try:
+        for f in os.listdir(DATA_DIR):
+            logging.info('Removing {}'.format(f))
+            os.remove(DATA_DIR+'/'+f)
+    except NameError:
+        logging.info('No local files to clean.')
 
 
     '''
@@ -1042,7 +1034,7 @@ def main():
 
             if current_date != most_recent_date: #comment for testing
                 logging.info('Updating last update date and flushing cache.')
-                # Update data set's last update date on Resource Watch
+                # Update dataset's last update date on Resource Watch
                 lastUpdateDate(DATASET_IDS[VAR], most_recent_date)
                 # get layer ids and flush tile cache for each
                 layer_ids = getLayerIDs(DATASET_IDS[VAR])
@@ -1052,12 +1044,11 @@ def main():
             continue
 
     # Delete local netcdf and tif files
-    if DELETE_LOCAL:
-        try:
-            for f in os.listdir(DATA_DIR):
-                logging.info('Removing {}'.format(f))
-                os.remove(DATA_DIR+'/'+f)
-        except NameError:
-            logging.info('No local files to clean.')
+    try:
+        for f in os.listdir(DATA_DIR):
+            logging.info('Removing {}'.format(f))
+            os.remove(DATA_DIR+'/'+f)
+    except NameError:
+        logging.info('No local files to clean.')
 
     logging.info('SUCCESS')
