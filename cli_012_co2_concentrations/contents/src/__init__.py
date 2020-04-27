@@ -43,7 +43,6 @@ DATE_FORMAT = '%Y%m'
 # maximum assets is 60 in this case (5 years of monthly data)
 MAX_ASSETS = 60
 
-
 # get credentials to access the source data
 NASA_USER = os.environ.get("EARTHDATA_USER")
 NASA_PASS = os.environ.get("EARTHDATA_KEY")
