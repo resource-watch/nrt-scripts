@@ -247,7 +247,7 @@ def getNewDates(exclude_dates):
         else:
             # subtract 1 month from date to go back to next previous month
             date = date.replace(month=current_month-1)
-        # get the first day of the current month for start date
+        # use the first day of the month (that we have already generated) for start date
         startdate = date
         # get the last day of the current month for end date
         enddate = date.replace(day=calendar.monthrange(startdate.year, startdate.month)[1])
