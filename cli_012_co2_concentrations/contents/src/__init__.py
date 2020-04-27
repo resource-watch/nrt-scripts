@@ -263,7 +263,7 @@ def convert(filename, date):
     data_filename = ASSET_NAME.format(date=date)+'_data.tif'
     # filename for georeferenced file created from geotif
     georef_filename = ASSET_NAME.format(date=date)+'.tif'
-    # tranlate the hdf into a geotif
+    # translate the hdf into a geotif
     cmd = ' '.join(['gdal_translate','-of', 'GTIFF',
                     '\'HDF4_EOS:EOS_GRID:"{file}":CO2:mole_fraction_of_carbon_dioxide_in_free_troposphere\''.format(file=filename),
                     data_filename])
