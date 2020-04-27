@@ -364,7 +364,6 @@ def processNewData(existing_dates):
     
         # Delete local files
         clearDir()
-    # Delete local files
     clearDir()
     return new_assets
 
