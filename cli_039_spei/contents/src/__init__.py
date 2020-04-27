@@ -334,7 +334,7 @@ def extract_subdata_by_date(nc_file, lag, dtype, nodata, available_dates, target
             continue
 
         # Extract data from netcdf for the available date
-        data_tmp = nc[VAR_NAME][date_ix,:,:]
+        data = nc[VAR_NAME][date_ix,:,:]
 
         # Define lat and lon bounds of netcdf data
         south_lat = -90
