@@ -196,7 +196,7 @@ def getUrl(date):
 def getAssetName(date):
     '''
     get asset name
-    INPUT   date: date in the format {start year}{julian day of the first of the month}{end year}{julian day of the end of the month} (string)
+    INPUT   date: date range, given as a Julian start and end date in the format YYYYDDDYYYYDDD (string)
     RETURN  GEE asset name for input date (string)
     '''
     # Example asset name: users/resourcewatch_wri/bio_037_chl_a/bio_037_chl_a_20181822018212
