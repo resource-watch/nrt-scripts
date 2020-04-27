@@ -575,7 +575,7 @@ def checkCreateCollection(VARS):
             existing_dates_by_var: list of dates, in the format of the DATE_FORMAT variable, that exist for each individual variable collection in GEE (list containing list of strings for each variable)
 
     '''
-    # create a master list (not variable-specific) of which dates we already have data for
+    # create a master list (not variable-specific) to store the dates for which all variables already have data for
     existing_dates = []
     # create an empty list to store the dates that we currently have for each AQ variable
     # will be used in case the previous script run crashed before completing the data upload for every variable.
