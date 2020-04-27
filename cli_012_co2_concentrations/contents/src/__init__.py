@@ -459,7 +459,7 @@ def main():
 
     # Fetch, process, and upload the new data
     os.chdir('data')
-    new_assets = processNewData(exclude_dates)
+    new_assets = processNewData(existing_dates)
 
     logging.info('Existing assets: {}, new: {}, max: {}'.format(
         len(existing_ids), len(new_assets), MAX_ASSETS))
