@@ -311,7 +311,7 @@ def retrieve_formatted_dates(nc_file, date_pattern=DATE_FORMAT):
 def extract_subdata_by_date(nc_file, lag, dtype, nodata, available_dates, target_dates):
     '''
     Create tifs from input netcdf file for available dates
-    INPUT   nc_file: file name for netcdf that have already been downloaded (string)
+    INPUT   nc_file: file name for netcdf that has already been downloaded (string)
             lag: length of time over which the SPEI data was aggregated (string)
             dtype: type of data contained in each pixel of the input netcdf (string)
             nodata: nodata value for netcdf (float)
