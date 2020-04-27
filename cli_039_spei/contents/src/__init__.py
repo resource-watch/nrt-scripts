@@ -204,7 +204,7 @@ They should all be checked because their format likely will need to be changed.
 def getUrl(lag):
     '''
     format source url with filename and time lag
-    INPUT   lag: length of time over which the SPEI data was aggregated (string)
+    INPUT   lag: two-character string representing the number of months over which the SPEI data was aggregated (string)
     RETURN  source url to download data, formatted for the input time lag (string)
     '''
     return SOURCE_URL.format(filename=SOURCE_FILENAME.format(month_lag=lag))
