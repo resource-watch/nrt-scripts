@@ -230,7 +230,6 @@ def fetch(year):
     '''
     Fetch files by year
     INPUT   year: year we want to try to fetch data for, in the format YYYY (string)
-    RETURN  list of file names for hdfs that have been downloaded (list of strings)
     '''
     # try to download the data
     cmd = ' '.join(['wget', '--user', os.environ.get("EARTHDATA_USER"), '--password', os.environ.get("EARTHDATA_KEY"),
