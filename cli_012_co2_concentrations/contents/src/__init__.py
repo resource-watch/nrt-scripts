@@ -333,7 +333,6 @@ def processNewData(existing_dates):
     for date in target_dates:
         years.append(date[0:4])
     # ATTENTION AMELIA AMELIA AMELIA ATTENTION !!!
-    # PLEASE VERIFY THE FOLLOWING COMMENT    
     # create a set for years to remove duplicate years from the list     
     years = set(years)
     logging.info(years)
