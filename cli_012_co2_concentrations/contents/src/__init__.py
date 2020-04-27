@@ -259,7 +259,6 @@ def convert(filename, date):
             date: date for hdf file that has been downloaded (string)
     RETURN  georef_filename: file name for georeferenced tif that has been generated (string)
     '''
-    new_filename = ASSET_NAME.format(date=date)
     # filename for geotif created from hdf
     data_filename = ASSET_NAME.format(date=date)+'_data.tif'
     # filename for georeferenced file created from geotif
