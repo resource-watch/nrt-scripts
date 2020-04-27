@@ -34,7 +34,6 @@ VARS = ['NO2', 'O3', 'PM25_RH35_GCC']
 CONVERSION_FACTORS = {
     'NO2': 1e9, # mol/mol to ppb
     'O3': 1e9, # mol/mol to ppb
-    # keep original units
     'PM25_RH35_GCC': 1, 
 }
 
