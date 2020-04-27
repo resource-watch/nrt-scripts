@@ -222,7 +222,7 @@ def getNewDates(exclude_dates):
     date.replace(day=15)
     for i in range(MAX_ASSETS):
         # go back one month (according to TIMESTEP) at a time
-        date -= datetime.timedelta(**TIMESTEP)
+        date -= relativedelta(months=1)
         # replace day to be the 15th of the current month
         date.replace(day=15)
         # change the format of date to match the format used in source data files
