@@ -319,7 +319,7 @@ def convert(files):
 def fetch(dates):
     '''
     Fetch files by datestamp
-    INPUT   dates: list of dates we want to try to fetch, in the format YYYYMMDD (list of strings)
+    INPUT   dates: list of date ranges we want to try to fetch, given as a Julian start and end date in the format YYYYDDDYYYYDDD (list of strings)
     RETURN  files: list of file names for netcdfs that have been downloaded (list of strings)
     '''
     # make an empty list to store names of the files we downloaded
