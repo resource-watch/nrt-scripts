@@ -223,7 +223,6 @@ def getNewDates(exclude_dates):
         datestr = date.strftime(DATE_FORMAT)
         # if the date string is not the list of dates we already have, add it to the list of new dates to try and fetch
         if datestr not in exclude_dates:
-            # add to list of new dates
             new_dates.append(datestr)
     return new_dates
 
