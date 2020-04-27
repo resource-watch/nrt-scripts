@@ -205,7 +205,7 @@ def getAssetName(date):
 def getFilename(date):
     '''
     get netcdf filename to save source file as
-    INPUT   date: date in the format {start year}{julian day of the first of the month}{end year}{julian day of the end of the month} (string)
+    INPUT   date: date range, given as a Julian start and end date in the format YYYYDDDYYYYDDD (string)
     RETURN  file name to save netcdf from source under (string)
     '''
     return os.path.join(DATA_DIR, '{}.nc'.format(FILENAME.format(date=date)))
