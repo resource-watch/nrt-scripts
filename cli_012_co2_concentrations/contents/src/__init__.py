@@ -364,7 +364,6 @@ def processNewData(existing_dates):
     
         # Delete local files
         clearDir()
-    clearDir()
     return new_assets
 
 def checkCreateCollection(collection):
