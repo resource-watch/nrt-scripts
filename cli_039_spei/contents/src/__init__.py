@@ -325,7 +325,7 @@ def extract_subdata_by_date(nc_file, lag, dtype, nodata, available_dates, target
     sub_tifs = []
     # go through each date we want to try to get and check if it is available in the netcdf
     for date in target_dates:
-        # find index in available date, if not available, skip this date
+        # find index of date in available_dates; if not available, skip this date
         try:
             date_ix = available_dates.index(date)
             logging.info("Date {} found! Processing...".format(date))
