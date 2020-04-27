@@ -256,7 +256,7 @@ def convert(filename, date):
     '''
     Convert hdf files to tifs
     INPUT   filename: file name for hdf that has been downloaded (string)
-            date: date for hdf that have been downloaded (string)
+            date: date for hdf file that has been downloaded (string)
     RETURN  georef_filename: file name for georeferenced tif that have been generated (string)
     '''
     # filenmae format for GEE
