@@ -31,7 +31,6 @@ TIME_NAME = 'time'
 # nodata value for netcdf
 NODATA_VALUE = None
 
-MISSING_VALUE_NAME = "missing_value"
 
 # name of data directory in Docker container
 DATA_DIR = 'data/'
