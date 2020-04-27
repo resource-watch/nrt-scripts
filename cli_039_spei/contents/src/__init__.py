@@ -253,7 +253,7 @@ def fetch(filename, lag):
     Fetch files by filename and time lag
     INPUT   filename: name for the netcdf we want to try to fetch(string)
             lag: two-character string representing the number of months over which the SPEI data was aggregated (string)
-    RETURN  filename: file name for netcdf that have been downloaded (string)
+    RETURN  filename: file name for netcdf that has been downloaded (string)
     '''
     # get the url to download the file from the source for the given file name and time lag
     sourceUrl = getUrl(lag)
