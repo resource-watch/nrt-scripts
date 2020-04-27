@@ -31,7 +31,6 @@ TIME_NAME = 'time'
 # nodata value for netcdf
 NODATA_VALUE = None
 
-
 # name of data directory in Docker container
 DATA_DIR = 'data/'
 
