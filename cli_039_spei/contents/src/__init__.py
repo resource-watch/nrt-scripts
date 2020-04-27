@@ -291,7 +291,7 @@ def retrieve_formatted_dates(nc_file, date_pattern=DATE_FORMAT):
     '''
     Fetch date from netcdf by filename and format date to be used in GEE
     INPUT   nc_file: file name for netcdf from which we want to try to fetch dates (string)
-            date_pattern: format of date (string)
+            date_pattern: format to use for date strings returned by this function (string)
     RETURN  formatted_dates: list of dates for which input netcdf is available (list of strings)
     '''
     # open the netcdf file and create an instance of the ncCDF4 class
