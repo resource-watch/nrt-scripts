@@ -329,6 +329,7 @@ def processNewData(existing_dates):
     logging.info('Fetching files')
     # Create an empty list of new years we want to try to fetch data for
     years = []
+    # go through each date we want to pull data for, pull out the year, and add it to the years list
     for date in target_dates:
         years.append(date[0:4])
     # ATTENTION AMELIA AMELIA AMELIA ATTENTION !!!
