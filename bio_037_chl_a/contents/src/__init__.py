@@ -188,7 +188,7 @@ They should all be checked because their format likely will need to be changed.
 def getUrl(date):
     '''
     format source url with date
-    INPUT   date: date in the format {start year}{julian day of the first of the month}{end year}{julian day of the end of the month} (string)
+    INPUT   date: date range, given as a Julian start and end date in the format YYYYDDDYYYYDDD (string)
     RETURN  source url to download data, formatted for the input date (string)
     '''
     return SOURCE_URL.format(date=date)
