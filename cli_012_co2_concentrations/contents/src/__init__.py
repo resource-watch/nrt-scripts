@@ -360,7 +360,7 @@ def processNewData(existing_dates):
         # Get a list of datetimes from each of the dates we are uploading
         datestamps = [datetime.datetime.strptime(date, DATE_FORMAT) for date in dates]
         # Upload new files (tifs) to GEE
-        eeUtil.uploadAssets(tifs, assets, GS_FOLDER, dates=[datetime.datetime.strptime(date, DATE_FORMAT) for date in dates], public=True, timeout=3000)
+        eeUtil.uploadAssets(tifs, assets, GS_FOLDER, dates=datestamps, public=True, timeout=3000)
         new_assets.extend(assets)
     # Delete local files
     clearDir()
