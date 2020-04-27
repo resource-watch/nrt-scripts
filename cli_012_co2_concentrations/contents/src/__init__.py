@@ -311,6 +311,7 @@ def clearDir():
     '''
     Delete local files
     '''
+    # get list of all files in current directory and delete
     files = glob.glob('*')
     for file in files:
         os.remove(file)
