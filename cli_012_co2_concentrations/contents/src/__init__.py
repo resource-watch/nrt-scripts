@@ -349,7 +349,6 @@ def processNewData(existing_dates):
             # get date from filename in the format YYYYMM
             date = getDateFromSource(_file)
             logging.info(date)
-            logging.info(existing_dates)
             # if we don't have this date already in GEE
             if date not in existing_dates:
                 logging.info('Converting file: {}'.format(_file))
