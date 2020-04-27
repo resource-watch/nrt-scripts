@@ -210,7 +210,7 @@ def getAssetName(date, lag):
     '''
     get asset name
     INPUT   date: date in the format of the DATE_FORMAT variable (string)
-            lag: length of time over which the SPEI data was aggregated (string)
+            lag: two-character string representing the number of months over which the SPEI data was aggregated (string)
     RETURN  GEE asset name for input date (string)
     '''
     return os.path.join(EE_COLLECTION, FILENAME.format(date=date, lag=lag))
