@@ -235,7 +235,8 @@ def getNewDates(exclude_dates):
         current_month = date.month        # returns integer
         # replace day to be the first of the current month
         date = date.replace(day=1)  # example output: 2020-04-01
-        # if the current month is January
+        # We want to pull data one complete month at a time, so we will go back month by month.
+        # If the current month is January, we have to go back to December of the previous year
         if current_month==1:
             current_year = date.year
             # subtract 1 year from date to go back to next previous year
