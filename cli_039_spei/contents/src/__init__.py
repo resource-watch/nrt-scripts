@@ -312,7 +312,7 @@ def extract_subdata_by_date(nc_file, lag, dtype, nodata, available_dates, target
     '''
     Create tifs from input netcdf file for available dates
     INPUT   nc_file: file name for netcdf that has already been downloaded (string)
-            lag: length of time over which the SPEI data was aggregated (string)
+            lag: two-character string representing the number of months over which the SPEI data was aggregated (string)
             dtype: type of data contained in each pixel of the input netcdf (string)
             nodata: nodata value for netcdf (float)
             available_dates: list of dates available in input netcdf (list of strings)
