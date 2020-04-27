@@ -222,7 +222,7 @@ def getNewDates(exclude_dates):
     date = datetime.date.today()
     # replace day to be the 15th of the current month
     date.replace(day=15)
-    for i in range(MAX_YEARS*12):
+    for i in range(MAX_ASSETS):
         # go back one month (according to TIMESTEP) at a time
         date -= datetime.timedelta(**TIMESTEP)
         # replace day to be the 15th of the current month
