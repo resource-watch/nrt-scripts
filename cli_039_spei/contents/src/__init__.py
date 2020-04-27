@@ -275,7 +275,6 @@ def extract_metadata(nc_file):
     '''
     # open the netcdf file and create an instance of the ncCDF4 class
     nc = Dataset(nc_file)
-    # extract data from netcdf file
     logging.debug(nc)
     # Get data type of the netcdf
     dtype = str(nc[VAR_NAME].dtype)
