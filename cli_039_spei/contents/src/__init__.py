@@ -386,7 +386,7 @@ def processNewData(existing_dates, lag):
     nc_file = fetch(DATA_DIR + 'nc_file.nc', lag)
     # Get a list of dates of data available from netcdf file, in the format of the DATE_FORMAT variable
     available_dates = retrieve_formatted_dates(nc_file)
-    # Fetch metadata from netcdf 
+    # Fetch no data value for netcdf and type of data contained in each pixel of the input netcdf
     dtype, nodata = extract_metadata(nc_file)
     logging.info('type: ' + dtype)
     logging.info('nodata val: ' + str(nodata))
