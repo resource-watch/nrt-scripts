@@ -248,7 +248,7 @@ def convert(files):
     RETURN  tifs: list of file names for tifs that have been generated (list of strings)
     '''
 
-    # create and empty list to store the names of the tifs we generate
+    # create an empty list to store the names of the tifs we generate
     tifs = []
 
     #go through each netcdf file and translate
