@@ -43,7 +43,6 @@ DATE_FORMAT = '%Y%m'
 # maximum assets is 60 in this case (5 years of monthly data)
 MAX_ASSETS = 60
 
-
 # Resource Watch dataset API ID
 # Important! Before testing this script:
 # Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
