@@ -715,7 +715,8 @@ def initialize_ee():
 
 def create_headers():
     '''
-    Create headers when we overwrite layers on API
+    Create headers to perform authorized actions on API
+
     '''   
     return {
         'Content-Type': "application/json",
