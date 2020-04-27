@@ -310,7 +310,7 @@ def convert(files):
         # tranlate the netcdf into a tif
         cmd = ['gdal_translate','-q', '-a_nodata', str(NODATA_VALUE), '-a_srs', 'EPSG:4326', sds_path, tif] 
         logging.debug('Converting {} to {}'.format(f, tif))
-        # using gdal from command line from inside python
+        # use subprocess to use gdal_translate in the command line from inside python
         subprocess.call(cmd) 
         # add the new tif files to the list of tifs
         tifs.append(tif)
