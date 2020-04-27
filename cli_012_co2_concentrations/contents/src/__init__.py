@@ -346,7 +346,7 @@ def processNewData(existing_dates):
         # create an empty list to store tif filenames that were created from hdf files
         tifs = []
         for _file in files:
-            # get year and month from filename
+            # get date from filename in the format YYYYMM
             date = getDateFromSource(_file)
             logging.info(date)
             logging.info(existing_dates)
