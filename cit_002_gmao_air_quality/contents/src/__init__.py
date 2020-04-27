@@ -658,7 +658,7 @@ def get_most_recent_date(all_assets):
     most_recent_date = datetime.datetime.strptime(all_assets[-1][-10:], DATE_FORMAT)
     return most_recent_date
 
-# ATTENTION AMELIA AMELIA AMELIA ATTENTION !!!
+# check if used
 # NOT SURE IF WE NEED THIS FUNCTION, COULDN'T FIND ANY PLACE WHERE IT'S USED
 def get_forecast_run_date(all_assets):
     all_assets.sort()
