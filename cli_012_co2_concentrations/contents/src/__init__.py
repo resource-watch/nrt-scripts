@@ -246,7 +246,7 @@ def getDateFromSource(filename):
     INPUT   filename: file name for hdf that has been downloaded (string)
     RETURN  year and month from filename in the format YYYYMM (string)
     '''
-    # split filename to separate out year and month
+    # split filename by '.' to pull out the year and month
     dateinfo = filename.split('.')
     year = dateinfo[1]
     month = dateinfo[2]
