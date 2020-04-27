@@ -470,7 +470,7 @@ def main():
     new_assets = processNewData(exclude_dates)
 
     logging.info('Existing assets: {}, new: {}, max: {}'.format(
-        len(existing_ids), len(new_assets), MAX_DATES))
+        len(existing_ids), len(new_assets), MAX_ASSETS))
 
     # Delete excess assets
     deleteExcessAssets(existing_ids+new_assets,MAX_DATES)
