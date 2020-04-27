@@ -243,7 +243,7 @@ def fetch(year):
 def getDateFromSource(filename):
     '''
     Get year and month from filename
-    INPUT   filename: file name for hdf that have been downloaded (string)
+    INPUT   filename: file name for hdf that has been downloaded (string)
     RETURN  year and month from filename (string)
     '''
     # split filename to separate out year and month
