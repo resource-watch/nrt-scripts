@@ -243,7 +243,7 @@ def getNewDates(exclude_dates):
             # replace month to be the twelfth of that year
             date = date.replace(month=12)
         # if the current month is anything other than January
-        # since we do not have to change year in that case
+        # we can just go back one month and do not have to change the year
         else:
             # subtract 1 month from date to go back to next previous month
             date = date.replace(month=current_month-1)
