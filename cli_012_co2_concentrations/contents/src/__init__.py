@@ -40,7 +40,7 @@ DATE_FORMAT = '%Y%m'
 
 # how many assets can be stored in the GEE collection before the oldest ones are deleted?
 # maximum assets is 60 in this case (5 years of monthly data)
-MAX_DATES = MAX_YEARS*12
+MAX_ASSETS = 60
 
 # time interval over which to search data for; monthly data in this case
 TIMESTEP = {'days': 30}
