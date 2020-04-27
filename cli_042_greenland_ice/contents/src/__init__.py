@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 
 
 ### Constants
-SOURCE_URL = 'https://podaac-tools.jpl.nasa.gov/drive/files/allData/tellus/L3/mascon/RL05/JPL/CRI/mass_variability_time_series/'
+SOURCE_URL = 'https://podaac-tools.jpl.nasa.gov/drive/files/allData/tellus/L4/ice_mass/RL06/v02/mascon_CRI'
 
 DATE_INDEX = 0
 FILENAME_INDEX = -1
@@ -240,7 +240,7 @@ def main():
     num_expired = cleanOldRows(CARTO_TABLE, TIME_FIELD, MAX_AGE)
 
     ### 3. Retrieve existing data
-    r = cartosql.getFields(UID_FIELD, CARTO_TABLE, order='{} desc'.format(TIME_FIELD), f='csv')
+    r = cartosql.getFields(UID_FIELD, CARTO_TABLE, order='{} desc'.format(TIME_FIELD), f='csv', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_'))
     existing_ids = r.text.split('\r\n')[1:-1]
     num_existing = len(existing_ids)
 
