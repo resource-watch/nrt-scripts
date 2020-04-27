@@ -334,7 +334,6 @@ def processNewData(existing_dates):
         years.append(date[0:4])
     # create a set for years to remove duplicate years from the list     
     years = set(years)
-    logging.info(years)
     # create an empty list to store asset names that will be uploaded to GEE
     new_assets = []
     # fetch data one year at a time
