@@ -238,7 +238,7 @@ def getNewDates(exclude_dates):
         # We want to pull data one complete month at a time, so we will go back month by month.
         # If the current month is January, we have to go back to December of the previous year
         if current_month==1:
-            # subtract 1 year from date to go back to next previous year
+            # subtract 1 year from date to go back to the previous year
             date = date.replace(year=date.year-1)
             # replace month to be the twelfth of the current year
             date = date.replace(month=12)
