@@ -344,7 +344,6 @@ def fetch(dates):
             # error is raised when trying to access this file via URL as the file has not been uploaded by NASA
             logging.info('Unable to retrieve data from {}, most likely NASA has not uploaded file'.format(url))A
             logging.error('Unable to retrieve data from {}'.format(url))
-            logging.debug(e)
 
     return files
 
