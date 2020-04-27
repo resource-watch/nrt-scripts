@@ -571,7 +571,7 @@ def checkCreateCollection(VARS):
     List assests in collection if it exists, else create new collection
     INPUT   VARS: list variables (as named in netcdf) that we want to check collections for (list of strings)
 
-    RETURN  existing_dates_all_vars: list of dates that exist for all variables collections in GEE (list of strings)
+    RETURN  existing_dates_all_vars: list of dates, in the format of the DATE_FORMAT variable, that exist for all variable collections in GEE (list of strings)
             existing_dates_by_var: list of dates, in the format of the DATE_FORMAT variable, that exist for each individual variable collection in GEE (list containing list of strings for each variable)
 
     '''
