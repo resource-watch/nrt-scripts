@@ -43,7 +43,6 @@ DATE_FORMAT = '%Y%m'
 # maximum assets is 60 in this case (5 years of monthly data)
 MAX_ASSETS = 60
 
-# time interval over which to search data for; monthly data in this case
 TIMESTEP = {'days': 30}
 
 # get credentials to access the source data
