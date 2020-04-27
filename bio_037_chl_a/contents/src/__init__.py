@@ -330,7 +330,7 @@ def fetch(dates):
         url = getUrl(date)
         # get the filename we want to save the file under locally
         f = getFilename(date)
-        logging.debug('Fetching {}'.format(url))
+        logging.info('Fetching {}'.format(url))
         try:
             # try to download the data
             urllib.request.urlretrieve(url, f)
