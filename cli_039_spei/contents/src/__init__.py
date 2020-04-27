@@ -251,7 +251,7 @@ def getNewDates(exclude_dates):
 def fetch(filename, lag):
     '''
     Fetch files by filename and time lag
-    INPUT   filename: name for the netcdf we want to try to fetch(string)
+    INPUT   filename: name for the netcdf we want to try to fetch (string)
             lag: two-character string representing the number of months over which the SPEI data was aggregated (string)
     RETURN  filename: file name for netcdf that has been downloaded (string)
     '''
