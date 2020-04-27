@@ -339,6 +339,7 @@ def processNewData(existing_dates):
     logging.info(years)
     # create an empty list to store asset names that will be uploaded to GEE
     new_assets = []
+    # fetch data one year at a time
     for year in years:
         # Delete local files
         clearDir()
