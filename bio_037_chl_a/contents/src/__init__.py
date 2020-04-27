@@ -239,7 +239,7 @@ def getNewDates(exclude_dates):
         # If the current month is January, we have to go back to December of the previous year
         if current_month==1:
             # subtract 1 year from date to go back to next previous year
-            date = date.replace(year=current_year-1)
+            date = date.replace(year=date.year-1)
             # replace month to be the twelfth of the current year
             date = date.replace(month=12)
         # if the current month is anything other than January
