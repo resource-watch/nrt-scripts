@@ -454,7 +454,7 @@ def main():
     # If it exists return the list of assets currently in the collection
     existing_ids = checkCreateCollection(EE_COLLECTION)
     # Get a list of the dates of data we already have in the collection
-    exclude_dates = [getDate(asset) for asset in existing_ids]
+    existing_dates = [getDate(asset) for asset in existing_ids]
     logging.debug(exclude_dates)
 
     # Fetch, process, and upload the new data
