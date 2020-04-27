@@ -13,6 +13,7 @@ import numpy as np
 from rasterio.crs import CRS
 import requests
 import time
+from dateutil.relativedelta import relativedelta
 
 # url for CO₂ concentrations data
 SOURCE_URL = 'https://acdisc.gesdisc.eosdis.nasa.gov/data/Aqua_AIRS_Level3/AIRS3C2M.005/{year}/'
