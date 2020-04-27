@@ -335,7 +335,6 @@ def processNewData(existing_dates):
     new_assets = []
     # fetch data one year at a time
     for year in years:
-        clearDir()
         # Fetch new files 
         fetch(year)
         # list all hdf files in the current directory
