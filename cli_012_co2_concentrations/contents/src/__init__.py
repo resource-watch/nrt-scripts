@@ -473,7 +473,7 @@ def main():
         len(existing_ids), len(new_assets), MAX_ASSETS))
 
     # Delete excess assets
-    deleteExcessAssets(existing_ids+new_assets,MAX_DATES)
+    deleteExcessAssets(existing_ids+new_assets, MAX_ASSETS)
 
     # Update Resource Watch
     updateResourceWatch()
