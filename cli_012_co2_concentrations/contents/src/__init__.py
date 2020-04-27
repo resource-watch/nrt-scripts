@@ -228,7 +228,7 @@ def getNewDates(exclude_dates):
 
 def fetch(year):
     '''
-    Fetch files by datestamp
+    Fetch files by year
     INPUT   year: list of years we want to try to fetch, in the format YYYY (list of strings)
     RETURN  list of file names for hdfs that have been downloaded (list of strings)
     '''
