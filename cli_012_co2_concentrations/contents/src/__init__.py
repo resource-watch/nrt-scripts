@@ -341,7 +341,7 @@ def processNewData(existing_dates):
         clearDir()
         # Fetch new files 
         fetch(year)
-        # Store fetched files to a list
+        # list all hdf files in the current directory
         files = glob.glob('*.hdf')
         # create an empty list to store tif filenames that were created from hdf files
         tifs = []
