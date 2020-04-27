@@ -38,7 +38,7 @@ CLEAR_COLLECTION_FIRST = False
 # format of date (used in both source and GEE)
 DATE_FORMAT = '%Y%m'
 
-# how many years and days of data can be stored in the GEE collection before the oldest ones are deleted?
+# how many assets can be stored in the GEE collection before the oldest ones are deleted?
 # maximum assets is 60 in this case (5 years of monthly data)
 MAX_YEARS = 5
 MAX_DATES = MAX_YEARS*12
