@@ -342,7 +342,6 @@ def fetch(dates):
             # if unsuccessful, log that the file was not downloaded
             # NASA does not upload the previous month's chlorophyll until the middle of the next month
             # error is raised when trying to access this file via URL as the file has not been uploaded by NASA
-            logging.info('Unable to retrieve data from {}, most likely NASA has not uploaded file'.format(url))A
             logging.error('Unable to retrieve data from {}'.format(url))
 
     return files
