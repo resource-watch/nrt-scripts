@@ -336,7 +336,7 @@ def fetch(dates):
             urllib.request.urlretrieve(url, f)
             # if successful, add the file to the list of files we have downloaded
             files.append(f)
-            logging.info('Successfully retrieved {}'.format(f))# gives us "Successully retrieved file name"
+            logging.info('Successfully retrieved {}'.format(f))
 
         except Exception as e:
             # if unsuccessful, log that the file was not downloaded
