@@ -276,7 +276,7 @@ def extract_metadata(nc_file):
     # open the netcdf file and create an instance of the ncCDF4 class
     nc = Dataset(nc_file)
     logging.debug(nc)
-    # Get data type of the netcdf
+    # get type of data contained in each pixel of the netcdf
     dtype = str(nc[VAR_NAME].dtype)
     # Get nodata value of the netcdf
     nodata = float(nc[VAR_NAME].getncattr("_FillValue"))
