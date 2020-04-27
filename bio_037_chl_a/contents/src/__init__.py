@@ -257,7 +257,7 @@ def getNewDates(exclude_dates):
         # julian days are 3 digit numbers
         # if start_jday is 2 digit then add a "0" in the begining to make it 3 digit
         if len(start_jday)==2:
-            start_jday = '0'+start_jday                 # example output: 061
+            start_jday = '0'+start_jday    # example output: '061'
         # if start_jday is 1 digit then add two "0" in the begining to make it 3 digit
         elif len(start_jday)==1:
             start_jday = '00'+start_jday
