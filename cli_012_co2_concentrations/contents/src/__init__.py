@@ -234,7 +234,7 @@ def fetch(year):
     RETURN  list of file names for hdfs that have been downloaded (list of strings)
     '''
     # try to download the data
-    cmd = ' '.join(['wget','--user',NASA_USER,'--password',NASA_PASS,
+    cmd = ' '.join(['wget', '--user', os.environ.get("EARTHDATA_USER"), '--password', os.environ.get("EARTHDATA_KEY"),
                     '-r','-c','-nH','-nd','-np',
                     '-A','hdf,hdf.map.gz,hdf.xml',
                     SOURCE_URL.format(year=year)])
