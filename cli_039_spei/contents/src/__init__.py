@@ -342,7 +342,7 @@ def extract_subdata_by_date(nc_file, lag, dtype, nodata, available_dates, target
         # Extract data from netcdf for the available date
         data_tmp = nc[VAR_NAME][date_ix,:,:]
 
-        # Create profile/tif metadata for the available date
+        # Define lat and lon bounds of netcdf data
         south_lat = -90
         north_lat = 90
         west_lon = -180
