@@ -341,7 +341,6 @@ def extract_subdata_by_date(nc_file, lag, dtype, nodata, available_dates, target
 
         # Extract data from netcdf for the available date
         data_tmp = nc[VAR_NAME][date_ix,:,:]
-        # change center point of data by switching left and right side of data matrix
         data[:,:90] = data_tmp[:,90:]
         data[:,90:] = data_tmp[:,:90]
 
