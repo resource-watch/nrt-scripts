@@ -322,7 +322,7 @@ def processNewData(existing_dates):
     RETURN  new_assets: list of file names for hdfs that have been downloaded (list of strings)
     '''
     # Get list of new dates we want to try to fetch data for
-    target_dates = getNewDates(existing_dates) or []
+    target_dates = getNewDates(existing_dates)
     logging.debug('Target dates: {}'.format(target_dates))
     # fetch new files
     logging.info('Fetching files')
