@@ -248,7 +248,7 @@ def convert(files):
     RETURN  tifs: list of file names for tifs that have been generated (list of strings)
     '''
 
-    # create and empty list to store the names of the tifs we generate
+    # create an empty list to store the names of the tifs we generate
     tifs = []
 
     #go through each netcdf file and translate
@@ -257,7 +257,7 @@ def convert(files):
         sds_path = SDS_NAME.format(fname=f)
         # generate a name to save the tif file we will translate the netcdf file into
         tif = '{}.tif'.format(os.path.splitext(f)[0])
-        # tranlate the netcdf into a tif
+        # translate the netcdf into a tif
         cmd = ['gdal_translate', '-q', '-a_nodata', str(NODATA_VALUE), sds_path, tif]
         logging.debug('Converting {} to {}'.format(f, tif))
         subprocess.call(cmd)

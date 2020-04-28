@@ -1,9 +1,7 @@
 ## Chlorophyll Concentration Dataset Near Real-time Script
 This file describes the near real-time script that retrieves and processes the [MODIS Aqua Monthly Global Chlorophyll-a Near Surface Concentration](https://oceancolor.gsfc.nasa.gov/atbd/chlor_a/) for [display on Resource Watch](https://resourcewatch.org/data/explore/bio037-Chlorophyll-a-2).
 
-{Describe how the original data came from the source.}
-
-{Describe the steps used to process the data, e.g., "convert variable X from the original netcdf file to a tif to upload to Google Earth Engine."}
+This dataset was provided by the source as a netcdf file. The data shown on Resource Watch can be found in the 'chlor_a' variable of the netcdf file. This variable was converted to a tif file so that it could be uploaded to Google Earth Engine.
 
 Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/bio_037_chl_a/contents/src/__init__.py) for more details on this processing.
 
