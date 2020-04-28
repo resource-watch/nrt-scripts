@@ -307,7 +307,7 @@ def convert(files):
         sds_path = SDS_NAME.format(fname=f)
         # generate a name to save the tif file we will translate the netcdf file into
         tif = '{}.tif'.format(os.path.splitext(f)[0])
-        # tranlate the netcdf into a tif
+        # translate the netcdf into a tif
         cmd = ['gdal_translate','-q', '-a_nodata', str(NODATA_VALUE), '-a_srs', 'EPSG:4326', sds_path, tif] 
         logging.debug('Converting {} to {}'.format(f, tif))
         # use subprocess to use gdal_translate in the command line from inside python
