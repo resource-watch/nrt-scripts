@@ -1052,5 +1052,5 @@ def main():
     except NameError:
         logging.info('No local files to clean.')
 
-        
-    logging.info('SUCCESS')
+
+    logging.info('SUCCESSs')
