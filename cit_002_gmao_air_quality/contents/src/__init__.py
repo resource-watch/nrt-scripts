@@ -361,6 +361,7 @@ def convert(files):
         tif = getTiffname(file=f, variable=VAR)
         # translate the netcdf into a tif
         cmd = ['gdal_translate', '-b', str(band), '-q', '-a_nodata', str(NODATA_VALUE), '-a_srs', 'EPSG:4326', sds_path, tif]
+        subprocess.call(cmd)
         # add the new tif files to the list of tifs
         tifs.append(tif)
 
