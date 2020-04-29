@@ -1053,4 +1053,6 @@ def main():
         logging.info('No local files to clean.')
 
 
-    logging.info('SUCCESSs')
+        
+
+    logging.info('SUCCESS')
