@@ -145,7 +145,7 @@ def cleanOldRows(table, time_field, max_age, date_format='%Y-%m-%d %H:%M:%S'):
     # initialize number of rows that will be dropped as 0
     num_expired = 0
     # if the table exists
-    if cartosql.tableExists(table):
+    if cartosql.tableExists(table, CARTO_USER, CARTO_KEY):
         # check if max_age variable is a datetime object
         if isinstance(max_age, datetime.datetime):
             # convert datetime object to string formatted according to date_format
@@ -154,7 +154,7 @@ def cleanOldRows(table, time_field, max_age, date_format='%Y-%m-%d %H:%M:%S'):
             # raise an error if max_age is a string
             logging.error('Max age must be expressed as a datetime.datetime object')
         # delete rows from table which are older than the max_age
-        r = cartosql.deleteRows(table, "{} < '{}'".format(time_field, max_age))
+        r = cartosql.deleteRows(table, "{} < '{}'".format(time_field, max_age), CARTO_USER, CARTO_KEY)
         # get the number of rows that will be dropped from the table
         num_expired = r.json()['total_rows']
     else:
@@ -208,12 +208,12 @@ def deleteExcessRows(table, max_rows, time_field):
     num_dropped = 0
     # get ids from carto table sorted by date (old->new)
     r = cartosql.getFields('cartodb_id', table, order='{} desc'.format(time_field),
-                           f='csv')
+                           f='csv', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
     ids = r.text.split('\r\n')[1:-1]
 
     # if number of rows is greater than max_rows, delete excess rows
     if len(ids) > max_rows:
-        r = cartosql.deleteRowsByIDs(table, ids[max_rows:])
+        r = cartosql.deleteRowsByIDs(table, ids[max_rows:], CARTO_USER, CARTO_KEY)
         # get the number of rows that will be dropped from the table
         num_dropped += r.json()['total_rows']
     if num_dropped:
