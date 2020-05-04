@@ -173,7 +173,7 @@ def fetchDataFileName(SOURCE_URL):
     r = requests.get(SOURCE_URL, auth=HTTPBasicAuth(EARTHDATA_USER, EARTHDATA_KEY), stream=True)
     # use BeautifulSoup to read the content as a nested data structure
     soup = BeautifulSoup(r.text, 'html.parser')
-    # a boolean variable which will be set to "True" once the desired file is found
+    # create a boolean variable which will be set to "True" once the desired file is found
     ALREADY_FOUND = False
 
     # extract all the <a> tags within the html content. The <a> tags are used to mark links, so 
@@ -202,19 +202,20 @@ def deleteExcessRows(table, max_rows, time_field):
     INPUT   table: name of table in Carto where we will upload the data (string)
             max_rows: maximum rows that can be stored in the Carto table (integer)
             time_field: column that stores datetime information (string) 
-    RETURN  num_dropped: number of rows that will be dropped from the table (integer)
+    RETURN  num_dropped: number of rows that have been dropped from the table (integer)
     ''' 
     # initialize number of rows that will be dropped as 0
     num_dropped = 0
-    # get ids from carto table sorted by date (old->new)
+    # get cartodb_ids from carto table sorted by date (new->old)
     r = cartosql.getFields('cartodb_id', table, order='{} desc'.format(time_field),
                            f='csv', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
+    # turn response into a list of strings of the ids
     ids = r.text.split('\r\n')[1:-1]
 
     # if number of rows is greater than max_rows, delete excess rows
     if len(ids) > max_rows:
         r = cartosql.deleteRowsByIDs(table, ids[max_rows:], CARTO_USER, CARTO_KEY)
-        # get the number of rows that will be dropped from the table
+        # get the number of rows that have been dropped from the table
         num_dropped += r.json()['total_rows']
     if num_dropped:
         logging.info('Dropped {} old rows from {}'.format(num_dropped, table))
@@ -222,16 +223,16 @@ def deleteExcessRows(table, max_rows, time_field):
     return(num_dropped)
 
 
-def tryRetrieveData(SOURCE_URL, filename, TIMEOUT=300, ENCODING='utf-8'):
+def tryRetrieveData(SOURCE_URL, filename, timeout=300, encoding='utf-8'):
     ''' 
-    Get the filename from source url for which we want to download data
+    Download data from the source
     INPUT   SOURCE_URL: source url to download data (string)
             filename: filename for source data (string)
-            TIMEOUT: how long we will wait to get the data from url (integer) 
-            ENCODING: encoding of the url content (string)
-    RETURN  res_rows: list of lines in the url content (list of strings)
+            TIMEOUT: how many seconds we will wait to get the data from url (integer) 
+            encoding: encoding of the url content (string)
+    RETURN  res_rows: list of lines in the source data file (list of strings)
     '''  
-    # returns the number of seconds passed since epoch (the point where time begins)
+    # set the start time as the current time so that we can time how long it takes to pull the data (returns the number of seconds passed since epoch)
     start = time.time()
     # elapsed time is initialized with zero
     elapsed = 0
@@ -239,20 +240,20 @@ def tryRetrieveData(SOURCE_URL, filename, TIMEOUT=300, ENCODING='utf-8'):
     resource_location = os.path.join(SOURCE_URL, filename)
 
     # try to fetch data from generated url while elapsed time is less than the allowed time
-    while elapsed < TIMEOUT:
+    while elapsed < timeout:
         # measures the elapsed time since start
         elapsed = time.time() - start
         try:
             with requests.get(resource_location, auth=HTTPBasicAuth(EARTHDATA_USER, EARTHDATA_KEY), stream=True) as f:
                 # split the lines at line boundaries and get the original string from the encoded string
-                res_rows = f.content.decode(ENCODING).splitlines()
+                res_rows = f.content.decode(encoding).splitlines()
                 return(res_rows)
         except:
             logging.error("Unable to retrieve resource on this attempt.")
             # if the request fails, wait 5 seconds before moving on to the next attempt to fetch the data
             time.sleep(5)
     # after failing to fetch data within the allowed time, log that the data could not be fetched
-    logging.error("Unable to retrive resource before timeout of {} seconds".format(TIMEOUT))
+    logging.error("Unable to retrive resource before timeout of {} seconds".format(timeout))
 
     return([])
 
@@ -281,16 +282,16 @@ def decimalToDatetime(dec, date_pattern="%Y-%m-%d %H:%M:%S"):
 
 def insertIfNew(newUID, newValues, existing_ids, new_data):
     '''
-    For new date, check whether this is already in our table. If not, add it to the queue for processing
-    INPUT   newUID: date for the retrieved data (string)
-            newValues: date, mass index and uncertainty index for retrieved data (list of strings)
+    For data pulled from the source data file, check whether it is already in our table. If not, add it to the queue for processing
+    INPUT   newUID: date for the current row of data (string)
+            newValues: date, mass index and uncertainty index for current row of data (list of strings)
             existing_ids: list of date IDs that we already have in our Carto table (list of strings)
-            new_data: current dictionary of date, mass index and uncertainty index for new data (dictionary)
-    RETURN  new_data: updated dictionary of date, mass index and uncertainty index for new data (dictionary)
+            new_data: dictionary of new data to be added to Carto, in which the key is the date and the value is a list of strings containing the date, mass index, and uncertainty index for new data (dictionary)
+    RETURN  new_data: updated dictionary of new data to be added to Carto, in which the input newValues have been added (dictionary)
     '''
     # get dates that are already in the table along with the new dates that are already processed
     seen_ids = existing_ids + list(new_data.keys())
-    # if the current new date is not in the table or not processed yet, add it to the dictionary
+    # if the current new date is not in the existing table and has not processed yet, add it to the dictionary of new data
     if newUID not in seen_ids:
         new_data[newUID] = newValues
         logging.debug("Adding {} data to table".format(newUID))
@@ -301,19 +302,19 @@ def insertIfNew(newUID, newValues, existing_ids, new_data):
 def processData(SOURCE_URL, filename, existing_ids):
     '''
     Fetch, process and upload new data
-    INPUT   SOURCE_URL: source url to download data (string)
+    INPUT   SOURCE_URL: url where you can find the download link for the source data (string)
             filename: filename for source data (string)
             existing_ids: list of date IDs that we already have in our Carto table (list of strings)
     RETURN  num_new: number of rows of new data sent to Carto table (integer)
     '''
     num_new = 0
-    # get the contents from source url as a list of lines
-    res_rows = tryRetrieveData(SOURCE_URL, filename, TIMEOUT, ENCODING)
+    # get the data from source as a list of strings, with each string holding one line from the source data file
+    res_rows = tryRetrieveData(SOURCE_URL, filename)
     # create an empty dictionary to store new data (data that's not already in our Carto table)
     new_data = {}
     # go through each line of content retrieved from source
     for row in res_rows:
-        # get dates, mass, uncertainty index by processing lines that don't start with "HDR"
+        # get dates, mass, uncertainty index by processing lines that come after the header (header lines start with "HDR")
         if not (row.startswith("HDR")):
             # split line by space to get dates, mass and uncertainty index as separate elements
             row = row.split()
@@ -330,7 +331,7 @@ def processData(SOURCE_URL, filename, existing_ids):
             else:
                 logging.debug("Skipping row: {}".format(row))
 
-    # if we have found new date to process
+    # if we have found new dates to process
     if len(new_data):
         num_new += len(new_data)
         # create a list of new data
@@ -340,8 +341,6 @@ def processData(SOURCE_URL, filename, existing_ids):
 
     return(num_new)
 
-# ATTENTION AMELIA ATTENTION !!!
-# Is this function a candidate for FUNCTIONS FOR CARTO DATASETS
 def updateResourceWatch(num_new):
     '''
     This function should update Resource Watch to reflect the new data.
@@ -374,18 +373,10 @@ def main():
 
     # Check if table exists, create it if it does not
     logging.info('Checking if table exists and getting existing IDs.')
-    checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, TIME_FIELD)
+    existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, TIME_FIELD)
 
     # Delete rows that are older than a certain threshold
     num_expired = cleanOldRows(CARTO_TABLE, TIME_FIELD, MAX_AGE)
-
-    # get existing rows in the table
-    r = cartosql.getFields(UID_FIELD, CARTO_TABLE, order='{} desc'.format(TIME_FIELD), f='csv', user=CARTO_USER, key=CARTO_KEY)
-    existing_ids = r.text.split('\r\n')[1:-1]
-    # get the number of existing rows in the table
-    num_existing = len(existing_ids)
-
-    logging.debug("First 10 IDs already in table: {}".format(existing_ids[:10]))
 
     # Get the filename from source url for which we want to download data
     filename = fetchDataFileName(SOURCE_URL)
