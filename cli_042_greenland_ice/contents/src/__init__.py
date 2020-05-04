@@ -155,7 +155,7 @@ def cleanOldRows(table, time_field, max_age, date_format='%Y-%m-%d %H:%M:%S'):
             logging.error('Max age must be expressed as a datetime.datetime object')
         # delete rows from table which are older than the max_age
         r = cartosql.deleteRows(table, "{} < '{}'".format(time_field, max_age), CARTO_USER, CARTO_KEY)
-        # get the number of rows that will be dropped from the table
+        # get the number of rows that were dropped from the table
         num_expired = r.json()['total_rows']
     else:
         # raise an error if the table doesn't exist
@@ -169,7 +169,7 @@ def fetchDataFileName(SOURCE_URL):
     INPUT   SOURCE_URL: source url to download data (string)
     RETURN  filename: filename for source data (string)
     '''  
-    # get the source url where data for Greenland mass is stored
+    # pull website content from the source url where data for Greenland ice mass is stored
     r = requests.get(SOURCE_URL, auth=HTTPBasicAuth(EARTHDATA_USER, EARTHDATA_KEY), stream=True)
     # use BeautifulSoup to read the content as a nested data structure
     soup = BeautifulSoup(r.text, 'html.parser')
