@@ -136,7 +136,7 @@ They should all be checked because their format likely will need to be changed.
 def cleanOldRows(table, time_field, max_age, date_format='%Y-%m-%d %H:%M:%S'):
     ''' 
     Delete rows that are older than a certain threshold
-    INPUT   table: name of table in Carto where we will upload the data (string)
+    INPUT   table: name of table in Carto from which we will delete the old data (string)
             time_field: column that stores datetime information (string) 
             max_age: oldest date that can be stored in the Carto table (datetime object)
             date_format: format in which we want to convert the input date to (string)
