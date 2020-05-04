@@ -139,8 +139,8 @@ def cleanOldRows(table, time_field, max_age, date_format='%Y-%m-%d %H:%M:%S'):
     INPUT   table: name of table in Carto from which we will delete the old data (string)
             time_field: column that stores datetime information (string) 
             max_age: oldest date that can be stored in the Carto table (datetime object)
-            date_format: format in which we want to convert the input date to (string)
-    RETURN  num_expired: number of rows that will be dropped from the table (integer)
+            date_format: format of dates in Carto table (string)
+    RETURN  num_expired: number of rows that have been dropped from the table (integer)
     ''' 
     # initialize number of rows that will be dropped as 0
     num_expired = 0
