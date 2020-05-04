@@ -12,6 +12,7 @@ import eeUtil
 import numpy as np
 import requests
 import time
+from dateutil.relativedelta import relativedelta
 
 # url for standardised precipitation-evapotranspiration index data
 SOURCE_URL = 'http://soton.eead.csic.es/spei/10/nc/{filename}'
