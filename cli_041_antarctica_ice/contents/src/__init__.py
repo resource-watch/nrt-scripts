@@ -44,7 +44,7 @@ MAX_ROWS = 1000000
 # oldest date that can be stored in the Carto table before we start deleting
 MAX_AGE = datetime.datetime.today() - datetime.timedelta(days=365*150)
 
-# url for antarctic mass data
+# url for antarctica mass data
 SOURCE_URL = 'https://podaac-tools.jpl.nasa.gov/drive/files/allData/tellus/L4/ice_mass/RL06/v02/mascon_CRI'
 
 # Resource Watch dataset API ID
@@ -169,7 +169,7 @@ def fetchDataFileName(SOURCE_URL):
     INPUT   SOURCE_URL: source url to download data (string)
     RETURN  filename: filename for source data (string)
     '''  
-    # pull website content from the source url where data for antarctic ice mass is stored
+    # pull website content from the source url where data for antarctica ice mass is stored
     r = requests.get(SOURCE_URL, auth=HTTPBasicAuth(EARTHDATA_USER, EARTHDATA_KEY), stream=True)
     # use BeautifulSoup to read the content as a nested data structure
     soup = BeautifulSoup(r.text, 'html.parser')
