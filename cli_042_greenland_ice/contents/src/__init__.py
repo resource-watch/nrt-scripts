@@ -208,7 +208,7 @@ def deleteExcessRows(table, max_rows, time_field):
     num_dropped = 0
     # get cartodb_ids from carto table sorted by date (new->old)
     r = cartosql.getFields('cartodb_id', table, order='{} desc'.format(time_field),
-                           f='csv', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
+                           f='csv', , user=CARTO_USER, key=CARTO_KEY)
     # turn response into a list of strings of the ids
     ids = r.text.split('\r\n')[1:-1]
 
@@ -337,7 +337,7 @@ def processData(SOURCE_URL, filename, existing_ids):
         # create a list of new data
         new_data = list(new_data.values())
         # insert new data into the carto table
-        cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), new_data)
+        cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), new_data, user=CARTO_USER, key=CARTO_KEY)
 
     return(num_new)
 
@@ -348,7 +348,7 @@ def get_most_recent_date(table):
     RETURN  most_recent_date: most recent date of data in the Carto table, found in the TIME_FIELD column of the table (datetime object)
     '''
     # get dates in TIME_FIELD column
-    r = cartosql.getFields(TIME_FIELD, table, f='csv', post=True)
+    r = cartosql.getFields(TIME_FIELD, table, f='csv', post=True, user=CARTO_USER, key=CARTO_KEY)
     # turn the response into a list of dates
     dates = r.text.split('\r\n')[1:-1]
     # sort the dates from oldest to newest
@@ -356,6 +356,7 @@ def get_most_recent_date(table):
     # turn the last (newest) date into a datetime object
     most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
     return most_recent_date
+    
 def updateResourceWatch(num_new):
     '''
     This function should update Resource Watch to reflect the new data.
