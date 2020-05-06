@@ -356,6 +356,7 @@ def get_most_recent_date(table):
     # turn the last (newest) date into a datetime object
     most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
     return most_recent_date
+
 def updateResourceWatch(num_new):
     '''
     This function should update Resource Watch to reflect the new data.
@@ -366,8 +367,6 @@ def updateResourceWatch(num_new):
         # Update dataset's last update date on Resource Watch
         most_recent_date = get_most_recent_date(CARTO_TABLE)
         lastUpdateDate(DATASET_ID, most_recent_date)
-    else:
-        logging.error('No new data.')
 
     # Update the dates on layer legends - TO BE ADDED IN FUTURE
 
