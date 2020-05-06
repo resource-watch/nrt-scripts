@@ -412,8 +412,6 @@ def updateResourceWatch(num_new):
         # Update dataset's last update date on Resource Watch
         most_recent_date = datetime.datetime.utcnow()
         lastUpdateDate(DATASET_ID, most_recent_date)
-    else:
-        logging.error('No new data.')
 
     # Update the dates on layer legends - TO BE ADDED IN FUTURE
 
