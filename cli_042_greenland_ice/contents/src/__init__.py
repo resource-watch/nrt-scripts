@@ -208,7 +208,7 @@ def deleteExcessRows(table, max_rows, time_field):
     num_dropped = 0
     # get cartodb_ids from carto table sorted by date (new->old)
     r = cartosql.getFields('cartodb_id', table, order='{} desc'.format(time_field),
-                           f='csv', user=os.getenv('CARTO_USER'), key=os.getenv('CARTO_KEY'))
+                           f='csv', user=CARTO_USER, key=CARTO_KEY)
     # turn response into a list of strings of the ids
     ids = r.text.split('\r\n')[1:-1]
 
@@ -228,7 +228,7 @@ def tryRetrieveData(SOURCE_URL, filename, timeout=300, encoding='utf-8'):
     Download data from the source
     INPUT   SOURCE_URL: source url to download data (string)
             filename: filename for source data (string)
-            TIMEOUT: how many seconds we will wait to get the data from url (integer) 
+            timeout: how many seconds we will wait to get the data from url (integer) 
             encoding: encoding of the url content (string)
     RETURN  res_rows: list of lines in the source data file (list of strings)
     '''  
@@ -337,7 +337,7 @@ def processData(SOURCE_URL, filename, existing_ids):
         # create a list of new data
         new_data = list(new_data.values())
         # insert new data into the carto table
-        cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), new_data)
+        cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), new_data, user=CARTO_USER, key=CARTO_KEY)
 
     return(num_new)
 
@@ -348,7 +348,7 @@ def get_most_recent_date(table):
     RETURN  most_recent_date: most recent date of data in the Carto table, found in the TIME_FIELD column of the table (datetime object)
     '''
     # get dates in TIME_FIELD column
-    r = cartosql.getFields(TIME_FIELD, table, f='csv', post=True)
+    r = cartosql.getFields(TIME_FIELD, table, f='csv', post=True, user=CARTO_USER, key=CARTO_KEY)
     # turn the response into a list of dates
     dates = r.text.split('\r\n')[1:-1]
     # sort the dates from oldest to newest
