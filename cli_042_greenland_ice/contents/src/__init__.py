@@ -208,7 +208,7 @@ def deleteExcessRows(table, max_rows, time_field):
     num_dropped = 0
     # get cartodb_ids from carto table sorted by date (new->old)
     r = cartosql.getFields('cartodb_id', table, order='{} desc'.format(time_field),
-                           f='csv', , user=CARTO_USER, key=CARTO_KEY)
+                           f='csv', user=CARTO_USER, key=CARTO_KEY)
     # turn response into a list of strings of the ids
     ids = r.text.split('\r\n')[1:-1]
 
