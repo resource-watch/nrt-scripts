@@ -169,7 +169,8 @@ def flushTileCache(layer_id):
 
     # specify that we are on the first try
     try_num=1
-    while try_num<4:
+    tries = 4
+    while try_num<tries:
         try:
             # try to delete the cache
             r = requests.delete(url = apiUrl, headers = headers, timeout=1000)
@@ -453,7 +454,7 @@ def deleteExcessAssets(dates, max_assets):
 
 def get_most_recent_date(collection):
     '''
-    Get most recent data it
+    Get most recent data we have assets for
     INPUT   collection: GEE collection to check dates for (string)
     RETURN  most_recent_date: most recent date in GEE collection (datetime)
     '''
