@@ -1033,6 +1033,6 @@ def main():
     delete_local()
 
     # Update Resource Watch
-    updateResourceWatch()
+    updateResourceWatch(new_dates_historical, new_dates_forecast)
 
     logging.info('SUCCESS')
