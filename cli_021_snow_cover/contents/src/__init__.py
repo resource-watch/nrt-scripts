@@ -437,7 +437,7 @@ def deleteExcessAssets(dates, max_assets):
 
 def get_most_recent_date(collection):
      '''
-     Get most recent data it
+     Get most recent data we have assets for
      INPUT   collection: GEE collection to check dates for (string)
      RETURN  most_recent_date: most recent date in GEE collection (datetime)
      '''
