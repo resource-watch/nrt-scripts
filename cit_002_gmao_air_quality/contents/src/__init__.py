@@ -898,7 +898,7 @@ def delete_local(ext=None):
     '''
     try:
         if ext:
-            [file for file in os.listdir('/home/amsnyder/Github') if file.endswith(ext)]
+            [file for file in os.listdir(DATA_DIR) if file.endswith(ext)]
         else:
             files = os.listdir(DATA_DIR)
         for f in files:
