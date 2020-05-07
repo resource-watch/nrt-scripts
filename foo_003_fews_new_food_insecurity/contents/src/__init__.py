@@ -84,7 +84,7 @@ def findShps(zfile):
                 elif 'ML2' in f:
                     files['ML2'] = f
     if len(files) != 3:
-        logging.error('There should be 3 shapefiles: CS, ML1, ML2')
+        logging.info('There should be 3 shapefiles: CS, ML1, ML2')
     return files
 
 
