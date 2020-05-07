@@ -821,6 +821,86 @@ def update_layer(var, period, layer, new_date):
     else:
         logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
 
+def updateResourceWatch(new_dates_historical, new_dates_forecast):
+    '''
+    This function should update Resource Watch to reflect the new data.
+    This may include updating the 'last update date', flushing the tile cache, and updating any dates on layers
+    INPUT   new_dates_historical: (list of )
+            new_dates_forecast: (list of )
+    '''
+
+    # Update the dates on layer legends
+    if new_dates_historical and new_dates_forecast:
+        logging.info('Updating Resource Watch Layers')
+        for var, ds_id in DATASET_IDS.items():
+            logging.info('Updating {}'.format(var))
+            #pull dictionary of current layers from API
+            layer_dict = pull_layers_from_API(ds_id)
+            #go through each layer, pull the definition and update
+            for layer in layer_dict:
+                #check which point on the timeline this is
+                order = layer['attributes']['layerConfig']['order']
+
+                #if this is the first point on the timeline, we want to replace it the most recent historical data
+                if order==0:
+                    #get date of most recent asset added
+                    date = new_dates_historical[-1]
+
+                    #replace layer asset and title date with new
+                    update_layer(var, 'historical', layer, date)
+
+                # otherwise, we want to replace it with the appropriate forecast data
+                else:
+                    #forecast layers start at order 1, and we will want this point on the timeline to be the first forecast asset
+                    # order 4 will be the second asset, and so on
+                    #get date of appropriate asset
+                    date = new_dates_forecast[order-1]
+
+                    #replace layer asset and title date with new
+                    update_layer(var, 'forecast', layer, date)
+    elif not new_dates_historical and not new_dates_forecast:
+        logging.info('Layers do not need to be updated.')
+    else:
+        if not new_dates_historical:
+            logging.error('Historical data was not updated, but forecast was.')
+        if not new_dates_forecast:
+            logging.error('Forecast data was not updated, but historical was.')
+
+    # Update Last Update Date and flush tile cache on RW
+    for var_num in range(len(VARS)):
+        var = VARS[var_num]
+        # specify GEE collection name
+        collection = getCollectionName('historical', var)
+        # get a list of assets in the collection
+        existing_assets = eeUtil.ls(collection)
+        try:
+            # Get the most recent date from the data in the GEE collection
+            most_recent_date = get_most_recent_date(existing_assets)
+            # Get the current 'last update date' from the dataset on Resource Watch
+            current_date = getLastUpdate(DATASET_IDS[var])
+            # If the most recent date from the GEE collection does not match the 'last update date' on the RW API, update it
+            if current_date != most_recent_date: #comment for testing
+                logging.info('Updating last update date and flushing cache.')
+                # Update dataset's last update date on Resource Watch
+                lastUpdateDate(DATASET_IDS[var], most_recent_date)
+                # get layer ids and flush tile cache for each
+                layer_ids = getLayerIDs(DATASET_IDS[var])
+                for layer_id in layer_ids:
+                    flushTileCache(layer_id)
+        except KeyError:
+            continue
+def delete_local(ext=None):
+    try:
+        if ext:
+            [file for file in os.listdir('/home/amsnyder/Github') if file.endswith(ext)]
+        else:
+            files = os.listdir(DATA_DIR)
+        for f in files:
+            logging.info('Removing {}'.format(f))
+            os.remove(DATA_DIR+'/'+f)
+    except NameError:
+        logging.info('No local files to clean.')
+
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
@@ -832,8 +912,8 @@ def main():
     '''
     Process Historical Data
     '''
-    period = 'historical'
     logging.info('Starting Historical Data Processing')
+    period = 'historical'
 
     # Clear collection in GEE if desired
     if CLEAR_COLLECTION_FIRST:
@@ -842,7 +922,7 @@ def main():
     # Check if collection exists. If not, create it.
     # Return a list of dates that exist for all variables collections in GEE (existing_dates),
     # as well as a list of which dates exist for each individual variable (existing_dates_by_var).
-    # The latter will be used in case the previous script run crashed before completing the data upload for every variable.
+    # The latter will be used to determine if the previous script run crashed before completing the data upload for every variable.
     logging.info('Getting existing dates.')
     existing_dates, existing_dates_by_var = checkCreateCollection(VARS, period)
 
@@ -854,6 +934,7 @@ def main():
     logging.info('Fetching files for {}'.format(new_dates_historical))
     # Download files and get list of locations of netcdfs in docker container
     files, files_by_date = fetch(new_dates_historical, SOURCE_URL_HISTORICAL, period='historical')
+
     for var_num in range(len(VARS)):
         logging.info('Processing {}'.format(VARS[var_num]))
         # get variable name
@@ -882,27 +963,15 @@ def main():
         logging.info('SUCCESS for {}'.format(var))
 
         # Delete local tif files because we will run out of space
-        try:
-            files_available = os.listdir(DATA_DIR)
-            for f in files_available:
-                if f.endswith(".tif"):
-                    logging.info('Removing {}'.format(f))
-                    os.remove(DATA_DIR + '/' + f)
-        except NameError:
-            logging.info('No local tiff files to clean.')
+        delete_local(ext='.tif')
 
-    # Delete local netcdf files
-    try:
-        for f in os.listdir(DATA_DIR):
-            logging.info('Removing {}'.format(f))
-            os.remove(DATA_DIR+'/'+f)
-    except NameError:
-        logging.info('No local files to clean.')
+    delete_local()
+
     '''
     Process Forecast Data
     '''
-    period = 'forecast'
     logging.info('Starting Forecast Data Processing')
+    period = 'forecast'
 
     # Clear collection in GEE if desired
     if CLEAR_COLLECTION_FIRST:
@@ -951,96 +1020,12 @@ def main():
             var, len(new_dates_forecast), MAX_ASSETS))
         logging.info('SUCCESS for {}'.format(var))
         # Delete local tif files because we will run out of space
-        try:
-            files_available = os.listdir(DATA_DIR)
-            for f in files_available:
-                if f.endswith(".tif"):
-                    logging.info('Removing {}'.format(f))
-                    os.remove(DATA_DIR + '/' + f)
-        except NameError:
-            logging.info('No local tiff files to clean.')
+        delete_local(ext='.tif')
+
+    # Update Resource Watch
+    updateResourceWatch()
 
     # Delete local netcdf files
-    try:
-        for f in os.listdir(DATA_DIR):
-            logging.info('Removing {}'.format(f))
-            os.remove(DATA_DIR+'/'+f)
-    except NameError:
-        logging.info('No local files to clean.')
-
-
-    '''
-    Update layers in Resource Watch back office.
-    '''
-    if new_dates_historical and new_dates_forecast:
-        logging.info('Updating Resource Watch Layers')
-        for var, ds_id in DATASET_IDS.items():
-            logging.info('Updating {}'.format(var))
-            #pull dictionary of current layers from API
-            layer_dict = pull_layers_from_API(ds_id)
-            #go through each layer, pull the definition and update
-            for layer in layer_dict:
-                #check which point on the timeline this is
-                order = layer['attributes']['layerConfig']['order']
-
-                #if this is the first point on the timeline, we want to replace it the most recent historical data
-                if order==0:
-                    #get date of most recent asset added
-                    date = new_dates_historical[-1]
-
-                    #replace layer asset and title date with new
-                    update_layer(var, period, layer, date)
-
-
-                # otherwise, we want to replace it with the appropriate forecast data
-                else:
-                    #forecast layers start at order 1, and we will want this point on the timeline to be the first forecast asset
-                    # order 4 will be the second asset, and so on
-                    #get date of appropriate asset
-                    date = new_dates_forecast[order-1]
-
-                    #replace layer asset and title date with new
-                    update_layer(var, period, layer, date)
-    elif not new_dates_historical and not new_dates_forecast:
-        logging.info('Layers do not need to be updated.')
-    else:
-        if not new_dates_historical:
-            logging.error('Historical data was not updated, but forecast was.')
-        if not new_dates_forecast:
-            logging.error('Forecast data was not updated, but historical was.')
-    '''
-    Update Last Update Date and flush tile cache on RW
-    '''
-    for var_num in range(len(VARS)):
-        var = VARS[var_num]
-        # specify GEE collection name
-        collection = getCollectionName(period, var)
-        existing_assets = eeUtil.ls(collection)
-        try:
-            # Get most recent date to use as last update date
-            # to show most recent date in collection, instead of start date for forecast run
-            # use get_most_recent_date(new_assets) function instead
-            most_recent_date = get_most_recent_date(existing_assets)
-            logging.info(most_recent_date)
-            current_date = getLastUpdate(DATASET_IDS[var])
-
-            if current_date != most_recent_date: #comment for testing
-                logging.info('Updating last update date and flushing cache.')
-                # Update dataset's last update date on Resource Watch
-                lastUpdateDate(DATASET_IDS[var], most_recent_date)
-                # get layer ids and flush tile cache for each
-                layer_ids = getLayerIDs(DATASET_IDS[var])
-                for layer_id in layer_ids:
-                    flushTileCache(layer_id)
-        except KeyError:
-            continue
-
-    # Delete local netcdf and tif files
-    try:
-        for f in os.listdir(DATA_DIR):
-            logging.info('Removing {}'.format(f))
-            os.remove(DATA_DIR+'/'+f)
-    except NameError:
-        logging.info('No local files to clean.')
+    delete_local()
 
     logging.info('SUCCESS')
