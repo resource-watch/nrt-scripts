@@ -38,6 +38,8 @@ CONVERSION_FACTORS = {
 }
 
 # define metrics to calculate for each compound
+# each metric is the name of a function defined in this script
+# available metrics: daily_avg, daily_max
 METRIC_BY_COMPOUND = {
     'NO2': 'daily_avg',
     'O3': 'daily_max',
@@ -56,7 +58,7 @@ COLLECTION = '/projects/resource-watch-gee/cit_002_gmao_air_quality'
 # do you want to delete everything currently in the GEE collection when you run this script?
 CLEAR_COLLECTION_FIRST = False
 
-#how many assets can be stored in the GEE collection before the oldest ones are deleted?
+# how many assets can be stored in the GEE collection before the oldest ones are deleted?
 MAX_ASSETS = 100
 
 # date format to use in GEE
@@ -209,19 +211,20 @@ The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
 
-def getAssetName(date):
+def getAssetName(date, var):
     '''
     get asset name
     INPUT   date: date in the format of the DATE_FORMAT variable (string)
+            var: variable to be used in asset name (string)
     RETURN  GEE asset name for input date (string)
     '''
-    return os.path.join(EE_COLLECTION, FILENAME.format(metric=METRIC_BY_COMPOUND[VAR], var=VAR, date=date))
+    return os.path.join(EE_COLLECTION, FILENAME.format(metric=METRIC_BY_COMPOUND[var], var=var, date=date))
 
-def getTiffname(file, variable):
+def getTiffname(file, var):
     '''
     generate names for tif files that we are going to create from netcdf
     INPUT   file: netcdf filename (string)
-            variable: variable that we want to pull (string)
+            var: variable to be used in tif name (string)
     RETURN  file name to save tif file created from netcdf (string)
     '''
     # get year, month, day and time from netcdf filename 
@@ -230,7 +233,7 @@ def getTiffname(file, variable):
     day = file.split('/')[1][-12:-10]
     time = file.split('/')[1][-9:-5]
 
-    name = os.path.join(DATA_DIR, FILENAME.format(metric=METRIC_BY_COMPOUND[VAR], var=variable, date=year+'-'+month+'-'+day +'_'+time))+'.tif'
+    name = os.path.join(DATA_DIR, FILENAME.format(metric=METRIC_BY_COMPOUND[var], var=var, date=year+'-'+month+'-'+day +'_'+time))+'.tif'
     return name
 
 def getDateTime(filename):
@@ -344,10 +347,11 @@ def getNewDatesForecast(existing_dates):
 
     return new_dates
 
-def convert(files):
+def convert(files, var):
     '''
     Convert netcdf files to tifs
     INPUT   files: list of file names for netcdfs that have already been downloaded (list of strings)
+            var: variable which we are converting files for
     RETURN  tifs: list of file names for tifs that have been generated (list of strings)
     '''
     # create an empty list to store the names of tif files that we create
@@ -355,11 +359,11 @@ def convert(files):
     for f in files:
         logging.info('Converting {} to tiff'.format(f))
         # generate the subdatset name for current netcdf file for a particular variable
-        sds_path = SDS_NAME.format(fname=f, var=VAR)
+        sds_path = SDS_NAME.format(fname=f, var=var)
         # only one band available in each file, so we will pull band 1
         band = 1
         # generate a name to save the tif file we will translate the netcdf file into
-        tif = getTiffname(file=f, variable=VAR)
+        tif = getTiffname(file=f, variable=var)
         # translate the netcdf into a tif
         cmd = ['gdal_translate', '-b', str(band), '-q', '-a_nodata', str(NODATA_VALUE), '-a_srs', 'EPSG:4326', sds_path, tif]
         subprocess.call(cmd)
@@ -438,10 +442,11 @@ def fetch(new_dates, unformatted_source_url, period):
 
     return files, files_by_date
 
-def daily_avg(date, tifs_for_date):
+def daily_avg(date, var, tifs_for_date):
     '''
     Calculate a daily average tif file from all the hourly tif files
     INPUT   date: list of dates we want to try to fetch, in the format YYYY-MM-DD (list of strings)
+            var: variable for which we are taking daily averages
             tifs_for_date: list of file names for tifs that were created from downloaded netcdfs (list of strings)
     RETURN  result_tif: file name for tif file created after averaging all the input tifs (string)
     '''
@@ -470,19 +475,20 @@ def daily_avg(date, tifs_for_date):
     num_tifs = len(tifs_for_date)
     # finish creating calc input
     # since we are trying to find average, the algorithm is: (sum all tifs/number of tifs)*(conversion factor for corresponding variable)
-    calc= calc + ')*{}/{}"'.format(CONVERSION_FACTORS[VAR], num_tifs)
+    calc= calc + ')*{}/{}"'.format(CONVERSION_FACTORS[var], num_tifs)
     # generate a file name for the daily average tif
-    result_tif = DATA_DIR+'/'+FILENAME.format(metric=METRIC_BY_COMPOUND[VAR], var=VAR, date=date)+'.tif'
+    result_tif = DATA_DIR+'/'+FILENAME.format(metric=METRIC_BY_COMPOUND[var], var=var, date=date)+'.tif'
     # create the gdal command to calculate the average by putting it all together
     cmd = ('gdal_calc.py {} --outfile="{}" {}').format(' '.join(gdal_tif_list), result_tif, calc)
     # using gdal from command line from inside python
     subprocess.check_output(cmd, shell=True)
     return result_tif
 
-def daily_max(date, tifs_for_date):
+def daily_max(date, var, tifs_for_date):
     '''
     Calculate a daily maximum tif file from all the hourly tif files
     INPUT   date: list of dates we want to try to fetch, in the format YYYY-MM-DD (list of strings)
+            var: variable for which we are taking daily averages
             tifs_for_date: list of file names for tifs that were created from downloaded netcdfs (list of strings)
     RETURN  result_tif: file name for tif file created after finding the max from all the input tifs (string)
     '''
@@ -506,19 +512,20 @@ def daily_max(date, tifs_for_date):
             # set up calc input for gdal_calc to find the maximum from all tifs
             calc = 'maximum('+calc+','+letter+')'
     # finish creating calc input
-    calc= '--calc="'+calc + '*{}"'.format(CONVERSION_FACTORS[VAR])
+    calc= '--calc="'+calc + '*{}"'.format(CONVERSION_FACTORS[var])
     #generate a file name for the daily maximum tif
-    result_tif = DATA_DIR+'/'+FILENAME.format(metric=METRIC_BY_COMPOUND[VAR], var=VAR, date=date)+'.tif'
+    result_tif = DATA_DIR+'/'+FILENAME.format(metric=METRIC_BY_COMPOUND[var], var=var, date=date)+'.tif'
     # create the gdal command to calculate the maximum by putting it all together
     cmd = ('gdal_calc.py {} --outfile="{}" {}').format(' '.join(gdal_tif_list), result_tif, calc)
     # using gdal from command line from inside python
     subprocess.check_output(cmd, shell=True)
     return result_tif
 
-def processNewData(all_files, files_by_date, period, assets_to_delete):
+def processNewData(var, all_files, files_by_date, period, assets_to_delete):
     '''
     Process and upload clean new data
-    INPUT   all_files: list of file names for netcdfs that have been downloaded (list of strings)
+    INPUT   var: variable that we are processing data for (string)
+            all_files: list of file names for netcdfs that have been downloaded (list of strings)
             files_by_date: dictionary of netcdf file names along with the date for which they were downloaded (dictionary of strings)
             period: time period for which we want to process the data, either historical or forecast (string)
             assets_to_delete: list of old assets to delete (list of strings)
@@ -538,14 +545,14 @@ def processNewData(all_files, files_by_date, period, assets_to_delete):
         for date, files in files_by_date.items():
             logging.info('Converting files')
             # Convert new files from netcdf to tif files
-            hourly_tifs = convert(files)
+            hourly_tifs = convert(files, var)
             # take relevant metric (daily average or maximum) of hourly tif files for days we have pulled
-            metric = METRIC_BY_COMPOUND[VAR]
-            tif = globals()[metric](date, hourly_tifs)
+            metric = METRIC_BY_COMPOUND[var]
+            tif = globals()[metric](date, var, hourly_tifs)
             # add the averaged or maximum tif file to the list of files to upload to GEE
             tifs.append(tif)
             # Get a list of the names we want to use for the assets once we upload the files to GEE
-            assets.append(getAssetName(date))
+            assets.append(getAssetName(date, var))
             # get new list of dates (in case order is different) from the averaged or maximum tifs
             dates.append(getDateTime(tif))
             # generate datetime objects for each data
@@ -580,15 +587,15 @@ def checkCreateCollection(VARS):
     # will be used in case the previous script run crashed before completing the data upload for every variable.
     existing_dates_by_var = []
     # loop through each variables that we want to pull
-    for VAR in VARS:
+    for var in VARS:
         # For one of the variables, get the date of the most recent dataset
         # All variables come from the same file
         # If we have one for a particular data, we should have them all
-        collection = EE_COLLECTION_GEN.format(metric=METRIC_BY_COMPOUND[VAR], var=VAR)
+        collection = EE_COLLECTION_GEN.format(metric=METRIC_BY_COMPOUND[var], var=var)
 
         # Check if folder to store GEE collections exists. If not, create it.
         # we will make one collection per variable, all stored in the parent folder for the dataset
-        parent_folder = PARENT_FOLDER.format(metric=METRIC_BY_COMPOUND[VAR], var=VAR)
+        parent_folder = PARENT_FOLDER.format(metric=METRIC_BY_COMPOUND[var], var=var)
         if not eeUtil.exists(parent_folder):
             logging.info('{} does not exist, creating'.format(parent_folder))
             eeUtil.createFolder(parent_folder)
@@ -681,13 +688,13 @@ def clearCollection():
                 for item in list.getInfo():
                     ee.data.deleteAsset(item['id'])
 
-def listAllCollections():
+def listAllCollections(var):
     '''
     Get list of old assets to delete (all currently in collection)
     RETURN  all_assets: list of old assets to delete (list of strings)
     '''
     all_assets = []
-    collection = EE_COLLECTION_GEN.format(metric=METRIC_BY_COMPOUND[VAR], var=VAR)
+    collection = EE_COLLECTION_GEN.format(metric=METRIC_BY_COMPOUND[var], var=var)
     if eeUtil.exists(collection):
         if collection[0] == '/':
             collection = collection[1:]
@@ -736,14 +743,15 @@ def pull_layers_from_API(dataset_id):
     layer_dict = json.loads(r.content.decode('utf-8'))['data']
     return layer_dict
 
-def update_layer(layer, new_date):
+def update_layer(var, layer, new_date):
     '''
     Update layers in Resource Watch back office.
-    INPUT   layer: layer that will be updated (string)
+    INPUT   var: variable for which we are updating layers
+            layer: layer that will be updated (string)
             new_date: date of most recent asset added for the input layer (string)
     '''
     # get name of asset - drop first / in string or asset won't be pulled into RW
-    asset = getAssetName(new_date)[1:]
+    asset = getAssetName(new_date, var)[1:]
 
     # get previous date being used from
     old_date = getDate_GEE(layer['attributes']['layerConfig']['assetId'])
@@ -763,7 +771,7 @@ def update_layer(layer, new_date):
     layer['attributes']['layerConfig']['assetId'] = asset
 
     # replace the asset id in the interaction config with new asset id
-    old_asset = getAssetName(old_date)[1:]
+    old_asset = getAssetName(old_date, var)[1:]
     layer['attributes']['interactionConfig']['config']['url'] = layer['attributes']['interactionConfig']['config']['url'].replace(old_asset,asset)
 
     # send patch to API to replace layers
@@ -790,7 +798,6 @@ def main():
     logging.info('STARTING')
 
     #create global variables that will be used in many functions
-    global VAR
     global EE_COLLECTION
     global EE_COLLECTION_GEN
     global PARENT_FOLDER
@@ -835,17 +842,17 @@ def main():
     for var_num in range(len(VARS)):
         logging.info('Processing {}'.format(VARS[var_num]))
         # get variable name
-        VAR = VARS[var_num]
+        var = VARS[var_num]
         # specify GEE collection name
-        EE_COLLECTION=EE_COLLECTION_GEN.format(metric=METRIC_BY_COMPOUND[VAR], var=VAR)
+        EE_COLLECTION=EE_COLLECTION_GEN.format(metric=METRIC_BY_COMPOUND[var], var=var)
         # specify Google Cloud Storage folder name
-        GS_FOLDER=COLLECTION[1:]+'_'+VAR
+        GS_FOLDER=COLLECTION[1:]+'_'+var
 
         # Get list of old assets to delete (none for historical)
         assets_to_delete = []
 
         # Process new data files
-        new_assets_historical = processNewData(files, files_by_date, period='historical', assets_to_delete=assets_to_delete)
+        new_assets_historical = processNewData(var, files, files_by_date, period='historical', assets_to_delete=assets_to_delete)
 
         # get list of all dates we now have data for by combining existing dates with new dates
         all_dates = existing_dates_by_var[var_num] + new_dates_historical
@@ -855,10 +862,10 @@ def main():
         all_assets_historical = np.sort(np.unique(existing_assets + [os.path.split(asset)[1] for asset in new_assets_historical]))
 
         logging.info('Existing assets for {}: {}, new: {}, max: {}'.format(
-            VAR, len(all_dates), len(new_dates_historical), MAX_ASSETS))
+            var, len(all_dates), len(new_dates_historical), MAX_ASSETS))
         # Delete extra assets, past our maximum number allowed that we have set
         deleteExcessAssets(all_assets_historical, MAX_ASSETS)
-        logging.info('SUCCESS for {}'.format(VAR))
+        logging.info('SUCCESS for {}'.format(var))
 
         # Delete local tif files because we will run out of space
         try:
@@ -917,17 +924,17 @@ def main():
     for var_num in range(len(VARS)):
         logging.info('Processing {}'.format(VARS[var_num]))
         # get variable name
-        VAR = VARS[var_num]
+        var = VARS[var_num]
         # specify GEE collection name
-        EE_COLLECTION=EE_COLLECTION_GEN.format(metric=METRIC_BY_COMPOUND[VAR], var=VAR)
+        EE_COLLECTION=EE_COLLECTION_GEN.format(metric=METRIC_BY_COMPOUND[var], var=var)
         # specify Google Cloud Storage folder name
-        GS_FOLDER=COLLECTION[1:]+'_'+VAR
+        GS_FOLDER=COLLECTION[1:]+'_'+var
 
         # Get list of old assets to delete (all currently in collection)
-        assets_to_delete = listAllCollections()
+        assets_to_delete = listAllCollections(var)
 
         # Process new data files
-        new_assets_forecast = processNewData(files, files_by_date, period='forecast', assets_to_delete=assets_to_delete)
+        new_assets_forecast = processNewData(var, files, files_by_date, period='forecast', assets_to_delete=assets_to_delete)
 
         # get list of existing assets in current variable's GEE collection
         existing_assets = eeUtil.ls(EE_COLLECTION)
@@ -935,8 +942,8 @@ def main():
         all_assets_forecast = np.sort(np.unique(existing_assets + [os.path.split(asset)[1] for asset in new_assets_forecast]))
 
         logging.info('New assets for {}: {}, max: {}'.format(
-            VAR, len(new_dates_forecast), MAX_ASSETS))
-        logging.info('SUCCESS for {}'.format(VAR))
+            var, len(new_dates_forecast), MAX_ASSETS))
+        logging.info('SUCCESS for {}'.format(var))
         # Delete local tif files because we will run out of space
         try:
             files_available = os.listdir(DATA_DIR)
@@ -961,8 +968,8 @@ def main():
     '''
     if new_dates_historical and new_dates_forecast:
         logging.info('Updating Resource Watch Layers')
-        for VAR, ds_id in DATASET_IDS.items():
-            logging.info('Updating {}'.format(VAR))
+        for var, ds_id in DATASET_IDS.items():
+            logging.info('Updating {}'.format(var))
             #pull dictionary of current layers from API
             layer_dict = pull_layers_from_API(ds_id)
             #go through each layer, pull the definition and update
@@ -980,13 +987,13 @@ def main():
                     # generate generic string that can be formatted to name each variable's asset name
                     FILENAME = PARENT_FOLDER.split('/')[-1] + '_{var}_{date}'
                     # specify GEE collection name
-                    EE_COLLECTION = EE_COLLECTION_GEN.format(metric=METRIC_BY_COMPOUND[VAR], var=VAR)
+                    EE_COLLECTION = EE_COLLECTION_GEN.format(metric=METRIC_BY_COMPOUND[var], var=var)
 
                     #get date of most recent asset added
                     date = new_dates_historical[-1]
 
                     #replace layer asset and title date with new
-                    update_layer(layer, date)
+                    update_layer(var, layer, date)
 
 
                 # otherwise, we want to replace it with the appropriate forecast data
@@ -999,7 +1006,7 @@ def main():
                     # generate generic string that can be formatted to name each variable's asset name
                     FILENAME = PARENT_FOLDER.split('/')[-1] + '_{var}_{date}'
                     # specify GEE collection name
-                    EE_COLLECTION = EE_COLLECTION_GEN.format(metric=METRIC_BY_COMPOUND[VAR], var=VAR)
+                    EE_COLLECTION = EE_COLLECTION_GEN.format(metric=METRIC_BY_COMPOUND[var], var=var)
 
                     #forecast layers start at order 1, and we will want this point on the timeline to be the first forecast asset
                     # order 4 will be the second asset, and so on
@@ -1007,7 +1014,7 @@ def main():
                     date = new_dates_forecast[order-1]
 
                     #replace layer asset and title date with new
-                    update_layer(layer, date)
+                    update_layer(var, layer, date)
     elif not new_dates_historical and not new_dates_forecast:
         logging.info('Layers do not need to be updated.')
     else:
@@ -1023,8 +1030,8 @@ def main():
     # generate generic string that can be formatted to name each variable's GEE collection
     EE_COLLECTION_GEN = PARENT_FOLDER + '/{var}'
     for var_num in range(len(VARS)):
-        VAR = VARS[var_num]
-        EE_COLLECTION = EE_COLLECTION_GEN.format(metric=METRIC_BY_COMPOUND[VAR], var=VAR)
+        var = VARS[var_num]
+        EE_COLLECTION = EE_COLLECTION_GEN.format(metric=METRIC_BY_COMPOUND[var], var=var)
         existing_assets = eeUtil.ls(EE_COLLECTION)
         try:
             # Get most recent date to use as last update date
@@ -1032,14 +1039,14 @@ def main():
             # use get_most_recent_date(new_assets) function instead
             most_recent_date = get_most_recent_date(existing_assets)
             logging.info(most_recent_date)
-            current_date = getLastUpdate(DATASET_IDS[VAR])
+            current_date = getLastUpdate(DATASET_IDS[var])
 
             if current_date != most_recent_date: #comment for testing
                 logging.info('Updating last update date and flushing cache.')
                 # Update dataset's last update date on Resource Watch
-                lastUpdateDate(DATASET_IDS[VAR], most_recent_date)
+                lastUpdateDate(DATASET_IDS[var], most_recent_date)
                 # get layer ids and flush tile cache for each
-                layer_ids = getLayerIDs(DATASET_IDS[VAR])
+                layer_ids = getLayerIDs(DATASET_IDS[var])
                 for layer_id in layer_ids:
                     flushTileCache(layer_id)
         except KeyError:
