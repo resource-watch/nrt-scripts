@@ -52,8 +52,6 @@ NODATA_VALUE = 9.9999999E14
 # name of data directory in Docker container
 DATA_DIR = 'data'
 
-# specify Google Cloud Storage folder name
-GS_FOLDER = COLLECTION[1:]
 # name of collection in GEE where we will upload the final data
 COLLECTION = '/projects/resource-watch-gee/cit_002_gmao_air_quality'
 # generate name for dataset's parent folder on GEE which will be used to store
@@ -63,6 +61,8 @@ PARENT_FOLDER = COLLECTION + '_{period}_{metric}'
 EE_COLLECTION_GEN = PARENT_FOLDER + '/{var}'
 # generate generic string that can be formatted to name each variable's asset name
 FILENAME = PARENT_FOLDER.split('/')[-1] + '_{var}_{date}'
+# specify Google Cloud Storage folder name
+GS_FOLDER = COLLECTION[1:]
 
 # do you want to delete everything currently in the GEE collection when you run this script?
 CLEAR_COLLECTION_FIRST = False
