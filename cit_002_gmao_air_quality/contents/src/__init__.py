@@ -406,7 +406,8 @@ def fetch(new_dates, unformatted_source_url, period):
     files = []
     # create a list of hours to pull (24 hours per day, on the half-hour)
     # starts after noon on previous day through noon of current day
-    hours = ['1230', '1330', '1430', '1530', '1630', '1730', '1830', '1930', '2030', '2130', '2230', '2330', '0030', '0130', '0230', '0330', '0430', '0530', '0630', '0730', '0830', '0930', '1030', '1130']
+    hours = ['1230', '1330', '1430', '1530', '1630', '1730', '1830', '1930', '2030', '2130', '2230', '2330',
+             '0030', '0130', '0230', '0330', '0430', '0530', '0630', '0730', '0830', '0930', '1030', '1130']
     # create an empty dictionary to store downloaded file names as value and corresponding dates as key 
     files_by_date = {}
     # Loop over all hours of the new dates, check if there is data available, and download netcdfs
@@ -938,34 +939,26 @@ def main():
 
     # Fetch new files
     logging.info('Fetching files for {}'.format(new_dates_historical))
-    # Download files and get list of locations of netcdfs in docker container
     files, files_by_date = fetch(new_dates_historical, SOURCE_URL_HISTORICAL, period='historical')
 
+    # Process historical data, one variable at a time
     for var_num in range(len(VARS)):
         logging.info('Processing {}'.format(VARS[var_num]))
         # get variable name
         var = VARS[var_num]
 
-        # specify GEE collection name
-        collection = getCollectionName(period, var)
+        # Process new data files, don't delete any historical assets
+        new_assets_historical = processNewData(var, files, files_by_date, period='historical', assets_to_delete=[])
 
-        # Get list of old assets to delete (none for historical)
-        assets_to_delete = []
+        logging.info('Previous assets for {}: {}, new: {}, max: {}'.format(var, len(existing_dates_by_var[var_num]), len(new_dates_historical), MAX_ASSETS))
 
-        # Process new data files
-        new_assets_historical = processNewData(var, files, files_by_date, period='historical', assets_to_delete=assets_to_delete)
-
-        # get list of all dates we now have data for by combining existing dates with new dates
-        all_dates = existing_dates_by_var[var_num] + new_dates_historical
+        # Delete extra assets, past our maximum number allowed that we have set
         # get list of existing assets in current variable's GEE collection
-        existing_assets = eeUtil.ls(collection)
+        existing_assets = eeUtil.ls(getCollectionName(period, var))
         # make list of all assets by combining existing assets with new assets
         all_assets_historical = np.sort(np.unique(existing_assets + [os.path.split(asset)[1] for asset in new_assets_historical]))
-
-        logging.info('Existing assets for {}: {}, new: {}, max: {}'.format(
-            var, len(all_dates), len(new_dates_historical), MAX_ASSETS))
-        # Delete extra assets, past our maximum number allowed that we have set
-        deleteExcessAssets(collection, all_assets_historical, MAX_ASSETS)
+        # delete the excess assets
+        deleteExcessAssets(getCollectionName(period, var), all_assets_historical, MAX_ASSETS)
         logging.info('SUCCESS for {}'.format(var))
 
         # Delete local tif files because we will run out of space
@@ -987,7 +980,7 @@ def main():
     # Check if collection exists. If not, create it.
     # Return a list of dates that exist for all variables collections in GEE (existing_dates),
     # as well as a list of which dates exist for each individual variable (existing_dates_by_var).
-    # The latter will be used in case the previous script run crashed before completing the data upload for every variable.
+    # The latter will be used to determine if the previous script run crashed before completing the data upload for every variable.
     logging.info('Getting existing dates.')
     existing_dates, existing_dates_by_var = checkCreateCollection(VARS, period)
 
@@ -997,35 +990,20 @@ def main():
 
     # Fetch new files
     logging.info('Fetching files for {}'.format(new_dates_forecast))
-    # Download files and get list of locations of netcdfs in docker container
     files, files_by_date = fetch(new_dates_forecast, SOURCE_URL_FORECAST, period='forecast')
 
-    # Check if there are new forecast data available
-    if new_dates_forecast:
-        logging.info('New forecast available')
-
-    # go through each air quality variables
+    # Process forecast data, one variable at a time
     for var_num in range(len(VARS)):
         logging.info('Processing {}'.format(VARS[var_num]))
         # get variable name
         var = VARS[var_num]
-        # specify GEE collection name
-        collection = getCollectionName(period, var)
 
-        # Get list of old assets to delete (all currently in collection)
-        assets_to_delete = listAllCollections(var, period)
+        # Process new data files, delete all forecast assets currently in collection
+        new_assets_forecast = processNewData(var, files, files_by_date, period='forecast', assets_to_delete=listAllCollections(var, period))
 
-        # Process new data files
-        new_assets_forecast = processNewData(var, files, files_by_date, period='forecast', assets_to_delete=assets_to_delete)
-
-        # get list of existing assets in current variable's GEE collection
-        existing_assets = eeUtil.ls(collection)
-        # make list of all assets by combining existing assets with new assets
-        all_assets_forecast = np.sort(np.unique(existing_assets + [os.path.split(asset)[1] for asset in new_assets_forecast]))
-
-        logging.info('New assets for {}: {}, max: {}'.format(
-            var, len(new_dates_forecast), MAX_ASSETS))
+        logging.info('New assets for {}: {}, max: {}'.format(var, len(new_dates_forecast), MAX_ASSETS))
         logging.info('SUCCESS for {}'.format(var))
+
         # Delete local tif files because we will run out of space
         delete_local(ext='.tif')
 
