@@ -889,7 +889,13 @@ def updateResourceWatch(new_dates_historical, new_dates_forecast):
                     flushTileCache(layer_id)
         except KeyError:
             continue
+
 def delete_local(ext=None):
+    '''
+    This function will delete local files in the Docker container with a specific extension, if specified.
+    If no extension is specified, all local files will be deleted.
+    INPUT   ext: optional, file extension for files you want to delete (string)
+    '''
     try:
         if ext:
             [file for file in os.listdir('/home/amsnyder/Github') if file.endswith(ext)]
