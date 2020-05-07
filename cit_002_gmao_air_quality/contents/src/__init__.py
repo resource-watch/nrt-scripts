@@ -776,7 +776,7 @@ def update_layer(var, period, layer, new_date):
     INPUT   var: variable for which we are updating layers
             period: period we are updating layers for, historical or forecast (string)
             layer: layer that will be updated (string)
-            new_date: date of most recent asset added for the input layer (string)
+            new_date: date of asset to be shown in this layer, in the format of the DATE_FORMAT variable (string)
     '''
     # get name of asset - drop first / in string or asset won't be pulled into RW
     asset = getAssetName(new_date, period, var)[1:]
@@ -825,8 +825,8 @@ def updateResourceWatch(new_dates_historical, new_dates_forecast):
     '''
     This function should update Resource Watch to reflect the new data.
     This may include updating the 'last update date', flushing the tile cache, and updating any dates on layers
-    INPUT   new_dates_historical: (list of )
-            new_dates_forecast: (list of )
+    INPUT   new_dates_historical: list of dates for historical assets added to GEE, in the format of the DATE_FORMAT variable (list of strings)
+            new_dates_forecast: list of dates for forecast assets added to GEE, in the format of the DATE_FORMAT variable (list of strings)
     '''
 
     # Update the dates on layer legends
@@ -965,6 +965,7 @@ def main():
         # Delete local tif files because we will run out of space
         delete_local(ext='.tif')
 
+    # Delete local netcdf files
     delete_local()
 
     '''
@@ -1022,10 +1023,10 @@ def main():
         # Delete local tif files because we will run out of space
         delete_local(ext='.tif')
 
-    # Update Resource Watch
-    updateResourceWatch()
-
     # Delete local netcdf files
     delete_local()
+
+    # Update Resource Watch
+    updateResourceWatch()
 
     logging.info('SUCCESS')
