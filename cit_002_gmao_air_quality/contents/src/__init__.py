@@ -384,7 +384,7 @@ def convert(files, var, period):
         # only one band available in each file, so we will pull band 1
         band = 1
         # generate a name to save the tif file we will translate the netcdf file into
-        tif = getTiffName(file=f, period=period, variable=var)
+        tif = getTiffName(file=f, period=period, var=var)
         # translate the netcdf into a tif
         cmd = ['gdal_translate', '-b', str(band), '-q', '-a_nodata', str(NODATA_VALUE), '-a_srs', 'EPSG:4326', sds_path, tif]
         subprocess.call(cmd)
