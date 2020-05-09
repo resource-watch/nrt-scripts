@@ -555,7 +555,6 @@ def processNewData(var, all_files, files_by_date, period, assets_to_delete):
             assets_to_delete: list of old assets to delete (list of strings)
     RETURN  assets: list of file names for netcdfs that have been downloaded (list of strings)
     '''
-    collection = getCollectionName(period, var)
     # if files is empty list do nothing, otherwise, process data
     if all_files: 
         # create an empty list to store the names of the tifs we generate

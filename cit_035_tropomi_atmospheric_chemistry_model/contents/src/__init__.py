@@ -9,13 +9,12 @@ import ee
 import time
 import requests
 
-# Sources for nrt data
+# url for air quality data
 SOURCE_URL = 'COPERNICUS/S5P/OFFL/L3_{var}'
 VARS = ['NO2', 'CO', 'AER_AI', 'O3']
 BANDS = ['tropospheric_NO2_column_number_density', 'CO_column_number_density', 'absorbing_aerosol_index', 'O3_column_number_density']
 
 DATA_DIR = 'data'
-CLEAR_COLLECTION_FIRST = False
 
 DAYS_TO_AVERAGE = 30
 RESOLUTION = 3.5 #km
@@ -34,9 +33,21 @@ DATE_FORMAT = '%Y-%m-%d'
 TIMESTEP = {'days': 1}
 TIMEOUT = 5000
 
+# name of collection in GEE where we will upload the final data
 COLLECTION = 'projects/resource-watch-gee/cit_035_tropomi_atmospheric_chemistry_model'
+# generate name for dataset's parent folder on GEE which will be used to store
+# several collections - one collection per variable
+PARENT_FOLDER = COLLECTION + f'_{DAYS_TO_AVERAGE}day_avg'
+# generate generic string that can be formatted to name each variable's GEE collection
+EE_COLLECTION_GEN = PARENT_FOLDER + '/{var}'
+# generate generic string that can be formatted to name each variable's asset name
+FILENAME = PARENT_FOLDER.split('/')[-1] + '_{var}_{date}'
+# specify Google Cloud Storage folder name
+GS_FOLDER = COLLECTION[1:]
 
-LOG_LEVEL = logging.INFO
+# do you want to delete everything currently in the GEE collection when you run this script?
+CLEAR_COLLECTION_FIRST = False
+
 DATASET_IDS = {
     'NO2': 'b75d8398-34f2-447d-832d-ea570451995a',
     'CO': 'f84ce519-8128-4a24-b637-89711b9e4713',
@@ -110,13 +121,21 @@ def lastUpdateDate(dataset, date):
    except Exception as e:
        logging.error('[lastUpdated]: '+str(e))
 
+def getCollectionName(var):
+    '''
+    get GEE collection name
+    INPUT   var: variable to be used in asset name (string)
+    RETURN  GEE collection name for input date (string)
+    '''
+    return EE_COLLECTION_GEN.format(var=var)
 
-def getAssetName(date):
+def getAssetName(var, date):
     '''get asset name from datestamp'''# os.path.join('home', 'coming') = 'home/coming'
+    collection = getCollectionName(var)
     if DAYS_TO_AVERAGE==1:
-        return os.path.join(EE_COLLECTION, FILENAME.format(var=VAR, date=date))
+        return os.path.join(collection, FILENAME.format(var=var, date=date))
     else:
-        return os.path.join(EE_COLLECTION, FILENAME.format(days=DAYS_TO_AVERAGE, var=VAR, date=date))
+        return os.path.join(collection, FILENAME.format(days=DAYS_TO_AVERAGE, var=var, date=date))
 
 def getDate(filename):
     '''get last 8 chrs of filename CHECK THIS'''
@@ -148,13 +167,13 @@ def getDateBounds(new_date):
     start_date = (new_date_dt - (DAYS_TO_AVERAGE - 1) * datetime.timedelta(**TIMESTEP)).strftime(DATE_FORMAT_DATASET)
     return end_date, start_date
 
-def fetch_single_day(new_dates):
+def fetch_single_day(var, new_dates):
     # Loop over the new dates, check which dates have good global coverage, and add them to a list
     dates = []
     daily_images = []
     for date in new_dates:
         try:
-            IC = ee.ImageCollection(SOURCE_URL.format(var=VAR))
+            IC = ee.ImageCollection(SOURCE_URL.format(var=var))
             end_date = datetime.datetime.strptime(date,'%Y-%m-%d')+datetime.timedelta(**TIMESTEP)
             end_date_str = end_date.strftime(DATE_FORMAT_DATASET)
             IC_1day = IC.filterDate(date, end_date_str).select([BAND])
@@ -178,14 +197,14 @@ def fetch_single_day(new_dates):
             logging.debug(e)
     return dates, daily_images
 
-def fetch_multi_day_avg(new_dates):
+def fetch_multi_day_avg(var, new_dates):
     # Loop over the new dates, check if there is data available, add them to a list
     averages = []
     dates = []
     for new_date in new_dates:
         try:
             end_date, start_date = getDateBounds(new_date)
-            IC = ee.ImageCollection(SOURCE_URL.format(var=VAR))
+            IC = ee.ImageCollection(SOURCE_URL.format(var=var))
             #get band of interest
             IC_band = IC.select([BAND])
             # check if any data available for new date yet
@@ -211,7 +230,7 @@ def fetch_multi_day_avg(new_dates):
             logging.debug(e)
     return dates, averages
 
-def processNewData(existing_dates):
+def processNewData(var, existing_dates):
     '''fetch, process, upload, and clean new data'''
     # 1. Determine which files to fetch
     new_dates = getNewDates(existing_dates)
@@ -219,14 +238,14 @@ def processNewData(existing_dates):
     # 2. Fetch new files
     logging.info('Fetching files')
     if DAYS_TO_AVERAGE == 1:
-        dates, images = fetch_single_day(new_dates)
+        dates, images = fetch_single_day(var, new_dates)
     else:
-        dates, images = fetch_multi_day_avg(new_dates)
+        dates, images = fetch_multi_day_avg(var, new_dates)
 
     if dates: #if files is an empty list do nothing, if something in it:
         # 4. Upload new files
         logging.info('Uploading files')
-        assets = [getAssetName(date) for date in dates]
+        assets = [getAssetName(var, date) for date in dates]
         lon = 179.999
         lat = 89.999
         scale = RESOLUTION*1000
@@ -271,13 +290,13 @@ def checkCreateCollection(collection):
         return []
 
 
-def deleteExcessAssets(dates, max_assets):
+def deleteExcessAssets(var, dates, max_assets):
     '''Delete assets if too many'''
     # oldest first
     dates.sort()
     if len(dates) > max_assets:
         for date in dates[:-max_assets]:
-            eeUtil.removeAsset('/'+getAssetName(date))
+            eeUtil.removeAsset('/'+getAssetName(var, date))
 
 def initialize_ee():
     GEE_JSON = os.environ.get("GEE_JSON")
@@ -296,55 +315,42 @@ def get_most_recent_date(collection):
     return most_recent_date
 
 def main():
-    global VAR
     global BAND
-    global EE_COLLECTION
-    global PARENT_FOLDER
-    global FILENAME
-    global DAYS_TO_AVERAGE
-    logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
+    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     # Initialize eeUtil and ee
     eeUtil.initJson()
     initialize_ee()
-    if DAYS_TO_AVERAGE == 1:
-        PARENT_FOLDER = COLLECTION
-        EE_COLLECTION_GEN = COLLECTION + '/{var}'
-        FILENAME = COLLECTION.split('/')[-1]+'_{var}_{date}'
-    else:
-        PARENT_FOLDER = COLLECTION + '_{days}day_avg'.format(days=DAYS_TO_AVERAGE)
-        EE_COLLECTION_GEN = COLLECTION + '_%sday_avg/{var}' %DAYS_TO_AVERAGE
-        FILENAME = COLLECTION.split('/')[-1]+'_{days}day_avg_{var}_{date}'
     for i in range(len(VARS)):
-        VAR = VARS[i]
-        logging.info('STARTING {var}'.format(var=VAR))
+        var = VARS[i]
+        logging.info('STARTING {var}'.format(var=var))
         BAND = BANDS[i]
-        EE_COLLECTION=EE_COLLECTION_GEN.format(var=VAR)
+        collection = getCollectionName(var)
         # Clear collection in GEE if desired
         if CLEAR_COLLECTION_FIRST:
-            if eeUtil.exists(EE_COLLECTION):
-                eeUtil.removeAsset('/'+EE_COLLECTION, recursive=True)
+            if eeUtil.exists(collection):
+                eeUtil.removeAsset('/'+collection, recursive=True)
         # 1. Check if collection exists and create
-        existing_assets = checkCreateCollection('/'+EE_COLLECTION) #make image collection if doesn't have one
+        existing_assets = checkCreateCollection('/'+collection) #make image collection if doesn't have one
         existing_dates = [getDate(a) for a in existing_assets]
         # 2. Fetch, process, stage, ingest, clean
-        new_assets = processNewData(existing_dates)
+        new_assets = processNewData(var, existing_dates)
         new_dates = [getDate(a) for a in new_assets]
         # 3. Delete old assets
         existing_dates = existing_dates + new_dates
         logging.info(existing_dates)
         logging.info('Existing assets: {}, new: {}, max: {}'.format(
             len(existing_dates), len(new_dates), MAX_ASSETS))
-        deleteExcessAssets(existing_dates, MAX_ASSETS)
+        deleteExcessAssets(var, existing_dates, MAX_ASSETS)
         # Get most recent update date
-        most_recent_date = get_most_recent_date(EE_COLLECTION)
-        current_date = getLastUpdate(DATASET_IDS[VAR])
+        most_recent_date = get_most_recent_date(collection)
+        current_date = getLastUpdate(DATASET_IDS[var])
 
         if current_date != most_recent_date:
             logging.info('Updating last update date and flushing cache.')
             # Update data set's last update date on Resource Watch
-            lastUpdateDate(DATASET_IDS[VAR], most_recent_date)
+            lastUpdateDate(DATASET_IDS[var], most_recent_date)
             # get layer ids and flush tile cache for each
-            layer_ids = getLayerIDs(DATASET_IDS[VAR])
+            layer_ids = getLayerIDs(DATASET_IDS[var])
             for layer_id in layer_ids:
                 flushTileCache(layer_id)
-        logging.info('SUCCESS for {var}'.format(var=VAR))
+        logging.info('SUCCESS for {var}'.format(var=var))
