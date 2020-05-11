@@ -23,7 +23,7 @@ jobs:
       uses: garygrossgarten/github-action-ssh@v0.5.0
       with:
         # Command to execute on the remote server.
-        command: ls -l
+        command: sudo /home/ubuntu/scripts/install.sh
         # Hostname or IP address of the server.
         host: ec2-34-228-112-43.compute-1.amazonaws.com
         # Username for authentication.
