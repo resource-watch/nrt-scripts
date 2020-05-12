@@ -128,23 +128,6 @@ def checkCreateTable(table, schema, id_field, time_field=''):
         # return an empty list because there are no IDs in the new table yet
         return []
 
-def delete_local():
-    '''
-    Delete all files and folders in Docker container's data directory
-    '''
-    try:
-        # for each object in the data directory
-        for f in os.listdir(DATA_DIR):
-            # try to remove it as a file
-            try:
-                logging.info('Removing {}'.format(f))
-                os.remove(DATA_DIR+'/'+f)
-            # if it is not a file, remove it as a folder
-            except:
-                shutil.rmtree(f)
-    except NameError:
-        logging.info('No local files to clean.')
-
 '''
 FUNCTIONS FOR THIS DATASET
 
@@ -152,16 +135,16 @@ The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
 
-def processNewData(SOURCE_URL):
+def processNewData(url):
     '''
     Fetch, process and upload new data
-    INPUT   SOURCE_URL: url where you can find the download link for the source data (string)
+    INPUT   url: url where you can find the download link for the source data (string)
     RETURN  num_new: number of rows of new data sent to Carto table (integer)
     '''
     # specify the starting page of source url we want to pull
     page = 1
-    # generate the url to pull data for this page 
-    r = requests.get(SOURCE_URL.format(page=page))
+    # generate the url and pull data for this page 
+    r = requests.get(url.format(page=page))
     # pull data from request response json
     raw_data = r.json()['data']
     # if data is available from source url 
@@ -183,7 +166,7 @@ def processNewData(SOURCE_URL):
         df = pd.DataFrame(raw_data)
         # go through each rows in the dataframe
         for row_num in range(df.shape[0]):
-            # get the value from current row
+            # get the row of data
             row = df.iloc[row_num]
             # create an empty list to store data from this row
             new_row = []
@@ -196,16 +179,16 @@ def processNewData(SOURCE_URL):
                 # for any other column, check if there are values available from the source for this row    
                 else:
                     # if data available from source for this field, populate the field with the data
-                    # else populate with 'None' 
+                    # else populate with None
                     val = row[field] if row[field] != '' else None
-                    # add values from other fields to the list of data from this row
+                    # add this value to the list of data from this row
                     new_row.append(val)
-            # add all the values from this row to the list of new data        
+            # add the list of values from this row to the list of new data        
             new_data.append(new_row)
         # go to the next page and check for data
         page += 1
-        # generate the url to pull data for this page 
-        r = requests.get(SOURCE_URL.format(page=page))
+        # generate the url and pull data for this page 
+        r = requests.get(url.format(page=page))
         # pull data from request response json
         raw_data = r.json()['data']
 
@@ -222,6 +205,7 @@ def updateResourceWatch(num_new):
     '''
     This function should update Resource Watch to reflect the new data.
     This may include updating the 'last update date' and updating any dates on layers
+    INPUT   num_new: number of new rows in Carto table (integer)
     '''
     # If there are new entries in the Carto table
     if num_new>0:
@@ -257,8 +241,5 @@ def main():
 
     # Update Resource Watch
     updateResourceWatch(num_new)
-    
-    # Delete local files in Docker container
-    delete_local()
     
     logging.info('SUCCESS')
