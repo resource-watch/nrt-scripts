@@ -1,6 +1,6 @@
 FROM python:3.6
 MAINTAINER Taufiq Rashid <taufiq.rashid@wri.org>
-#Note this script was originally developed by Nathan Suberi <nathan.suberi@wri.org>
+#Note this script was originally developed by Taufiq Rashid <taufiq.rashid@wri.org>
 
 ARG NAME=cli_041
 ENV NAME ${NAME}
