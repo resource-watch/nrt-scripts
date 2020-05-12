@@ -286,16 +286,16 @@ def convert(files):
 def list_available_files(url, ext=''):
     '''
     Fetch a list of filenames from source url by year
-    INPUT   url: url for fire weather data in the format "base url/{year}" (string)
-            ext: specify we want netcdf files by providing an extension for filename (string)
-    RETURN  list of available filenames from source website for the input date's year (list of strings)
+    INPUT   url: url for data source where we want to check for download links (string)
+            ext: extension of file type we are checking for (string)
+    RETURN  list of files available for download from source website (list of strings)
     '''    
     # open and read the url
     page = requests.get(url).text
     # use BeautifulSoup to read the content as a nested data structure
     soup = BeautifulSoup(page, 'html.parser')
     # Extract all the <a> tags within the html content to find the files available for download marked with these tags.
-    # Get only the files that ends with a netcdf extension ('.nc')
+    # Get only the files that ends with input extension (if specified)
     return [node.get('href') for node in soup.find_all('a') if type(node.get('href'))==str and node.get('href').endswith(ext)]
 
 def fetch(new_dates):
