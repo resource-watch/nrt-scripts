@@ -689,15 +689,10 @@ def get_most_recent_date(all_assets):
     most_recent_date = datetime.datetime.strptime(all_assets[-1][-10:], DATE_FORMAT)
     return most_recent_date
 
-# check if used
-def get_forecast_run_date(all_assets):
-    all_assets.sort()
-    most_recent_date = datetime.datetime.strptime(all_assets[0][-10:], DATE_FORMAT)
-    return most_recent_date
-
-def clearCollection(period):
+def clearCollectionMultiVar(period):
     '''
-    Clear the GEE collection
+    Clear the GEE collection for all variables
+    INPUT   period: period we are clearing collection for, historical or forecast (string)
     '''
     logging.info('Clearing collections.')
     for var_num in range(len(VARS)):
@@ -894,7 +889,7 @@ def delete_local(ext=None):
     '''
     This function will delete local files in the Docker container with a specific extension, if specified.
     If no extension is specified, all local files will be deleted.
-    INPUT   ext: optional, file extension for files you want to delete (string)
+    INPUT   ext: optional, file extension for files you want to delete, ex: '.tif' (string)
     '''
     try:
         if ext:
@@ -923,7 +918,7 @@ def main():
 
     # Clear collection in GEE if desired
     if CLEAR_COLLECTION_FIRST:
-        clearCollection(period)
+        clearCollectionMultiVar(period)
 
     # Check if collection exists. If not, create it.
     # Return a list of dates that exist for all variables collections in GEE (existing_dates),
@@ -974,7 +969,7 @@ def main():
 
     # Clear collection in GEE if desired
     if CLEAR_COLLECTION_FIRST:
-        clearCollection(period)
+        clearCollectionMultiVar(period)
 
     # Check if collection exists. If not, create it.
     # Return a list of dates that exist for all variables collections in GEE (existing_dates),
