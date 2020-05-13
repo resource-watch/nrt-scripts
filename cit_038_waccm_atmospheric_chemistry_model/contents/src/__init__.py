@@ -85,14 +85,16 @@ DATASET_IDS = {
 }
 
 if rw_subset==True:
-    # url for historical air quality data
+    # url for air quality data
     SOURCE_URL = 'https://www.acom.ucar.edu/waccm/subsets/resourcewatch/f.e22.beta02.FWSD.f09_f09_mg17.cesm2_2_beta02.forecast.001.cam.%s.{date}_surface_subset.nc' % VERSION
+    # list variables (as named in netcdf) that we want to pull
     VARS = ['NO2', 'CO', 'O3', 'SO2', 'PM25', 'bc_a4']
     NUM_AVAILABLE_LEVELS = [1, 1, 1, 1, 1, 1]
     DESIRED_LEVELS = [1, 1, 1, 1, 1, 1]
 else:
+    # url for air quality data
     SOURCE_URL = 'https://www.acom.ucar.edu/waccm/DATA/f.e21.FWSD.f09_f09_mg17.forecast.001.cam.%s.{date}-00000.nc' % VERSION
-    # url for historical air quality data
+    # list variables (as named in netcdf) that we want to pull
     VARS = ['NO2', 'CO', 'O3', 'SO2', 'PM25_SRF', 'bc_a4']
     # most variables have 88 pressure levels; PM 2.5 only has one level (surface)
     # need to specify which pressure level of data we was for each (level 1 being the lowest pressure)
@@ -430,8 +432,7 @@ def processNewData(files, var_num, last_date):
 
         # Delete local files
         logging.info('Cleaning local TIFF files')
-        for tif in all_tifs:
-            os.remove(tif)
+        delete_local(ext='.tif')
 
         return assets
     #if no new assets, return empty list
@@ -517,7 +518,10 @@ def get_forecast_run_date(all_assets):
     most_recent_date = datetime.datetime.strptime(all_assets[0][-13:], DATE_FORMAT)
     return most_recent_date
 
-def clearCollection():
+def clearCollectionMultiVar():
+    '''
+    Clear the GEE collection for all variables
+    '''
     logging.info('Clearing collections.')
     for var_num in range(len(VARS)):
         var = VARS[var_num]
@@ -533,6 +537,10 @@ def clearCollection():
                     ee.data.deleteAsset(item['id'])
 
 def initialize_ee():
+    '''
+    Initialize eeUtil and ee modules
+    '''
+    # get GEE credentials from env file
     GEE_JSON = os.environ.get("GEE_JSON")
     _CREDENTIAL_FILE = 'credentials.json'
     GEE_SERVICE_ACCOUNT = os.environ.get("GEE_SERVICE_ACCOUNT")
@@ -541,19 +549,34 @@ def initialize_ee():
     auth = ee.ServiceAccountCredentials(GEE_SERVICE_ACCOUNT, _CREDENTIAL_FILE)
     ee.Initialize(auth)
 
+def delete_local(ext=None):
+    '''
+    This function will delete local files in the Docker container with a specific extension, if specified.
+    If no extension is specified, all local files will be deleted.
+    INPUT   ext: optional, file extension for files you want to delete, ex: '.tif' (string)
+    '''
+    try:
+        if ext:
+            [file for file in os.listdir(DATA_DIR) if file.endswith(ext)]
+        else:
+            files = os.listdir(DATA_DIR)
+        for f in files:
+            logging.info('Removing {}'.format(f))
+            os.remove(DATA_DIR+'/'+f)
+    except NameError:
+        logging.info('No local files to clean.')
+
 def main():
-    # set logging levels
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
 
-    '''Ingest new data into GEE and delete old data'''
     # Initialize eeUtil and ee modules
     eeUtil.initJson()
     initialize_ee()
 
     # Clear collection in GEE if desired
     if CLEAR_COLLECTION_FIRST:
-        clearCollection()
+        clearCollectionMultiVar()
 
     # Check if collection exists. If not, create it.
     # Return a list of dates that exist for all variables collections in GEE (existing_dates),
@@ -568,7 +591,7 @@ def main():
     # recent forecast, not the old forecast
     if all_new_dates:
         logging.info('New forecast available.')
-        clearCollection()
+        clearCollectionMultiVar()
     else:
         logging.info('No new forecast.')
     #container only big enough to hold 3 files at once, so break into groups to process
@@ -624,9 +647,4 @@ def main():
             continue
 
     # Delete local netcdf files
-    try:
-        for f in files:
-            logging.info('Removing {}'.format(f))
-            os.remove(f)
-    except NameError:
-        logging.info('No local files to clean.')
+    delete_local()

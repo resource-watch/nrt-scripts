@@ -11,9 +11,17 @@ import requests
 
 # url for air quality data
 SOURCE_URL = 'COPERNICUS/S5P/OFFL/L3_{var}'
-VARS = ['NO2', 'CO', 'AER_AI', 'O3']
-BANDS = ['tropospheric_NO2_column_number_density', 'CO_column_number_density', 'absorbing_aerosol_index', 'O3_column_number_density']
 
+# list variables (as named in GEE) that we want to pull
+VARS = ['NO2', 'CO', 'AER_AI', 'O3']
+
+# define band to use for each compound
+BAND_BY_COMPOUND = {
+    'NO2': 'tropospheric_NO2_column_number_density',
+    'CO': 'CO_column_number_density',
+    'AER_AI': 'absorbing_aerosol_index',
+    'O3': 'O3_column_number_density',
+}
 DAYS_TO_AVERAGE = 30
 RESOLUTION = 3.5 #km
 '''
@@ -253,7 +261,7 @@ def fetch_single_day(var, new_dates):
             IC = ee.ImageCollection(SOURCE_URL.format(var=var))
             end_date = datetime.datetime.strptime(date,'%Y-%m-%d')+datetime.timedelta(days=1)
             end_date_str = end_date.strftime(DATE_FORMAT)
-            IC_1day = IC.filterDate(date, end_date_str).select([BAND])
+            IC_1day = IC.filterDate(date, end_date_str).select([BAND_BY_COMPOUND[var]])
             if IC_1day.size().getInfo() > 10:
                 mean_image = IC_1day.mean()
                 #copy most recent system start time from that day's images
@@ -283,7 +291,7 @@ def fetch_multi_day_avg(var, new_dates):
             end_date, start_date = getDateBounds(new_date)
             IC = ee.ImageCollection(SOURCE_URL.format(var=var))
             #get band of interest
-            IC_band = IC.select([BAND])
+            IC_band = IC.select([BAND_BY_COMPOUND[var]])
             # check if any data available for new date yet
             new_date_IC = IC_band.filterDate(new_date, end_date)
             if new_date_IC.size().getInfo() > 0:
@@ -391,21 +399,40 @@ def get_most_recent_date(collection):
     most_recent_date = datetime.datetime.strptime(existing_dates[-1], DATE_FORMAT)
     return most_recent_date
 
+def clearCollectionMultiVar():
+    '''
+    Clear the GEE collection for all variables
+    '''
+    logging.info('Clearing collections.')
+    for var_num in range(len(VARS)):
+        var = VARS[var_num]
+        collection = getCollectionName(var)
+        if eeUtil.exists(collection):
+            if collection[0] == '/':
+                collection = collection[1:]
+            a = ee.ImageCollection(collection)
+            collection_size = a.size().getInfo()
+            if collection_size > 0:
+                list = a.toList(collection_size)
+                for item in list.getInfo():
+                    ee.data.deleteAsset(item['id'])
 def main():
-    global BAND
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
-    # Initialize eeUtil and ee
+    logging.info('STARTING')
+
+    # Initialize eeUtil and ee modules
     eeUtil.initJson()
     initialize_ee()
+
+    # Clear collection in GEE if desired
+    if CLEAR_COLLECTION_FIRST:
+        clearCollectionMultiVar()
+
     for i in range(len(VARS)):
         var = VARS[i]
         logging.info('STARTING {var}'.format(var=var))
-        BAND = BANDS[i]
         collection = getCollectionName(var)
-        # Clear collection in GEE if desired
-        if CLEAR_COLLECTION_FIRST:
-            if eeUtil.exists(collection):
-                eeUtil.removeAsset('/'+collection, recursive=True)
+
         # 1. Check if collection exists and create
         existing_assets = checkCreateCollection('/'+collection) #make image collection if doesn't have one
         existing_dates = [getDate(a) for a in existing_assets]
