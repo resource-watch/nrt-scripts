@@ -15,6 +15,10 @@ import numpy as np
 import ee
 import time
 
+# subdataset to be converted to tif
+# should be of the format 'NETCDF:"filename.nc":variable'
+SDS_NAME = 'NETCDF:"{fname}":{var}'
+
 # Sources for nrt data
 #h0 version is 3 hourly data
 #h3 version is 6-hourly data
@@ -24,9 +28,11 @@ VERSION = 'h3'
 #variable to False
 rw_subset = True
 
-SDS_NAME = 'NETCDF:"{fname}":{var}'
+
+# nodata value for netcdf
 NODATA_VALUE = None
 
+# name of data directory in Docker container
 DATA_DIR = 'data'
 
 # name of collection in GEE where we will upload the final data
@@ -43,18 +49,32 @@ GS_FOLDER = COLLECTION[1:]
 
 # do you want to delete everything currently in the GEE collection when you run this script?
 CLEAR_COLLECTION_FIRST = True
-DELETE_LOCAL = True
-
+# how many assets can be stored in the GEE collection before the oldest ones are deleted?
 # MAXDAYS = 1 only fetches today
 # maximum value of 10: today plus 9 days of forecast
 MAX_DAYS = 2
-DATE_FORMAT = '%y-%m-%d_%H%M'
-TIMESTEP = {'days': 1}
+# get time intervals in each day - specific to version number
+#h0 version is 3 hourly data
+if VERSION == 'h0':
+    TIME_HOURS = list(range(0, 24, 3))
+# h3 version is 6-hourly data
+elif VERSION == 'h3':
+    TIME_HOURS = list(range(0, 24, 6))
+# number of days times number of time intervals in each day
+MAX_ASSETS = len(TIME_HOURS) * MAX_DAYS
+
 #if we don't want to show the last time available for the last day, how many time steps before
 #the last is the time we want to show?
 #ex: for now, we want to show 12:00, which is 1 time step before 18:00
 TS_FROM_END = 1
 
+# format of date used in GEE
+DATE_FORMAT = '%y-%m-%d_%H%M'
+
+# Resource Watch dataset API IDs
+# Important! Before testing this script:
+# Please change these IDs OR comment out the getLayerIDs(DATASET_ID) function in the script below
+# Failing to do so will overwrite the last update date on different datasets on Resource Watch
 DATASET_IDS = {
     'NO2':'2c2c614a-8678-443a-8874-33335771ecc0',
     'CO':'266ed113-396c-4c69-885a-ead30df95810',
@@ -63,7 +83,6 @@ DATASET_IDS = {
     'PM25':'348e4d57-a345-411d-986e-5863fffebda7',
     'bc_a4':'fe0a0042-8430-419b-a60f-9b69ec81a0ec'
 }
-apiToken = os.getenv('apiToken')
 
 if rw_subset==True:
     # url for historical air quality data
@@ -81,59 +100,129 @@ else:
     NUM_AVAILABLE_LEVELS = [88, 88, 88, 88, 1, 88]
     DESIRED_LEVELS = [88, 88, 88, 88, 1, 88]
 
-# get time intervals in each day - specific to version number
-#h0 version is 3 hourly data
-if VERSION == 'h0':
-    TIME_HOURS = list(range(0, 24, 3))
-# h3 version is 6-hourly data
-elif VERSION == 'h3':
-    TIME_HOURS = list(range(0, 24, 6))
+'''
+FUNCTIONS FOR ALL DATASETS
 
-#how many assets can be stored in the GEE collection before the oldest ones are deleted?
-#number of days times number of time intervals in each day
-MAX_ASSETS = len(TIME_HOURS) * MAX_DAYS
+The functions below must go in every near real-time script.
+Their format should not need to be changed.
+'''
+
+def lastUpdateDate(dataset, date):
+    '''
+    Given a Resource Watch dataset's API ID and a datetime,
+    this function will update the dataset's 'last update date' on the API with the given datetime
+    INPUT   dataset: Resource Watch API dataset ID (string)
+            date: date to set as the 'last update date' for the input dataset (datetime)
+    '''
+    # generate the API url for this dataset
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+    # create headers to send with the request to update the 'last update date'
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    # create the json data to send in the request
+    body = {
+        "dataLastUpdated": date.isoformat() # date should be a string in the format 'YYYY-MM-DDTHH:MM:SS'
+    }
+    # send the request
+    try:
+        r = requests.patch(url = apiUrl, json = body, headers = headers)
+        logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+        return 0
+    except Exception as e:
+        logging.error('[lastUpdated]: '+str(e))
+
+'''
+FUNCTIONS FOR RASTER DATASETS
+
+The functions below must go in every near real-time script for a RASTER dataset.
+Their format should not need to be changed.
+'''
 
 def getLastUpdate(dataset):
+    '''
+    Given a Resource Watch dataset's API ID,
+    this function will get the current 'last update date' from the API
+    and return it as a datetime
+    INPUT   dataset: Resource Watch API dataset ID (string)
+    RETURN  lastUpdateDT: current 'last update date' for the input dataset (datetime)
+    '''
+    # generate the API url for this dataset
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{}'.format(dataset)
+    # pull the dataset from the API
     r = requests.get(apiUrl)
+    # find the 'last update date'
     lastUpdateString=r.json()['data']['attributes']['dataLastUpdated']
+    # split this date into two pieces at the seconds decimal so that the datetime module can read it:
+    # ex: '2020-03-11T00:00:00.000Z' will become '2020-03-11T00:00:00' (nofrag) and '000Z' (frag)
     nofrag, frag = lastUpdateString.split('.')
+    # generate a datetime object
     nofrag_dt = datetime.datetime.strptime(nofrag, "%Y-%m-%dT%H:%M:%S")
+    # add back the microseconds to the datetime
     lastUpdateDT = nofrag_dt.replace(microsecond=int(frag[:-1])*1000)
     return lastUpdateDT
 
 def getLayerIDs(dataset):
+    '''
+    Given a Resource Watch dataset's API ID,
+    this function will return a list of all the layer IDs associated with it
+    INPUT   dataset: Resource Watch API dataset ID (string)
+    RETURN  layerIDs: Resource Watch API layer IDs for the input dataset (list of strings)
+    '''
+    # generate the API url for this dataset - this must include the layers
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{}?includes=layer'.format(dataset)
+    # pull the dataset from the API
     r = requests.get(apiUrl)
+    #get a list of all the layers
     layers = r.json()['data']['attributes']['layer']
+    # create an empty list to store the layer IDs
     layerIDs =[]
+    # go through each layer and add its ID to the list
     for layer in layers:
+        # only add layers that have Resource Watch listed as its application
         if layer['attributes']['application']==['rw']:
             layerIDs.append(layer['id'])
     return layerIDs
 
 def flushTileCache(layer_id):
     """
-    This function will delete the layer cache built for a GEE tiler layer.
-     """
+    Given the API ID for a GEE layer on Resource Watch,
+    this function will clear the layer cache.
+    If the cache is not cleared, when you view the dataset on Resource Watch, old and new tiles will be mixed together.
+    INPUT   layer_id: Resource Watch API layer ID (string)
+    """
+    # generate the API url for this layer's cache
     apiUrl = 'http://api.resourcewatch.org/v1/layer/{}/expire-cache'.format(layer_id)
+    # create headers to send with the request to clear the cache
     headers = {
     'Content-Type': 'application/json',
     'Authorization': os.getenv('apiToken')
     }
+
+    # clear the cache for the layer
+    # sometimetimes this fails, so we will try multiple times, if it does
+
+    # specify that we are on the first try
     try_num=1
-    tries=4
+    tries = 4
     while try_num<tries:
         try:
+            # try to delete the cache
             r = requests.delete(url = apiUrl, headers = headers, timeout=1000)
+            # if we get a 200, the cache has been deleted
+            # if we get a 504 (gateway timeout) - the tiles are still being deleted, but it worked
             if r.ok or r.status_code==504:
                 logging.info('[Cache tiles deleted] for {}: status code {}'.format(layer_id, r.status_code))
                 return r.status_code
+            # if we don't get a 200 or 504:
             else:
+                # if we are not on our last try, wait 60 seconds and try to clear the cache again
                 if try_num < (tries-1):
                     logging.info('Cache failed to flush: status code {}'.format(r.status_code))
                     time.sleep(60)
                     logging.info('Trying again.')
+                # if we are on our last try, log that the cache flush failed
                 else:
                     logging.error('Cache failed to flush: status code {}'.format(r.status_code))
                     logging.error('Aborting.')
@@ -141,21 +230,12 @@ def flushTileCache(layer_id):
         except Exception as e:
             logging.error('Failed: {}'.format(e))
 
-def lastUpdateDate(dataset, date):
-   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
-   headers = {
-   'Content-Type': 'application/json',
-   'Authorization': apiToken
-   }
-   body = {
-       "dataLastUpdated": date.isoformat()
-   }
-   try:
-       r = requests.patch(url = apiUrl, json = body, headers = headers)
-       logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
-       return 0
-   except Exception as e:
-       logging.error('[lastUpdated]: '+str(e))
+'''
+FUNCTIONS FOR THIS DATASET
+
+The functions below have been tailored to this specific dataset.
+They should all be checked because their format likely will need to be changed.
+'''
 
 def getCollectionName(var):
     '''
@@ -349,10 +429,9 @@ def processNewData(files, var_num, last_date):
         eeUtil.uploadAssets(tifs, assets, GS_FOLDER, datestamps, timeout=3000)
 
         # Delete local files
-        if DELETE_LOCAL:
-            logging.info('Cleaning local TIFF files')
-            for tif in all_tifs:
-                os.remove(tif)
+        logging.info('Cleaning local TIFF files')
+        for tif in all_tifs:
+            os.remove(tif)
 
         return assets
     #if no new assets, return empty list
@@ -545,11 +624,9 @@ def main():
             continue
 
     # Delete local netcdf files
-    if DELETE_LOCAL:
-        try:
-            for f in files:
-                logging.info('Removing {}'.format(f))
-                os.remove(f)
-        except NameError:
-            logging.info('No local files to clean.')
-
+    try:
+        for f in files:
+            logging.info('Removing {}'.format(f))
+            os.remove(f)
+    except NameError:
+        logging.info('No local files to clean.')
