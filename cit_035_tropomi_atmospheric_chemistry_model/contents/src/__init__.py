@@ -14,8 +14,6 @@ SOURCE_URL = 'COPERNICUS/S5P/OFFL/L3_{var}'
 VARS = ['NO2', 'CO', 'AER_AI', 'O3']
 BANDS = ['tropospheric_NO2_column_number_density', 'CO_column_number_density', 'absorbing_aerosol_index', 'O3_column_number_density']
 
-DATA_DIR = 'data'
-
 DAYS_TO_AVERAGE = 30
 RESOLUTION = 3.5 #km
 '''
@@ -27,11 +25,9 @@ When averaging, a near-complete global map is not required for a particular day'
 because the data are not uploaded very regularly, a value of ~20 should be used for the MAX_ASSETS to ensure 
 that you look back far enough to find the most recent data.
 '''
-MAX_ASSETS = 3
-DATE_FORMAT_DATASET = '%Y-%m-%d'
-DATE_FORMAT = '%Y-%m-%d'
-TIMESTEP = {'days': 1}
-TIMEOUT = 5000
+
+# name of data directory in Docker container
+DATA_DIR = 'data'
 
 # name of collection in GEE where we will upload the final data
 COLLECTION = 'projects/resource-watch-gee/cit_035_tropomi_atmospheric_chemistry_model'
@@ -48,6 +44,16 @@ GS_FOLDER = COLLECTION[1:]
 # do you want to delete everything currently in the GEE collection when you run this script?
 CLEAR_COLLECTION_FIRST = False
 
+# how many assets can be stored in the GEE collection before the oldest ones are deleted?
+MAX_ASSETS = 3
+
+# format of date (used in both the source data files and GEE)
+DATE_FORMAT = '%Y-%m-%d'
+
+# Resource Watch dataset API IDs
+# Important! Before testing this script:
+# Please change these IDs OR comment out the getLayerIDs(DATASET_ID) function in the script below
+# Failing to do so will overwrite the last update date on different datasets on Resource Watch
 DATASET_IDS = {
     'NO2': 'b75d8398-34f2-447d-832d-ea570451995a',
     'CO': 'f84ce519-8128-4a24-b637-89711b9e4713',
@@ -55,49 +61,129 @@ DATASET_IDS = {
     'O3': 'ada81921-28ff-4fbb-b971-7aa1f3ccdb22'
 }
 
-apiToken = os.getenv('apiToken') or os.environ.get('rw_api_token') or os.environ.get('RW_API_KEY')
+'''
+FUNCTIONS FOR ALL DATASETS
+
+The functions below must go in every near real-time script.
+Their format should not need to be changed.
+'''
+
+def lastUpdateDate(dataset, date):
+    '''
+    Given a Resource Watch dataset's API ID and a datetime,
+    this function will update the dataset's 'last update date' on the API with the given datetime
+    INPUT   dataset: Resource Watch API dataset ID (string)
+            date: date to set as the 'last update date' for the input dataset (datetime)
+    '''
+    # generate the API url for this dataset
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+    # create headers to send with the request to update the 'last update date'
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    # create the json data to send in the request
+    body = {
+        "dataLastUpdated": date.isoformat() # date should be a string in the format 'YYYY-MM-DDTHH:MM:SS'
+    }
+    # send the request
+    try:
+        r = requests.patch(url = apiUrl, json = body, headers = headers)
+        logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+        return 0
+    except Exception as e:
+        logging.error('[lastUpdated]: '+str(e))
+
+'''
+FUNCTIONS FOR RASTER DATASETS
+
+The functions below must go in every near real-time script for a RASTER dataset.
+Their format should not need to be changed.
+'''
 
 def getLastUpdate(dataset):
+    '''
+    Given a Resource Watch dataset's API ID,
+    this function will get the current 'last update date' from the API
+    and return it as a datetime
+    INPUT   dataset: Resource Watch API dataset ID (string)
+    RETURN  lastUpdateDT: current 'last update date' for the input dataset (datetime)
+    '''
+    # generate the API url for this dataset
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{}'.format(dataset)
+    # pull the dataset from the API
     r = requests.get(apiUrl)
+    # find the 'last update date'
     lastUpdateString=r.json()['data']['attributes']['dataLastUpdated']
+    # split this date into two pieces at the seconds decimal so that the datetime module can read it:
+    # ex: '2020-03-11T00:00:00.000Z' will become '2020-03-11T00:00:00' (nofrag) and '000Z' (frag)
     nofrag, frag = lastUpdateString.split('.')
+    # generate a datetime object
     nofrag_dt = datetime.datetime.strptime(nofrag, "%Y-%m-%dT%H:%M:%S")
+    # add back the microseconds to the datetime
     lastUpdateDT = nofrag_dt.replace(microsecond=int(frag[:-1])*1000)
     return lastUpdateDT
 
 def getLayerIDs(dataset):
+    '''
+    Given a Resource Watch dataset's API ID,
+    this function will return a list of all the layer IDs associated with it
+    INPUT   dataset: Resource Watch API dataset ID (string)
+    RETURN  layerIDs: Resource Watch API layer IDs for the input dataset (list of strings)
+    '''
+    # generate the API url for this dataset - this must include the layers
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{}?includes=layer'.format(dataset)
+    # pull the dataset from the API
     r = requests.get(apiUrl)
+    #get a list of all the layers
     layers = r.json()['data']['attributes']['layer']
+    # create an empty list to store the layer IDs
     layerIDs =[]
+    # go through each layer and add its ID to the list
     for layer in layers:
+        # only add layers that have Resource Watch listed as its application
         if layer['attributes']['application']==['rw']:
             layerIDs.append(layer['id'])
     return layerIDs
 
 def flushTileCache(layer_id):
     """
-    This function will delete the layer cache built for a GEE tiler layer.
-     """
+    Given the API ID for a GEE layer on Resource Watch,
+    this function will clear the layer cache.
+    If the cache is not cleared, when you view the dataset on Resource Watch, old and new tiles will be mixed together.
+    INPUT   layer_id: Resource Watch API layer ID (string)
+    """
+    # generate the API url for this layer's cache
     apiUrl = 'http://api.resourcewatch.org/v1/layer/{}/expire-cache'.format(layer_id)
+    # create headers to send with the request to clear the cache
     headers = {
     'Content-Type': 'application/json',
     'Authorization': os.getenv('apiToken')
     }
+
+    # clear the cache for the layer
+    # sometimetimes this fails, so we will try multiple times, if it does
+
+    # specify that we are on the first try
     try_num=1
-    tries=4
+    tries = 4
     while try_num<tries:
         try:
+            # try to delete the cache
             r = requests.delete(url = apiUrl, headers = headers, timeout=1000)
+            # if we get a 200, the cache has been deleted
+            # if we get a 504 (gateway timeout) - the tiles are still being deleted, but it worked
             if r.ok or r.status_code==504:
                 logging.info('[Cache tiles deleted] for {}: status code {}'.format(layer_id, r.status_code))
                 return r.status_code
+            # if we don't get a 200 or 504:
             else:
+                # if we are not on our last try, wait 60 seconds and try to clear the cache again
                 if try_num < (tries-1):
                     logging.info('Cache failed to flush: status code {}'.format(r.status_code))
                     time.sleep(60)
                     logging.info('Trying again.')
+                # if we are on our last try, log that the cache flush failed
                 else:
                     logging.error('Cache failed to flush: status code {}'.format(r.status_code))
                     logging.error('Aborting.')
@@ -105,21 +191,12 @@ def flushTileCache(layer_id):
         except Exception as e:
             logging.error('Failed: {}'.format(e))
 
-def lastUpdateDate(dataset, date):
-   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
-   headers = {
-   'Content-Type': 'application/json',
-   'Authorization': apiToken
-   }
-   body = {
-       "dataLastUpdated": date.isoformat()
-   }
-   try:
-       r = requests.patch(url = apiUrl, json = body, headers = headers)
-       logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
-       return 0
-   except Exception as e:
-       logging.error('[lastUpdated]: '+str(e))
+'''
+FUNCTIONS FOR THIS DATASET
+
+The functions below have been tailored to this specific dataset.
+They should all be checked because their format likely will need to be changed.
+'''
 
 def getCollectionName(var):
     '''
@@ -148,23 +225,23 @@ def getNewDates(exclude_dates):
     # if anything is in the collection, check back until last uploaded date
     if len(exclude_dates) > 0:
         while (date.strftime(DATE_FORMAT) not in exclude_dates):
-            datestr = date.strftime(DATE_FORMAT_DATASET)
+            datestr = date.strftime(DATE_FORMAT)
             new_dates.append(datestr)  #add to new dates
-            date -= datetime.timedelta(**TIMESTEP)
+            date -= datetime.timedelta(days=1)
     #if the collection is empty, make list of most recent 45 days to check
     else:
         for i in range(45):
-            datestr = date.strftime(DATE_FORMAT_DATASET)
+            datestr = date.strftime(DATE_FORMAT)
             new_dates.append(datestr)  #add to new dates
-            date -= datetime.timedelta(**TIMESTEP)
+            date -= datetime.timedelta(days=1)
     return new_dates
 
 def getDateBounds(new_date):
-    new_date_dt = datetime.datetime.strptime(new_date, DATE_FORMAT_DATASET)
+    new_date_dt = datetime.datetime.strptime(new_date, DATE_FORMAT)
     #add one day to the date of interest to make sure that day is included in the average
     #google earth engine does not include the end date specified when filtering dates
-    end_date = (new_date_dt + datetime.timedelta(**TIMESTEP)).strftime(DATE_FORMAT_DATASET)
-    start_date = (new_date_dt - (DAYS_TO_AVERAGE - 1) * datetime.timedelta(**TIMESTEP)).strftime(DATE_FORMAT_DATASET)
+    end_date = (new_date_dt + datetime.timedelta(days=1)).strftime(DATE_FORMAT)
+    start_date = (new_date_dt - (DAYS_TO_AVERAGE - 1) * datetime.timedelta(days=1)).strftime(DATE_FORMAT)
     return end_date, start_date
 
 def fetch_single_day(var, new_dates):
@@ -174,8 +251,8 @@ def fetch_single_day(var, new_dates):
     for date in new_dates:
         try:
             IC = ee.ImageCollection(SOURCE_URL.format(var=var))
-            end_date = datetime.datetime.strptime(date,'%Y-%m-%d')+datetime.timedelta(**TIMESTEP)
-            end_date_str = end_date.strftime(DATE_FORMAT_DATASET)
+            end_date = datetime.datetime.strptime(date,'%Y-%m-%d')+datetime.timedelta(days=1)
+            end_date_str = end_date.strftime(DATE_FORMAT)
             IC_1day = IC.filterDate(date, end_date_str).select([BAND])
             if IC_1day.size().getInfo() > 10:
                 mean_image = IC_1day.mean()
@@ -260,7 +337,7 @@ def processNewData(var, existing_dates):
             start = time.time()
             #wait for task to complete
             #check if task was successful
-            while state == 'RUNNING' and (time.time() - start) < TIMEOUT:
+            while state == 'RUNNING' and (time.time() - start) < 5000:
                 time.sleep(60)
                 status = task.status()['state']
                 logging.info('Current Status: ' + status +', run time (min): ' + str((time.time() - start)/60))
