@@ -28,7 +28,20 @@ SDS_NAME = 'NETCDF:"{fname}":{var}'
 NODATA_VALUE = None
 
 DATA_DIR = 'data'
+
+# name of collection in GEE where we will upload the final data
 COLLECTION = '/projects/resource-watch-gee/cit_038_WACCM_atmospheric_chemistry_model'
+# generate name for dataset's parent folder on GEE which will be used to store
+# several collections - one collection per variable
+PARENT_FOLDER = COLLECTION
+# generate generic string that can be formatted to name each variable's GEE collection
+EE_COLLECTION_GEN = PARENT_FOLDER + '/{var}'
+# generate generic string that can be formatted to name each variable's asset name
+FILENAME = PARENT_FOLDER.split('/')[-1] + '_{var}_{date}'
+# specify Google Cloud Storage folder name
+GS_FOLDER = COLLECTION[1:]
+
+# do you want to delete everything currently in the GEE collection when you run this script?
 CLEAR_COLLECTION_FIRST = True
 DELETE_LOCAL = True
 
@@ -41,7 +54,6 @@ TIMESTEP = {'days': 1}
 #the last is the time we want to show?
 #ex: for now, we want to show 12:00, which is 1 time step before 18:00
 TS_FROM_END = 1
-LOG_LEVEL = logging.INFO
 
 DATASET_IDS = {
     'NO2':'2c2c614a-8678-443a-8874-33335771ecc0',
@@ -54,12 +66,14 @@ DATASET_IDS = {
 apiToken = os.getenv('apiToken')
 
 if rw_subset==True:
+    # url for historical air quality data
     SOURCE_URL = 'https://www.acom.ucar.edu/waccm/subsets/resourcewatch/f.e22.beta02.FWSD.f09_f09_mg17.cesm2_2_beta02.forecast.001.cam.%s.{date}_surface_subset.nc' % VERSION
     VARS = ['NO2', 'CO', 'O3', 'SO2', 'PM25', 'bc_a4']
     NUM_AVAILABLE_LEVELS = [1, 1, 1, 1, 1, 1]
     DESIRED_LEVELS = [1, 1, 1, 1, 1, 1]
 else:
     SOURCE_URL = 'https://www.acom.ucar.edu/waccm/DATA/f.e21.FWSD.f09_f09_mg17.forecast.001.cam.%s.{date}-00000.nc' % VERSION
+    # url for historical air quality data
     VARS = ['NO2', 'CO', 'O3', 'SO2', 'PM25_SRF', 'bc_a4']
     # most variables have 88 pressure levels; PM 2.5 only has one level (surface)
     # need to specify which pressure level of data we was for each (level 1 being the lowest pressure)
@@ -143,11 +157,18 @@ def lastUpdateDate(dataset, date):
    except Exception as e:
        logging.error('[lastUpdated]: '+str(e))
 
+def getCollectionName(var):
+    '''
+    get GEE collection name
+    INPUT   var: variable to be used in asset name (string)
+    RETURN  GEE collection name for input date (string)
+    '''
+    return EE_COLLECTION_GEN.format(var=var)
 
-
-def getAssetName(date):
+def getAssetName(var, date):
     '''get asset name from datestamp'''# os.path.join('home', 'coming') = 'home/coming'
-    return os.path.join(EE_COLLECTION, FILENAME.format(var=VAR, date=date))
+    collection = getCollectionName(var)
+    return os.path.join(collection, FILENAME.format(var=var, date=date))
 
 
 def getFilename(date):
@@ -226,6 +247,7 @@ def getBands(var_num, file, last_date):
 def convert(files, var_num, last_date):
     '''convert netcdfs to tifs'''
     #create an empty list to store the names of tif files that we create
+    var = VARS[var_num]
     all_tifs = []
     for f in files:
         #get bands that we want for the pressure level we are interested in at all times
@@ -233,7 +255,7 @@ def convert(files, var_num, last_date):
         logging.info('Converting {} to tiff'.format(f))
         for band in bands:
             # get command to call the netcdf file for a particular variable
-            sds_path = SDS_NAME.format(fname=f, var=VAR)
+            sds_path = SDS_NAME.format(fname=f, var=var)
             '''
             Google Earth Engine needs to get tif files with longitudes of -180 to 180.
             These files have longitudes from 0 to 360. I checked this using gdalinfo.
@@ -247,7 +269,7 @@ def convert(files, var_num, last_date):
             then we will fix the longitude values using gdalwarp.
             '''
             #generate names for tif files that we are going to create from netcdf
-            file_name_with_time = getTiffname(file=f, hour=TIME_HOURS[bands.index(band)], variable=VAR)
+            file_name_with_time = getTiffname(file=f, hour=TIME_HOURS[bands.index(band)], variable=var)
             #create a file for the initial tif that is in the 0 to 360 longitude format
             tif_0_360 = '{}_0_360.tif'.format(file_name_with_time)
             # create a file name for the final tif that is in the -180 to 180 file format
@@ -308,6 +330,7 @@ def fetch(new_dates):
 
 def processNewData(files, var_num, last_date):
     '''process, upload, and clean new data'''
+    var = VARS[var_num]
     if files: #if files is empty list do nothing, otherwise, process data
         logging.info('Converting files')
         # Convert netcdfs to tifs
@@ -318,7 +341,7 @@ def processNewData(files, var_num, last_date):
         #generate datetime objects for each data
         datestamps = [datetime.datetime.strptime(date, DATE_FORMAT) for date in dates]
         #create asset names for each data
-        assets = [getAssetName(date) for date in dates]
+        assets = [getAssetName(var, date) for date in dates]
         # Upload new files to GEE
         logging.info('Uploading files:')
         for asset in assets:
@@ -342,11 +365,11 @@ def checkCreateCollection(VARS):
     existing_dates = []
     # create an empty list to store the dates that we currently have for each AQ variable
     existing_dates_by_var = []
-    for VAR in VARS:
+    for var in VARS:
         # For one of the variables, get the date of the most recent data set
         # All variables come from the same file
         # If we have one for a particular data, we should have them all
-        collection = EE_COLLECTION_GEN.format(var=VAR)
+        collection = getCollectionName(var)
 
         # Check if folder to store GEE collections exists. If not, create it.
         # we will make one collection per variable, all stored in the parent folder for the dataset
@@ -394,15 +417,16 @@ def checkCreateCollection(VARS):
             existing_dates_all_vars.remove(date)
     return existing_dates_all_vars, existing_dates_by_var
 
-def deleteExcessAssets(all_assets, max_assets):
+def deleteExcessAssets(var, all_assets, max_assets):
     '''Delete assets if too many'''
     if len(all_assets) > max_assets:
         # oldest first
         all_assets.sort()
         logging.info('Deleting excess assets.')
         #delete extra assets after the number we are expecting to see
+        collection = getCollectionName(var)
         for asset in all_assets[:-max_assets]:
-            eeUtil.removeAsset(EE_COLLECTION +'/'+ asset)
+            eeUtil.removeAsset(collection +'/'+ asset)
 
 def get_most_recent_date(all_assets):
     all_assets.sort()
@@ -418,7 +442,7 @@ def clearCollection():
     logging.info('Clearing collections.')
     for var_num in range(len(VARS)):
         var = VARS[var_num]
-        collection = EE_COLLECTION_GEN.format(var=var)
+        collection = getCollectionName(var)
         if eeUtil.exists(collection):
             if collection[0] == '/':
                 collection = collection[1:]
@@ -440,24 +464,8 @@ def initialize_ee():
 
 def main():
     # set logging levels
-    logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
+    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
-
-    # create global variables that will be used in many functions
-    global VAR
-    global EE_COLLECTION
-    global EE_COLLECTION_GEN
-    global PARENT_FOLDER
-    global FILENAME
-    global GS_FOLDER
-
-    # generate name for dataset's parent folder on GEE which will be used to store
-    # several collections - one collection per variable
-    PARENT_FOLDER = COLLECTION
-    # generate generic string that can be formatted to name each variable's GEE collection
-    EE_COLLECTION_GEN = COLLECTION + '/{var}'
-    # generate generic string that can be formatted to name each variable's asset name
-    FILENAME = COLLECTION.split('/')[-1]+'_{var}_{date}'
 
     '''Ingest new data into GEE and delete old data'''
     # Initialize eeUtil and ee modules
@@ -493,11 +501,9 @@ def main():
         files = fetch(new_dates)
         for var_num in range(len(VARS)):
             # get variable name
-            VAR = VARS[var_num]
+            var = VARS[var_num]
             # specify GEE collection name
-            EE_COLLECTION=EE_COLLECTION_GEN.format(var=VAR)
-            # specify Google Cloud Storage folder name
-            GS_FOLDER=COLLECTION[1:]+'_'+VAR
+            collection = getCollectionName(var)
 
             # 2. Fetch, process, stage, ingest, clean
             new_assets = processNewData(files, var_num, last_date)
@@ -507,32 +513,32 @@ def main():
             # get list of all dates we now have data for by combining existing dates with new dates
             all_dates = existing_dates_by_var[var_num] + new_dates
             # get list of existing assets in current variable's GEE collection
-            existing_assets = eeUtil.ls(EE_COLLECTION)
+            existing_assets = eeUtil.ls(collection)
             # make list of all assets by combining existing assets with new assets
             all_assets = np.sort(np.unique(existing_assets + [os.path.split(asset)[1] for asset in new_assets]))
             logging.info('Existing assets for {}: {}, new: {}, max: {}'.format(
-                VAR, len(all_dates), len(new_dates), MAX_ASSETS))
+                var, len(all_dates), len(new_dates), MAX_ASSETS))
             #if we have shortened the time period we are interested in, we will need to delete the extra assets
-            deleteExcessAssets(all_assets, MAX_ASSETS)
-            logging.info('SUCCESS for {}'.format(VAR))
+            deleteExcessAssets(var, all_assets, MAX_ASSETS)
+            logging.info('SUCCESS for {}'.format(var))
 
     for var_num in range(len(VARS)):
-        VAR = VARS[var_num]
-        EE_COLLECTION = EE_COLLECTION_GEN.format(var=VAR)
-        existing_assets = eeUtil.ls(EE_COLLECTION)
+        var = VARS[var_num]
+        collection = getCollectionName(var)
+        existing_assets = eeUtil.ls(collection)
         try:
             # Get most recent update date
             # to show most recent date in collection, instead of start date for forecast run
             # use get_most_recent_date(new_assets) function instead
             most_recent_date = get_forecast_run_date(existing_assets)
-            current_date = getLastUpdate(DATASET_IDS[VAR])
+            current_date = getLastUpdate(DATASET_IDS[var])
 
             if current_date != most_recent_date:
                 logging.info('Updating last update date and flushing cache.')
                 # Update data set's last update date on Resource Watch
-                lastUpdateDate(DATASET_IDS[VAR], most_recent_date)
+                lastUpdateDate(DATASET_IDS[var], most_recent_date)
                 # get layer ids and flush tile cache for each
-                layer_ids = getLayerIDs(DATASET_IDS[VAR])
+                layer_ids = getLayerIDs(DATASET_IDS[var])
                 for layer_id in layer_ids:
                     flushTileCache(layer_id)
         except KeyError:
