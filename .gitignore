@@ -8,7 +8,6 @@
 *dst/*
 *.nc
 *.tif
-*.csv
 *.zip
 
 # Python files/folders
