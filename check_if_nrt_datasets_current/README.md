@@ -1,8 +1,8 @@
 ## Script to check if near real-time datasets are up-to-date
 All of the [near real-time datasets on Resource Watch](https://bit.ly/2yzT8of) are updated by one of the following methods:
- 1) a script in this nrt-scripts Github repository updates the data on a regular schedule
- 2) the Carto sync feature updates the data on a regular schedule
- 3) the dataset is pulled directly from the Google Earth Engine data catalog, and the data is automatically updated as soon as new data is available
+1) a script in this nrt-scripts Github repository updates the data on a regular schedule
+2) the Carto sync feature updates the data on a regular schedule
+3) the dataset is pulled directly from the Google Earth Engine data catalog, and the data is automatically updated as soon as new data is available
 
 This script is used to make sure all of these near real-time datasets are up-to-date. If a dataset becomes out of date, we need to investigate why the dataset is no longer updating to find out if the source has moved the data to a different location or is no longer maintaining the dataset.
 
