@@ -592,7 +592,7 @@ def get_most_recent_date(all_assets):
     most_recent_date = datetime.datetime.strptime(all_assets[-1][-13:], DATE_FORMAT)
     return most_recent_date
 
-def get_forecast_run_date(all_assets):
+def get_forecast_run_date(var):
     '''
     Get the date that the most recent forecast was run from
     INPUT   var: variable for which we are pulling forecast run date (string)
