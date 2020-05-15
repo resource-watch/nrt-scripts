@@ -621,7 +621,7 @@ def clearCollectionMultiVar():
         if eeUtil.exists(collection):
             # remove the / from the beginning of the collection name to be used in ee module
             if collection[0] == '/':
-                collection = collection[1
+                collection = collection[1:]
             # pull the image collection
             a = ee.ImageCollection(collection)
             # check how many assets are in the collection
