@@ -458,6 +458,29 @@ def initialize_ee():
     auth = ee.ServiceAccountCredentials(GEE_SERVICE_ACCOUNT, _CREDENTIAL_FILE)
     ee.Initialize(auth)
 
+def updateResourceWatch():
+    '''
+    This function should update Resource Watch to reflect the new data.
+    This may include updating the 'last update date', flushing the tile cache, and updating any dates on layers
+    '''
+    for var_num in range(len(VARS)):
+        # get variable we are updating layers for
+        var = VARS[var_num]
+        # Get most recent forecast run date
+        most_recent_date = get_most_recent_date(collection)
+        # Get the current 'last update date' from the dataset on Resource Watch
+        current_date = getLastUpdate(DATASET_IDS[var])
+        # If the most recent date from the GEE collection does not match the 'last update date' on the RW API, update it
+        if current_date != most_recent_date:
+            logging.info('Updating last update date and flushing cache.')
+            # Update dataset's last update date on Resource Watch
+            lastUpdateDate(DATASET_IDS[var], most_recent_date)
+            # get layer ids and flush tile cache for each
+            layer_ids = getLayerIDs(DATASET_IDS[var])
+            for layer_id in layer_ids:
+                flushTileCache(layer_id)
+    # Update the dates on layer legends - TO BE ADDED IN FUTURE
+
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
@@ -470,33 +493,29 @@ def main():
     if CLEAR_COLLECTION_FIRST:
         clearCollectionMultiVar()
 
+    # Process data, one variable at a time
     for i in range(len(VARS)):
+        # get variable name
         var = VARS[i]
         logging.info('STARTING {var}'.format(var=var))
-        collection = getCollectionName(var)
 
-        # 1. Check if collection exists and create
-        existing_assets = checkCreateCollection('/'+collection) #make image collection if doesn't have one
+        # Check if collection exists, create it if it does not
+        # If it exists return the list of assets currently in the collection
+        existing_assets = checkCreateCollection('/'+getCollectionName(var)) #make image collection if doesn't have one
         existing_dates = [getDate(a) for a in existing_assets]
-        # 2. Fetch, process, stage, ingest, clean
+        # Fetch, process, and upload the new data
         new_assets = processNewData(var, existing_dates)
+        # Get the dates of the new data we have added
         new_dates = [getDate(a) for a in new_assets]
-        # 3. Delete old assets
-        existing_dates = existing_dates + new_dates
-        logging.info(existing_dates)
-        logging.info('Existing assets: {}, new: {}, max: {}'.format(
-            len(existing_dates), len(new_dates), MAX_ASSETS))
-        deleteExcessAssets(var, existing_dates, MAX_ASSETS)
-        # Get most recent update date
-        most_recent_date = get_most_recent_date(collection)
-        current_date = getLastUpdate(DATASET_IDS[var])
 
-        if current_date != most_recent_date:
-            logging.info('Updating last update date and flushing cache.')
-            # Update data set's last update date on Resource Watch
-            lastUpdateDate(DATASET_IDS[var], most_recent_date)
-            # get layer ids and flush tile cache for each
-            layer_ids = getLayerIDs(DATASET_IDS[var])
-            for layer_id in layer_ids:
-                flushTileCache(layer_id)
+        logging.info('Previous assets: {}, new: {}, max: {}'.format(
+            len(existing_dates), len(new_dates), MAX_ASSETS
+
+        # Delete excess assets
+        deleteExcessAssets(var, existing_dates+new_dates, MAX_ASSETS)
         logging.info('SUCCESS for {var}'.format(var=var))
+
+    # Update Resource Watch
+    updateResourceWatch()
+
+    logging.info('SUCCESS')
