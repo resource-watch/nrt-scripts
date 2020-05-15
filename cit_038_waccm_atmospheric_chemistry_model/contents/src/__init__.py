@@ -19,16 +19,6 @@ import time
 # should be of the format 'NETCDF:"filename.nc":variable'
 SDS_NAME = 'NETCDF:"{fname}":{var}'
 
-# Sources for nrt data
-#h0 version is 3 hourly data
-#h3 version is 6-hourly data
-VERSION = 'h3'
-#Data set owner has created a subset of the data for our needs on Resouce Watch
-#If you want to switch back to pulling from the original source, set the following
-#variable to False
-rw_subset = True
-
-
 # nodata value for netcdf
 NODATA_VALUE = None
 
@@ -49,23 +39,29 @@ GS_FOLDER = COLLECTION[1:]
 
 # do you want to delete everything currently in the GEE collection when you run this script?
 CLEAR_COLLECTION_FIRST = True
-# how many assets can be stored in the GEE collection before the oldest ones are deleted?
+
+
+
+# Version of model to use
+# h0 version is 3-hourly data
+# h3 version is 6-hourly data
+VERSION = 'h3'
+
+# get time intervals in each day - specific to version number
+if VERSION == 'h0':
+    TIME_HOURS = list(range(0, 24, 3))
+elif VERSION == 'h3':
+    TIME_HOURS = list(range(0, 24, 6))
+
+# how many days of data do we want to use?
 # MAXDAYS = 1 only fetches today
 # maximum value of 10: today plus 9 days of forecast
 MAX_DAYS = 2
-# get time intervals in each day - specific to version number
-#h0 version is 3 hourly data
-if VERSION == 'h0':
-    TIME_HOURS = list(range(0, 24, 3))
-# h3 version is 6-hourly data
-elif VERSION == 'h3':
-    TIME_HOURS = list(range(0, 24, 6))
-# number of days times number of time intervals in each day
-MAX_ASSETS = len(TIME_HOURS) * MAX_DAYS
 
-#if we don't want to show the last time available for the last day, how many time steps before
-#the last is the time we want to show?
-#ex: for now, we want to show 12:00, which is 1 time step before 18:00
+# If we don't want to show the last time available for the last day, how many time steps before
+# the last is the time we want to show?
+# For now, we want to show 12:00. Because the version we use is on 6-hour intervals, we want to pull 1 time step
+# before the last for the second day (last time would be 18:00 for this version)
 TS_FROM_END = 1
 
 # format of date used in GEE
@@ -83,6 +79,10 @@ DATASET_IDS = {
     'PM25':'348e4d57-a345-411d-986e-5863fffebda7',
     'bc_a4':'fe0a0042-8430-419b-a60f-9b69ec81a0ec'
 }
+
+# This dataset owner has created a subset of the data specifically for our needs on Resource Watch.
+# If you want to switch back to pulling from the original source, set the following variable to False.
+rw_subset = True
 
 if rw_subset==True:
     # url for air quality data
@@ -497,17 +497,6 @@ def checkCreateCollection(VARS):
             existing_dates_all_vars.remove(date)
     return existing_dates_all_vars, existing_dates_by_var
 
-def deleteExcessAssets(var, all_assets, max_assets):
-    '''Delete assets if too many'''
-    if len(all_assets) > max_assets:
-        # oldest first
-        all_assets.sort()
-        logging.info('Deleting excess assets.')
-        #delete extra assets after the number we are expecting to see
-        collection = getCollectionName(var)
-        for asset in all_assets[:-max_assets]:
-            eeUtil.removeAsset(collection +'/'+ asset)
-
 def get_most_recent_date(all_assets):
     all_assets.sort()
     most_recent_date = datetime.datetime.strptime(all_assets[-1][-13:], DATE_FORMAT)
@@ -618,10 +607,8 @@ def main():
             existing_assets = eeUtil.ls(collection)
             # make list of all assets by combining existing assets with new assets
             all_assets = np.sort(np.unique(existing_assets + [os.path.split(asset)[1] for asset in new_assets]))
-            logging.info('Existing assets for {}: {}, new: {}, max: {}'.format(
-                var, len(all_dates), len(new_dates), MAX_ASSETS))
-            #if we have shortened the time period we are interested in, we will need to delete the extra assets
-            deleteExcessAssets(var, all_assets, MAX_ASSETS)
+            logging.info('Existing assets for {}: {}, new: {}'.format(
+                var, len(all_dates), len(new_dates)))
             logging.info('SUCCESS for {}'.format(var))
 
     for var_num in range(len(VARS)):
