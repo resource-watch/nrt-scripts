@@ -22,17 +22,6 @@ BAND_BY_COMPOUND = {
     'AER_AI': 'absorbing_aerosol_index',
     'O3': 'O3_column_number_density',
 }
-DAYS_TO_AVERAGE = 30
-RESOLUTION = 3.5 #km
-'''
-If DAYS_TO_AVERAGE = 1, consider using a larger number of max assets (30) to ensure that you find a day 
-with orbits that cover the entire globe. Data are not uploaded regularly, and some days have large gaps 
-in data coverage.
-
-When averaging, a near-complete global map is not required for a particular day's data to be used. However, 
-because the data are not uploaded very regularly, a value of ~20 should be used for the MAX_ASSETS to ensure 
-that you look back far enough to find the most recent data.
-'''
 
 # name of data directory in Docker container
 DATA_DIR = 'data'
@@ -51,6 +40,14 @@ GS_FOLDER = COLLECTION[1:]
 
 # do you want to delete everything currently in the GEE collection when you run this script?
 CLEAR_COLLECTION_FIRST = False
+
+# How many days of data do you want to average together to create the processed image?
+# note: If DAYS_TO_AVERAGE = 1, consider using a larger number of assets (30) to ensure that you find a day with orbits
+# that cover the entire globe. Data are not uploaded regularly, and some days have large gaps in data coverage.
+DAYS_TO_AVERAGE = 30
+
+# at what resolution should the processed image be calculated?
+RESOLUTION = 3.5 #km
 
 # how many assets can be stored in the GEE collection before the oldest ones are deleted?
 MAX_ASSETS = 3
@@ -384,6 +381,10 @@ def deleteExcessAssets(var, dates, max_assets):
             eeUtil.removeAsset('/'+getAssetName(var, date))
 
 def initialize_ee():
+    '''
+    Initialize eeUtil and ee modules
+    '''
+    # get GEE credentials from env file
     GEE_JSON = os.environ.get("GEE_JSON")
     _CREDENTIAL_FILE = 'credentials.json'
     GEE_SERVICE_ACCOUNT = os.environ.get("GEE_SERVICE_ACCOUNT")
