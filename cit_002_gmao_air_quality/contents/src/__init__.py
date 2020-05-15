@@ -245,18 +245,20 @@ def getTiffName(file, period, var):
     INPUT   file: netcdf filename (string)
             period: period to be used in tif name, historical or forecast(string)
             var: variable to be used in tif name (string)
-    RETURN  file name to save tif file created from netcdf (string)
+    RETURN  name: file name to save tif file created from netcdf (string)
     '''
-    # get year, month, day and time from netcdf filename 
+    # get year, month, day, and time from netcdf filename
     year = file.split('/')[1][-18:-14]
     month = file.split('/')[1][-14:-12]
     day = file.split('/')[1][-12:-10]
     time = file.split('/')[1][-9:-5]
-
-    name = os.path.join(DATA_DIR, FILENAME.format(period=period, metric=METRIC_BY_COMPOUND[var], var=var, date=year+'-'+month+'-'+day +'_'+time))+'.tif'
+    # generate date string to be used in tif file name
+    date = year+'-'+month+'-'+day +'_'+time
+    # generate name for tif file
+    name = os.path.join(DATA_DIR, FILENAME.format(period=period, metric=METRIC_BY_COMPOUND[var], var=var, date=date))+'.tif'
     return name
 
-def getDateTime(filename):
+def getDateTimeString(filename):
     '''
     get date from filename (last 10 characters of filename after removing extension)
     INPUT   filename: file name that ends in a date of the format YYYY-MM-DD (string)
@@ -293,7 +295,7 @@ def getNewDatesHistorical(existing_dates):
     INPUT   existing_dates: list of dates that we already have in GEE, in the format of the DATE_FORMAT variable (list of strings)
     RETURN  new_dates: list of new dates we want to try to get, in the format of the DATE_FORMAT variable (list of strings)
     '''
-    #create empty list to store dates we should process
+    # create empty list to store dates we should process
     new_dates = []
 
     # start with today's date and time
@@ -371,11 +373,11 @@ def convert(files, var, period):
     '''
     Convert netcdf files to tifs
     INPUT   files: list of file names for netcdfs that have already been downloaded (list of strings)
-            var: variable which we are converting files for
+            var: variable which we are converting files for (string)
             period: period we are converting data for, historical or forecast (string)
     RETURN  tifs: list of file names for tifs that have been generated (list of strings)
     '''
-    # create an empty list to store the names of tif files that we create
+    # make an empty list to store the names of tif files that we create
     tifs = []
     for f in files:
         logging.info('Converting {} to tiff'.format(f))
@@ -408,7 +410,7 @@ def fetch(new_dates, unformatted_source_url, period):
     # starts after noon on previous day through noon of current day
     hours = ['1230', '1330', '1430', '1530', '1630', '1730', '1830', '1930', '2030', '2130', '2230', '2330',
              '0030', '0130', '0230', '0330', '0430', '0530', '0630', '0730', '0830', '0930', '1030', '1130']
-    # create an empty dictionary to store downloaded file names as value and corresponding dates as key 
+    # create an empty dictionary to store downloaded file names as value and corresponding dates as key
     files_by_date = {}
     # Loop over all hours of the new dates, check if there is data available, and download netcdfs
     for date in new_dates:
@@ -459,7 +461,7 @@ def fetch(new_dates, unformatted_source_url, period):
                 logging.error('Unable to retrieve data from {}'.format(url))
                 exit()
 
-        # populate dictionary of file names along with the date for which they were downloaded        
+        # populate dictionary of file names along with the date for which they were downloaded
         files_by_date[date]=files_for_current_date
 
     return files, files_by_date
@@ -468,7 +470,7 @@ def daily_avg(date, var, period, tifs_for_date):
     '''
     Calculate a daily average tif file from all the hourly tif files
     INPUT   date: list of dates we want to try to fetch, in the format YYYY-MM-DD (list of strings)
-            var: variable for which we are taking daily averages
+            var: variable for which we are taking daily averages (string)
             period: period for which we are calculating metric, historical or forecast (string)
             tifs_for_date: list of file names for tifs that were created from downloaded netcdfs (list of strings)
     RETURN  result_tif: file name for tif file created after averaging all the input tifs (string)
@@ -483,18 +485,18 @@ def daily_avg(date, var, period, tifs_for_date):
         letter = ascii_uppercase[i]
         # add each letter to the list to be used in gdal_calc
         gdal_tif_list.append('-'+letter)
-        # pull the tif name 
+        # pull the tif name
         tif = tifs_for_date[i]
         # add each tif name to the list to be used in gdal_calc
         gdal_tif_list.append('"'+tif+'"')
         # add the variable to the calc input for gdal_calc
         if i==0:
             # for first tif, it will be like: --calc="(A
-            calc= calc +letter   
+            calc= calc +letter
         else:
             # for second tif and onwards, keep adding each letter like: --calc="(A+B
             calc = calc+'+'+letter
-    # calculate the number of tifs we are averaging 
+    # calculate the number of tifs we are averaging
     num_tifs = len(tifs_for_date)
     # finish creating calc input
     # since we are trying to find average, the algorithm is: (sum all tifs/number of tifs)*(conversion factor for corresponding variable)
@@ -511,7 +513,7 @@ def daily_max(date, var, period, tifs_for_date):
     '''
     Calculate a daily maximum tif file from all the hourly tif files
     INPUT   date: list of dates we want to try to fetch, in the format YYYY-MM-DD (list of strings)
-            var: variable for which we are taking daily averages
+            var: variable for which we are taking daily averages (string)
             period: period for which we are calculating metric, historical or forecast (string)
             tifs_for_date: list of file names for tifs that were created from downloaded netcdfs (list of strings)
     RETURN  result_tif: file name for tif file created after finding the max from all the input tifs (string)
@@ -556,7 +558,7 @@ def processNewData(var, all_files, files_by_date, period, assets_to_delete):
     RETURN  assets: list of file names for netcdfs that have been downloaded (list of strings)
     '''
     # if files is empty list do nothing, otherwise, process data
-    if all_files: 
+    if all_files:
         # create an empty list to store the names of the tifs we generate
         tifs = []
         # create an empty list to store the names we want to use for the GEE assets
@@ -577,9 +579,9 @@ def processNewData(var, all_files, files_by_date, period, assets_to_delete):
             tifs.append(tif)
             # Get a list of the names we want to use for the assets once we upload the files to GEE
             assets.append(getAssetName(date, period, var))
-            # get new list of dates (in case order is different) from the averaged or maximum tifs
-            dates.append(getDateTime(tif))
-            # generate datetime objects for each data
+            # get new list of date strings (in case order is different) from the processed tifs
+            dates.append(getDateTimeString(tif))
+            # generate datetime objects for each tif date
             datestamps.append(datetime.datetime.strptime(date, DATE_FORMAT))
         # delete old assets (none for historical)
         for asset in assets_to_delete:
@@ -603,7 +605,6 @@ def checkCreateCollection(VARS, period):
             period: period we are checking assets for, historical or forecast (string)
     RETURN  existing_dates_all_vars: list of dates, in the format of the DATE_FORMAT variable, that exist for all variable collections in GEE (list of strings)
             existing_dates_by_var: list of dates, in the format of the DATE_FORMAT variable, that exist for each individual variable collection in GEE (list containing list of strings for each variable)
-
     '''
     # create a master list (not variable-specific) to store the dates for which all variables already have data for
     existing_dates = []
@@ -696,15 +697,24 @@ def clearCollectionMultiVar(period):
     '''
     logging.info('Clearing collections.')
     for var_num in range(len(VARS)):
+        # get name of variable we are clearing GEE collections for
         var = VARS[var_num]
+        # get name of GEE collection for variable
         collection = getCollectionName(period, var)
+        # if the collection exists,
         if eeUtil.exists(collection):
+            # remove the / from the beginning of the collection name to be used in ee module
             if collection[0] == '/':
                 collection = collection[1:]
+            # pull the image collection
             a = ee.ImageCollection(collection)
+            # check how many assets are in the collection
             collection_size = a.size().getInfo()
+            # if there are assets in the collection
             if collection_size > 0:
+                # create a list of assets in the collection
                 list = a.toList(collection_size)
+                # delete each asset
                 for item in list.getInfo():
                     ee.data.deleteAsset(item['id'])
 
@@ -732,7 +742,7 @@ def initialize_ee():
     '''
     Initialize eeUtil and ee modules
     '''
-    # get GEE credentials from env file 
+    # get GEE credentials from env file
     GEE_JSON = os.environ.get("GEE_JSON")
     _CREDENTIAL_FILE = 'credentials.json'
     GEE_SERVICE_ACCOUNT = os.environ.get("GEE_SERVICE_ACCOUNT")
@@ -745,7 +755,7 @@ def create_headers():
     '''
     Create headers to perform authorized actions on API
 
-    '''   
+    '''
     return {
         'Content-Type': "application/json",
         'Authorization': "{}".format(os.getenv('apiToken')),
@@ -768,7 +778,7 @@ def pull_layers_from_API(dataset_id):
 def update_layer(var, period, layer, new_date):
     '''
     Update layers in Resource Watch back office.
-    INPUT   var: variable for which we are updating layers
+    INPUT   var: variable for which we are updating layers (string)
             period: period we are updating layers for, historical or forecast (string)
             layer: layer that will be updated (string)
             new_date: date of asset to be shown in this layer, in the format of the DATE_FORMAT variable (string)
@@ -829,29 +839,29 @@ def updateResourceWatch(new_dates_historical, new_dates_forecast):
         logging.info('Updating Resource Watch Layers')
         for var, ds_id in DATASET_IDS.items():
             logging.info('Updating {}'.format(var))
-            #pull dictionary of current layers from API
+            # pull dictionary of current layers from API
             layer_dict = pull_layers_from_API(ds_id)
-            #go through each layer, pull the definition and update
+            # go through each layer, pull the definition and update
             for layer in layer_dict:
-                #check which point on the timeline this is
+                # check which point on the timeline this is
                 order = layer['attributes']['layerConfig']['order']
 
-                #if this is the first point on the timeline, we want to replace it the most recent historical data
+                # if this is the first point on the timeline, we want to replace it the most recent historical data
                 if order==0:
-                    #get date of most recent asset added
+                    # get date of most recent asset added
                     date = new_dates_historical[-1]
 
-                    #replace layer asset and title date with new
+                    # replace layer asset and title date with new
                     update_layer(var, 'historical', layer, date)
 
                 # otherwise, we want to replace it with the appropriate forecast data
                 else:
-                    #forecast layers start at order 1, and we will want this point on the timeline to be the first forecast asset
+                    # forecast layers start at order 1, and we will want this point on the timeline to be the first forecast asset
                     # order 4 will be the second asset, and so on
-                    #get date of appropriate asset
+                    # get date of appropriate asset
                     date = new_dates_forecast[order-1]
 
-                    #replace layer asset and title date with new
+                    # replace layer asset and title date with new
                     update_layer(var, 'forecast', layer, date)
     elif not new_dates_historical and not new_dates_forecast:
         logging.info('Layers do not need to be updated.')
