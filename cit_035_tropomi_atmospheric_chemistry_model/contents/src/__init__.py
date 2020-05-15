@@ -409,7 +409,7 @@ def get_most_recent_date(collection):
     RETURN  most_recent_date: most recent date in GEE collection (datetime)
     '''
     # get list of assets in collection
-    existing_assets = checkCreateCollection(collection)
+    existing_assets = checkCreateCollection('/'+collection)
     # get a list of strings of dates in the collection
     existing_dates = [getDate(a) for a in existing_assets]
     # sort these dates oldest to newest
