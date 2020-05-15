@@ -625,7 +625,7 @@ def clearCollectionMultiVar():
             # pull the image collection
             a = ee.ImageCollection(collection)
             # check how many assets are in the collection
-            collection_size = a.size().getInfo
+            collection_size = a.size().getInfo()
             # if there are assets in the collection
             if collection_size > 0:
                 # create a list of assets in the collection
