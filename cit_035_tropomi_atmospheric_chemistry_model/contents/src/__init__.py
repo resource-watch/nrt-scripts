@@ -218,7 +218,7 @@ def getAssetName(var, date):
             date: date in the format of the DATE_FORMAT variable (string)
     RETURN  GEE asset name for input date (string)
     '''
-        collection = getCollectionName(var)
+    collection = getCollectionName(var)
     if DAYS_TO_AVERAGE==1:
         return os.path.join(collection, FILENAME.format(var=var, date=date))
     else:
@@ -238,7 +238,7 @@ def getNewDates(existing_dates):
     INPUT   existing_dates: list of dates that we already have in GEE, in the format of the DATE_FORMAT variable (list of strings)
     RETURN  new_dates: list of new dates we want to try to get, in the format of the DATE_FORMAT variable (list of strings)
     '''
-    #create empty list to store dates we should process
+    # create empty list to store dates we should process
     new_dates = []
 
     # start with today's date and time
@@ -252,7 +252,7 @@ def getNewDates(existing_dates):
             new_dates.append(datestr)
             # go back one more day
             date -= datetime.timedelta(days=1)
-    #if the collection is empty, make list of most recent 45 days to check
+    # if the collection is empty, make list of most recent 45 days to check
     else:
         for i in range(45):
             # generate date string in same format used in GEE collection
@@ -403,9 +403,18 @@ def deleteExcessAssets(var, dates, max_assets):
             eeUtil.removeAsset('/'+getAssetName(var, date))
 
 def get_most_recent_date(collection):
-    existing_assets = checkCreateCollection('/'+collection)  # make image collection if doesn't have one
+    '''
+    Get most recent date from the data in the GEE collection
+    INPUT   collection: GEE collection to check dates for (string)
+    RETURN  most_recent_date: most recent date in GEE collection (datetime)
+    '''
+    # get list of assets in collection
+    existing_assets = checkCreateCollection(collection)
+    # get a list of strings of dates in the collection
     existing_dates = [getDate(a) for a in existing_assets]
+    # sort these dates oldest to newest
     existing_dates.sort()
+    # get the most recent date (last in the list) and turn it into a datetime
     most_recent_date = datetime.datetime.strptime(existing_dates[-1], DATE_FORMAT)
     return most_recent_date
 
@@ -415,15 +424,24 @@ def clearCollectionMultiVar():
     '''
     logging.info('Clearing collections.')
     for var_num in range(len(VARS)):
+        # get name of variable we are clearing GEE collections for
         var = VARS[var_num]
+        # get name of GEE collection for variable
         collection = getCollectionName(var)
+        # if the collection exists,
         if eeUtil.exists(collection):
+            # remove the / from the beginning of the collection name to be used in ee module
             if collection[0] == '/':
                 collection = collection[1:]
+            # pull the image collection
             a = ee.ImageCollection(collection)
+            # check how many assets are in the collection
             collection_size = a.size().getInfo()
+            # if there are assets in the collection
             if collection_size > 0:
+                # create a list of assets in the collection
                 list = a.toList(collection_size)
+                # delete each asset
                 for item in list.getInfo():
                     ee.data.deleteAsset(item['id'])
 
@@ -440,149 +458,6 @@ def initialize_ee():
     auth = ee.ServiceAccountCredentials(GEE_SERVICE_ACCOUNT, _CREDENTIAL_FILE)
     ee.Initialize(auth)
 
-def create_headers():
-    '''
-    Create headers to perform authorized actions on API
-
-    '''
-    return {
-        'Content-Type': "application/json",
-        'Authorization': "{}".format(os.getenv('apiToken')),
-    }
-
-def pull_layers_from_API(dataset_id):
-    '''
-    Pull dictionary of current layers from API
-    INPUT   dataset_id: Resource Watch API dataset ID (string)
-    RETURN  layer_dict: dictionary of layers (dictionary of strings)
-    '''
-    # generate url to access layer configs for this dataset in back office
-    rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer'.format(dataset_id)
-    # request data
-    r = requests.get(rw_api_url)
-    # convert response into json and make dictionary of layers
-    layer_dict = json.loads(r.content.decode('utf-8'))['data']
-    return layer_dict
-
-def update_layer(var, period, layer, new_date):
-    '''
-    Update layers in Resource Watch back office.
-    INPUT   var: variable for which we are updating layers
-            period: period we are updating layers for, historical or forecast (string)
-            layer: layer that will be updated (string)
-            new_date: date of asset to be shown in this layer, in the format of the DATE_FORMAT variable (string)
-    '''
-    # get name of asset - drop first / in string or asset won't be pulled into RW
-    asset = getAssetName(new_date, period, var)[1:]
-
-    # get previous date being used from
-    old_date = getDate_GEE(layer['attributes']['layerConfig']['assetId'])
-    # convert to datetime
-    old_date_dt = datetime.datetime.strptime(old_date, DATE_FORMAT)
-    # change to layer name text of date
-    old_date_text = old_date_dt.strftime("%B %-d, %Y")
-
-    # get text for new date
-    new_date_dt = datetime.datetime.strptime(new_date, DATE_FORMAT)
-    new_date_text = new_date_dt.strftime("%B %-d, %Y")
-
-    # replace date in layer's title with new date
-    layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
-
-    # replace the asset id in the layer def with new asset id
-    layer['attributes']['layerConfig']['assetId'] = asset
-
-    # replace the asset id in the interaction config with new asset id
-    old_asset = getAssetName(old_date, period, var)[1:]
-    layer['attributes']['interactionConfig']['config']['url'] = layer['attributes']['interactionConfig']['config']['url'].replace(old_asset,asset)
-
-    # send patch to API to replace layers
-    # generate url to patch layer
-    rw_api_url_layer = "https://api.resourcewatch.org/v1/dataset/{dataset_id}/layer/{layer_id}".format(
-        dataset_id=layer['attributes']['dataset'], layer_id=layer['id'])
-    # create payload with new title and layer configuration
-    payload = {
-        'application': ['rw'],
-        'layerConfig': layer['attributes']['layerConfig'],
-        'name': layer['attributes']['name'],
-        'interactionConfig': layer['attributes']['interactionConfig']
-    }
-    # patch API with updates
-    r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
-    # check response
-    if r.ok:
-        logging.info('Layer replaced: {}'.format(layer['id']))
-    else:
-        logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
-
-def updateResourceWatch(new_dates_historical, new_dates_forecast):
-    '''
-    This function should update Resource Watch to reflect the new data.
-    This may include updating the 'last update date', flushing the tile cache, and updating any dates on layers
-    INPUT   new_dates_historical: list of dates for historical assets added to GEE, in the format of the DATE_FORMAT variable (list of strings)
-            new_dates_forecast: list of dates for forecast assets added to GEE, in the format of the DATE_FORMAT variable (list of strings)
-    '''
-
-    # Update the dates on layer legends
-    if new_dates_historical and new_dates_forecast:
-        logging.info('Updating Resource Watch Layers')
-        for var, ds_id in DATASET_IDS.items():
-            logging.info('Updating {}'.format(var))
-            #pull dictionary of current layers from API
-            layer_dict = pull_layers_from_API(ds_id)
-            #go through each layer, pull the definition and update
-            for layer in layer_dict:
-                #check which point on the timeline this is
-                order = layer['attributes']['layerConfig']['order']
-
-                #if this is the first point on the timeline, we want to replace it the most recent historical data
-                if order==0:
-                    #get date of most recent asset added
-                    date = new_dates_historical[-1]
-
-                    #replace layer asset and title date with new
-                    update_layer(var, 'historical', layer, date)
-
-                # otherwise, we want to replace it with the appropriate forecast data
-                else:
-                    #forecast layers start at order 1, and we will want this point on the timeline to be the first forecast asset
-                    # order 4 will be the second asset, and so on
-                    #get date of appropriate asset
-                    date = new_dates_forecast[order-1]
-
-                    #replace layer asset and title date with new
-                    update_layer(var, 'forecast', layer, date)
-    elif not new_dates_historical and not new_dates_forecast:
-        logging.info('Layers do not need to be updated.')
-    else:
-        if not new_dates_historical:
-            logging.error('Historical data was not updated, but forecast was.')
-        if not new_dates_forecast:
-            logging.error('Forecast data was not updated, but historical was.')
-
-    # Update Last Update Date and flush tile cache on RW
-    for var_num in range(len(VARS)):
-        var = VARS[var_num]
-        # specify GEE collection name
-        collection = getCollectionName('historical', var)
-        # get a list of assets in the collection
-        existing_assets = eeUtil.ls(collection)
-        try:
-            # Get the most recent date from the data in the GEE collection
-            most_recent_date = get_most_recent_date(existing_assets)
-            # Get the current 'last update date' from the dataset on Resource Watch
-            current_date = getLastUpdate(DATASET_IDS[var])
-            # If the most recent date from the GEE collection does not match the 'last update date' on the RW API, update it
-            if current_date != most_recent_date: #comment for testing
-                logging.info('Updating last update date and flushing cache.')
-                # Update dataset's last update date on Resource Watch
-                lastUpdateDate(DATASET_IDS[var], most_recent_date)
-                # get layer ids and flush tile cache for each
-                layer_ids = getLayerIDs(DATASET_IDS[var])
-                for layer_id in layer_ids:
-                    flushTileCache(layer_id)
-        except KeyError:
-            continue
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
