@@ -663,9 +663,9 @@ def updateResourceWatch():
         if current_date != most_recent_date:
             logging.info('Updating last update date and flushing cache.')
             # Update dataset's last update date on Resource Watch
-            lastUpdateDate(DATASET_ID, most_recent_date)
+            lastUpdateDate(DATASET_IDS[var], most_recent_date)
             # get layer ids and flush tile cache for each
-            layer_ids = getLayerIDs(DATASET_ID)
+            layer_ids = getLayerIDs(DATASET_IDS[var])
             for layer_id in layer_ids:
                 flushTileCache(layer_id)
     # Update the dates on layer legends - TO BE ADDED IN FUTURE
