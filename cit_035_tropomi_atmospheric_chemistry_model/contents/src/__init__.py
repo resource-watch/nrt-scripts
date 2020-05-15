@@ -264,64 +264,58 @@ def getNewDates(existing_dates):
     return new_dates
 
 def getDateBounds(new_date):
+    '''
+    get start and end dates used to filter out period we are averaging over
+    INPUT   new_date: date we are processing, in the format of the DATE_FORMAT variable (string)
+    RETURN  end_date: end date of days we will average, in the format of the DATE_FORMAT variable (string)
+            start_date: start date of days we will average, in the format of the DATE_FORMAT variable (string)
+    '''
+    # turn the input date into a datetime object
     new_date_dt = datetime.datetime.strptime(new_date, DATE_FORMAT)
-    #add one day to the date of interest to make sure that day is included in the average
-    #google earth engine does not include the end date specified when filtering dates
+    # add one day to the date we are processing data for to make sure that day is included in the average
+    # because google earth engine does not include the end date specified when filtering dates
+    # this will be the last day of our date range
     end_date = (new_date_dt + datetime.timedelta(days=1)).strftime(DATE_FORMAT)
+    # go back from the date we are processing the number of days we want to average to get the start date
     start_date = (new_date_dt - (DAYS_TO_AVERAGE - 1) * datetime.timedelta(days=1)).strftime(DATE_FORMAT)
     return end_date, start_date
 
-def fetch_single_day(var, new_dates):
-    # Loop over the new dates, check which dates have good global coverage, and add them to a list
-    dates = []
-    daily_images = []
-    for date in new_dates:
-        try:
-            IC = ee.ImageCollection(SOURCE_URL.format(var=var))
-            end_date = datetime.datetime.strptime(date,'%Y-%m-%d')+datetime.timedelta(days=1)
-            end_date_str = end_date.strftime(DATE_FORMAT)
-            IC_1day = IC.filterDate(date, end_date_str).select([BAND_BY_COMPOUND[var]])
-            if IC_1day.size().getInfo() > 10:
-                mean_image = IC_1day.mean()
-                #copy most recent system start time from that day's images
-                sorted = IC_1day.sort(prop='system:time_start', opt_ascending=False);
-                most_recent_image = ee.Image(sorted.first())
-                mean_image = mean_image.copyProperties(most_recent_image, ['system:time_start'])
-                #add image to list for upload
-                daily_images.append(mean_image)
-                dates.append(date)
-                logging.info('Successfully retrieved {}'.format(date))
-            else:
-                logging.info('Poor global coverage for {}, discarding'.format(date))
-            # stop if the list exceeds our max assets
-            if len(dates) >= MAX_ASSETS:
-                break
-        except Exception as e:
-            logging.error('Unable to retrieve data from {}'.format(date))
-            logging.debug(e)
-    return dates, daily_images
-
 def fetch_multi_day_avg(var, new_dates):
-    # Loop over the new dates, check if there is data available, add them to a list
+    '''
+    Pull data for new dates and take an average over the number of days specified in the DAYS_TO_AVERAGE variable
+    INPUT   var: variable we are taking an average for (string)
+            new_dates: new dates we are trying to process, in the format of the DATE_FORMAT variable (list of strings)
+    RETURN  dates: dates for each image we have processed, in the format of the DATE_FORMAT variable (list of strings)
+            averages: processed images, averaged over the number of days specified in the DAYS_TO_AVERAGE variable (list of GEE image objects)
+    '''
+    # create an empty list to store averaged GEE images
     averages = []
+    # create an empty list to store dates for each image
     dates = []
+    # go through each of the new dates we want to try to process data for
     for new_date in new_dates:
         try:
+            # get start and end dates for time period that we are averaging over
+            # (end date that comes out of this will not be included in filtered data)
             end_date, start_date = getDateBounds(new_date)
+            # pull the image collection for the variable of interest
             IC = ee.ImageCollection(SOURCE_URL.format(var=var))
-            #get band of interest
+            # get band of interest for the current variable
             IC_band = IC.select([BAND_BY_COMPOUND[var]])
             # check if any data available for new date yet
             new_date_IC = IC_band.filterDate(new_date, end_date)
             if new_date_IC.size().getInfo() > 0:
+                # if data available, add to list of dates
                 dates.append(new_date)
-                #get dates to average
+                # get dates to average
                 IC_dates_to_average = IC_band.filterDate(start_date, end_date)
+                # find the mean of all the images
                 average = IC_dates_to_average.mean()
-                #copy most recent system start time from time period images
-                sorted = IC_dates_to_average.sort(prop='system:time_start', opt_ascending=False);
+                # copy most recent system start time from time period images
+                sorted = IC_dates_to_average.sort(prop='system:time_start', opt_ascending=False)
                 most_recent_image = ee.Image(sorted.first())
                 average = average.copyProperties(most_recent_image, ['system:time_start'])
+                # add the averaged image to the list of processed images
                 averages.append(average)
                 logging.info('Successfully retrieved {}'.format(new_date))
             else:
@@ -335,70 +329,95 @@ def fetch_multi_day_avg(var, new_dates):
     return dates, averages
 
 def processNewData(var, existing_dates):
-    '''fetch, process, upload, and clean new data'''
-    # 1. Determine which files to fetch
+    '''
+    Fetch, process, and upload clean new data
+    INPUT   var: variable that we are processing data for (string)
+            existing_dates: list of dates that we already have in GEE, in the format of the DATE_FORMAT variable (list of strings)
+    RETURN  assets: list of file names for processed assets that have been saved (list of strings)
+    '''
+    # Get a list of the dates that are available, minus the ones we have already uploaded correctly for all variables.
     new_dates = getNewDates(existing_dates)
 
-    # 2. Fetch new files
+    # Fetch new files and get average images over number of days specified
     logging.info('Fetching files')
-    if DAYS_TO_AVERAGE == 1:
-        dates, images = fetch_single_day(var, new_dates)
-    else:
-        dates, images = fetch_multi_day_avg(var, new_dates)
+    dates, images = fetch_multi_day_avg(var, new_dates)
 
-    if dates: #if files is an empty list do nothing, if something in it:
-        # 4. Upload new files
+    # if there are new dates available to process
+    if dates:
         logging.info('Uploading files')
+        # Get a list of the names we want to use for the assets once we upload the files to GEE
         assets = [getAssetName(var, date) for date in dates]
+        # set the lat and lon bounds of the image we will upload to GEE
+        # note: the process will faill if you use 180 and 90
         lon = 179.999
         lat = 89.999
+        # change the resolution from km to m
         scale = RESOLUTION*1000
+        # create the geometry bounds for the image we want to upload
         geometry = [[[-lon, lat], [lon, lat], [lon, -lat], [-lon, -lat], [-lon, lat]]]
+        # upload each image
         for i in range(len(dates)):
             logging.info('Uploading ' + assets[i])
+            # export the averaged image to a new asset in GEE
             task = ee.batch.Export.image.toAsset(images[i],
                                                  assetId=assets[i],
                                                  region=geometry, scale=scale, maxPixels=1e13)
             task.start()
+            # set the state to 'RUNNING' because we have started the task
             state = 'RUNNING'
+            # set a start time to track the time it takes to upload the image
             start = time.time()
-            #wait for task to complete
-            #check if task was successful
+            # wait for task to complete, but quit if it takes more than 5000 seconds
             while state == 'RUNNING' and (time.time() - start) < 5000:
+                # wait for a minute before checking the state
                 time.sleep(60)
+                # check the status of the upload
                 status = task.status()['state']
                 logging.info('Current Status: ' + status +', run time (min): ' + str((time.time() - start)/60))
+                # log if the task is completed and change the state
                 if status == 'COMPLETED':
                     state = status
                     logging.info(status)
+                # log an error if the task fails and change the state
                 elif status == 'FAILED':
                     state = status
                     logging.error(task.status()['error_message'])
                     logging.debug(task.status())
 
         return assets
-    else:
-        return []
-
 
 def checkCreateCollection(collection):
-    '''List assests in collection else create new collection'''
+    '''
+    List assests in collection if it exists, else create new collection
+    INPUT   collection: GEE collection to check or create (string)
+    RETURN  list of assets in collection (list of strings)
+    '''
+    # if parent folder does not exist, create it
     if not eeUtil.exists('/'+PARENT_FOLDER):
         logging.info('{} does not exist, creating'.format(PARENT_FOLDER))
         eeUtil.createFolder('/'+PARENT_FOLDER, public=True)
+    # if collection exists, return list of assets in collection
     if eeUtil.exists(collection):
         return eeUtil.ls(collection)
+    # if collection does not exist, create it and return an empty list (because no assets are in the collection)
     else:
         logging.info('{} does not exist, creating'.format(collection))
         eeUtil.createFolder(collection, True, public=True)
         return []
 
-
 def deleteExcessAssets(var, dates, max_assets):
-    '''Delete assets if too many'''
-    # oldest first
+    '''
+    Delete oldest assets, if more than specified in max_assets variable
+    INPUT   var: variable we are processing data for (string)
+            dates: dates for all the assets currently in the GEE collection; dates should be in the format specified
+                    in DATE_FORMAT variable (list of strings)
+            max_assets: maximum number of assets allowed in the collection (int)
+    '''
+    # sort the list of dates so that the oldest is first
     dates.sort()
+    # if we have more dates of data than allowed,
     if len(dates) > max_assets:
+        # go through each date, starting with the oldest, and delete until we only have the max number of assets left
         for date in dates[:-max_assets]:
             eeUtil.removeAsset('/'+getAssetName(var, date))
 
@@ -503,13 +522,14 @@ def main():
         # If it exists return the list of assets currently in the collection
         existing_assets = checkCreateCollection('/'+getCollectionName(var)) #make image collection if doesn't have one
         existing_dates = [getDate(a) for a in existing_assets]
+
         # Fetch, process, and upload the new data
         new_assets = processNewData(var, existing_dates)
         # Get the dates of the new data we have added
         new_dates = [getDate(a) for a in new_assets]
 
         logging.info('Previous assets: {}, new: {}, max: {}'.format(
-            len(existing_dates), len(new_dates), MAX_ASSETS
+            len(existing_dates), len(new_dates), MAX_ASSETS)
 
         # Delete excess assets
         deleteExcessAssets(var, existing_dates+new_dates, MAX_ASSETS)
