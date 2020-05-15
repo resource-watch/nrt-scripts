@@ -212,32 +212,54 @@ def getCollectionName(var):
     return EE_COLLECTION_GEN.format(var=var)
 
 def getAssetName(var, date):
-    '''get asset name from datestamp'''# os.path.join('home', 'coming') = 'home/coming'
+    '''
+    get asset name
+    INPUT   var: variable to be used in asset name (string)
+            date: date in the format of the DATE_FORMAT variable (string)
+    RETURN  GEE asset name for input date (string)
+    '''
     collection = getCollectionName(var)
     if DAYS_TO_AVERAGE==1:
         return os.path.join(collection, FILENAME.format(var=var, date=date))
     else:
         return os.path.join(collection, FILENAME.format(days=DAYS_TO_AVERAGE, var=var, date=date))
 
-def getDate(filename):
-    '''get last 8 chrs of filename CHECK THIS'''
+def getDate_GEE(filename):
+    '''
+    get date from Google Earth Engine asset name (last 10 characters of filename after removing extension)
+    INPUT   filename: asset name that ends in a date of the format YYYY-MM-DD (string)
+    RETURN  date in the format YYYY-MM-DD (string)
+    '''
     return os.path.splitext(os.path.basename(filename))[0][-10:]
 
-def getNewDates(exclude_dates):
-    '''Get new dates excluding existing'''
+def getNewDates(existing_dates):
+    '''
+    Get new dates we want to try to fetch data for
+    INPUT   existing_dates: list of dates that we already have in GEE, in the format of the DATE_FORMAT variable (list of strings)
+    RETURN  new_dates: list of new dates we want to try to get, in the format of the DATE_FORMAT variable (list of strings)
+    '''
+    # create empty list to store dates we should process
     new_dates = []
+
+    # start with today's date and time
     date = datetime.date.today()
     # if anything is in the collection, check back until last uploaded date
     if len(exclude_dates) > 0:
-        while (date.strftime(DATE_FORMAT) not in exclude_dates):
+        while (date.strftime(DATE_FORMAT) not in existing_dates):
+            # generate date string in same format used in GEE collection
             datestr = date.strftime(DATE_FORMAT)
-            new_dates.append(datestr)  #add to new dates
+            # add to list of new dates
+            new_dates.append(datestr)
+            # go back one more day
             date -= datetime.timedelta(days=1)
-    #if the collection is empty, make list of most recent 45 days to check
+    # if the collection is empty, make list of most recent 45 days to check
     else:
         for i in range(45):
+            # generate date string in same format used in GEE collection
             datestr = date.strftime(DATE_FORMAT)
-            new_dates.append(datestr)  #add to new dates
+            # add to list of new dates
+            new_dates.append(datestr)
+            # go back one more day
             date -= datetime.timedelta(days=1)
     return new_dates
 
@@ -380,6 +402,49 @@ def deleteExcessAssets(var, dates, max_assets):
         for date in dates[:-max_assets]:
             eeUtil.removeAsset('/'+getAssetName(var, date))
 
+def get_most_recent_date(collection):
+    '''
+    Get most recent date from the data in the GEE collection
+    INPUT   collection: GEE collection to check dates for (string)
+    RETURN  most_recent_date: most recent date in GEE collection (datetime)
+    '''
+    # get list of assets in collection
+    existing_assets = checkCreateCollection('/'+collection)
+    # get a list of strings of dates in the collection
+    existing_dates = [getDate(a) for a in existing_assets]
+    # sort these dates oldest to newest
+    existing_dates.sort()
+    # get the most recent date (last in the list) and turn it into a datetime
+    most_recent_date = datetime.datetime.strptime(existing_dates[-1], DATE_FORMAT)
+    return most_recent_date
+
+def clearCollectionMultiVar():
+    '''
+    Clear the GEE collection for all variables
+    '''
+    logging.info('Clearing collections.')
+    for var_num in range(len(VARS)):
+        # get name of variable we are clearing GEE collections for
+        var = VARS[var_num]
+        # get name of GEE collection for variable
+        collection = getCollectionName(var)
+        # if the collection exists,
+        if eeUtil.exists(collection):
+            # remove the / from the beginning of the collection name to be used in ee module
+            if collection[0] == '/':
+                collection = collection[1:]
+            # pull the image collection
+            a = ee.ImageCollection(collection)
+            # check how many assets are in the collection
+            collection_size = a.size().getInfo()
+            # if there are assets in the collection
+            if collection_size > 0:
+                # create a list of assets in the collection
+                list = a.toList(collection_size)
+                # delete each asset
+                for item in list.getInfo():
+                    ee.data.deleteAsset(item['id'])
+
 def initialize_ee():
     '''
     Initialize eeUtil and ee modules
@@ -393,30 +458,6 @@ def initialize_ee():
     auth = ee.ServiceAccountCredentials(GEE_SERVICE_ACCOUNT, _CREDENTIAL_FILE)
     ee.Initialize(auth)
 
-def get_most_recent_date(collection):
-    existing_assets = checkCreateCollection('/'+collection)  # make image collection if doesn't have one
-    existing_dates = [getDate(a) for a in existing_assets]
-    existing_dates.sort()
-    most_recent_date = datetime.datetime.strptime(existing_dates[-1], DATE_FORMAT)
-    return most_recent_date
-
-def clearCollectionMultiVar():
-    '''
-    Clear the GEE collection for all variables
-    '''
-    logging.info('Clearing collections.')
-    for var_num in range(len(VARS)):
-        var = VARS[var_num]
-        collection = getCollectionName(var)
-        if eeUtil.exists(collection):
-            if collection[0] == '/':
-                collection = collection[1:]
-            a = ee.ImageCollection(collection)
-            collection_size = a.size().getInfo()
-            if collection_size > 0:
-                list = a.toList(collection_size)
-                for item in list.getInfo():
-                    ee.data.deleteAsset(item['id'])
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
