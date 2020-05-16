@@ -383,7 +383,9 @@ def processNewData(var, existing_dates):
                     state = status
                     logging.error(task.status()['error_message'])
                     logging.debug(task.status())
-
+    # if no new assets, return empty list
+    else:
+        assets = []
         return assets
 
 def checkCreateCollection(collection):
