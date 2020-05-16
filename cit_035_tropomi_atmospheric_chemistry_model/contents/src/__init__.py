@@ -244,7 +244,7 @@ def getNewDates(existing_dates):
     # start with today's date and time
     date = datetime.date.today()
     # if anything is in the collection, check back until last uploaded date
-    if len(exclude_dates) > 0:
+    if len(existing_dates) > 0:
         while (date.strftime(DATE_FORMAT) not in existing_dates):
             # generate date string in same format used in GEE collection
             datestr = date.strftime(DATE_FORMAT)
