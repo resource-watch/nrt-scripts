@@ -529,7 +529,7 @@ def main():
         new_dates = [getDate(a) for a in new_assets]
 
         logging.info('Previous assets: {}, new: {}, max: {}'.format(
-            len(existing_dates), len(new_dates), MAX_ASSETS)
+            len(existing_dates), len(new_dates), MAX_ASSETS))
 
         # Delete excess assets
         deleteExcessAssets(var, existing_dates+new_dates, MAX_ASSETS)
