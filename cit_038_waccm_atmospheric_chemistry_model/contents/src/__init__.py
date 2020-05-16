@@ -582,18 +582,6 @@ def checkCreateCollection(VARS):
             existing_dates_all_vars.remove(date)
     return existing_dates_all_vars, existing_dates_by_var
 
-def get_most_recent_date(all_assets):
-    '''
-    Get most recent data we have assets for
-    INPUT   all_assets: list of all the assets currently in the GEE collection (list of strings)
-    RETURN  most_recent_date: most recent date in GEE collection (datetime)
-    '''
-    # sort these dates oldest to newest
-    all_assets.sort()
-    # get the most recent date (last in the list) and turn it into a datetime
-    most_recent_date = datetime.datetime.strptime(all_assets[-1][-13:], DATE_FORMAT)
-    return most_recent_date
-
 def get_forecast_run_date(var):
     '''
     Get the date that the most recent forecast was run from
