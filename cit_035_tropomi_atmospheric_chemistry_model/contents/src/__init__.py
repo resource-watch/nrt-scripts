@@ -430,7 +430,7 @@ def get_most_recent_date(collection):
     # get list of assets in collection
     existing_assets = checkCreateCollection('/'+collection)
     # get a list of strings of dates in the collection
-    existing_dates = [getDate(a) for a in existing_assets]
+    existing_dates = [getDate_GEE(a) for a in existing_assets]
     # sort these dates oldest to newest
     existing_dates.sort()
     # get the most recent date (last in the list) and turn it into a datetime
@@ -521,12 +521,12 @@ def main():
         # Check if collection exists, create it if it does not
         # If it exists return the list of assets currently in the collection
         existing_assets = checkCreateCollection('/'+getCollectionName(var)) #make image collection if doesn't have one
-        existing_dates = [getDate(a) for a in existing_assets]
+        existing_dates = [getDate_GEE(a) for a in existing_assets]
 
         # Fetch, process, and upload the new data
         new_assets = processNewData(var, existing_dates)
         # Get the dates of the new data we have added
-        new_dates = [getDate(a) for a in new_assets]
+        new_dates = [getDate_GEE(a) for a in new_assets]
 
         logging.info('Previous assets: {}, new: {}, max: {}'.format(
             len(existing_dates), len(new_dates), MAX_ASSETS))
