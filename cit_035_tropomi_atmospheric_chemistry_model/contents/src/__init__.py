@@ -488,7 +488,7 @@ def updateResourceWatch():
         # get variable we are updating layers for
         var = VARS[var_num]
         # Get most recent forecast run date
-        most_recent_date = get_most_recent_date(collection)
+        most_recent_date = get_most_recent_date(getCollectionName(var))
         # Get the current 'last update date' from the dataset on Resource Watch
         current_date = getLastUpdate(DATASET_IDS[var])
         # If the most recent date from the GEE collection does not match the 'last update date' on the RW API, update it
