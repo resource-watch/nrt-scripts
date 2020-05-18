@@ -23,6 +23,11 @@ BAND_BY_COMPOUND = {
     'O3': 'O3_column_number_density',
 }
 
+# How many days of data do you want to average together to create the processed image?
+# note: If DAYS_TO_AVERAGE = 1, consider using a larger number of assets (30) to ensure that you find a day with orbits
+# that cover the entire globe. Data are not uploaded regularly, and some days have large gaps in data coverage.
+DAYS_TO_AVERAGE = 30
+
 # name of data directory in Docker container
 DATA_DIR = 'data'
 
@@ -40,11 +45,6 @@ GS_FOLDER = COLLECTION[1:]
 
 # do you want to delete everything currently in the GEE collection when you run this script?
 CLEAR_COLLECTION_FIRST = False
-
-# How many days of data do you want to average together to create the processed image?
-# note: If DAYS_TO_AVERAGE = 1, consider using a larger number of assets (30) to ensure that you find a day with orbits
-# that cover the entire globe. Data are not uploaded regularly, and some days have large gaps in data coverage.
-DAYS_TO_AVERAGE = 30
 
 # at what resolution should the processed image be calculated?
 RESOLUTION = 3.5 #km
