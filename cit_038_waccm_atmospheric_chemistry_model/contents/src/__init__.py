@@ -511,7 +511,9 @@ def processNewData(files, var_num, last_date):
         # Delete local tif files
         logging.info('Cleaning local TIFF files')
         delete_local(ext='.tif')
-
+    #if no new assets, return empty list
+    else:
+        assets = []
         return assets
 
 
