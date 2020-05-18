@@ -415,7 +415,7 @@ def convert(files, var_num, last_date):
             then we will fix the longitude values using gdalwarp.
             '''
             #generate names for tif files that we are going to create from netcdf
-            file_name_with_time = getTiffname(file=f, hour=TIME_HOURS[bands.index(band)], variable=var)
+            file_name_with_time = getTiffname(file=f, hour=TIME_HOURS[bands.index(band)], var=var)
             #create a file for the initial tif that is in the 0 to 360 longitude format
             tif_0_360 = '{}_0_360.tif'.format(file_name_with_time)
             # create a file name for the final tif that is in the -180 to 180 file format
