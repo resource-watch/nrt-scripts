@@ -156,22 +156,21 @@ def genUID(datetime, position_in_geojson):
 def processData(src_url, table, existing_ids):
     '''
     Fetch, process and upload new data
-    INPUT   src_url: url where you can find the download link for the source data (string)
+    INPUT   src_url: unformatted url where you can find the source data (string)
             table: name of table in Carto where we will upload the data (string)
-            existing_ids: list of date IDs that we already have in our Carto table (list of strings)
+            existing_ids: list of unique IDs that we already have in our Carto table (list of strings)
     RETURN  new_ids: list of unique ids of new data sent to Carto table (list of strings)
     '''
     # create an empty list to store unique ids of new data we will be sending to Carto table
     new_ids = []
     # set the start date for collecting data to oldest date of data stored in the Carto
-    # table in the format (YYYY-MM-DD)
     start_time = MAX_AGE.isoformat()
-    # set the start date for collecting data to current time in the format (YYYY-MM-DD)
+    # set the end date for collecting data to current time
     end_time = datetime.datetime.utcnow().isoformat()
 
     # set try number to 1 because this will be our first try fetching the data
     try_num = 1
-    # try at least 5 times to fetch the data for this area from the source
+    # try at least 5 times to fetch the data from the source
     while try_num <= 5:
         try:
             logging.info('Pulling data from source, try number %s' %try_num)
@@ -189,18 +188,18 @@ def processData(src_url, table, existing_ids):
 
     # loop until no new observations
     for item in results['items']:
-        # create an empty list to store each rows of new data
+        # create an empty list to store each row of new data
         new_rows = []
 
-        # get date and url from each item in the results json
+        # get date and url containing more information about each landslide in the results json
         date = item['properties']['date']['@value']
         url = item['action'][5]['using'][0]['url']
 
         logging.info('Fetching data for {}'.format(date))
-        # pull data from url using request response json
+        # pull data from url for this landslide using request response json
         data = requests.get(url).json()
 
-        # loop through to retrieve data from each geojson features
+        # loop through to retrieve data from each geojson feature
         for i in range(len(data['features'])):
             # generate unique id for this data
             uid = genUID(date, i)
@@ -260,7 +259,7 @@ def deleteExcessRows(table, max_rows, time_field, max_age=''):
 
     # check if max_age is a datetime object
     if isinstance(max_age, datetime.datetime):
-        # convert max_age to a string in the format (YYYY-MM-DD)
+        # convert max_age to a string
         max_age = max_age.isoformat()
 
     # if the max_age variable exists
