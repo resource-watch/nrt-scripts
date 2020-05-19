@@ -172,7 +172,7 @@ def deleteExcessRows(table, max_rows, time_field, max_age=''):
     # if the max_age variable exists
     if max_age:
         # delete rows from table which are older than the max_age
-        r = cartosql.deleteRows(table, "{} < '{}'".format(time_field, max_age), CARTO_USER, CARTO_KEY)
+        r = cartosql.deleteRows(table, "{} < '{}'".format(time_field, max_age), user=CARTO_USER, key=CARTO_KEY)
         # get the number of rows that were dropped from the table
         num_dropped = r.json()['total_rows']
 
