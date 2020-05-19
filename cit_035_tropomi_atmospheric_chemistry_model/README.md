@@ -5,9 +5,9 @@ This file describes the near real-time script that retrieves and processes the [
 * [Air Quality: Aerosol Index Satellite Measurements](https://resourcewatch.org/data/explore/Air-Quality-Measurements-TROPOMI-AER-AI)
 * [Air Quality: Ozone (O₃) Satellite Measurements](https://resourcewatch.org/data/explore/Air-Quality-Measurements-TROPOMI-O)
 
-{Describe how the original data came from the source.}
+The data shown on Resource Watch for this dataset is pulled and processed from the Google Earth Engine catalog. The nitrogen dioxide data can be found in the 'tropospheric_NO2_column_number_density' band, the ozone data in 'O3_column_number_density', the carbon monoxide data in 'CO_column_number_density', and the absorbing aerosol index data in 'absorbing_aerosol_index'.
 
-{Describe the steps used to process the data, e.g., "convert variable X from the original netcdf file to a tif to upload to Google Earth Engine."}
+For each variable, the band of interest is pulled and the most recent 30 days of data are filtered out and averaged. This 30-day average is saved as a new asset in Google Earth Engine to be displayed on Resource Watch.
 
 Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/cit_035_tropomi_atmospheric_chemistry_model/contents/src/__init__.py) for more details on this processing.
 

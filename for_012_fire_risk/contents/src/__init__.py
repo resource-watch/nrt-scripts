@@ -442,7 +442,6 @@ def updateResourceWatch():
     # Update the dates on layer legends - TO BE ADDED IN FUTURE
 
 def main():
-
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
 
