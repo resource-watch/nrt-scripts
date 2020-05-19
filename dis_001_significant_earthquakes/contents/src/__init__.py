@@ -55,8 +55,8 @@ MAX_AGE = datetime.datetime.today() - datetime.timedelta(days=365*2)
 # url for recent earthquake data
 SOURCE_URL = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime={startTime}&endtime={endTime}&minsig={minSig}"
 
-# !!! ATTENTION !!!
-# Not sure how to comment it
+# Do you want to process data back through the MAX_AGE?
+# If false, data will be processed back until we pull a full week of data in which all data is already in the Carto table
 PROCESS_HISTORY = False
 
 # format of dates in Carto table
@@ -193,34 +193,34 @@ def deleteExcessRows(table, max_rows, time_field, max_age=''):
     return(num_dropped)
 
 def genUID(lat, lon, depth, dt):
-    '''Generate unique id using latitude, longitude, depth and date information from retrieved url
-    INPUT   lat: latitude of the earthquake (string)
-            lon: longitude of the earthquake (string)
-            depth: depth of the earthquake (string)
+    '''Generate unique id using latitude, longitude, depth and date information
+    INPUT   lat: latitude of the earthquake (float)
+            lon: longitude of the earthquake (float)
+            depth: depth of the earthquake (float)
             dt: date for which we want to generate id (string)
     '''
     return '{}_{}_{}_{}'.format(lat, lon, depth, dt)
 
-def processData(url,existing_ids):
+def processData(url, existing_ids):
     '''
     Fetch, process and upload new data
-    INPUT   url: url where you can find the download link for the source data (string)
+    INPUT   url: unformatted url where you can find the source data (string)
             existing_ids: list of date IDs that we already have in our Carto table (list of strings)
     RETURN  num_new: number of rows of new data sent to Carto table (integer)
     '''
-    # create an empty list to store new data
-    new_data = []
+    # create a variable to store the number of new rows we have added to Carto
+    num_new = 0
     # create an empty list to store unique ids of new data we will be sending to Carto table
     new_ids = []
     # create a datetime object with today's date
     startTime = datetime.datetime.today()
 
     # Retrieve and process data by iterating backwards 1-week at a time
-    # if the current datetime is newer than oldest date of data stored in the Carto
+    # continue until the current datetime is older than the oldest date allowed in the table, set by the MAX_AGE variable
     while startTime > MAX_AGE:
-        # set the end date for collecting data as today's date
+        # set the end date for collecting data
         endTime = startTime
-        # set the start date for collecting data to 7 days before today
+        # set the start date for collecting data to 7 days before the end date
         startTime = startTime - datetime.timedelta(days=7)
         logging.info('Fetching data between {} and {}'.format(startTime, endTime))
         # generate the url and pull data for the selected interval
@@ -229,6 +229,9 @@ def processData(url,existing_ids):
             logging.error(res.text)
         # pull data from request response json
         data = res.json()
+        
+        # create an empty list to store new data for this week
+        new_data = []
         # loop until no new observations
         for feature in data['features']:
             # get the coordinates of the earthquake from geometry
@@ -242,7 +245,7 @@ def processData(url,existing_ids):
             # get date from properties feature
             # convert datetime object to string formatted according to DATETIME_FORMAT
             dt = datetime.datetime.utcfromtimestamp(props['time'] / 1000).strftime(DATETIME_FORMAT)
-            # generate unique id by using the coordinates of the earthquake
+            # generate unique id by using the coordinates, depth, and datetime of the earthquake
             _uid = genUID(lat, lon, depth, dt)
             # if the id doesn't already exist in Carto table or 
             # isn't added to the list for sending to Carto yet            
@@ -263,7 +266,7 @@ def processData(url,existing_ids):
                             'type': 'Point',
                             'coordinates': [lon, lat]
                         }
-                        # add the geometry information to the list of data from this row
+                        # add a geojson of the coordinates to the list of data from this row
                         row.append(geom)
                     # if we are fetching data for depth_in_km column
                     elif field == 'depth_in_km':
@@ -279,16 +282,18 @@ def processData(url,existing_ids):
                         row.append(props[field])
                 # add the list of values from this row to the list of new data
                 new_data.append(row)
-        # find the length (number of rows) of new_data
-        num_new = len(new_data)
+        # add the number of rows being added for this week to the current total of new rows added
+        num_new += len(new_data)
         # if we have found new dates to process
-        if num_new:
+        if len(new_data):
             # insert new data into the carto table
             logging.info('Adding {} new records'.format(num_new))
             cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
                                      CARTO_SCHEMA.values(), new_data, user=CARTO_USER, key=CARTO_KEY)
+        # if we are not processing the data back through the MAX_AGE
         elif not PROCESS_HISTORY:
-            # Break if no results for a week otherwise keep going
+            # break once we pull a week of data in which all data is already on Carto
+            # otherwise, keep going until we reach the MAX_AGE
             break
 
     return(num_new)
