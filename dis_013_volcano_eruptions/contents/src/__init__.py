@@ -177,7 +177,7 @@ def deleteExcessRows(table, max_rows, age_field):
 def processData(url, existing_ids):
     '''
     Fetch, process and upload new data
-    INPUT   url: url where you can find the download link for the source data (string)
+    INPUT   url: url where you can find the source data (string)
             existing_ids: list of date IDs that we already have in our Carto table (list of strings)
     RETURN  num_new: number of rows of new data sent to Carto table (integer)
     '''
