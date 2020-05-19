@@ -514,7 +514,7 @@ def processNewData(files, var_num, last_date):
     #if no new assets, return empty list
     else:
         assets = []
-        return assets
+    return assets
 
 
 def checkCreateCollection(VARS):

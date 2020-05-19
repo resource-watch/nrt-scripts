@@ -386,7 +386,7 @@ def processNewData(var, existing_dates):
     # if no new assets, return empty list
     else:
         assets = []
-        return assets
+    return assets
 
 def checkCreateCollection(collection):
     '''
