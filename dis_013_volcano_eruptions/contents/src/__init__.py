@@ -24,8 +24,7 @@ UID_FIELD = 'Eruption_Number'
 # column that stores datetime information
 AGE_FIELD = 'StartDateYear'
 
-# column names and types for data table
-# column names should be lowercase
+# column names and types for source data table
 # column types should be one of the following: geometry, text, numeric, timestamp
 CARTO_SCHEMA_UPPER = OrderedDict([
     ("the_geom", "geometry"),
@@ -53,6 +52,7 @@ CARTO_SCHEMA_UPPER = OrderedDict([
     ("EndDateDay", "numeric"),
     ("EndDateDayUncertainty", "numeric")
 ])
+# column names for Carto should be lowercase, so we will make the source column names lowercase
 CARTO_SCHEMA = OrderedDict([(key.lower(), value) for key,value in CARTO_SCHEMA_UPPER.items()])
 
 # how many rows can be stored in the Carto table before the oldest ones are deleted?
@@ -206,14 +206,14 @@ def processData(url, existing_ids):
             new_ids.append(uid)
             # create an empty list to store data from this row
             row = []
-            # go through each column in the Carto table
+            # go through each column from the source data that we want to include in the Carto table
             for key in CARTO_SCHEMA_UPPER.keys():
                 # generate string to retrieve for values each column from data
                 source_key = '{volcano.si.edu}'+key
                 try:
-                    # if we are fetching data for geometry column, we have to construct the pointer beacuase
-                    # this column name doesn't match in Carto and source data
+                    # if we are fetching data for geometry column, we have to construct the geojson from the source coordinates
                     if key == 'the_geom':
+                        # generate the source column name where we can find the geometry
                         source_key = '{volcano.si.edu}GeoLocation'
                         # get the coordinates and split it to separate out latitude and longitude
                         coords=data[source_key]['{http://www.opengis.net/gml}Point']['{http://www.opengis.net/gml}coordinates'].split(',')
@@ -221,7 +221,7 @@ def processData(url, existing_ids):
                         lon = coords[0]
                         # get the latitude from second index of coords
                         lat = coords[1]
-                        # create a dictionary from the coordinates
+                        # create a geojson from the coordinates
                         item = {
                             'type': 'Point',
                             'coordinates': [lon, lat]
@@ -230,7 +230,7 @@ def processData(url, existing_ids):
                         # for all other columns, we can fetch the data using our column name in Carto
                         item = data[source_key]
                 except KeyError:
-                    # if the column we are trying to retrieve doesn't exist in Carto, store None
+                    # if the column we are trying to retrieve doesn't exist in the source data, store None
                     item=None
                 # add the retrieved value for this column to the list of data for this row
                 row.append(item)
