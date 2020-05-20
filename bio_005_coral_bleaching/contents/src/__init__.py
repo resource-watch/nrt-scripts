@@ -350,7 +350,6 @@ def checkCreateCollection(collection):
         eeUtil.createFolder(collection, True, public=True)
         return []
 
-
 def deleteExcessAssets(dates, max_assets):
     '''
     Delete oldest assets, if more than specified in max_assets variable

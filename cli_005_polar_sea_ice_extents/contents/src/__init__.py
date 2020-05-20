@@ -20,23 +20,27 @@ CLEAR_COLLECTION_FIRST = False
 # url for sea ice extent data
 # example file url name: ftp://sidads.colorado.edu/DATASETS/NOAA/G02135/north/monthly/geotiff/02_Feb/N_201902_extent_v3.0.tif
 SOURCE_URL = 'ftp://sidads.colorado.edu/DATASETS/NOAA/G02135/{north_or_south}/monthly/geotiff/{month}/{target_file}'
-SOURCE_FILENAME_MEASUREMENT = '{N_or_S}_{date}_extent_v3.0.tif'
+# unformatted file name for source data
+SOURCE_FILENAME = '{N_or_S}_{date}_extent_v3.0.tif'
+
+# name of data directory in Docker container
+DATA_DIR = 'data'
+
+# name of folder to store data in Google Cloud Storage
+GS_FOLDER = 'cli_005_polar_sea_ice_extent'
 
 # name of collection in GEE where we will upload the final data
 EE_COLLECTION = 'cli_005_{arctic_or_antarctic}_sea_ice_extent_{orig_or_reproj}'
+
 # filename format for GEE
 FILENAME = 'cli_005_{arctic_or_antarctic}_sea_ice_{date}'
 
-#keep historical record of sea ice in specified months (by month number, ex: 3=March)
+# keep historical record of sea ice in specified months (by month number, ex: 3=March)
 HISTORICAL_MONTHS = [2,3,9]
 # if COLLECT_BACK_HISTORY = True, goes back for specified months to get historical data
 #set this to true any time you add a new month to your history
 COLLECT_BACK_HISTORY = True
 EE_COLLECTION_BY_MONTH = '/projects/resource-watch-gee/cli_005_historical_sea_ice_extent/cli_005_{arctic_or_antarctic}_sea_ice_extent_{orig_or_reproj}_month{month}_hist'
-
-# For naming and storing assets
-DATA_DIR = 'data'
-GS_PREFIX = 'cli_005_polar_sea_ice_extent'
 
 # Times two because of North / South parallels
 MAX_DATES = 12
@@ -209,16 +213,28 @@ They should all be checked because their format likely will need to be changed.
 '''
 
 def getAssetName(tif, orig_or_reproj, new_or_hist, arctic_or_antarctic=''):
-    '''get asset name from tif name, extract datetime and location'''
+    '''
+    get asset name
+    INPUT   tif: name of tif file downloaded from source (string)
+            orig_or_reproj: is this asset name for the original or reprojected data? (string)
+            new_or_hist: is this asset name for historical max/min data or current extent data? (string)
+            arctic_or_antarctic: optional, is this asset name for the arctic or antarctic data? (string)
+    RETURN  GEE asset name for input date (string)
+    '''
+    # if the arctic_or_antarctic parameter is specified, use it for the asset name
     if len(arctic_or_antarctic):
         location = arctic_or_antarctic
+    # otherwise, pull the location from the original tif file name
     else:
         if orig_or_reproj=='orig':
             location = tif.split('_')[2]
         else:
             location = tif.split('_')[4]
 
-    date = getRasterDate(tif)
+    # pull the date from the tif file name
+    date = getDate(tif)
+
+    # create an asset name, based on if this asset will be used in the historical max/min data or current extent data
     if new_or_hist=='new':
         asset = os.path.join(EE_COLLECTION.format(arctic_or_antarctic=location, orig_or_reproj=orig_or_reproj),
                         FILENAME.format(arctic_or_antarctic=location, date=date))
@@ -288,7 +304,7 @@ def fetch(url, arctic_or_antarctic, datestring):
     month = format_month(datestring)
     north_or_south = 'north' if (arctic_or_antarctic=='arctic') else 'south'
 
-    target_file = SOURCE_FILENAME_MEASUREMENT.format(N_or_S=north_or_south[0].upper(), date=datestring)
+    target_file = SOURCE_FILENAME.format(N_or_S=north_or_south[0].upper(), date=datestring)
     _file = url.format(north_or_south=north_or_south,month=month,target_file=target_file)
     filename = getFilename(arctic_or_antarctic=arctic_or_antarctic, date=datestring)
     try:
@@ -358,8 +374,8 @@ def processNewRasterData(existing_dates, arctic_or_antarctic, new_or_hist, month
     dates = [getDate(tif) for tif in reproj_tifs]
     datestamps = [datetime.datetime.strptime(date, DATE_FORMAT)  # list comprehension/for loop
                   for date in dates]  # returns list of datetime object
-    eeUtil.uploadAssets(orig_tifs, orig_assets, GS_PREFIX, datestamps, timeout=3000)
-    eeUtil.uploadAssets(reproj_tifs, reproj_assets, GS_PREFIX, datestamps, timeout=3000)
+    eeUtil.uploadAssets(orig_tifs, orig_assets, GS_FOLDER, datestamps, timeout=3000)
+    eeUtil.uploadAssets(reproj_tifs, reproj_assets, GS_FOLDER, datestamps, timeout=3000)
 
     # 4. Delete local files
     for tif in orig_tifs:
@@ -372,26 +388,37 @@ def processNewRasterData(existing_dates, arctic_or_antarctic, new_or_hist, month
     return orig_assets, reproj_assets
 
 def checkCreateCollection(collection):
-    '''List assests in collection else create new collection'''
+    '''
+    List assests in collection if it exists, else create new collection
+    INPUT   collection: GEE collection to check or create (string)
+    RETURN  list of assets in collection (list of strings)
+    '''
+    # if collection exists, return list of assets in collection
     if eeUtil.exists(collection):
         return eeUtil.ls(collection)
+    # if collection does not exist, create it and return an empty list (because no assets are in the collection)
     else:
         logging.info('{} does not exist, creating'.format(collection))
-        eeUtil.createFolder(collection, imageCollection=True, public=True)
+        eeUtil.createFolder(collection, True, public=True)
         return []
 
 def deleteExcessAssets(dates, orig_or_reproj, arctic_or_antarctic, max_assets, new_or_hist):
-    '''Delete assets if too many'''
-    # oldest first
+    '''
+    Delete oldest assets, if more than specified in max_assets variable
+    INPUT   dates: dates for all the assets currently in the GEE collection; dates should be in the format specified
+                    in DATE_FORMAT variable (list of strings)
+            orig_or_reproj: is this asset name for the original or reprojected data? (string)
+            arctic_or_antarctic: is this asset name for the arctic or antarctic data? (string)
+            max_assets: maximum number of assets allowed in the collection (int)
+            new_or_hist: is this asset name for historical max/min data or current extent data? (string)
+    '''
+    # sort the list of dates so that the oldest is first
     dates.sort()
-    logging.debug('ordered dates: {}'.format(dates))
+    # if we have more dates of data than allowed,
     if len(dates) > max_assets:
+        # go through each date, starting with the oldest, and delete until we only have the max number of assets left
         for date in dates[:-max_assets]:
             eeUtil.removeAsset(getAssetName(date, orig_or_reproj, new_or_hist, arctic_or_antarctic=arctic_or_antarctic))
-
-###
-## Application code
-###
 
 def get_most_recent_date(collection):
     '''
@@ -409,12 +436,18 @@ def get_most_recent_date(collection):
     most_recent_date = datetime.datetime.strptime(existing_dates[-1], DATE_FORMAT)
     return most_recent_date
 
-def create_layers_new_years(dataset_id, new_value):
-    dataset = lmi.Dataset(dataset_id)  # select the dataset by changing the ID
+def create_layers_new_years(dataset_id, new_year):
+    '''
+    This function will create a new layers for a dataset for the year indicated
+    INPUT   dataset_id: Resource Watch API dataset ID (string)
+            new_year: year that you want to create a new layer for (integer)
+    '''
+    # pull in the dataset we are making a new layer for
+    dataset = lmi.Dataset(dataset_id)
+    # pull the first layer to used as a template when creating the new layer
+    layer_to_clone = dataset.layers[0]
 
-    layer_to_clone = dataset.layers[0]  # Chose the first layer
-
-    # Gathering the right attributes that need to change
+    # Gather the layer attributes that need to change
     name = layer_to_clone.attributes['name']
     description = layer_to_clone.attributes['description']
     appConfig = layer_to_clone.attributes['layerConfig']
@@ -422,22 +455,16 @@ def create_layers_new_years(dataset_id, new_value):
     order = str(appConfig['order'])
     timeLineLabel = appConfig['timelineLabel']
 
-    # Replace this value with the string you'd like to replace in the attributes
+    # Find they year in the example layer - we will replace this with the year we are making a new layer for
     replace_string = name[:4]
 
-    name_convention = name.replace(replace_string, '{}')
-    description_convention = description.replace(replace_string, '{}')
-    assetId_convention = assetId.replace(replace_string, '{}')
-    order_convention = order.replace(replace_string, '{}')
-    timeLineLabel_convention = timeLineLabel.replace(replace_string, '{}')
+    # Generate layer attributes for the new year's layer
+    new_layer_name = name.replace(replace_string, str(new_year))
+    new_description = description.replace(replace_string, str(new_year))
+    new_assetId = assetId.replace(replace_string, str(new_year))
+    new_timeline_label = timeLineLabel.replace(replace_string, str(new_year))
+    new_order = int(order.replace(replace_string, str(new_year)))
 
-    # Get layer name
-    new_layer_name = name_convention.replace('{}', str(new_value))
-    # If it doesn't, set the new values
-    new_description = description_convention.replace('{}', str(new_value))
-    new_assetId = assetId_convention.replace('{}', str(new_value))
-    new_timeline_label = timeLineLabel_convention.replace('{}', str(new_value))
-    new_order = int(order_convention.replace('{}', str(new_value)))
     # Clone layer
     clone_attributes = {
         'name': new_layer_name,
@@ -445,6 +472,7 @@ def create_layers_new_years(dataset_id, new_value):
     }
     new_layer = layer_to_clone.clone(token=os.getenv('apiToken')[7:], env='production', layer_params=clone_attributes,
                                      target_dataset_id=dataset_id)
+    
     # Replace layer attributes with new values
     appConfig = new_layer.attributes['layerConfig']
     appConfig['assetId'] = new_assetId
