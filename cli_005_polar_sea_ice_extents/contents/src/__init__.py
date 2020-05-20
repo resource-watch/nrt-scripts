@@ -14,16 +14,18 @@ import requests
 import time
 import LMIPy as lmi
 
+# do you want to delete everything currently in the GEE collection when you run this script?
 CLEAR_COLLECTION_FIRST = False
 
-# Sources for nrt data
-#example file url name: ftp://sidads.colorado.edu/DATASETS/NOAA/G02135/north/monthly/geotiff/02_Feb/N_201902_extent_v3.0.tif
-SOURCE_URL_MEASUREMENT = 'ftp://sidads.colorado.edu/DATASETS/NOAA/G02135/{north_or_south}/monthly/geotiff/{month}/{target_file}'
+# url for sea ice extent data
+# example file url name: ftp://sidads.colorado.edu/DATASETS/NOAA/G02135/north/monthly/geotiff/02_Feb/N_201902_extent_v3.0.tif
+SOURCE_URL = 'ftp://sidads.colorado.edu/DATASETS/NOAA/G02135/{north_or_south}/monthly/geotiff/{month}/{target_file}'
 SOURCE_FILENAME_MEASUREMENT = '{N_or_S}_{date}_extent_v3.0.tif'
-LOCAL_FILE = 'cli_005_{arctic_or_antarctic}_sea_ice_{date}.tif'
 
+# name of collection in GEE where we will upload the final data
 EE_COLLECTION = 'cli_005_{arctic_or_antarctic}_sea_ice_extent_{orig_or_reproj}'
-ASSET_NAME = 'cli_005_{arctic_or_antarctic}_sea_ice_{date}'
+# filename format for GEE
+FILENAME = 'cli_005_{arctic_or_antarctic}_sea_ice_{date}'
 
 #keep historical record of sea ice in specified months (by month number, ex: 3=March)
 HISTORICAL_MONTHS = [2,3,9]
@@ -39,7 +41,6 @@ GS_PREFIX = 'cli_005_polar_sea_ice_extent'
 # Times two because of North / South parallels
 MAX_DATES = 12
 DATE_FORMAT = '%Y%m'
-TIMESTEP = {'days': 30}
 
 # Resource Watch dataset API ID for current ice extent
 # Important! Before testing this script:
@@ -220,12 +221,20 @@ def getAssetName(tif, orig_or_reproj, new_or_hist, arctic_or_antarctic=''):
     date = getRasterDate(tif)
     if new_or_hist=='new':
         asset = os.path.join(EE_COLLECTION.format(arctic_or_antarctic=location, orig_or_reproj=orig_or_reproj),
-                        ASSET_NAME.format(arctic_or_antarctic=location, date=date))
+                        FILENAME.format(arctic_or_antarctic=location, date=date))
     elif new_or_hist=='hist':
         month = date[-2:]
         asset = os.path.join(EE_COLLECTION_BY_MONTH.format(arctic_or_antarctic=location, orig_or_reproj=orig_or_reproj, month=month),
-                        ASSET_NAME.format(arctic_or_antarctic=location, date=date))
+                        FILENAME.format(arctic_or_antarctic=location, date=date))
     return asset
+
+def getFilename(arctic_or_antarctic, date):
+    '''
+    get tif filename to save source file as
+    INPUT   date: date in the format of the DATE_FORMAT variable (string)
+    RETURN  file name to save tif from source under (string)
+    '''
+    return '{}.tif'.format(FILENAME.format(arctic_or_antarctic=arctic_or_antarctic,date=date))
 
 def getDate(filename):
     '''
@@ -281,7 +290,7 @@ def fetch(url, arctic_or_antarctic, datestring):
 
     target_file = SOURCE_FILENAME_MEASUREMENT.format(N_or_S=north_or_south[0].upper(), date=datestring)
     _file = url.format(north_or_south=north_or_south,month=month,target_file=target_file)
-    filename = LOCAL_FILE.format(arctic_or_antarctic=arctic_or_antarctic,date=datestring)
+    filename = getFilename(arctic_or_antarctic=arctic_or_antarctic, date=datestring)
     try:
         with closing(urllib.request.urlopen(_file)) as r:
             with open(os.path.join(DATA_DIR, filename), 'wb') as f:
@@ -334,7 +343,7 @@ def processNewRasterData(existing_dates, arctic_or_antarctic, new_or_hist, month
 
     for date in target_dates:
         if date not in existing_dates:
-            orig_file = fetch(SOURCE_URL_MEASUREMENT, arctic_or_antarctic, date)
+            orig_file = fetch(SOURCE_URL, arctic_or_antarctic, date)
             reproj_file = reproject(orig_file, s_srs=s_srs, extent=extent)
             orig_tifs.append(os.path.join(DATA_DIR, orig_file))
             reproj_tifs.append(os.path.join(DATA_DIR, reproj_file))
@@ -500,6 +509,7 @@ def main():
     collections = [arctic_collection_orig,arctic_collection_reproj,
                     antarctic_collection_orig,antarctic_collection_reproj]
 
+    # Clear the GEE collection, if specified above
     if CLEAR_COLLECTION_FIRST:
         for collection in collections:
             if eeUtil.exists(collection):
