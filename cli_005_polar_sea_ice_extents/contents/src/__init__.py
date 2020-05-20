@@ -12,15 +12,14 @@ import subprocess
 import eeUtil
 import requests
 import time
+import LMIPy as lmi
 
-LOG_LEVEL = logging.INFO
 CLEAR_COLLECTION_FIRST = False
-VERSION = '3.0'
 
 # Sources for nrt data
 #example file url name: ftp://sidads.colorado.edu/DATASETS/NOAA/G02135/north/monthly/geotiff/02_Feb/N_201902_extent_v3.0.tif
 SOURCE_URL_MEASUREMENT = 'ftp://sidads.colorado.edu/DATASETS/NOAA/G02135/{north_or_south}/monthly/geotiff/{month}/{target_file}'
-SOURCE_FILENAME_MEASUREMENT = '{N_or_S}_{date}_extent_v{version}.tif'
+SOURCE_FILENAME_MEASUREMENT = '{N_or_S}_{date}_extent_v3.0.tif'
 LOCAL_FILE = 'cli_005_{arctic_or_antarctic}_sea_ice_{date}.tif'
 
 EE_COLLECTION = 'cli_005_{arctic_or_antarctic}_sea_ice_extent_{orig_or_reproj}'
@@ -42,70 +41,158 @@ MAX_DATES = 12
 DATE_FORMAT = '%Y%m'
 TIMESTEP = {'days': 30}
 
-# environmental variables
-GEE_SERVICE_ACCOUNT = os.environ.get("GEE_SERVICE_ACCOUNT")
-GOOGLE_APPLICATION_CREDENTIALS = os.environ.get(
-    "GOOGLE_APPLICATION_CREDENTIALS")
-GEE_STAGING_BUCKET = os.environ.get("GEE_STAGING_BUCKET")
-GCS_PROJECT = os.environ.get("CLOUDSDK_CORE_PROJECT")
+# Resource Watch dataset API ID for current ice extent
+# Important! Before testing this script:
+# Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
+# Failing to do so will overwrite the last update date on a different dataset on Resource Watch
 DATASET_ID = {
     'cli_005_antarctic_sea_ice_extent_reproj':'e740efec-c673-431a-be2c-b214613f641a',
     'cli_005_arctic_sea_ice_extent_reproj': '484fbba1-ac34-402f-8623-7b1cc9c34f17',
 }
 
-#min antarctic, max antarctic, min arctic, max arctic
+# Resource Watch dataset API ID for historical ice maximums and minimums
+# Important! Before testing this script:
+# Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
+# Failing to do so will overwrite the last update date on a different dataset on Resource Watch
 HIST_DATASET_ID = {
+    # min antarctic
     '/projects/resource-watch-gee/cli_005_historical_sea_ice_extent/cli_005_antarctic_sea_ice_extent_reproj_month02_hist':
         '05fd2614-325b-460a-8b52-3155fa9dd98f',
+    # max antarctic
     '/projects/resource-watch-gee/cli_005_historical_sea_ice_extent/cli_005_antarctic_sea_ice_extent_reproj_month09_hist':
         '7667bdd8-9adb-44de-b51c-d2d26e461af1',
+    # min arctic
     '/projects/resource-watch-gee/cli_005_historical_sea_ice_extent/cli_005_arctic_sea_ice_extent_reproj_month09_hist':
         'a99c5cf5-f141-4bed-a36d-b04c8e171dfa',
+    # max arctic
     '/projects/resource-watch-gee/cli_005_historical_sea_ice_extent/cli_005_arctic_sea_ice_extent_reproj_month03_hist':
         '15a0b176-8313-4859-af90-5c198e50a605'
 }
 
+'''
+FUNCTIONS FOR ALL DATASETS
+
+The functions below must go in every near real-time script.
+Their format should not need to be changed.
+'''
+
+def lastUpdateDate(dataset, date):
+    '''
+    Given a Resource Watch dataset's API ID and a datetime,
+    this function will update the dataset's 'last update date' on the API with the given datetime
+    INPUT   dataset: Resource Watch API dataset ID (string)
+            date: date to set as the 'last update date' for the input dataset (datetime)
+    '''
+    # generate the API url for this dataset
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+    # create headers to send with the request to update the 'last update date'
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+    # create the json data to send in the request
+    body = {
+        "dataLastUpdated": date.isoformat() # date should be a string in the format 'YYYY-MM-DDTHH:MM:SS'
+    }
+    # send the request
+    try:
+        r = requests.patch(url = apiUrl, json = body, headers = headers)
+        logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
+        return 0
+    except Exception as e:
+        logging.error('[lastUpdated]: '+str(e))
+
+'''
+FUNCTIONS FOR RASTER DATASETS
+
+The functions below must go in every near real-time script for a RASTER dataset.
+Their format should not need to be changed.
+'''
+
 def getLastUpdate(dataset):
+    '''
+    Given a Resource Watch dataset's API ID,
+    this function will get the current 'last update date' from the API
+    and return it as a datetime
+    INPUT   dataset: Resource Watch API dataset ID (string)
+    RETURN  lastUpdateDT: current 'last update date' for the input dataset (datetime)
+    '''
+    # generate the API url for this dataset
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{}'.format(dataset)
+    # pull the dataset from the API
     r = requests.get(apiUrl)
+    # find the 'last update date'
     lastUpdateString=r.json()['data']['attributes']['dataLastUpdated']
+    # split this date into two pieces at the seconds decimal so that the datetime module can read it:
+    # ex: '2020-03-11T00:00:00.000Z' will become '2020-03-11T00:00:00' (nofrag) and '000Z' (frag)
     nofrag, frag = lastUpdateString.split('.')
+    # generate a datetime object
     nofrag_dt = datetime.datetime.strptime(nofrag, "%Y-%m-%dT%H:%M:%S")
+    # add back the microseconds to the datetime
     lastUpdateDT = nofrag_dt.replace(microsecond=int(frag[:-1])*1000)
     return lastUpdateDT
 
 def getLayerIDs(dataset):
+    '''
+    Given a Resource Watch dataset's API ID,
+    this function will return a list of all the layer IDs associated with it
+    INPUT   dataset: Resource Watch API dataset ID (string)
+    RETURN  layerIDs: Resource Watch API layer IDs for the input dataset (list of strings)
+    '''
+    # generate the API url for this dataset - this must include the layers
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{}?includes=layer'.format(dataset)
+    # pull the dataset from the API
     r = requests.get(apiUrl)
+    #get a list of all the layers
     layers = r.json()['data']['attributes']['layer']
+    # create an empty list to store the layer IDs
     layerIDs =[]
+    # go through each layer and add its ID to the list
     for layer in layers:
+        # only add layers that have Resource Watch listed as its application
         if layer['attributes']['application']==['rw']:
             layerIDs.append(layer['id'])
     return layerIDs
 
 def flushTileCache(layer_id):
     """
-    This function will delete the layer cache built for a GEE tiler layer.
-     """
+    Given the API ID for a GEE layer on Resource Watch,
+    this function will clear the layer cache.
+    If the cache is not cleared, when you view the dataset on Resource Watch, old and new tiles will be mixed together.
+    INPUT   layer_id: Resource Watch API layer ID (string)
+    """
+    # generate the API url for this layer's cache
     apiUrl = 'http://api.resourcewatch.org/v1/layer/{}/expire-cache'.format(layer_id)
+    # create headers to send with the request to clear the cache
     headers = {
     'Content-Type': 'application/json',
     'Authorization': os.getenv('apiToken')
     }
+
+    # clear the cache for the layer
+    # sometimetimes this fails, so we will try multiple times, if it does
+
+    # specify that we are on the first try
     try_num=1
-    tries=4
+    # specify the maximum number of attempt we will make
+    tries = 4
     while try_num<tries:
         try:
+            # try to delete the cache
             r = requests.delete(url = apiUrl, headers = headers, timeout=1000)
+            # if we get a 200, the cache has been deleted
+            # if we get a 504 (gateway timeout) - the tiles are still being deleted, but it worked
             if r.ok or r.status_code==504:
                 logging.info('[Cache tiles deleted] for {}: status code {}'.format(layer_id, r.status_code))
                 return r.status_code
+            # if we don't get a 200 or 504:
             else:
+                # if we are not on our last try, wait 60 seconds and try to clear the cache again
                 if try_num < (tries-1):
                     logging.info('Cache failed to flush: status code {}'.format(r.status_code))
                     time.sleep(60)
                     logging.info('Trying again.')
+                # if we are on our last try, log that the cache flush failed
                 else:
                     logging.error('Cache failed to flush: status code {}'.format(r.status_code))
                     logging.error('Aborting.')
@@ -113,24 +200,12 @@ def flushTileCache(layer_id):
         except Exception as e:
             logging.error('Failed: {}'.format(e))
 
-def lastUpdateDate(dataset, date):
-   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
-   headers = {
-   'Content-Type': 'application/json',
-   'Authorization': os.getenv('apiToken')
-   }
-   body = {
-       "dataLastUpdated": date.isoformat()
-   }
-   try:
-       r = requests.patch(url = apiUrl, json = body, headers = headers)
-       logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
-       return 0
-   except Exception as e:
-       logging.error('[lastUpdated]: '+str(e))
-###
-## Handling RASTERS
-###
+'''
+FUNCTIONS FOR THIS DATASET
+
+The functions below have been tailored to this specific dataset.
+They should all be checked because their format likely will need to be changed.
+'''
 
 def getAssetName(tif, orig_or_reproj, new_or_hist, arctic_or_antarctic=''):
     '''get asset name from tif name, extract datetime and location'''
@@ -152,8 +227,12 @@ def getAssetName(tif, orig_or_reproj, new_or_hist, arctic_or_antarctic=''):
                         ASSET_NAME.format(arctic_or_antarctic=location, date=date))
     return asset
 
-def getRasterDate(filename):
-    '''get last 8 chrs of filename'''
+def getDate(filename):
+    '''
+    get date from filename (last 6 characters of filename after removing extension)
+    INPUT   filename: file name that ends in a date of the format YYMMDD (string)
+    RETURN  date in the format YYMMDD (string)
+    '''
     return os.path.splitext(os.path.basename(filename))[0][-6:]
 
 def getNewTargetDates(exclude_dates):
@@ -200,7 +279,7 @@ def fetch(url, arctic_or_antarctic, datestring):
     month = format_month(datestring)
     north_or_south = 'north' if (arctic_or_antarctic=='arctic') else 'south'
 
-    target_file = SOURCE_FILENAME_MEASUREMENT.format(N_or_S=north_or_south[0].upper(), date=datestring, version=VERSION)
+    target_file = SOURCE_FILENAME_MEASUREMENT.format(N_or_S=north_or_south[0].upper(), date=datestring)
     _file = url.format(north_or_south=north_or_south,month=month,target_file=target_file)
     filename = LOCAL_FILE.format(arctic_or_antarctic=arctic_or_antarctic,date=datestring)
     try:
@@ -267,7 +346,7 @@ def processNewRasterData(existing_dates, arctic_or_antarctic, new_or_hist, month
     orig_assets = [getAssetName(tif, 'orig', new_or_hist) for tif in orig_tifs]
     reproj_assets = [getAssetName(tif, 'reproj', new_or_hist) for tif in reproj_tifs]
 
-    dates = [getRasterDate(tif) for tif in reproj_tifs]
+    dates = [getDate(tif) for tif in reproj_tifs]
     datestamps = [datetime.datetime.strptime(date, DATE_FORMAT)  # list comprehension/for loop
                   for date in dates]  # returns list of datetime object
     eeUtil.uploadAssets(orig_tifs, orig_assets, GS_PREFIX, datestamps, timeout=3000)
@@ -306,19 +385,110 @@ def deleteExcessAssets(dates, orig_or_reproj, arctic_or_antarctic, max_assets, n
 ###
 
 def get_most_recent_date(collection):
-    existing_assets = checkCreateCollection(collection)  # make image collection if doesn't have one
-    existing_dates = [getRasterDate(a) for a in existing_assets]
+    '''
+    Get most recent date from the data in the GEE collection
+    INPUT   collection: GEE collection to check dates for (string)
+    RETURN  most_recent_date: most recent date in GEE collection (datetime)
+    '''
+    # get list of assets in collection
+    existing_assets = checkCreateCollection(collection)
+    # get a list of strings of dates in the collection
+    existing_dates = [getDate(a) for a in existing_assets]
+    # sort these dates oldest to newest
     existing_dates.sort()
+    # get the most recent date (last in the list) and turn it into a datetime
     most_recent_date = datetime.datetime.strptime(existing_dates[-1], DATE_FORMAT)
     return most_recent_date
 
+def create_layers_new_years(dataset_id, new_value):
+    dataset = lmi.Dataset(dataset_id)  # select the dataset by changing the ID
+
+    layer_to_clone = dataset.layers[0]  # Chose the first layer
+
+    # Gathering the right attributes that need to change
+    name = layer_to_clone.attributes['name']
+    description = layer_to_clone.attributes['description']
+    appConfig = layer_to_clone.attributes['layerConfig']
+    assetId = appConfig['assetId']
+    order = str(appConfig['order'])
+    timeLineLabel = appConfig['timelineLabel']
+
+    # Replace this value with the string you'd like to replace in the attributes
+    replace_string = name[:4]
+
+    name_convention = name.replace(replace_string, '{}')
+    description_convention = description.replace(replace_string, '{}')
+    assetId_convention = assetId.replace(replace_string, '{}')
+    order_convention = order.replace(replace_string, '{}')
+    timeLineLabel_convention = timeLineLabel.replace(replace_string, '{}')
+
+    # Get layer name
+    new_layer_name = name_convention.replace('{}', str(new_value))
+    # If it doesn't, set the new values
+    new_description = description_convention.replace('{}', str(new_value))
+    new_assetId = assetId_convention.replace('{}', str(new_value))
+    new_timeline_label = timeLineLabel_convention.replace('{}', str(new_value))
+    new_order = int(order_convention.replace('{}', str(new_value)))
+    # Clone layer
+    clone_attributes = {
+        'name': new_layer_name,
+        'description': new_description
+    }
+    new_layer = layer_to_clone.clone(token=os.getenv('apiToken')[7:], env='production', layer_params=clone_attributes,
+                                     target_dataset_id=dataset_id)
+    # Replace layer attributes with new values
+    appConfig = new_layer.attributes['layerConfig']
+    appConfig['assetId'] = new_assetId
+    appConfig['order'] = new_order
+    appConfig['timelineLabel'] = new_timeline_label
+    payload = {
+        'layerConfig': {
+            **appConfig
+        }
+    }
+    new_layer = new_layer.update(update_params=payload, token=os.getenv('apiToken')[7:])
+
+def updateResourceWatch():
+    '''
+    This function should update Resource Watch to reflect the new data.
+    This may include updating the 'last update date', flushing the tile cache, and updating any dates on layers
+    '''
+    # update datasets on current ice extents
+    for dataset, id in DATASET_ID.items():
+        # Get the most recent date from the data in the GEE collection
+        most_recent_date = get_most_recent_date(dataset)
+        # Get the current 'last update date' from the dataset on Resource Watch
+        current_date = getLastUpdate(id)
+        # If the most recent date from the GEE collection does not match the 'last update date' on the RW API, update it
+        if current_date != most_recent_date:
+            logging.info('Updating last update date and flushing cache.')
+            # Update dataset's last update date on Resource Watch
+            lastUpdateDate(id, most_recent_date)
+            # get layer ids and flush tile cache for each
+            layer_ids = getLayerIDs(id)
+            for layer_id in layer_ids:
+                flushTileCache(layer_id)
+        # Update the dates on layer legends - TO BE ADDED IN FUTURE
+
+    # update datasets on historical ice maximums and minimums
+    for dataset, id in HIST_DATASET_ID.items():
+        # Get the most recent date from the data in the GEE collection
+        most_recent_date = get_most_recent_date(dataset)
+        # Get the current 'last update date' from the dataset on Resource Watch
+        current_date = getLastUpdate(id)
+        # If the most recent date from the GEE collection does not match the 'last update date' on the RW API, update it
+        if current_date != most_recent_date:
+            logging.info('Updating last update date and flushing cache.')
+            # Update dataset's last update date on Resource Watch
+            lastUpdateDate(id, most_recent_date)
+            # Add new layers if new years of data are available
+            create_layers_new_years(id, most_recent_date.year)
 
 def main():
-    '''Ingest new data into EE and delete old data'''
-    logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
+    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
 
-    ### 1. Initialize eeUtil
+    # Initialize eeUtil
     eeUtil.initJson()
 
     ### 2. Create collection names, clear if desired
@@ -339,23 +509,23 @@ def main():
     arctic_data = collections[0:2]
     arctic_assets_orig = checkCreateCollection(arctic_data[0])
     arctic_assets_reproj = checkCreateCollection(arctic_data[1])
-    arctic_dates_orig = [getRasterDate(a) for a in arctic_assets_orig]
-    arctic_dates_reproj = [getRasterDate(a) for a in arctic_assets_reproj]
+    arctic_dates_orig = [getDate(a) for a in arctic_assets_orig]
+    arctic_dates_reproj = [getDate(a) for a in arctic_assets_reproj]
 
     new_arctic_assets_orig, new_arctic_assets_reproj = processNewRasterData(arctic_dates_reproj, 'arctic', new_or_hist='new')
-    new_arctic_dates_orig = [getRasterDate(a) for a in new_arctic_assets_orig]
-    new_arctic_dates_reproj = [getRasterDate(a) for a in new_arctic_assets_reproj]
+    new_arctic_dates_orig = [getDate(a) for a in new_arctic_assets_orig]
+    new_arctic_dates_reproj = [getDate(a) for a in new_arctic_assets_reproj]
 
     ### 4. Process antarctic data
     antarctic_data = collections[2:]
     antarctic_assets_orig = checkCreateCollection(antarctic_data[0])
     antarctic_assets_reproj = checkCreateCollection(antarctic_data[1])
-    antarctic_dates_orig = [getRasterDate(a) for a in antarctic_assets_orig]
-    antarctic_dates_reproj = [getRasterDate(a) for a in antarctic_assets_reproj]
+    antarctic_dates_orig = [getDate(a) for a in antarctic_assets_orig]
+    antarctic_dates_reproj = [getDate(a) for a in antarctic_assets_reproj]
 
     new_antarctic_assets_orig, new_antarctic_assets_reproj  = processNewRasterData(antarctic_dates_reproj, 'antarctic', new_or_hist='new')
-    new_antarctic_dates_orig = [getRasterDate(a) for a in new_antarctic_assets_orig]
-    new_antarctic_dates_reproj = [getRasterDate(a) for a in new_antarctic_assets_reproj]
+    new_antarctic_dates_orig = [getDate(a) for a in new_antarctic_assets_orig]
+    new_antarctic_dates_reproj = [getDate(a) for a in new_antarctic_assets_reproj]
 
     ### 5. Delete old assets
     e_dates = [arctic_dates_orig, arctic_dates_reproj,
@@ -373,21 +543,6 @@ def main():
         logging.info('Existing {} {} assets: {}, new: {}, max: {}'.format(
             orig_or_reproj, arctic_or_antarctic, len(e), len(n), MAX_DATES))
         deleteExcessAssets(total,orig_or_reproj,arctic_or_antarctic,MAX_DATES,'new')
-
-    ###
-    for dataset, id in DATASET_ID.items():
-        # Get most recent update date
-        most_recent_date = get_most_recent_date(dataset)
-        current_date = getLastUpdate(id)
-
-        if current_date != most_recent_date:
-            logging.info('Updating last update date and flushing cache.')
-            # Update data set's last update date on Resource Watch
-            lastUpdateDate(id, most_recent_date)
-            # get layer ids and flush tile cache for each
-            layer_ids = getLayerIDs(id)
-            for layer_id in layer_ids:
-                flushTileCache(layer_id)
 
     ## Process historical data
     if COLLECT_BACK_HISTORY == True:
@@ -407,23 +562,23 @@ def main():
             arctic_data = collections[0:2]
             arctic_assets_orig = checkCreateCollection(arctic_data[0])
             arctic_assets_reproj = checkCreateCollection(arctic_data[1])
-            arctic_dates_orig = [getRasterDate(a) for a in arctic_assets_orig]
-            arctic_dates_reproj = [getRasterDate(a) for a in arctic_assets_reproj]
+            arctic_dates_orig = [getDate(a) for a in arctic_assets_orig]
+            arctic_dates_reproj = [getDate(a) for a in arctic_assets_reproj]
 
             new_arctic_assets_orig, new_arctic_assets_reproj = processNewRasterData(arctic_dates_orig, 'arctic', new_or_hist='hist', month=month)
-            new_arctic_dates_orig = [getRasterDate(a) for a in new_arctic_assets_orig]
-            new_arctic_dates_reproj = [getRasterDate(a) for a in new_arctic_assets_reproj]
+            new_arctic_dates_orig = [getDate(a) for a in new_arctic_assets_orig]
+            new_arctic_dates_reproj = [getDate(a) for a in new_arctic_assets_reproj]
 
             ### 4. Process antarctic data
             antarctic_data = collections[2:]
             antarctic_assets_orig = checkCreateCollection(antarctic_data[0])
             antarctic_assets_reproj = checkCreateCollection(antarctic_data[1])
-            antarctic_dates_orig = [getRasterDate(a) for a in antarctic_assets_orig]
-            antarctic_dates_reproj = [getRasterDate(a) for a in antarctic_assets_reproj]
+            antarctic_dates_orig = [getDate(a) for a in antarctic_assets_orig]
+            antarctic_dates_reproj = [getDate(a) for a in antarctic_assets_reproj]
 
             new_antarctic_assets_orig, new_antarctic_assets_reproj = processNewRasterData(antarctic_dates_orig, 'antarctic', new_or_hist='hist', month=month)
-            new_antarctic_dates_orig = [getRasterDate(a) for a in new_antarctic_assets_orig]
-            new_antarctic_dates_reproj = [getRasterDate(a) for a in new_antarctic_assets_reproj]
+            new_antarctic_dates_orig = [getDate(a) for a in new_antarctic_assets_orig]
+            new_antarctic_dates_reproj = [getDate(a) for a in new_antarctic_assets_reproj]
 
             ### 5. Delete old assets
             e_dates = [arctic_dates_orig, arctic_dates_reproj,
@@ -443,10 +598,7 @@ def main():
                 #uncomment if we want to put a limit on how many years of historical data we have
                 #deleteExcessAssets(total, orig_or_reproj, arctic_or_antarctic, MAX_DATES,'hist')
 
-        ###
-        for dataset, id in HIST_DATASET_ID.items():
-            # Get most recent update date
-            most_recent_date = get_most_recent_date(dataset)
-            lastUpdateDate(id, most_recent_date)
+    # Update Resource Watch
+    updateResourceWatch()
 
     logging.info('SUCCESS')
