@@ -290,7 +290,7 @@ def fetch(url, arctic_or_antarctic, datestring):
 
     target_file = SOURCE_FILENAME_MEASUREMENT.format(N_or_S=north_or_south[0].upper(), date=datestring)
     _file = url.format(north_or_south=north_or_south,month=month,target_file=target_file)
-    filename = getFilename(arctic_or_antarctic, date)
+    filename = getFilename(arctic_or_antarctic=arctic_or_antarctic, date=datestring)
     try:
         with closing(urllib.request.urlopen(_file)) as r:
             with open(os.path.join(DATA_DIR, filename), 'wb') as f:
