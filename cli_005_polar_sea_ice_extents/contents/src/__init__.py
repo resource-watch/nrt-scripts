@@ -29,16 +29,17 @@ DATA_DIR = 'data'
 # name of folder to store data in Google Cloud Storage
 GS_FOLDER = 'cli_005_polar_sea_ice_extent'
 
-# name of collection in GEE where we will upload the final data
+# name of collection in GEE where we will upload the final data for current sea ice extent
 EE_COLLECTION = 'cli_005_{arctic_or_antarctic}_sea_ice_extent_{orig_or_reproj}'
+# name of collection in GEE where we will upload the final data for historical min/max sea ice
+EE_COLLECTION_BY_MONTH = '/projects/resource-watch-gee/cli_005_historical_sea_ice_extent/cli_005_{arctic_or_antarctic}_sea_ice_extent_{orig_or_reproj}_month{month}_hist'
 
 # filename format for GEE
 FILENAME = 'cli_005_{arctic_or_antarctic}_sea_ice_{date}'
 
-# keep historical record of sea ice in specified months (by month number, ex: 3=March)
+# Which months do we want to keep historical annual records for? (by month number, ex: 3=March)
+# we will keep the months in which sea ice reaches a max or min in either the norther or southern hemisphere
 HISTORICAL_MONTHS = [2,3,9]
-
-EE_COLLECTION_BY_MONTH = '/projects/resource-watch-gee/cli_005_historical_sea_ice_extent/cli_005_{arctic_or_antarctic}_sea_ice_extent_{orig_or_reproj}_month{month}_hist'
 
 # how many assets can be stored in each GEE collection before the oldest ones are deleted?
 MAX_ASSETS = 12
@@ -46,7 +47,7 @@ MAX_ASSETS = 12
 # format of date (used in both the source data files and GEE)
 DATE_FORMAT = '%Y%m'
 
-# Resource Watch dataset API ID for current ice extent
+# Resource Watch dataset API ID for current sea ice extent
 # Important! Before testing this script:
 # Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
 # Failing to do so will overwrite the last update date on a different dataset on Resource Watch
@@ -55,7 +56,7 @@ DATASET_ID = {
     'cli_005_arctic_sea_ice_extent_reproj': '484fbba1-ac34-402f-8623-7b1cc9c34f17',
 }
 
-# Resource Watch dataset API ID for historical ice maximums and minimums
+# Resource Watch dataset API ID for historical sea ice maximums and minimums
 # Important! Before testing this script:
 # Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
 # Failing to do so will overwrite the last update date on a different dataset on Resource Watch
@@ -234,7 +235,7 @@ def getAssetName(tif, orig_or_reproj, new_or_hist, arctic_or_antarctic=''):
     # pull the date from the tif file name
     date = getDate(tif)
 
-    # create an asset name, based on if this asset will be used in the historical max/min data or current extent data
+    # create an asset name, based on if this asset will be used in the historical sea ice max/min data or current extent data
     if new_or_hist=='new':
         asset = os.path.join(EE_COLLECTION.format(arctic_or_antarctic=location, orig_or_reproj=orig_or_reproj),
                         FILENAME.format(arctic_or_antarctic=location, date=date))
@@ -247,7 +248,8 @@ def getAssetName(tif, orig_or_reproj, new_or_hist, arctic_or_antarctic=''):
 def getFilename(arctic_or_antarctic, date):
     '''
     get tif filename to save source file as
-    INPUT   date: date in the format of the DATE_FORMAT variable (string)
+    INPUT   arctic_or_antarctic: is this file name for the arctic or antarctic data? (string)
+            date: date in the format of the DATE_FORMAT variable (string)
     RETURN  file name to save tif from source under (string)
     '''
     return '{}.tif'.format(FILENAME.format(arctic_or_antarctic=arctic_or_antarctic,date=date))
@@ -261,45 +263,78 @@ def getDate(filename):
     return os.path.splitext(os.path.basename(filename))[0][-6:]
 
 def getNewTargetDates(exclude_dates):
-    '''Get new dates excluding existing'''
+    '''
+    Get new dates we want to try to fetch data for
+    INPUT   exclude_dates: list of dates that we already have in GEE, in the format of the DATE_FORMAT variable (list of strings)
+    RETURN  new_dates: list of new dates we want to try to get, in the format of the DATE_FORMAT variable (list of strings)
+    '''
+    # create empty list to store dates we want to fetch
     new_dates = []
+    # start with the fifteenth of the current month
     date = datetime.date.today()
     date = date.replace(day=15)
     for i in range(MAX_ASSETS):
-        date = date - relativedelta(months=1) #subtract 1 month from data
+        # go back one month at a time
+        date = date - relativedelta(months=1)
+        # generate a string from the date
         datestr = date.strftime(DATE_FORMAT)
+        # if the date string is not the list of dates we already have, add it to the list of new dates to try and fetch
         if datestr not in exclude_dates:
             new_dates.append(datestr)
     return new_dates
 
 def getHistoricalTargetDates(exclude_dates, month):
-    '''Get new dates excluding existing'''
+    '''
+    Get new dates we want to try to fetch data for
+    INPUT   exclude_dates: list of dates that we already have in GEE, in the format of the DATE_FORMAT variable (list of strings)
+            month:  month we are processing historical data for (integer)
+    RETURN  new_dates: list of new dates we want to try to get, in the format of the DATE_FORMAT variable (list of strings)
+    '''
+    # create empty list to store dates we want to fetch
     new_dates = []
+    # start with the fifteenth of the current month
     date = datetime.date.today()
     date = date.replace(day=15)
     date = date - relativedelta(months=1)  # subtract 1 month from data
 
-    #earliest year of data is 1979
+    # go back each year through the earliest year of data (1979)
     for i in range(date.year-1979):
+        # if the month we are checking for data in has not happened yet this year,
+        # start with last year's data
         if month>date.month:
-            #if the month we are checking for data in has not happened yet this year,
-            #start with last year's data
             date -= relativedelta(years=1)
+        # go to the 15th of the month we want to check data for
         date = date.replace(day=15).replace(month=month)
+        # generate a string from the date
         datestr = date.strftime(DATE_FORMAT)
+        # if the date string is not the list of dates we already have, add it to the list of new dates to try and fetch
         if datestr not in exclude_dates:
             new_dates.append(datestr)
+        # go back one year
         date -= relativedelta(years=1)
     return new_dates
 
 def format_month(datestring):
+    '''
+    get the name of the month for the date we are processing data for, in the format used in the source filename
+    INPUT   datestring: date we want to fetch in the format of the DATE_FORMAT variable (string)
+    RETURN  month naming convention used in the source data file for current date (string)
+    '''
+    # pull the month from the input date string
     month = datestring[-2:]
+    # find the corresponding month name to use in the source file name
     names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     name = names[int(month)-1]
     return('_'.join([month, name]))
 
 def fetch(url, arctic_or_antarctic, datestring):
-    '''Fetch files by datestamp'''
+    '''
+    Fetch files by datestamp and region
+    INPUT   url: url where we can find data file to download (string)
+            arctic_or_antarctic: is the file we are fetching for the arctic or antarctic data? (string)
+            datestring: date we want to fetch in the format of the DATE_FORMAT variable (string)
+    RETURN  filename: file name for tif that has been downloaded (strings)
+    '''
     # New data may not yet be posted
     month = format_month(datestring)
     north_or_south = 'north' if (arctic_or_antarctic=='arctic') else 'south'
@@ -318,18 +353,31 @@ def fetch(url, arctic_or_antarctic, datestring):
     return filename
 
 def reproject(filename, s_srs='EPSG:4326', extent='-180 -89.75 180 89.75'):
+    '''
+    reproject tif file from source
+    INPUT   filename: tif file downloaded from source (string)
+            s_srs: spatial reference of source data file (string)
+            extent: extent of output file to be created (string)
+    RETURN  new_filename: name of reprojected tif file (string)
+    '''
+    # create a filename to save the reprojected tif file under
     tmp_filename = ''.join(['reprojected_',filename])
+    # reproject the data
     cmd = ' '.join(['gdalwarp','-overwrite','-s_srs',s_srs,'-t_srs','EPSG:4326',
                     '-te',extent,'-multi','-wo','NUM_THREADS=val/ALL_CPUS',
                     os.path.join(DATA_DIR, filename),
                     os.path.join(DATA_DIR, tmp_filename)])
     subprocess.check_output(cmd, shell=True)
 
+    # create a filename to save compressed data under
     new_filename = ''.join(['compressed_reprojected_',filename])
+    # compress the data
     cmd = ' '.join(['gdal_translate','-co','COMPRESS=LZW','-stats',
                     os.path.join(DATA_DIR, tmp_filename),
                     os.path.join(DATA_DIR, new_filename)])
     subprocess.check_output(cmd, shell=True)
+
+    # remove the intermediary files that we don't need anymore
     os.remove(os.path.join(DATA_DIR, tmp_filename))
     os.remove(os.path.join(DATA_DIR, tmp_filename+'.aux.xml'))
 
@@ -337,19 +385,22 @@ def reproject(filename, s_srs='EPSG:4326', extent='-180 -89.75 180 89.75'):
     return new_filename
 
 def processNewData(existing_dates, arctic_or_antarctic, new_or_hist, month=None):
-    '''fetch, process, upload, and clean new data'''
-    # 1. Determine which years to read from the ftp file
+    '''
+    fetch, process, upload, and clean new data
+    INPUT   existing_dates: list of dates we already have in GEE, in the format of the DATE_FORMAT variable (list of strings)
+            arctic_or_antarctic: are we processing the arctic or antarctic data? (string)
+            new_or_hist: are we processing historical max/min sea data or current extent data? (string)
+            month: optional (use if processing historical data), month we are processing data for (integer)
+    RETURN  orig_assets: list of original assets that have been uploaded to GEE (list of strings)
+            reproj_assets: list of reprojected assets that have been uploaded to GEE (list of strings)
+    '''
+    # Get list of new dates we want to try to fetch data for
     if new_or_hist=='new':
-        target_dates = getNewTargetDates(existing_dates) or []
+        target_dates = getNewTargetDates(existing_dates)
     elif new_or_hist=='hist':
-        target_dates = getHistoricalTargetDates(existing_dates, month=month) or []
-    logging.debug(target_dates)
+        target_dates = getHistoricalTargetDates(existing_dates, month=month)
 
-    # 2. Fetch datafile
-    logging.info('Fetching {} files'.format(arctic_or_antarctic))
-    orig_tifs = []
-    reproj_tifs = []
-
+    # define spatial reference and geographic extent of source data files
     if arctic_or_antarctic == 'arctic':
         s_srs = 'EPSG:3411'
         extent = '-180 50 180 89.75'
@@ -357,27 +408,38 @@ def processNewData(existing_dates, arctic_or_antarctic, new_or_hist, month=None)
         s_srs = 'EPSG:3412'
         extent = '-180 -89.75 180 -50'
 
+    # create empty lists to store original and reprojected tifs to upload to GEE
+    orig_tifs = []
+    reproj_tifs = []
+
+    # Fetch new files
+    logging.info('Fetching files')
     for date in target_dates:
-        if date not in existing_dates:
-            orig_file = fetch(SOURCE_URL, arctic_or_antarctic, date)
-            reproj_file = reproject(orig_file, s_srs=s_srs, extent=extent)
-            orig_tifs.append(os.path.join(DATA_DIR, orig_file))
-            reproj_tifs.append(os.path.join(DATA_DIR, reproj_file))
-            logging.debug('New files: orig {}, reproj {}'.format(orig_file, reproj_file))
+        # fetch files
+        orig_file = fetch(SOURCE_URL, arctic_or_antarctic, date)
+        orig_tifs.append(os.path.join(DATA_DIR, orig_file))
+        # reproject files
+        reproj_file = reproject(orig_file, s_srs=s_srs, extent=extent)
+        reproj_tifs.append(os.path.join(DATA_DIR, reproj_file))
 
     # 3. Upload new files
     logging.info('Uploading {} files'.format(arctic_or_antarctic))
 
+    # Get a list of the names we want to use for the assets once we upload the files to GEE
     orig_assets = [getAssetName(tif, 'orig', new_or_hist) for tif in orig_tifs]
     reproj_assets = [getAssetName(tif, 'reproj', new_or_hist) for tif in reproj_tifs]
 
+    # Get a list of the dates we have to upload from the tif file names
     dates = [getDate(tif) for tif in reproj_tifs]
-    datestamps = [datetime.datetime.strptime(date, DATE_FORMAT)  # list comprehension/for loop
+    # Get a list of datetimes from these dates for each of the dates we are uploading
+    datestamps = [datetime.datetime.strptime(date, DATE_FORMAT)
                   for date in dates]  # returns list of datetime object
+    # Upload new files (tifs) to GEE
     eeUtil.uploadAssets(orig_tifs, orig_assets, GS_FOLDER, datestamps, timeout=3000)
     eeUtil.uploadAssets(reproj_tifs, reproj_assets, GS_FOLDER, datestamps, timeout=3000)
 
-    # 4. Delete local files
+    # Delete local files
+    logging.info('Cleaning local files')
     for tif in orig_tifs:
         logging.debug('Deleting: {}'.format(tif))
         os.remove(tif)
@@ -607,7 +669,8 @@ def main():
     '''
     for month in HISTORICAL_MONTHS:
         logging.info('Processing historical data for month {}'.format(month))
-        ### 2. Create collection names, clear if desired
+
+        # Create collection names
         arctic_collection_orig = EE_COLLECTION_BY_MONTH.format(arctic_or_antarctic='arctic', orig_or_reproj='orig', month="{:02d}".format(month))
         arctic_collection_reproj = EE_COLLECTION_BY_MONTH.format(arctic_or_antarctic='arctic', orig_or_reproj='reproj', month="{:02d}".format(month))
         antarctic_collection_orig = EE_COLLECTION_BY_MONTH.format(arctic_or_antarctic='antarctic', orig_or_reproj='orig', month="{:02d}".format(month))
@@ -623,7 +686,7 @@ def main():
 
         # Fetch, process, and upload the new arctic data
         new_arctic_assets_orig, new_arctic_assets_reproj = processNewData(arctic_dates_reproj, 'arctic',
-                                                                          new_or_hist='new')
+                                                                          new_or_hist=='hist', month=month)
         # Get the dates of the new data we have added to each collection
         new_arctic_dates_orig = [getDate(a) for a in new_arctic_assets_orig]
         new_arctic_dates_reproj = [getDate(a) for a in new_arctic_assets_reproj]
@@ -641,7 +704,7 @@ def main():
 
         # Fetch, process, and upload the new antarctic data
         new_antarctic_assets_orig, new_antarctic_assets_reproj = processNewData(antarctic_dates_reproj, 'antarctic',
-                                                                                new_or_hist='new')
+                                                                                new_or_hist=='hist', month=month)
         # Get the dates of the new data we have added to each collection
         new_antarctic_dates_orig = [getDate(a) for a in new_antarctic_assets_orig]
         new_antarctic_dates_reproj = [getDate(a) for a in new_antarctic_assets_reproj]
