@@ -37,13 +37,13 @@ FILENAME = 'cli_005_{arctic_or_antarctic}_sea_ice_{date}'
 
 # keep historical record of sea ice in specified months (by month number, ex: 3=March)
 HISTORICAL_MONTHS = [2,3,9]
-# if COLLECT_BACK_HISTORY = True, goes back for specified months to get historical data
-#set this to true any time you add a new month to your history
-COLLECT_BACK_HISTORY = True
+
 EE_COLLECTION_BY_MONTH = '/projects/resource-watch-gee/cli_005_historical_sea_ice_extent/cli_005_{arctic_or_antarctic}_sea_ice_extent_{orig_or_reproj}_month{month}_hist'
 
-# Times two because of North / South parallels
-MAX_DATES = 12
+# how many assets can be stored in each GEE collection before the oldest ones are deleted?
+MAX_ASSETS = 12
+
+# format of date (used in both the source data files and GEE)
 DATE_FORMAT = '%Y%m'
 
 # Resource Watch dataset API ID for current ice extent
@@ -255,8 +255,8 @@ def getFilename(arctic_or_antarctic, date):
 def getDate(filename):
     '''
     get date from filename (last 6 characters of filename after removing extension)
-    INPUT   filename: file name that ends in a date of the format YYMMDD (string)
-    RETURN  date in the format YYMMDD (string)
+    INPUT   filename: file name that ends in a date of the format YYYYDD (string)
+    RETURN  date in the format YYYYDD (string)
     '''
     return os.path.splitext(os.path.basename(filename))[0][-6:]
 
@@ -265,7 +265,7 @@ def getNewTargetDates(exclude_dates):
     new_dates = []
     date = datetime.date.today()
     date = date.replace(day=15)
-    for i in range(MAX_DATES):
+    for i in range(MAX_ASSETS):
         date = date - relativedelta(months=1) #subtract 1 month from data
         datestr = date.strftime(DATE_FORMAT)
         if datestr not in exclude_dates:
@@ -336,7 +336,7 @@ def reproject(filename, s_srs='EPSG:4326', extent='-180 -89.75 180 89.75'):
     logging.debug('Reprojected {} to {}'.format(filename, new_filename))
     return new_filename
 
-def processNewRasterData(existing_dates, arctic_or_antarctic, new_or_hist, month=None):
+def processNewData(existing_dates, arctic_or_antarctic, new_or_hist, month=None):
     '''fetch, process, upload, and clean new data'''
     # 1. Determine which years to read from the ftp file
     if new_or_hist=='new':
@@ -472,7 +472,7 @@ def create_layers_new_years(dataset_id, new_year):
     }
     new_layer = layer_to_clone.clone(token=os.getenv('apiToken')[7:], env='production', layer_params=clone_attributes,
                                      target_dataset_id=dataset_id)
-    
+
     # Replace layer attributes with new values
     appConfig = new_layer.attributes['layerConfig']
     appConfig['assetId'] = new_assetId
@@ -528,113 +528,126 @@ def main():
     # Initialize eeUtil
     eeUtil.initJson()
 
-    ### 2. Create collection names, clear if desired
+    '''
+    Process current sea ice extent data
+    '''
+    # Create collection names
     arctic_collection_orig = EE_COLLECTION.format(arctic_or_antarctic='arctic', orig_or_reproj='orig')
     arctic_collection_reproj = EE_COLLECTION.format(arctic_or_antarctic='arctic', orig_or_reproj='reproj')
     antarctic_collection_orig = EE_COLLECTION.format(arctic_or_antarctic='antarctic', orig_or_reproj='orig')
     antarctic_collection_reproj = EE_COLLECTION.format(arctic_or_antarctic='antarctic', orig_or_reproj='reproj')
 
-    collections = [arctic_collection_orig,arctic_collection_reproj,
-                    antarctic_collection_orig,antarctic_collection_reproj]
-
-    # Clear the GEE collection, if specified above
+    # Clear the GEE collections, if specified above
     if CLEAR_COLLECTION_FIRST:
+        # Put collection names into a list to loop through for processing
+        collections = [arctic_collection_orig, arctic_collection_reproj,
+                       antarctic_collection_orig, antarctic_collection_reproj]
         for collection in collections:
             if eeUtil.exists(collection):
                 eeUtil.removeAsset(collection, recursive=True)
 
-    ### 3. Process arctic data
-    arctic_data = collections[0:2]
-    arctic_assets_orig = checkCreateCollection(arctic_data[0])
-    arctic_assets_reproj = checkCreateCollection(arctic_data[1])
+    # Check if arctic collections exist, create them if they do not
+    # If they exist return the list of assets currently in the collections
+    arctic_assets_orig = checkCreateCollection(arctic_collection_orig)
+    arctic_assets_reproj = checkCreateCollection(arctic_collection_reproj)
+    # Get a list of the dates of data we already have in each collection
     arctic_dates_orig = [getDate(a) for a in arctic_assets_orig]
     arctic_dates_reproj = [getDate(a) for a in arctic_assets_reproj]
 
-    new_arctic_assets_orig, new_arctic_assets_reproj = processNewRasterData(arctic_dates_reproj, 'arctic', new_or_hist='new')
+    # Fetch, process, and upload the new arctic data
+    new_arctic_assets_orig, new_arctic_assets_reproj = processNewData(arctic_dates_reproj, 'arctic', new_or_hist='new')
+    # Get the dates of the new data we have added to each collection
     new_arctic_dates_orig = [getDate(a) for a in new_arctic_assets_orig]
     new_arctic_dates_reproj = [getDate(a) for a in new_arctic_assets_reproj]
 
-    ### 4. Process antarctic data
-    antarctic_data = collections[2:]
-    antarctic_assets_orig = checkCreateCollection(antarctic_data[0])
-    antarctic_assets_reproj = checkCreateCollection(antarctic_data[1])
+    logging.info('Previous Arctic assets: {}, new: {}, max: {}'.format(
+        len(arctic_dates_reproj), len(new_arctic_dates_reproj), MAX_ASSETS))
+
+    # Check if antarctic collections exists, create them if they do not
+    # If they exist return the list of assets currently in the collections
+    antarctic_assets_orig = checkCreateCollection(antarctic_collection_orig)
+    antarctic_assets_reproj = checkCreateCollection(antarctic_collection_reproj)
+    # Get a list of the dates of data we already have in each collection
     antarctic_dates_orig = [getDate(a) for a in antarctic_assets_orig]
     antarctic_dates_reproj = [getDate(a) for a in antarctic_assets_reproj]
 
-    new_antarctic_assets_orig, new_antarctic_assets_reproj  = processNewRasterData(antarctic_dates_reproj, 'antarctic', new_or_hist='new')
+    # Fetch, process, and upload the new antarctic data
+    new_antarctic_assets_orig, new_antarctic_assets_reproj  = processNewData(antarctic_dates_reproj, 'antarctic', new_or_hist='new')
+    # Get the dates of the new data we have added to each collection
     new_antarctic_dates_orig = [getDate(a) for a in new_antarctic_assets_orig]
     new_antarctic_dates_reproj = [getDate(a) for a in new_antarctic_assets_reproj]
 
-    ### 5. Delete old assets
+    logging.info('Previous Antarctic assets: {}, new: {}, max: {}'.format(
+        len(antarctic_dates_reproj), len(new_antarctic_dates_reproj), MAX_ASSETS))
+
+    # Create a list of each collection of old asset dates
     e_dates = [arctic_dates_orig, arctic_dates_reproj,
                      antarctic_dates_orig, antarctic_dates_reproj]
+    # Create a list each collection of new asset dates
     n_dates = [new_arctic_dates_orig, new_arctic_dates_reproj,
                 new_antarctic_dates_orig, new_antarctic_dates_reproj]
 
+    # Loop through each processed data collection and delete the excess assets
     for i in range(4):
+        # determine if we are deleting original data or reprojected data
         orig_or_reproj = 'orig' if i%2==0 else 'reproj'
+        # determine if we are deleting arctic data or antarctic data
         arctic_or_antarctic = 'arctic' if i < 2 else 'antarctic'
+        # get a list of the existing dates for this collection
         e = e_dates[i]
+        # get a list of the new dates for this collection
         n = n_dates[i]
+        # get a list of all the dates now in the collection
         total = e + n
+        # delete any excess assets
+        deleteExcessAssets(total,orig_or_reproj,arctic_or_antarctic,MAX_ASSETS,'new')
 
-        logging.info('Existing {} {} assets: {}, new: {}, max: {}'.format(
-            orig_or_reproj, arctic_or_antarctic, len(e), len(n), MAX_DATES))
-        deleteExcessAssets(total,orig_or_reproj,arctic_or_antarctic,MAX_DATES,'new')
+    '''
+    Process historical sea ice max/min data
+    '''
+    for month in HISTORICAL_MONTHS:
+        logging.info('Processing historical data for month {}'.format(month))
+        ### 2. Create collection names, clear if desired
+        arctic_collection_orig = EE_COLLECTION_BY_MONTH.format(arctic_or_antarctic='arctic', orig_or_reproj='orig', month="{:02d}".format(month))
+        arctic_collection_reproj = EE_COLLECTION_BY_MONTH.format(arctic_or_antarctic='arctic', orig_or_reproj='reproj', month="{:02d}".format(month))
+        antarctic_collection_orig = EE_COLLECTION_BY_MONTH.format(arctic_or_antarctic='antarctic', orig_or_reproj='orig', month="{:02d}".format(month))
+        antarctic_collection_reproj = EE_COLLECTION_BY_MONTH.format(arctic_or_antarctic='antarctic', orig_or_reproj='reproj', month="{:02d}".format(month))
 
-    ## Process historical data
-    if COLLECT_BACK_HISTORY == True:
-        for month in HISTORICAL_MONTHS:
-            logging.info('Processing historical data for month {}'.format(month))
-            ### 2. Create collection names, clear if desired
-            arctic_collection_orig = EE_COLLECTION_BY_MONTH.format(arctic_or_antarctic='arctic', orig_or_reproj='orig', month="{:02d}".format(month))
-            arctic_collection_reproj = EE_COLLECTION_BY_MONTH.format(arctic_or_antarctic='arctic', orig_or_reproj='reproj', month="{:02d}".format(month))
-            antarctic_collection_orig = EE_COLLECTION_BY_MONTH.format(arctic_or_antarctic='antarctic', orig_or_reproj='orig', month="{:02d}".format(month))
-            antarctic_collection_reproj = EE_COLLECTION_BY_MONTH.format(arctic_or_antarctic='antarctic', orig_or_reproj='reproj', month="{:02d}".format(month))
+        # Check if arctic collections exist, create them if they do not
+        # If they exist return the list of assets currently in the collections
+        arctic_assets_orig = checkCreateCollection(arctic_collection_orig)
+        arctic_assets_reproj = checkCreateCollection(arctic_collection_reproj)
+        # Get a list of the dates of data we already have in each collection
+        arctic_dates_orig = [getDate(a) for a in arctic_assets_orig]
+        arctic_dates_reproj = [getDate(a) for a in arctic_assets_reproj]
 
-            collections = [arctic_collection_orig, arctic_collection_reproj,
-                           antarctic_collection_orig, antarctic_collection_reproj]
+        # Fetch, process, and upload the new arctic data
+        new_arctic_assets_orig, new_arctic_assets_reproj = processNewData(arctic_dates_reproj, 'arctic',
+                                                                          new_or_hist='new')
+        # Get the dates of the new data we have added to each collection
+        new_arctic_dates_orig = [getDate(a) for a in new_arctic_assets_orig]
+        new_arctic_dates_reproj = [getDate(a) for a in new_arctic_assets_reproj]
 
+        logging.info('Previous historical Arctic assets: {}, new: {}, max: {}'.format(
+            len(arctic_dates_reproj), len(new_arctic_dates_reproj), MAX_ASSETS))
 
-            ### 3. Process arctic data
-            arctic_data = collections[0:2]
-            arctic_assets_orig = checkCreateCollection(arctic_data[0])
-            arctic_assets_reproj = checkCreateCollection(arctic_data[1])
-            arctic_dates_orig = [getDate(a) for a in arctic_assets_orig]
-            arctic_dates_reproj = [getDate(a) for a in arctic_assets_reproj]
+        # Check if antarctic collections exists, create them if they do not
+        # If they exist return the list of assets currently in the collections
+        antarctic_assets_orig = checkCreateCollection(antarctic_collection_orig)
+        antarctic_assets_reproj = checkCreateCollection(antarctic_collection_reproj)
+        # Get a list of the dates of data we already have in each collection
+        antarctic_dates_orig = [getDate(a) for a in antarctic_assets_orig]
+        antarctic_dates_reproj = [getDate(a) for a in antarctic_assets_reproj]
 
-            new_arctic_assets_orig, new_arctic_assets_reproj = processNewRasterData(arctic_dates_orig, 'arctic', new_or_hist='hist', month=month)
-            new_arctic_dates_orig = [getDate(a) for a in new_arctic_assets_orig]
-            new_arctic_dates_reproj = [getDate(a) for a in new_arctic_assets_reproj]
+        # Fetch, process, and upload the new antarctic data
+        new_antarctic_assets_orig, new_antarctic_assets_reproj = processNewData(antarctic_dates_reproj, 'antarctic',
+                                                                                new_or_hist='new')
+        # Get the dates of the new data we have added to each collection
+        new_antarctic_dates_orig = [getDate(a) for a in new_antarctic_assets_orig]
+        new_antarctic_dates_reproj = [getDate(a) for a in new_antarctic_assets_reproj]
 
-            ### 4. Process antarctic data
-            antarctic_data = collections[2:]
-            antarctic_assets_orig = checkCreateCollection(antarctic_data[0])
-            antarctic_assets_reproj = checkCreateCollection(antarctic_data[1])
-            antarctic_dates_orig = [getDate(a) for a in antarctic_assets_orig]
-            antarctic_dates_reproj = [getDate(a) for a in antarctic_assets_reproj]
-
-            new_antarctic_assets_orig, new_antarctic_assets_reproj = processNewRasterData(antarctic_dates_orig, 'antarctic', new_or_hist='hist', month=month)
-            new_antarctic_dates_orig = [getDate(a) for a in new_antarctic_assets_orig]
-            new_antarctic_dates_reproj = [getDate(a) for a in new_antarctic_assets_reproj]
-
-            ### 5. Delete old assets
-            e_dates = [arctic_dates_orig, arctic_dates_reproj,
-                       antarctic_dates_orig, antarctic_dates_reproj]
-            n_dates = [new_arctic_dates_orig, new_arctic_dates_reproj,
-                       new_antarctic_dates_orig, new_antarctic_dates_reproj]
-
-            for i in range(4):
-                orig_or_reproj = 'orig' if i % 2 == 0 else 'reproj'
-                arctic_or_antarctic = 'arctic' if i < 2 else 'antarctic'
-                e = e_dates[i]
-                n = n_dates[i]
-                total = e + n
-
-                logging.info('Existing {} {} assets: {}, new: {}'.format(
-                    orig_or_reproj, arctic_or_antarctic, len(e), len(n)))
-                #uncomment if we want to put a limit on how many years of historical data we have
-                #deleteExcessAssets(total, orig_or_reproj, arctic_or_antarctic, MAX_DATES,'hist')
+        logging.info('Previous historical Antarctic assets: {}, new: {}, max: {}'.format(
+            len(antarctic_dates_reproj), len(new_antarctic_dates_reproj), MAX_ASSETS))
 
     # Update Resource Watch
     updateResourceWatch()

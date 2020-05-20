@@ -455,7 +455,8 @@ def main():
 
     # Check if collection exists, create it if it does not
     # If it exists return the list of assets currently in the collection
-    existing_assets = checkCreateCollection(EE_COLLECTION) 
+    existing_assets = checkCreateCollection(EE_COLLECTION)
+    # Get a list of the dates of data we already have in the collection
     existing_dates = [getDate(a) for a in existing_assets]
 
     # Fetch, process, and upload the new data
