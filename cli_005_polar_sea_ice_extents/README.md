@@ -3,9 +3,7 @@ This file describes the near real-time script that retrieves and processes the [
 * [Arctic Sea Ice Extent](https://resourcewatch.org/data/explore/cli_005b_Arctic-Sea-Ice)
 * [Antarctic Sea Ice Extent](https://resourcewatch.org/data/explore/cli_005a_Antarctic-Sea-Ice)
 
-{Describe how the original data came from the source.}
-
-{Describe the steps used to process the data, e.g., "convert variable X from the original netcdf file to a tif to upload to Google Earth Engine."}
+This data is provided by the source as tif files. These files are reprojected into the EPSG:4326 spatial reference and uploaded to Google Earth Engine.
 
 Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/cli_005_polar_sea_ice_extents/contents/src/__init__.py) for more details on this processing.
 
