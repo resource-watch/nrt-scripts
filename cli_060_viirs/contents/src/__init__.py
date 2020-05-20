@@ -79,10 +79,33 @@ The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
 
+def getLastUpdate(dataset):
+    '''
+    Given a Resource Watch dataset's API ID,
+    this function will get the current 'last update date' from the API
+    and return it as a datetime
+    INPUT   dataset: Resource Watch API dataset ID (string)
+    RETURN  lastUpdateDT: current 'last update date' for the input dataset (datetime)
+    '''
+    # generate the API url for this dataset
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{}'.format(dataset)
+    # pull the dataset from the API
+    r = requests.get(apiUrl)
+    # find the 'last update date'
+    lastUpdateString=r.json()['data']['attributes']['dataLastUpdated']
+    # split this date into two pieces at the seconds decimal so that the datetime module can read it:
+    # ex: '2020-03-11T00:00:00.000Z' will become '2020-03-11T00:00:00' (nofrag) and '000Z' (frag)
+    nofrag, frag = lastUpdateString.split('.')
+    # generate a datetime object
+    nofrag_dt = datetime.datetime.strptime(nofrag, "%Y-%m-%dT%H:%M:%S")
+    # add back the microseconds to the datetime
+    lastUpdateDT = nofrag_dt.replace(microsecond=int(frag[:-1])*1000)
+    return lastUpdateDT
+
 def updateResourceWatch(most_recent_date):
     '''
     This function should update Resource Watch to reflect the new data.
-    This may include updating the 'last update date', flushing the tile cache, and updating any dates on layers
+    This may include updating the 'last update date' and updating any dates on layers
     INPUT   most_recent_date: most recent date of imagery being shown (datetime)
     '''
     for ds_id in [DAY_DATASET_ID, NIGHT_DATASET_ID]:
@@ -93,10 +116,7 @@ def updateResourceWatch(most_recent_date):
             logging.info('Updating last update date and flushing cache.')
             # Update dataset's last update date on Resource Watch
             lastUpdateDate(ds_id, most_recent_date)
-            # get layer ids and flush tile cache for each
-            layer_ids = getLayerIDs(ds_id)
-            for layer_id in layer_ids:
-                flushTileCache(layer_id)
+
         # Update the dates on layer legends - TO BE ADDED IN FUTURE
 
 def main():
