@@ -124,25 +124,13 @@ def lastUpdateDate(dataset, date):
     except Exception as e:
         logging.error('[lastUpdated]: '+str(e))
 
-def initialize_ee():
-    '''
-    Initialize eeUtil and ee modules
-    '''
-    # get GEE credentials from env file
-    GEE_JSON = os.environ.get("GEE_JSON")
-    _CREDENTIAL_FILE = 'credentials.json'
-    GEE_SERVICE_ACCOUNT = os.environ.get("GEE_SERVICE_ACCOUNT")
-    with open(_CREDENTIAL_FILE, 'w') as f:
-        f.write(GEE_JSON)
-    auth = ee.ServiceAccountCredentials(GEE_SERVICE_ACCOUNT, _CREDENTIAL_FILE)
-    ee.Initialize(auth)
-
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
 
     # initialize ee module
-    initialize_ee()
+    auth = ee.ServiceAccountCredentials(os.getenv('GEE_SERVICE_ACCOUNT'), key_data=os.getenv('GEE_JSON'))
+    ee.Initialize(auth)
 
     '''
     update last update dates on RW for datasets in GEE Catalog
