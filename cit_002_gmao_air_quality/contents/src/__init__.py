@@ -738,19 +738,6 @@ def listAllCollections(var, period):
                 all_assets.append(item['id'])
     return all_assets
 
-def initialize_ee():
-    '''
-    Initialize eeUtil and ee modules
-    '''
-    # get GEE credentials from env file
-    GEE_JSON = os.environ.get("GEE_JSON")
-    _CREDENTIAL_FILE = 'credentials.json'
-    GEE_SERVICE_ACCOUNT = os.environ.get("GEE_SERVICE_ACCOUNT")
-    with open(_CREDENTIAL_FILE, 'w') as f:
-        f.write(GEE_JSON)
-    auth = ee.ServiceAccountCredentials(GEE_SERVICE_ACCOUNT, _CREDENTIAL_FILE)
-    ee.Initialize(auth)
-
 def create_headers():
     '''
     Create headers to perform authorized actions on API
@@ -917,8 +904,9 @@ def main():
     logging.info('STARTING')
 
     # Initialize eeUtil and ee modules
+    auth = ee.ServiceAccountCredentials(os.getenv('GEE_SERVICE_ACCOUNT'), key_data=os.getenv('GEE_JSON'))
+    ee.Initialize(auth)
     eeUtil.initJson()
-    initialize_ee()
 
     '''
     Process Historical Data
