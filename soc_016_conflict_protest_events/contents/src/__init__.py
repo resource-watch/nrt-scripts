@@ -334,7 +334,7 @@ def main():
 
     # Delete data to get back to MAX_ROWS
     logging.info('Deleting excess rows')
-    deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD) 
+    num_deleted = deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD) 
 
     # Update Resource Watch
     updateResourceWatch(num_new)
