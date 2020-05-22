@@ -466,6 +466,19 @@ def clearCollectionMultiVar():
                 for item in list.getInfo():
                     ee.data.deleteAsset(item['id'])
 
+def initialize_ee():
+    '''
+    Initialize ee module
+    '''
+    # get GEE credentials from env file
+    GEE_JSON = os.environ.get("GEE_JSON")
+    _CREDENTIAL_FILE = 'credentials.json'
+    GEE_SERVICE_ACCOUNT = os.environ.get("GEE_SERVICE_ACCOUNT")
+    with open(_CREDENTIAL_FILE, 'w') as f:
+        f.write(GEE_JSON)
+    auth = ee.ServiceAccountCredentials(GEE_SERVICE_ACCOUNT, _CREDENTIAL_FILE)
+    ee.Initialize(auth)
+
 def updateResourceWatch():
     '''
     This function should update Resource Watch to reflect the new data.
@@ -494,9 +507,8 @@ def main():
     logging.info('STARTING')
 
     # Initialize eeUtil and ee modules
-    auth = ee.ServiceAccountCredentials(os.getenv('GEE_SERVICE_ACCOUNT'), key_data=os.getenv('GEE_JSON'))
-    ee.Initialize(auth)
     eeUtil.initJson()
+    initialize_ee()
 
     # Clear collection in GEE if desired
     if CLEAR_COLLECTION_FIRST:

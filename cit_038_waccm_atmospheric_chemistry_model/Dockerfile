@@ -8,11 +8,10 @@ RUN pip install -U pip
 
 # install application libraries
 RUN apt-get install -y gdal-bin libgdal-dev
-RUN pip install oauth2client==3.0.0
+RUN pip install oauth2client==4.1.3
 RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
 RUN pip install bs4==0.0.1
 RUN pip install numpy==1.14.3
-RUN pip install earthengine-api --upgrade
 
 # set name
 ARG NAME=nrt-script
