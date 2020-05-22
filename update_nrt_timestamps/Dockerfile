@@ -7,6 +7,7 @@ RUN apt-get update && pip install -U pip
 
 # install application libraries
 RUN apt-get install -y gdal-bin libgdal-dev
+RUN pip install oauth2client==3.0.0
 RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
 RUN pip install earthengine-api --upgrade
 
