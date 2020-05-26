@@ -1,9 +1,7 @@
 ## Volcanic Activity Report Dataset Near Real-time Script
 This file describes the near real-time script that retrieves and processes the [Smithsonian/USGS Weekly Volcanic Activity Report dataset](http://volcano.si.edu/reports_weekly.cfm#vn_358057) for [display on Resource Watch](https://resourcewatch.org/data/explore/dis003-Weekly-Volcano-Report-NEW).
 
-{Describe how the original data came from the source.}
-
-{Describe the steps used to process the data, e.g., "convert variable X from the original netcdf file to a tif to upload to Google Earth Engine."}
+This dataset was provided by the source as a xml file. The data shown on Resource Watch can be found in the 'title' tag of the xml file. The contents of the 'title' tag was processed to obtain volcano name and country name. Source of the volcano report was obtained by processing the contents of the description tag. Datetime was retrieved from the 'pubDate' tag. The resulting table was uploaded to Carto.
 
 Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/dis_003_volcano_reports/contents/src/__init__.py) for more details on this processing.
 
