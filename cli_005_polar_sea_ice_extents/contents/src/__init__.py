@@ -686,7 +686,7 @@ def main():
 
         # Fetch, process, and upload the new arctic data
         new_arctic_assets_orig, new_arctic_assets_reproj = processNewData(arctic_dates_reproj, 'arctic',
-                                                                          new_or_hist=='hist', month=month)
+                                                                          new_or_hist='hist', month=month)
         # Get the dates of the new data we have added to each collection
         new_arctic_dates_orig = [getDate(a) for a in new_arctic_assets_orig]
         new_arctic_dates_reproj = [getDate(a) for a in new_arctic_assets_reproj]
@@ -704,7 +704,7 @@ def main():
 
         # Fetch, process, and upload the new antarctic data
         new_antarctic_assets_orig, new_antarctic_assets_reproj = processNewData(antarctic_dates_reproj, 'antarctic',
-                                                                                new_or_hist=='hist', month=month)
+                                                                                new_or_hist='hist', month=month)
         # Get the dates of the new data we have added to each collection
         new_antarctic_dates_orig = [getDate(a) for a in new_antarctic_assets_orig]
         new_antarctic_dates_reproj = [getDate(a) for a in new_antarctic_assets_reproj]
