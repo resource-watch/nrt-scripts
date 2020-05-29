@@ -1,7 +1,13 @@
 ## Annual Internal Displacement from Natural Disasters Dataset Near Real-time Script
 This file describes the near real-time script that retrieves and processes the [Raw Incident Data dataset](https://incidentnews.noaa.gov/) for [display on Resource Watch](https://resourcewatch.org/data/explore/soc062c-Internal-Displacement-NRT).
 
-This dataset was provided by the source as a json file. The data shown on Resource Watch can be found in the 'displacement_type' column of the json file. Datetime was constructed by retrieving year from the 'year' feature and month, day from the 'displacement_date' feature of the json. The resulting table was then uploaded to Carto.
+This dataset was provided by the source as a JSON file. This JSON was transformed into a table so that it could be uploaded to Carto. In order to transform the data from the JSON to the data table used by Resource Watch, the following changes were made:
+- The latitude and longitude features from the JSON were used to create the geometry shown on Resource Watch.
+- Date of the events were obtained from the 'year' feature and the 'displacement_date' feature of the json. This was converted to a datetime object.
+- Description of the events were collected from the 'standard_popup_text' feature.
+- A unique ID for each event was created based on the 'id' feature of the json. This was stored in a new column called 'uid'.
+
+The data shown on Resource Watch can be found in the 'displacement_type' feature of the JSON.
 
 Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/soc_062_internal_displacement/contents/src/__init__.py) for more details on this processing.
 
