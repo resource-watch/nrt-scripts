@@ -453,12 +453,12 @@ def fetch(new_dates, unformatted_source_url, period):
                     break
                 # if unsuccessful, log that the file was not downloaded
                 except Exception as e:
-                    logging.info('Unable to retrieve data from {}'.format(url))
-                    logging.info(e)
+                    logging.info('Unable to retrieve data from {}, trying again'.format(url))
                     tries+=1
                     logging.info('try {}'.format(tries))
             if tries==3:
                 logging.error('Unable to retrieve data from {}'.format(url))
+                logging.info(e)
                 exit()
 
         # populate dictionary of file names along with the date for which they were downloaded
@@ -821,7 +821,9 @@ def update_layer(var, period, layer, new_date):
     # patch API with updates
     r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
     # check response
-    if r.ok:
+    # if we get a 200, the layers have been replaced
+    # if we get a 504 (gateway timeout) - the layers are still being replaced, but it worked
+    if r.ok or r.status_code==504:
         logging.info('Layer replaced: {}'.format(layer['id']))
     else:
         logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
