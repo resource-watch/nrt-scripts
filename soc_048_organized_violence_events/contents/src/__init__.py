@@ -342,22 +342,6 @@ def deleteExcessRows(table, max_rows, time_field, max_age=''):
     if num_dropped:
         logging.info('Dropped {} old rows from {}'.format(num_dropped, table))
 
-def get_most_recent_date(table):
-    '''
-    Find the most recent date of data in the specified Carto table
-    INPUT   table: name of table in Carto we want to find the most recent date for (string)
-    RETURN  most_recent_date: most recent date of data in the Carto table, found in the TIME_FIELD column of the table (datetime object)
-    '''
-    # get dates in TIME_FIELD column
-    r = cartosql.getFields(TIME_FIELD, table, f='csv', post=True, user=CARTO_USER, key=CARTO_KEY)
-    # turn the response into a list of dates
-    dates = r.text.split('\r\n')[1:-1]
-    # sort the dates from oldest to newest
-    dates.sort()
-    # turn the last (newest) date into a datetime object
-    most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
-    return most_recent_date
-
 def updateResourceWatch(num_new):
     '''
     This function should update Resource Watch to reflect the new data.
