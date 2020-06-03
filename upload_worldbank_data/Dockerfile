@@ -27,5 +27,4 @@ VOLUME /opt/$NAME/data
 USER $NAME
 ENV PYTHONPATH /src
 
-CMD ["python", "update_worldbank_data_on_carto.py"]
-CMD ["python", "update_worldbank_layers_on_rw.py"]
+CMD ["python", "main.py"]
