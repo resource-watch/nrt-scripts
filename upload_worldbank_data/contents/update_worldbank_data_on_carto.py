@@ -36,8 +36,8 @@ if __name__ == '__main__':
 
 
     def upload_to_aws(local_file, bucket, s3_file):
-        s3 = boto3.client('s3', aws_access_key_id=os.getenv('aws_access_key_id'),
-                          aws_secret_access_key=os.getenv('aws_secret_access_key'))
+        s3 = boto3.client('s3', aws_access_key_id=os.getenv('S3_ACCESS_KEY'),
+                          aws_secret_access_key=os.getenv('S3_SECRET_KEY'))
         try:
             s3.upload_file(local_file, bucket, s3_file)
             logging.info("Upload Successful")
