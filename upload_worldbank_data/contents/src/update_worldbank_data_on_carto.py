@@ -112,7 +112,7 @@ def fetch_wb_data(table):
         data = pd.io.json.json_normalize(json)
         data = data[["country.value", "date", "value"]]
         # rename these columns
-        data.columns = ["Country", "Year", value_name]
+        data.columns = ["country_name", "year", value_name]
         # add a units column
         data['unit' + str(i + 1)] = unit
         # add indicator code column
@@ -147,7 +147,7 @@ def fetch_wb_data(table):
         data = data[~data['country_name'].isin(drop_patterns)]
 
         # Set index to Country, Year, and Time
-        data = data.set_index(["Country", "datetime", "Year"])
+        data = data.set_index(["country_name", "datetime", "year"])
         if i == 0:
             # Start off the dataframe
             all_world_bank_data = data
