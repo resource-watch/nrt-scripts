@@ -10,7 +10,8 @@ RUN pip install boto3==1.10.45
 RUN pip install requests==2.22.0
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 RUN pip install carto==1.11.1
-RUN pip install LMIPy
+RUN pip install LMIPy==0.2.8
+RUN pip install cartoframes==1.0.2
 
 # set name
 ARG NAME=upload-world-bank
