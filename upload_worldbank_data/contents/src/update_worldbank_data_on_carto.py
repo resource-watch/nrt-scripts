@@ -158,7 +158,7 @@ def fetch_wb_data(table):
         # Reset the index for the table
     all_world_bank_data = all_world_bank_data.reset_index()
 
-    all_world_bank_data.insert(0, "country_code", all_world_bank_data.apply(lambda row: add_iso(row["Country"]), axis=1))
+    all_world_bank_data.insert(0, "country_code", all_world_bank_data.apply(lambda row: add_iso(row["country_name"]), axis=1))
 
     # Drop rows which don't have an ISO3 assigned
     all_world_bank_data = all_world_bank_data.loc[pd.notnull(all_world_bank_data["country_code"])]
