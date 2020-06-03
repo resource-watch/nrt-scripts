@@ -150,7 +150,7 @@ if __name__ == '__main__':
             data = data[~data['Country'].isin(drop_patterns)]
 
             # Set index to Country, Year, and Time
-            data = data.set_index(["Country", "Time", "Year"])
+            data = data.set_index(["Country", "datetime", "Year"])
             if i == 0:
                 # Start off the dataframe
                 all_world_bank_data = data
