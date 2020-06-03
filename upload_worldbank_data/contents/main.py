@@ -2,5 +2,5 @@
 if __name__ == '__main__':
     from src import update_worldbank_data_on_carto
     from src import update_worldbank_layers_on_rw
-    update_worldbank_data_on_carto.update_worldbank_data_on_carto()
-    update_worldbank_layers_on_rw.update_worldbank_layers_on_rw()
+    update_worldbank_data_on_carto.main()
+    update_worldbank_layers_on_rw.main()

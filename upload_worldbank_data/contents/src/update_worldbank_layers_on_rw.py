@@ -16,7 +16,7 @@ API_TOKEN = os.getenv('RW_API_KEY')
 # set up authentication for cartoframes module
 auth = cartoframes.auth.Credentials(username=os.getenv('CARTO_WRI_RW_USER'), api_key=os.getenv('CARTO_WRI_RW_KEY'))
 
-def get_layers(ds_id):
+def main(ds_id):
     '''
     Given a Resource Watch dataset's API ID, this function will return a list of all the layers associated with it
     INPUT   ds_id: Resource Watch API dataset ID (string)
