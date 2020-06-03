@@ -23,7 +23,7 @@ if __name__ == '__main__':
     CARTO_KEY = os.getenv('CARTO_WRI_RW_KEY')
 
     wb_rw_table = pd.read_csv(
-        'https://raw.githubusercontent.com/resource-watch/nrt-scripts/master/upload_worldbank_data//WB_RW_dataset_names_ids.csv').set_index(
+        'https://raw.githubusercontent.com/resource-watch/nrt-scripts/master/upload_worldbank_data/WB_RW_dataset_names_ids.csv').set_index(
         'Carto Table')
 
     # pull in sheet with World Bank name to iso3 conversions
@@ -175,8 +175,8 @@ if __name__ == '__main__':
         return (all_world_bank_data)
 
 #
-for dataset_name, info in wb_rw_table.iterrows():
-    dataset_name = dataset_name[:-5]
+for table_name, info in wb_rw_table.iterrows():
+    dataset_name = table_name[:-5]
     logging.info('Next table to update: {}'.format(dataset_name))
     # create a new sub-directory within your specified dir called 'data'
     data_dir = 'data'
@@ -198,7 +198,7 @@ for dataset_name, info in wb_rw_table.iterrows():
     Process data
     '''
     # Creates dataset with all data columns
-    all_world_bank_data = fetch_wb_data(dataset_name)
+    all_world_bank_data = fetch_wb_data(table_name)
     # save processed dataset to csv
     processed_data_file = os.path.join(data_dir, dataset_name + '_edit.csv')
     all_world_bank_data.to_csv(processed_data_file, index=False)
