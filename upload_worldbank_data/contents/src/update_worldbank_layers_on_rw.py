@@ -6,6 +6,7 @@ import requests
 import cartoframes
 import logging
 import sys
+import datetime
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
