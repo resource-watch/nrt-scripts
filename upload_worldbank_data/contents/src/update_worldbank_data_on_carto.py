@@ -171,7 +171,7 @@ def fetch_wb_data(table):
     all_world_bank_data = all_world_bank_data.where((pd.notnull(all_world_bank_data)), None).reset_index(drop=True)
     return (all_world_bank_data)
 
-def update_worldbank_data_on_carto():
+def main():
     for table_name, info in wb_rw_table.iterrows():
         dataset_name = table_name[:-5]
         logging.info('Next table to update: {}'.format(dataset_name))
