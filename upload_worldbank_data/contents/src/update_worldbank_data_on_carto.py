@@ -118,7 +118,7 @@ def fetch_wb_data(table):
         # add indicator code column
         data['indicator_code' + str(i + 1)] = indicator
         # Standardize time column for ISO time
-        data["datetime"] = data.apply(lambda x: datetime.date(int(x['Year']), 1, 1).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        data["datetime"] = data.apply(lambda x: datetime.date(int(x['year']), 1, 1).strftime("%Y-%m-%dT%H:%M:%SZ"),
                                   axis=1)
 
         # Only keep countries, not larger political bodies
@@ -144,7 +144,7 @@ def fetch_wb_data(table):
                          'Sub-Saharan Africa (IDA & IBRD countries)', 'Upper middle income',
                          'Fragile and conflict affected situations', 'Low income', 'Not classified']
 
-        data = data[~data['Country'].isin(drop_patterns)]
+        data = data[~data['country_name'].isin(drop_patterns)]
 
         # Set index to Country, Year, and Time
         data = data.set_index(["Country", "datetime", "Year"])
@@ -158,14 +158,14 @@ def fetch_wb_data(table):
         # Reset the index for the table
     all_world_bank_data = all_world_bank_data.reset_index()
 
-    all_world_bank_data.insert(0, "ISO3", all_world_bank_data.apply(lambda row: add_iso(row["Country"]), axis=1))
+    all_world_bank_data.insert(0, "country_code", all_world_bank_data.apply(lambda row: add_iso(row["Country"]), axis=1))
 
     # Drop rows which don't have an ISO3 assigned
-    all_world_bank_data = all_world_bank_data.loc[pd.notnull(all_world_bank_data["ISO3"])]
+    all_world_bank_data = all_world_bank_data.loc[pd.notnull(all_world_bank_data["country_code"])]
 
     # Add in RW specific countries and ISO codes
-    all_world_bank_data["rw_country_name"] = all_world_bank_data.apply(lambda row: add_rw_name(row["ISO3"]), axis=1)
-    all_world_bank_data["rw_country_code"] = all_world_bank_data.apply(lambda row: add_rw_code(row["ISO3"]), axis=1)
+    all_world_bank_data["rw_country_name"] = all_world_bank_data.apply(lambda row: add_rw_name(row["country_code"]), axis=1)
+    all_world_bank_data["rw_country_code"] = all_world_bank_data.apply(lambda row: add_rw_code(row["country_code"]), axis=1)
 
     # make sure all null values are set to None
     all_world_bank_data = all_world_bank_data.where((pd.notnull(all_world_bank_data)), None).reset_index(drop=True)
