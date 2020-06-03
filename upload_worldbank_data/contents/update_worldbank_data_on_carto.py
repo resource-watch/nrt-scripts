@@ -121,7 +121,7 @@ if __name__ == '__main__':
             # add indicator code column
             data['indicator_code' + str(i + 1)] = indicator
             # Standardize time column for ISO time
-            data["Time"] = data.apply(lambda x: datetime.date(int(x['Year']), 1, 1).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            data["datetime"] = data.apply(lambda x: datetime.date(int(x['Year']), 1, 1).strftime("%Y-%m-%dT%H:%M:%SZ"),
                                       axis=1)
 
             # Only keep countries, not larger political bodies

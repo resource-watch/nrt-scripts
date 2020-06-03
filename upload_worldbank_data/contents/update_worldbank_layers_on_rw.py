@@ -172,8 +172,8 @@ def duplicate_wb_layers(ds_id, update_years):
         }
         new_layer = new_layer.update(update_params=payload, token=API_TOKEN)
 
-        print(new_layer)
-        print('\n')
+        logging.info(new_layer)
+        logging.info('\n')
 
 def update_rw_layer_year(ds_id, current_year, new_year):
     '''
@@ -219,7 +219,7 @@ def update_rw_layer_year(ds_id, current_year, new_year):
             'description': new_description
         }
         layer = layer.update(update_params=payload, token=API_TOKEN)
-        print(layer)
+        logging.info(layer)
 
 
 # read in csv containing information relating Carto tables to RW datasets
@@ -248,12 +248,12 @@ for i, row in df.iterrows():
 
         # get all years available in carto table
         carto_years = get_carto_years(carto_table, carto_col)
-        print(ds_id)
+        logging.info(ds_id)
         # if this dataset is a time slider on RW,
         if ts=='Yes':
             # find years that we need to make layers for (data available on Carto, but no layer on RW)
             update_years = np.setdiff1d(carto_years, rw_years)
-            print(update_years)
+            logging.info(update_years)
             # make layers for missing years
             duplicate_wb_layers(ds_id, update_years)
             # add dataset to our spreadsheet for checking metadata
@@ -265,7 +265,7 @@ for i, row in df.iterrows():
             rw_year = rw_years[0]
             # get the most recent year of data available in the Carto table
             latest_carto_year = carto_years[-1]
-            print(latest_carto_year)
+            logging.info(latest_carto_year)
             # if we don't have the latest years on RW, update the existing layers
             if rw_year != latest_carto_year:
                 # update layer on RW to be latest year of data available
