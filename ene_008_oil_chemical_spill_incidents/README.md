@@ -1,9 +1,13 @@
 ## Oil and Chemical Spill Incidents Dataset Near Real-time Script
 This file describes the near real-time script that retrieves and processes the [Raw Incident Data dataset](https://incidentnews.noaa.gov/) for [display on Resource Watch](https://resourcewatch.org/data/explore/US-Oil-and-Chemical-Spills).
 
-{Describe how the original data came from the source.}
+This dataset was provided by the source as a CSV file. This CSV was transformed into a table so that it could be uploaded to Carto. In order to transform the data from the CSV to the data table used by Resource Watch, the following changes were made:
+- The latitude and longitude from the columns 'lat', 'lon' were used to create the geometry shown on Resource Watch.
+- Datetime was obtained from the column 'open_date'.
+- A unique ID for each event was created based on the 'id' column of the CSV. This was stored in a new column called 'uid'.
+- The source CSV has some entries with breaks in the last column, which are interpreted as an individual row while processing through csv Python library. Before processing each row, it was checked if the unique id in the row could be converted to an integer to make sure it was a new row.
 
-{Describe the steps used to process the data, e.g., "convert variable X from the original netcdf file to a tif to upload to Google Earth Engine."}
+The data shown on Resource Watch can be found in the 'threat' column of the csv file. 
 
 Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/ene_008_oil_chemical_spill_incidents/contents/src/__init__.py) for more details on this processing.
 
