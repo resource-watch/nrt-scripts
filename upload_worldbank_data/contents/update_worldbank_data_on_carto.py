@@ -23,18 +23,14 @@ if __name__ == '__main__':
     CARTO_KEY = os.getenv('CARTO_WRI_RW_KEY')
 
     wb_rw_table = pd.read_csv(
-        'https://raw.githubusercontent.com/resource-watch/data-pre-processing/master/upload_worldbank_data//WB_RW_dataset_names_ids.csv').set_index(
+        'https://raw.githubusercontent.com/resource-watch/nrt-scripts/master/upload_worldbank_data//WB_RW_dataset_names_ids.csv').set_index(
         'Carto Table')
 
     # pull in sheet with World Bank name to iso3 conversions
     wb_name_to_iso3_conversion = pd.read_csv(
-        'https://raw.githubusercontent.com/resource-watch/data-pre-processing/master/upload_worldbank_data/WB_name_to_ISO3.csv').set_index(
+        'https://raw.githubusercontent.com/resource-watch/nrt-scripts/master/upload_worldbank_data/WB_name_to_ISO3.csv').set_index(
         'WB_name')
 
-    tables_to_not_overwrite_column = ['ene_021a_renewable_energy_consumption',
-                                      'soc_081_mortality_rate',
-                                      'ene_004_renewable_energy_share_of_total_energy_consumption',
-                                      'ene_029a_energy_intensity']
     # get list of all carto table names
     carto_table_names = cartosql.getTables(user=CARTO_USER, key=CARTO_KEY)
 
