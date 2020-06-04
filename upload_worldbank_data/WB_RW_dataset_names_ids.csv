@@ -1,6 +1,4 @@
 ﻿WRI ID,Public Title,Time Slider,Dataset ID,Carto Table,Carto Column,wb_indicators,wb_columns,wb_units
-soc.066,Population Below Income Poverty Line ($1.90),Yes,4d7ce999-1e37-418f-b8a6-1816b29e901a,soc_066_population_below_poverty_line_edit,yr_data,SI.POV.DDAY,poverty,% of population
-soc.008,"Gross Domestic Product Per Capita (PPP, Current International $)",Yes,00abb46f-34e2-4bf7-be30-1fb0b1de022f,soc_008_gdp_per_capita_edit,yr_data,NY.GDP.PCAP.PP.CD,gdp_per_capita,current international $
 cit.020,Air Quality: Population Exposed to Unhealthy Levels of Fine Particulate Matter (PM2.5),Yes,6d3163f5-4e08-4830-84f1-2c5d76570a82,cit_020_nat_pop_exposed_high_levels_pm_2_5_edit,yr_data,EN.ATM.PM25.MC.ZS,yr_data,% of population
 cit.025,Urban Population,Yes,d38d0d5c-31b1-47f4-9d2e-d8fba4c7d083,cit_025_urban_population_edit,yr_data,SP.URB.TOTL.IN.ZS,urban_pop,% of total population
 cit.028,Urban Population Living in Slums,Yes,35ce2b98-adbb-4873-b334-d7b1cc542de7,cit_028_percent_urban_slums_edit,yr_data,EN.POP.SLUM.UR.ZS,yr_data,% of urban population
@@ -13,11 +11,13 @@ ene.021a,Renewable Energy Consumption,Yes,431f7c9e-7ef5-4f00-a5dc-8845fcb3a9a9,e
 ene.028,Access to Clean Cooking Fuels,Yes,c665f519-eef9-4f67-a8bf-7e3e6dc8bfcd,ene_028_access_clean_cooking_fuels_edit,yr_data,EG.CFT.ACCS.ZS,yr_data,% of population
 ene.029a,Energy Intensity,Yes,2c444596-2be3-4786-bdfc-24010f99b21e,ene_029a_energy_intensity_edit,energy_intensity,6.1_PRIMARY.ENERGY.INTENSITY,energy_intensity,MJ/2011 USD PPP
 foo.043,"Agriculture, Value Added",Yes,95b013a3-389a-4367-83b7-c9d68c28c406,foo_043_agriculture_value_added_edit,yr_data,NV.AGR.TOTL.ZS,Value added,percent of GDP
+soc.008,"Gross Domestic Product Per Capita (PPP, Current International $)",Yes,00abb46f-34e2-4bf7-be30-1fb0b1de022f,soc_008_gdp_per_capita_edit,yr_data,NY.GDP.PCAP.PP.CD,gdp_per_capita,current international $
 soc.015,Adult Literacy Rate,Yes,e8f53f73-d77c-485a-a2a6-1c47ea4aead9,soc_015_adult_literacy_rate_edit,yr_data;female_data;male_data,SE.ADT.LITR.ZS;SE.ADT.LITR.FE.ZS;SE.ADT.LITR.MA.ZS,yr_data;female_data;male_data,% of population 15+;% of females 15+;% of males 15+
 soc.020,Gini Index,Yes,f8d3e79c-c3d0-4f9a-9b68-9c5ad1f025e4,soc_020_gini_edit,yr_data,SI.POV.GINI,GINI,GINI index (World Bank estimate)
 soc.029,Worldwide Governance Indicators,No,7793f46c-a48a-466f-a8ce-ca1a87b7aeed,soc_029_worldwide_governance_indicators_edit,government_effectiveness_data;regulatory_quality_data;political_stability_data;rule_of_law_data;voice_accountability_data;control_of_corruption_data,GE.EST;RQ.EST;PV.EST;RL.EST;VA.EST;CC.EST,government_effectiveness_data;regulatory_quality_data;political_stability_data;rule_of_law_data;voice_accountability_data;control_of_corruption_data,estimate;estimate;estimate;estimate;estimate;estimate
 soc.036,Life Expectancy at Birth,Yes,8671f536-1979-4b6f-a147-70152fcb44ed,soc_036_life_expectancy_at_birth_edit,yr_data,SP.DYN.LE00.IN,life_exp,years
 soc.040,Access to Improved Sanitation Facilities,No,37d04efc-0ab2-4499-a891-54dca1013c74,soc_040_improved_sanitation_edit,total_data;urban_data;rural_data,SH.STA.SMSS.ZS;SH.STA.SMSS.UR.ZS;SH.STA.SMSS.RU.ZS,total_data;urban_data;rural_data,% of population;% of urban pop;% of rural pop
+soc.066,Population Below Income Poverty Line ($1.90),Yes,4d7ce999-1e37-418f-b8a6-1816b29e901a,soc_066_population_below_poverty_line_edit,yr_data,SI.POV.DDAY,poverty,% of population
 soc.074,Employment in Agriculture,Yes,cc354f7f-2622-44cb-91c1-73559373de72,soc_074_employment_in_agriculture_edit,yr_data,SL.AGR.EMPL.ZS,employment,% of population
 soc.076,National Populations,Yes,2a8ca4f7-7285-4aed-9ef5-ba1f9c4b653d,soc_076_country_population_edit,yr_data,SP.POP.TOTL,total_population,people
 soc.079,Fertility Rates,Yes,80f951a7-edd5-472a-8b46-744eb93vfd7ef,soc_079_total_fertility_rate_edit,total_fertility_rate,SP.DYN.TFRT.IN,yr_data,births per woman
