@@ -52,7 +52,8 @@ def get_layer_years(ds_id):
 def get_carto_years(carto_table, data_col):
     '''
     Given a Carto table name and a column where we expect to have data, this function will return a list of all the
-    years for which there is data in the table
+    years for which there is data in the table (as long as there are at least 10 data points for that year or the data
+    is less than 10 years old)
     INPUT   carto_table: name of Carto table (string)
             data_col: name of column where we want to make sure we have data (string)
     RETURN  carto_years: years in table for which we have data (list of integers)
@@ -76,16 +77,14 @@ def get_carto_years(carto_table, data_col):
 
     # pull out a list of years from the 'year' column
     carto_years = [int(year) for year in np.unique(carto_df['year'])]
-
     # get count of occurrences of each year
     vc = carto_df['year'].value_counts()
-    # pull out list of years with fewer than 10 data points
+    # pull out list of years to drop with fewer than 10 data points
     years_to_drop = vc[vc < 10].index
-    # keep list of these years that are more than 10 years old
+    # keep list of these years to drop that are more than 10 years old
     years_to_drop = [year for year in years_to_drop if year < datetime.datetime.utcnow().year - 10]
-    # remove years with less that 10 countries of data if it is more than 10 years old
+    # remove years with less that 10 countries of data, if it is more than 10 years old
     carto_years = [year for year in carto_years if year not in years_to_drop]
-
     # put these years in order from oldest to newest
     carto_years.sort()
     return carto_years
@@ -227,42 +226,37 @@ def update_rw_layer_year(ds_id, current_year, new_year):
         logging.info(layer)
 
 def main():
-    # read in csv containing information relating Carto tables to RW datasets
-    url='https://raw.githubusercontent.com/resource-watch/data-pre-processing/master/upload_worldbank_data/WB_RW_dataset_names_ids.csv'
-    df = pd.read_csv(url)
+    logging.info('STARTING WORLD BANK RW LAYER UPDATE')
 
-    # create empty dataframe to store updated datasets so that we can go update the metadata and master tracking sheets after
-    metadata_check_df = pd.DataFrame(columns=['name','dataset_id', 'years_added', 'metadata_updated', 'master_updated', 'default_layer_updated', 'widget_updated'])
+    # read in csv containing information relating Carto tables to RW datasets
+    url='https://raw.githubusercontent.com/resource-watch/nrt-scripts/master/upload_worldbank_data/WB_RW_dataset_names_ids.csv'
+    df = pd.read_csv(url)
 
     # go through each Resource Watch dataset and make sure it is up to date with the most recent data
     for i, row in df.iterrows():
         # some rows contain more than one dataset
         ds_ids = row['Dataset ID'].split(';')
-        names = row['Public Title'].split(';')
-
         for i in range(len(ds_ids)):
             # pull in relevant information about dataset
             ts = row['Time Slider']
             ds_id = ds_ids[i]
-            name = names[i]
             carto_table = row['Carto Table']
             carto_col = row ['Carto Column']
 
             # get all the years that we have already made layers for on RW
             rw_years = get_layer_years(ds_id)
 
-            # get all years available in carto table
+            # get all years available in Carto table (with more than 10 data points, or less than 10 yrs old)
             carto_years = get_carto_years(carto_table, carto_col)
-            logging.info(ds_id)
+            logging.info(f'dataset being checked for currency on RW: {ds_id}')
+            
             # if this dataset is a time slider on RW,
             if ts=='Yes':
                 # find years that we need to make layers for (data available on Carto, but no layer on RW)
                 update_years = np.setdiff1d(carto_years, rw_years)
-                logging.info(update_years)
+                logging.info(f'layers for the following years are being added: {update_years}')
                 # make layers for missing years
                 duplicate_wb_layers(ds_id, update_years)
-                # add dataset to our spreadsheet for checking metadata
-                metadata_check_df = metadata_check_df.append({'name':name, 'dataset_id':ds_id, 'years_added':','.join(map(str, update_years))}, ignore_index=True)
 
             # if this dataset is not a time slider on RW
             else:
@@ -270,13 +264,8 @@ def main():
                 rw_year = rw_years[0]
                 # get the most recent year of data available in the Carto table
                 latest_carto_year = carto_years[-1]
-                logging.info(latest_carto_year)
                 # if we don't have the latest years on RW, update the existing layers
                 if rw_year != latest_carto_year:
+                    logging.info(f'layers being updated for new year: {latest_carto_year}')
                     # update layer on RW to be latest year of data available
                     update_rw_layer_year(ds_id, rw_year, latest_carto_year)
-                    # add dataset to our spreadsheet for checking metadata
-                    metadata_check_df = metadata_check_df.append({'name': name, 'dataset_id': ds_id, 'years_added': latest_carto_year}, ignore_index=True)
-
-    # save table of updated datasets, then use this to update metadata and master sheet
-    metadata_check_df.to_csv('updated_wb_datasets.csv', index=False, header=True)
