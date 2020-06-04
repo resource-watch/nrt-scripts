@@ -17,6 +17,7 @@ soc.074,Employment in Agriculture,Yes,cc354f7f-2622-44cb-91c1-73559373de72,soc_0
 soc.076,National Populations,Yes,2a8ca4f7-7285-4aed-9ef5-ba1f9c4b653d,soc_076_country_population_edit,yr_data,SP.POP.TOTL,total_population,people
 soc.081,National Infant Mortality,Yes,6cfd6255-609e-4922-8709-5aaad0db9fae,soc_081_mortality_rate_edit,mortality_rate,SP.DYN.IMRT.IN,mortality_rate,deaths per 1000 live births
 soc.082,Percent of Population Using the Internet,Yes,daaa9f12-c0ef-499a-b2d8-4bceaa9b95fa,soc_082_individuals_using_the_internet_edit,yr_data,IT.NET.USER.ZS,intnt_use,% of population
+soc.090,Population Growth Rates,,,soc_090_pop_growth_rate_edit,yr_data,SP.POP.GROW,Growth rate,percent
 soc.101,Population in Poverty ($3.20/day),Yes,8711d841-8421-4fcb-8ee2-881e573856e0,soc_101_poverty320_edit,yr_data,SI.POV.LMIC,yr_data,% of population
 soc.102,Inflation of Consumer Prices,Yes,4996cdb1-6169-46b7-9a74-0adf0e2ef1ce,soc_102_inflation_edit,yr_data,FP.CPI.TOTL.ZG,yr_data,annual %
 wat.005a;wat.005b;wat.005c,Access to an Improved Water Source (National);Access to an Improved Water Source (Urban);Access to an Improved Water Source (Rural),Yes,e32bdaba-5a72-487c-b640-668adaea2976;c29473e4-6606-49c9-a248-df1f2b21c2b5;3598f43d-0ae9-445b-a8da-e59ff2cf43d9,wat_005a_improved_water_access_edit,total;urban;rural,SH.H2O.SMDW.ZS;SH.H2O.SMDW.UR.ZS;SH.H2O.SMDW.RU.ZS,total;urban;rural,% of population;% of urban pop;% of rural pop
