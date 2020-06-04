@@ -16,7 +16,7 @@ API_TOKEN = os.getenv('RW_API_KEY')
 # set up authentication for cartoframes module
 auth = cartoframes.auth.Credentials(username=os.getenv('CARTO_WRI_RW_USER'), api_key=os.getenv('CARTO_WRI_RW_KEY'))
 
-def main(ds_id):
+def get_layers(ds_id):
     '''
     Given a Resource Watch dataset's API ID, this function will return a list of all the layers associated with it
     INPUT   ds_id: Resource Watch API dataset ID (string)
@@ -226,7 +226,7 @@ def update_rw_layer_year(ds_id, current_year, new_year):
         layer = layer.update(update_params=payload, token=API_TOKEN)
         logging.info(layer)
 
-def update_worldbank_layers_on_rw():
+def main():
     # read in csv containing information relating Carto tables to RW datasets
     url='https://raw.githubusercontent.com/resource-watch/data-pre-processing/master/upload_worldbank_data/WB_RW_dataset_names_ids.csv'
     df = pd.read_csv(url)
@@ -274,7 +274,7 @@ def update_worldbank_layers_on_rw():
                 # if we don't have the latest years on RW, update the existing layers
                 if rw_year != latest_carto_year:
                     # update layer on RW to be latest year of data available
-                    #update_rw_layer_year(ds_id, rw_year, latest_carto_year)
+                    update_rw_layer_year(ds_id, rw_year, latest_carto_year)
                     # add dataset to our spreadsheet for checking metadata
                     metadata_check_df = metadata_check_df.append({'name': name, 'dataset_id': ds_id, 'years_added': latest_carto_year}, ignore_index=True)
 
