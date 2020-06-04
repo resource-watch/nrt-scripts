@@ -1,4 +1,5 @@
 ﻿WRI ID,Public Title,Time Slider,Dataset ID,Carto Table,Carto Column,wb_indicators,wb_columns,wb_units
+cit.020,Air Quality: Population Exposed to Unhealthy Levels of Fine Particulate Matter (PM2.5),Yes,6d3163f5-4e08-4830-84f1-2c5d76570a82,cit_020_nat_pop_exposed_high_levels_pm_2_5_edit,yr_data,EN.ATM.PM25.MC.ZS,yr_data,% of population
 cit.025,Urban Population,Yes,d38d0d5c-31b1-47f4-9d2e-d8fba4c7d083,cit_025_urban_population_edit,yr_data,SP.URB.TOTL.IN.ZS,urban_pop,% of total population
 com.006,"Current Account Balance (BoP, current US$)",Yes,2e31a1f3-576b-46b4-84f0-3f0cc399f887,com_006_national_current_accounts_edit,yr_data,BN.CAB.XOKA.CD,yr_data,"BoP, current US$"
 com.010,"Gross Domestic Product (PPP, Current International $)",Yes,52c55378-0484-48c3-92fc-3ee94d21c716,com_010_gdp_ppp_usd_edit,yr_data,NY.GDP.MKTP.CD,gdp,current US$
