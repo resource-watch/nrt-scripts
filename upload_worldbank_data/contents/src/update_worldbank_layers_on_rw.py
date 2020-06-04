@@ -234,38 +234,40 @@ def main():
 
     # go through each Resource Watch dataset and make sure it is up to date with the most recent data
     for i, row in df.iterrows():
-        # some rows contain more than one dataset
-        ds_ids = row['Dataset ID'].split(';')
-        for i in range(len(ds_ids)):
-            # pull in relevant information about dataset
-            ts = row['Time Slider']
-            ds_id = ds_ids[i]
-            carto_table = row['Carto Table']
-            carto_col = row ['Carto Column']
+        # if there is a dataset ID in the table
+        if type(row['Dataset ID']) == str:
+            # some rows contain more than one dataset
+            ds_ids = row['Dataset ID'].split(';')
+            for i in range(len(ds_ids)):
+                # pull in relevant information about dataset
+                ts = row['Time Slider']
+                ds_id = ds_ids[i]
+                carto_table = row['Carto Table']
+                carto_col = row ['Carto Column']
 
-            # get all the years that we have already made layers for on RW
-            rw_years = get_layer_years(ds_id)
+                # get all the years that we have already made layers for on RW
+                rw_years = get_layer_years(ds_id)
 
-            # get all years available in Carto table (with more than 10 data points, or less than 10 yrs old)
-            carto_years = get_carto_years(carto_table, carto_col)
-            logging.info(f'dataset being checked for currency on RW: {ds_id}')
+                # get all years available in Carto table (with more than 10 data points, or less than 10 yrs old)
+                carto_years = get_carto_years(carto_table, carto_col)
+                logging.info(f'dataset being checked for currency on RW: {ds_id}')
 
-            # if this dataset is a time slider on RW,
-            if ts=='Yes':
-                # find years that we need to make layers for (data available on Carto, but no layer on RW)
-                update_years = np.setdiff1d(carto_years, rw_years)
-                logging.info(f'layers for the following years are being added: {update_years}')
-                # make layers for missing years
-                duplicate_wb_layers(ds_id, update_years)
+                # if this dataset is a time slider on RW,
+                if ts=='Yes':
+                    # find years that we need to make layers for (data available on Carto, but no layer on RW)
+                    update_years = np.setdiff1d(carto_years, rw_years)
+                    logging.info(f'layers for the following years are being added: {update_years}')
+                    # make layers for missing years
+                    duplicate_wb_layers(ds_id, update_years)
 
-            # if this dataset is not a time slider on RW
-            else:
-                # pull the year of data being shown in the RW dataset's layers
-                rw_year = rw_years[0]
-                # get the most recent year of data available in the Carto table
-                latest_carto_year = carto_years[-1]
-                # if we don't have the latest years on RW, update the existing layers
-                if rw_year != latest_carto_year:
-                    logging.info(f'layers being updated for new year: {latest_carto_year}')
-                    # update layer on RW to be latest year of data available
-                    update_rw_layer_year(ds_id, rw_year, latest_carto_year)
+                # if this dataset is not a time slider on RW
+                else:
+                    # pull the year of data being shown in the RW dataset's layers
+                    rw_year = rw_years[0]
+                    # get the most recent year of data available in the Carto table
+                    latest_carto_year = carto_years[-1]
+                    # if we don't have the latest years on RW, update the existing layers
+                    if rw_year != latest_carto_year:
+                        logging.info(f'layers being updated for new year: {latest_carto_year}')
+                        # update layer on RW to be latest year of data available
+                        update_rw_layer_year(ds_id, rw_year, latest_carto_year)
