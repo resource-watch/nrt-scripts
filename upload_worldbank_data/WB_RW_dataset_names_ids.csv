@@ -1,5 +1,7 @@
 ﻿WRI ID,Public Title,Time Slider,Dataset ID,Carto Table,Carto Column,wb_indicators,wb_columns,wb_units
 soc.066,Population Below Income Poverty Line ($1.90),Yes,4d7ce999-1e37-418f-b8a6-1816b29e901a,soc_066_population_below_poverty_line_edit,yr_data,SI.POV.DDAY,poverty,% of population
+soc.008,"Gross Domestic Product Per Capita (PPP, Current International $)",Yes,00abb46f-34e2-4bf7-be30-1fb0b1de022f,Publish,soc_008_gdp_per_capita_edit,yr_data,NY.GDP.PCAP.PP.CD,gdp_per_capita,current international $
+
 cit.020,Air Quality: Population Exposed to Unhealthy Levels of Fine Particulate Matter (PM2.5),Yes,6d3163f5-4e08-4830-84f1-2c5d76570a82,cit_020_nat_pop_exposed_high_levels_pm_2_5_edit,yr_data,EN.ATM.PM25.MC.ZS,yr_data,% of population
 cit.025,Urban Population,Yes,d38d0d5c-31b1-47f4-9d2e-d8fba4c7d083,cit_025_urban_population_edit,yr_data,SP.URB.TOTL.IN.ZS,urban_pop,% of total population
 cit.028,Urban Population Living in Slums,Yes,35ce2b98-adbb-4873-b334-d7b1cc542de7,cit_028_percent_urban_slums_edit,yr_data,EN.POP.SLUM.UR.ZS,yr_data,% of urban population
