@@ -249,7 +249,7 @@ def main():
             # get all years available in Carto table (with more than 10 data points, or less than 10 yrs old)
             carto_years = get_carto_years(carto_table, carto_col)
             logging.info(f'dataset being checked for currency on RW: {ds_id}')
-            
+
             # if this dataset is a time slider on RW,
             if ts=='Yes':
                 # find years that we need to make layers for (data available on Carto, but no layer on RW)
