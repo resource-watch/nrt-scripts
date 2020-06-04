@@ -14,7 +14,7 @@ RUN pip install LMIPy==0.2.8
 RUN pip install cartoframes==1.0.2
 
 # set name
-ARG NAME=upload-world-bank
+ARG NAME=worldbank_data_update
 ENV NAME ${NAME}
 
 # copy the application folder inside the container
