@@ -112,7 +112,7 @@ def fetch_wb_data(table):
     # pull the WB indicators that are included in this table
     indicators = wb_rw_table.loc[table, 'wb_indicators'].split(";")
     # pull the list of column names used in the Carto table associated with each indicator
-    value_names = wb_rw_table.loc[table, 'wb_columns'].split(";")
+    value_names = wb_rw_table.loc[table, 'Carto Column'].split(";")
     # pull the list of units associated with each indicator
     units = wb_rw_table.loc[table, 'wb_units'].split(";")
 
