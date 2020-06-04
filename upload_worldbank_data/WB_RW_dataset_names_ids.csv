@@ -1,6 +1,4 @@
 ﻿WRI ID,Public Title,Time Slider,Dataset ID,Carto Table,Carto Column,wb_indicators,wb_columns,wb_units
-soc.079,Fertility Rates,Yes,80f951a7-edd5-472a-8b46-744eb93vfd7ef,soc_079_total_fertility_rate_edit,total_fertility_rate,SP.DYN.TFRT.IN,yr_data,births per woman
-
 cit.020,Air Quality: Population Exposed to Unhealthy Levels of Fine Particulate Matter (PM2.5),Yes,6d3163f5-4e08-4830-84f1-2c5d76570a82,cit_020_nat_pop_exposed_high_levels_pm_2_5_edit,yr_data,EN.ATM.PM25.MC.ZS,yr_data,% of population
 cit.025,Urban Population,Yes,d38d0d5c-31b1-47f4-9d2e-d8fba4c7d083,cit_025_urban_population_edit,yr_data,SP.URB.TOTL.IN.ZS,urban_pop,% of total population
 cit.028,Urban Population Living in Slums,Yes,35ce2b98-adbb-4873-b334-d7b1cc542de7,cit_028_percent_urban_slums_edit,yr_data,EN.POP.SLUM.UR.ZS,yr_data,% of urban population
@@ -20,6 +18,7 @@ soc.036,Life Expectancy at Birth,Yes,8671f536-1979-4b6f-a147-70152fcb44ed,soc_03
 soc.040,Access to Improved Sanitation Facilities,No,37d04efc-0ab2-4499-a891-54dca1013c74,soc_040_improved_sanitation_edit,total_data;urban_data;rural_data,SH.STA.SMSS.ZS;SH.STA.SMSS.UR.ZS;SH.STA.SMSS.RU.ZS,total_data;urban_data;rural_data,% of population;% of urban pop;% of rural pop
 soc.074,Employment in Agriculture,Yes,cc354f7f-2622-44cb-91c1-73559373de72,soc_074_employment_in_agriculture_edit,yr_data,SL.AGR.EMPL.ZS,employment,% of population
 soc.076,National Populations,Yes,2a8ca4f7-7285-4aed-9ef5-ba1f9c4b653d,soc_076_country_population_edit,yr_data,SP.POP.TOTL,total_population,people
+soc.079,Fertility Rates,Yes,80f951a7-edd5-472a-8b46-744eb93vfd7ef,soc_079_total_fertility_rate_edit,total_fertility_rate,SP.DYN.TFRT.IN,yr_data,births per woman
 soc.081,National Infant Mortality,Yes,6cfd6255-609e-4922-8709-5aaad0db9fae,soc_081_mortality_rate_edit,mortality_rate,SP.DYN.IMRT.IN,mortality_rate,deaths per 1000 live births
 soc.082,Percent of Population Using the Internet,Yes,daaa9f12-c0ef-499a-b2d8-4bceaa9b95fa,soc_082_individuals_using_the_internet_edit,yr_data,IT.NET.USER.ZS,intnt_use,% of population
 soc.090,Population Growth Rates,,,soc_090_pop_growth_rate_edit,yr_data,SP.POP.GROW,Growth rate,percent
