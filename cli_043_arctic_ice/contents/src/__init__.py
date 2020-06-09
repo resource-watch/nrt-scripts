@@ -266,9 +266,10 @@ def insertIfNew(newUID, newValues, existing_ids, new_data):
     '''
     For data pulled from the source data file, check whether it is already in our table. If not, add it to the queue for processing
     INPUT   newUID: date for the current row of data (string)
-            newValues: date, mass index and uncertainty index for current row of data (list of strings)
+            newValues: year, month, date, extent and area for current row of data (list of strings)
             existing_ids: list of date IDs that we already have in our Carto table (list of strings)
-            new_data: dictionary of new data to be added to Carto, in which the key is the date and the value is a list of strings containing the date, mass index, and uncertainty index for new data (dictionary)
+            new_data: dictionary of new data to be added to Carto, in which the key is the date and the value is a list of strings 
+            containing year, month, date, extent and area for new data (dictionary)
     RETURN  new_data: updated dictionary of new data to be added to Carto, in which the input newValues have been added (dictionary)
     '''
     # get dates that are already in the table along with the new dates that are already processed
@@ -279,14 +280,16 @@ def insertIfNew(newUID, newValues, existing_ids, new_data):
         logging.debug("Adding {} data to table".format(newUID))
     else:
         logging.debug("{} data already in table".format(newUID))
+
     return(new_data)   
 
-def processData(url, resource_location, existing_ids):
+def processData(url, resource_location, existing_ids, date_format='%Y-%m-%d %H:%M:%S'):
     '''
     Fetch, process and upload new data
     INPUT   url: url where you can find the download link for the source data (string)
             resource_location: link for source data (string)
             existing_ids: list of date IDs that we already have in our Carto table (list of strings)
+            date_format: format of dates in Carto table (string)
     RETURN  num_new: number of rows of new data sent to Carto table (integer)
     '''
     num_new = 0
@@ -313,6 +316,8 @@ def processData(url, resource_location, existing_ids):
             month = int(row[1])
             # construct date using year, month and first day of the month as day
             date = datetime.datetime(year, month, 1)
+            # convert datetime object to string formatted according to date_pattern
+            date = date.strftime(date_format)
             # store all the variables into a list
             values = [year, month, date, extent, area]
             # For new date, check whether this is already in our table. 
