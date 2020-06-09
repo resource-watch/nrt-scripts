@@ -198,7 +198,7 @@ def genUID(lat, lon, depth, dt):
             lon: longitude of the earthquake (float)
             depth: depth of the earthquake (float)
             dt: date for which we want to generate id (string)
-    RETURN unique id for row
+    RETURN unique id for row (string)
     '''
     return '{}_{}_{}_{}'.format(lat, lon, depth, dt)
 
