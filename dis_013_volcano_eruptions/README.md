@@ -1,9 +1,8 @@
 ## Volcano Eruptions Dataset Near Real-time Script
 This file describes the near real-time script that retrieves and processes the [Volcanoes of the World Database - Eruptions dataset](http://volcano.si.edu/search_eruption.cfm) for [display on Resource Watch](https://resourcewatch.org/data/explore/dis013-Volcanoes-CSV).
 
-{Describe how the original data came from the source.}
+This dataset was provided by the source as a XML file. This XML was first converted into a JSON and then transformed into a table so that it could be uploaded to Carto. The 'GeoLocation' was used to create the geometry shown on Resource Watch.
 
-{Describe the steps used to process the data, e.g., "convert variable X from the original netcdf file to a tif to upload to Google Earth Engine."}
 
 Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/dis_013_volcano_eruptions/contents/src/__init__.py) for more details on this processing.
 
