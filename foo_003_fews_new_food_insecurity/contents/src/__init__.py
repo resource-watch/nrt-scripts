@@ -245,7 +245,7 @@ def processNewData(existing_ids):
 
         logging.info('Fetching data for {}'.format(datestr))
         # loop through the REGIONS dictionary to get
-        # each region and corresponding file template
+        # each region and corresponding file name template
         for region, fileTemplate in REGIONS.items():
             # get the filename by formatting fileTemplate with date
             filename = fileTemplate.format(date=datestr)
