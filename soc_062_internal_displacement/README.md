@@ -3,11 +3,9 @@ This file describes the near real-time script that retrieves and processes the [
 
 This dataset was provided by the source as a JSON file. This JSON was transformed into a table so that it could be uploaded to Carto. In order to transform the data from the JSON to the data table used by Resource Watch, the following changes were made:
 - The latitude and longitude features from the JSON were used to create the geometry shown on Resource Watch.
-- Date of the events were obtained from the 'year' feature and the 'displacement_date' feature of the json. This was converted to a datetime object.
-- Description of the events were collected from the 'standard_popup_text' feature.
+- The date of each event was obtained from the 'displacement_date' feature of the json. Some of the events had errors where the 'displacement_date' was a date that has not happened yet. In those cases, the year indicated in the 'displacement_date' was replaced with the year used in the 'year' feature of the json. This was converted to a datetime object.
+- The description of each event was collected from the 'standard_popup_text' feature.
 - A unique ID for each event was created based on the 'id' feature of the json. This was stored in a new column called 'uid'.
-
-The data shown on Resource Watch can be found in the 'displacement_type' feature of the JSON.
 
 Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/soc_062_internal_displacement/contents/src/__init__.py) for more details on this processing.
 
