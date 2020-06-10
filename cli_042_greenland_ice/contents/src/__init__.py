@@ -41,9 +41,6 @@ CARTO_SCHEMA = OrderedDict([
 # how many rows can be stored in the Carto table before the oldest ones are deleted?
 MAX_ROWS = 1000000
 
-# oldest date that can be stored in the Carto table before we start deleting
-MAX_AGE = datetime.datetime.today() - datetime.timedelta(days=365*150)
-
 # url for Greenland mass data
 SOURCE_URL = 'https://podaac-tools.jpl.nasa.gov/drive/files/allData/tellus/L4/ice_mass/RL06/v02/mascon_CRI'
 
@@ -132,36 +129,6 @@ FUNCTIONS FOR THIS DATASET
 The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
-
-def cleanOldRows(table, time_field, max_age, date_format='%Y-%m-%d %H:%M:%S'):
-    ''' 
-    Delete rows that are older than a certain threshold
-    INPUT   table: name of table in Carto from which we will delete the old data (string)
-            time_field: column that stores datetime information (string) 
-            max_age: oldest date that can be stored in the Carto table (datetime object)
-            date_format: format of dates in Carto table (string)
-    RETURN  num_expired: number of rows that have been dropped from the table (integer)
-    ''' 
-    # initialize number of rows that will be dropped as 0
-    num_expired = 0
-    # if the table exists
-    if cartosql.tableExists(table, CARTO_USER, CARTO_KEY):
-        # check if max_age variable is a datetime object
-        if isinstance(max_age, datetime.datetime):
-            # convert datetime object to string formatted according to date_format
-            max_age = max_age.strftime(date_format)
-        elif isinstance(max_age, str):
-            # raise an error if max_age is a string
-            logging.error('Max age must be expressed as a datetime.datetime object')
-        # delete rows from table which are older than the max_age
-        r = cartosql.deleteRows(table, "{} < '{}'".format(time_field, max_age), CARTO_USER, CARTO_KEY)
-        # get the number of rows that were dropped from the table
-        num_expired = r.json()['total_rows']
-    else:
-        # raise an error if the table doesn't exist
-        logging.error("{} table does not exist yet".format(table))
-
-    return(num_expired)
 
 def fetchDataFileName(url):
     ''' 
@@ -391,9 +358,6 @@ def main():
     # Check if table exists, create it if it does not
     logging.info('Checking if table exists and getting existing IDs.')
     existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, TIME_FIELD)
-
-    # Delete rows that are older than a certain threshold
-    num_expired = cleanOldRows(CARTO_TABLE, TIME_FIELD, MAX_AGE)
 
     # Fetch, process, and upload new data
     logging.info('Fetching new data')
