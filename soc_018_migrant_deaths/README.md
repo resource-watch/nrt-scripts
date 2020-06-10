@@ -1,9 +1,13 @@
 ## Migrant Deaths Dataset Near Real-time Script
 This file describes the near real-time script that retrieves and processes the [Missing Migrants - Tracking Deaths Along Migratory Routes dataset](https://missingmigrants.iom.int/) for [display on Resource Watch](https://resourcewatch.org/data/explore/Missing-Migrants).
 
-{Describe how the original data came from the source.}
+This dataset was provided by the source as an annual CSV file (one CSV file for each year of data). In order to transform the data from the original CSV file to the data table used by Resource Watch, the following changes were made:
+- The spaces in the column names were replaced with underscores to match the column names in Carto table.
+- The latitude and longitude from the column 'Location_Coordinates' were used to create the geometry shown on Resource Watch.
+- The datetime of each event was obtained from the column 'Reported_Date'.
+- A unique ID for each event was created based on the 'Web_ID' column of the CSV. This was stored in a new column called 'uid'.
 
-{Describe the steps used to process the data, e.g., "convert variable X from the original netcdf file to a tif to upload to Google Earth Engine."}
+The data shown on Resource Watch can be found in the 'Number Dead' column of the csv file. 
 
 Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/soc_018_migrant_deaths/contents/src/__init__.py) for more details on this processing.
 
