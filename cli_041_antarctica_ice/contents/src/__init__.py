@@ -307,6 +307,7 @@ def processData(url, filename, existing_ids):
             existing_ids: list of date IDs that we already have in our Carto table (list of strings)
     RETURN  num_new: number of rows of new data sent to Carto table (integer)
     '''
+    # initialize variable to store number of new rows sent to Carto
     num_new = 0
     # get the data from source as a list of strings, with each string holding one line from the source data file
     res_rows = tryRetrieveData(url, filename)
