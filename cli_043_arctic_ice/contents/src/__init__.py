@@ -43,9 +43,6 @@ CARTO_SCHEMA = OrderedDict([
 # how many rows can be stored in the Carto table before the oldest ones are deleted?
 MAX_ROWS = 1000000
 
-# oldest date that can be stored in the Carto table before we start deleting
-MAX_AGE = datetime.datetime.today() - datetime.timedelta(days=365*150)
-
 # url for Arctic Sea Ice Minimum dataset
 SOURCE_URL = 'https://climate.nasa.gov/vital-signs/arctic-sea-ice/'
 
@@ -135,38 +132,6 @@ The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
 
-def cleanOldRows(table, time_field, max_age, date_format='%Y-%m-%d %H:%M:%S'):
-    ''' 
-    Delete rows that are older than a certain threshold
-    INPUT   table: name of table in Carto from which we will delete the old data (string)
-            time_field: column that stores datetime information (string) 
-            max_age: oldest date that can be stored in the Carto table (datetime object)
-            date_format: format of dates in Carto table (string)
-    RETURN  num_expired: number of rows that have been dropped from the table (integer)
-    ''' 
-    # initialize number of rows that will be dropped as 0
-    num_expired = 0
-    # if the table exists
-    if cartosql.tableExists(table, CARTO_USER, CARTO_KEY):
-        # check if max_age variable is a datetime object
-        if isinstance(max_age, datetime.datetime):
-            # convert datetime object to string formatted according to date_format
-            max_age = max_age.strftime(date_format)
-        elif isinstance(max_age, str):
-            # raise an error if max_age is a string
-            logging.error('Max age must be expressed as a datetime.datetime object')
-        # delete rows from table which are older than the max_age
-        r = cartosql.deleteRows(table, "{} < '{}'".format(time_field, max_age), CARTO_USER, CARTO_KEY)
-        # get the number of rows that were dropped from the table
-        num_expired = r.json()['total_rows']
-    else:
-        # raise an error if the table doesn't exist
-        logging.error("{} table does not exist yet".format(table))
-
-    if num_expired:
-        logging.info('Dropped {} old rows from {}'.format(num_expired, table))
-
-
 def deleteExcessRows(table, max_rows, time_field):
     ''' 
     Delete rows to bring count down to max_rows
@@ -235,7 +200,7 @@ def tryRetrieveData(url, resource_location, timeout=300, encoding='utf-8'):
     Download data from the source
     INPUT   url: source url to download data (string)
             resource_location: link for source data (string)
-            TIMEOUT: how many seconds we will wait to get the data from url (integer) 
+            timeout: how many seconds we will wait to get the data from url (integer) 
             encoding: encoding of the url content (string)
     RETURN  res_rows: list of lines in the source data file (list of strings)
     '''  
@@ -283,16 +248,18 @@ def insertIfNew(newUID, newValues, existing_ids, new_data):
 
     return(new_data)   
 
-def processData(url, resource_location, existing_ids, date_format='%Y-%m-%d %H:%M:%S'):
+def processData(url, existing_ids, date_format='%Y-%m-%d %H:%M:%S'):
     '''
     Fetch, process and upload new data
     INPUT   url: url where you can find the download link for the source data (string)
-            resource_location: link for source data (string)
             existing_ids: list of date IDs that we already have in our Carto table (list of strings)
             date_format: format of dates in Carto table (string)
     RETURN  num_new: number of rows of new data sent to Carto table (integer)
     '''
+    # initialize variable to store number of new rows sent to Carto
     num_new = 0
+    # Get the link from source url for which we want to download data
+    resource_location = fetchDataFileName(url)
     # get the data from source as a list of strings, with each string holding one line from the source data file
     res_rows = tryRetrieveData(url, resource_location)
     # create an empty dictionary to store new data (data that's not already in our Carto table)
@@ -383,15 +350,9 @@ def main():
     logging.info('Checking if table exists and getting existing IDs.')
     existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, TIME_FIELD)
 
-    # Delete rows that are older than a certain threshold
-    cleanOldRows(CARTO_TABLE, TIME_FIELD, MAX_AGE)
-
-    # Get the link from source url for which we want to download data
-    resource_location = fetchDataFileName(SOURCE_URL)
-
     # Fetch, process, and upload new data
     logging.info('Fetching new data')
-    num_new = processData(SOURCE_URL, resource_location, existing_ids)
+    num_new = processData(SOURCE_URL, existing_ids)
     logging.info('Previous rows: {},  New rows: {}'.format(len(existing_ids), num_new))
 
     # Delete data to get back to MAX_ROWS
