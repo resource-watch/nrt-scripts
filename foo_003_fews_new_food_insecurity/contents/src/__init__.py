@@ -224,7 +224,7 @@ def simplifyGeom(geom):
 def processNewData(existing_ids):
     '''
     Fetch, process and upload new data
-    INPUT  existing_ids: list of unique IDs that we already have in our Carto table (list of strings)
+    INPUT   existing_ids: list of unique IDs that we already have in our Carto table (list of strings)
     RETURN  num_new: number of rows of new data sent to Carto table (integer)
     '''
     # create an empty list to store unique ids of new data we will be sending to Carto table
