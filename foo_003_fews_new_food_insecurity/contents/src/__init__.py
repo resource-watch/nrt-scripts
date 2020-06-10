@@ -212,7 +212,7 @@ def simplifyGeom(geom):
     Return a simplified representation of the geometric object
     INPUT  geom: list of unique IDs that we already have in our Carto table (list of strings)
     '''
-    # get the shape of the input geometry
+    # create a shapely geometry from the input geojson
     shp = geometry.shape(geom)
     # simplify the geometry
     simp = shp.simplify(SIMPLIFICATION_TOLERANCE, PRESERVE_TOPOLOGY)
