@@ -165,7 +165,8 @@ def processData(src_url, existing_ids):
             existing_ids: list of unique IDs that we already have in our Carto table (list of strings)
     RETURN  new_ids: list of unique ids of new data sent to Carto table (list of strings)
     '''
-    # length (number of rows) of new_data 
+    # length (number of rows) of new_data
+    # initialize at 1 so that the while loop works during first step
     num_new = 1
     # create a datetime object with today's date and get the year
     year = datetime.datetime.today().year
@@ -184,11 +185,13 @@ def processData(src_url, existing_ids):
         # Get headers as {'key':column#, ...} replacing spaces with underscores
         # get headers from the csv file
         headers = next(csv_reader, None)
-        # create an empty dictionary to store column names and values
+        # create an empty dictionary to store column names and their column index in the csv
         idx = {}
         # loop through each column
         for v, k in enumerate(headers):
             # replace spaces in column names with underscores
+            # if the column is for the region name (for which the column name regularly alternates),
+            # add both possible names for the column, pointing to the same column index number
             if k in REGION_NAMES:
                 for name in REGION_NAMES:
                     idx[name.replace(' ', '_')] = v
@@ -224,7 +227,7 @@ def processData(src_url, existing_ids):
                         # get time from the 'Reported_Date' column set by TIME_FIELD variable
                         date = row[idx[TIME_FIELD]]
                         # create a datetime object from the date string and then
-                        # convert the datetime to string in the formet set by DATE_FORMAT variable
+                        # convert the datetime to string in the format set by DATE_FORMAT variable
                         date = datetime.datetime.strptime(date, INPUT_DATE_FORMAT).strftime(DATE_FORMAT)
                         # add datetime information to the list of data from this row
                         new_row.append(date)
@@ -232,7 +235,7 @@ def processData(src_url, existing_ids):
                     elif field == 'the_geom':
                         # get the value from the column 'Location_Coordinates'
                         # coordinates are stored as 19.456996117519, 5.764623476008
-                        # replace the double space between the values with a single space 
+                        # remove the space between the values
                         # split the values using comma to get longitude and latitude
                         lon, lat = row[idx['Location_Coordinates']]\
                             .replace(' ', '').split(',')
