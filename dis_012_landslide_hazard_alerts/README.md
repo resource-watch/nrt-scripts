@@ -2,9 +2,9 @@
 This file describes the near real-time script that retrieves and processes the [Global Landslide Hazard Assessment for Situational Awareness Alerts dataset](https://pmm.nasa.gov/applications/global-landslide-model) for [display on Resource Watch](https://resourcewatch.org/data/explore/dis012nrt-Landslide-Hazard-Alerts).
 
 This dataset was provided by the source as a GeoJSON file. This GeoJSON was transformed into a table so that it could be uploaded to Carto. In order to transform the data from the GeoJSON to the data table used by Resource Watch, the following changes were made:
-- Datetime was obtained from the 'date' variable which was within the 'properties' variable of 'items' feature of the GeoJSON.
+- The datetime of each event was created from the 'date' variable.
 - A unique ID for each event was created based on the date and the index of the date in GeoJSON. This was stored in a new column called '_UID'.
-- The value for all other fields were obtained using a number of steps. First, the fifth element of the 'action' variable in the 'items' feature of the GeoJSON was accessed, from this the 'url' variable in the first position of the 'using' variable was used to open up a new GeoJSON containing information about each landslide hazard Alert. 
+- For each landslide hazard alert in the database, the url provided for that specific event was used to extract more specific information about the alert included in the table shown on Resource Watch.
 - The latitude and longitude in the GeoJSON's geometry were used to create the geometry shown on Resource Watch.
 
 The data shown on Resource Watch can be found in the 'nowcast' variable from the 'properties' feature of the GeoJSON.
