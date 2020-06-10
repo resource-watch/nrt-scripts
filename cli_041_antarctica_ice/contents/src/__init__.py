@@ -228,7 +228,7 @@ def tryRetrieveData(url, filename, timeout=300, encoding='utf-8'):
     Download data from the source
     INPUT   url: source url to download data (string)
             filename: filename for source data (string)
-            TIMEOUT: how many seconds we will wait to get the data from url (integer) 
+            timeout: how many seconds we will wait to get the data from url (integer) 
             encoding: encoding of the url content (string)
     RETURN  res_rows: list of lines in the source data file (list of strings)
     '''  
