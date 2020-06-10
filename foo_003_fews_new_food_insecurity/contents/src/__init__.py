@@ -339,6 +339,7 @@ def processNewData(existing_ids):
                                     row.append(end_date.strftime(DATETIME_FORMAT))
                             # add the list of values from this row to the list of new data
                             rows.append(row)
+                            # move to the next feature in the geojson
                             pos_in_shp += 1
 
             # Delete local files
