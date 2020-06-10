@@ -1,10 +1,6 @@
 ## Cities with Transit Feed Data Dataset Near Real-time Script
 This file describes the near real-time script that retrieves and processes the [Cities with GTFS dataset](https://openmobilitydata.org/) for [display on Resource Watch](https://resourcewatch.org/data/explore/cit041-Transit-Feed).
 
-{Describe how the original data came from the source.}
-
-{Describe the steps used to process the data, e.g., "convert variable X from the original netcdf file to a tif to upload to Google Earth Engine."}
-
 Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/cit_041a_gtfs_point_locations/contents/src/__init__.py) for more details on this processing.
 
 **Schedule**
