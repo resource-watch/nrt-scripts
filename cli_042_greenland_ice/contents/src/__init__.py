@@ -307,7 +307,10 @@ def processData(url, filename, existing_ids):
             existing_ids: list of date IDs that we already have in our Carto table (list of strings)
     RETURN  num_new: number of rows of new data sent to Carto table (integer)
     '''
+    # initialize variable to store number of new rows sent to Carto
     num_new = 0
+    # Get the filename from source url for which we want to download data
+    filename = fetchDataFileName(url)
     # get the data from source as a list of strings, with each string holding one line from the source data file
     res_rows = tryRetrieveData(url, filename)
     # create an empty dictionary to store new data (data that's not already in our Carto table)
@@ -393,12 +396,9 @@ def main():
     # Delete rows that are older than a certain threshold
     num_expired = cleanOldRows(CARTO_TABLE, TIME_FIELD, MAX_AGE)
 
-    # Get the filename from source url for which we want to download data
-    filename = fetchDataFileName(SOURCE_URL)
-
     # Fetch, process, and upload new data
     logging.info('Fetching new data')
-    num_new = processData(SOURCE_URL, filename, existing_ids)
+    num_new = processData(SOURCE_URL, existing_ids)
     logging.info('Previous rows: {},  New rows: {}'.format(len(existing_ids), num_new))
 
     # Delete data to get back to MAX_ROWS
