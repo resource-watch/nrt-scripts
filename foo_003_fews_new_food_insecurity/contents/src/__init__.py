@@ -275,7 +275,6 @@ def processNewData(existing_ids):
                 zfile = 'zip://{}'.format(tmpfile)
                 # set start and end date as current date
                 start_date = date
-                # end date will be adjusted later based on the shapefiles to process
                 end_date = date
                 # if the shapefile is related to near-term projections
                 if ifc_type == 'ML1':
