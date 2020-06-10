@@ -299,11 +299,10 @@ def insertIfNew(newUID, newValues, existing_ids, new_data):
         logging.debug("{} data already in table".format(newUID))
     return(new_data)
 
-def processData(url, filename, existing_ids):
+def processData(url, existing_ids):
     '''
     Fetch, process and upload new data
     INPUT   url: url where you can find the download link for the source data (string)
-            filename: filename for source data (string)
             existing_ids: list of date IDs that we already have in our Carto table (list of strings)
     RETURN  num_new: number of rows of new data sent to Carto table (integer)
     '''
