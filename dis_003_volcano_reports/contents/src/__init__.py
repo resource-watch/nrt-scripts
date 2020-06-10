@@ -182,6 +182,7 @@ def genUID(lat,lon,dt):
     INPUT   lat: latitude of the earthquake (float)
             lon: longitude of the earthquake (float)
             dt: date for which we want to generate id (string)
+    RETURN unique id for row (string)
     '''
     return '{}_{}_{}'.format(lat,lon,dt)
 
@@ -189,7 +190,7 @@ def processData(url, existing_ids):
     '''
     Fetch, process and upload new data
     INPUT   url: url where you can find the source data (string)
-            existing_ids: list of date IDs that we already have in our Carto table (list of strings)
+            existing_ids: list of IDs that we already have in our Carto table (list of strings)
     RETURN  num_new: number of rows of new data sent to Carto table (integer)
     '''
     # create an empty list to store new data
@@ -229,7 +230,7 @@ def processData(url, existing_ids):
         dt = parser.parse(item['pubDate'], fuzzy=True).strftime(DATETIME_FORMAT)
         # get the description and source of the volcano report from description feature
         info = item['description'].split('Source:')
-        # if the word 'Source:' don't exist in this item, i.e. if there are more than one source
+        # if the word 'Source:' doesn't exist in this item, it may be because there is more than one source (labeled as 'Sources')
         if len(info) < 2:
             # get the description and sources of the volcano report from description feature 
             info = item['description'].split('Sources:')
