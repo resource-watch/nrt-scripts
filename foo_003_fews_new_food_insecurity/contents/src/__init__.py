@@ -175,7 +175,6 @@ def genUID(date, region, ifc_type, pos_in_shp):
     '''
     return str('{}_{}_{}_{}'.format(date, region, ifc_type, pos_in_shp))
 
-
 def findShps(zfile):
     '''
     Check if the zipfile contains all the expected shapefiles and return them as a dictionary
