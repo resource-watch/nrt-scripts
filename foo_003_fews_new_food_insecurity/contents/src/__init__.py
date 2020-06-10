@@ -230,7 +230,7 @@ def processNewData(existing_ids):
     # create an empty list to store unique ids of new data we will be sending to Carto table
     new_ids = []
 
-    # Truncate date to monthly resolution
+    # Get today's date and truncate to monthly resolution (this will show the date as the first of the current month)
     date = datetime.datetime.strptime(
         datetime.datetime.today().strftime(DATE_FORMAT), DATE_FORMAT)
 
