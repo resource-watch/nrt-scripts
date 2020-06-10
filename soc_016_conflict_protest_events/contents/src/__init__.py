@@ -170,9 +170,8 @@ def processNewData(src_url, existing_ids):
     new_count = 1
     # create an empty list to store unique ids of new data we will be sending to Carto table
     new_ids = []
-
     # get and parse each page; stop when no new results or max pages
-    # process upto MIN_PAGES even if there are no new results from them
+    # process up to MIN_PAGES even if there are no new results from them
     while page <= MIN_PAGES or new_count and page < MAX_PAGES:
         try:
             # increment page number in every loop
