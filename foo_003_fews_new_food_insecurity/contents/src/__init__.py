@@ -71,6 +71,7 @@ SIMPLIFICATION_TOLERANCE = .04
 # a slower algorithm is used that preserves topology
 PRESERVE_TOPOLOGY = True
 
+# minimum number of months we want to check back through for data
 MINDATES = 6
 
 # Resource Watch dataset API ID
@@ -164,14 +165,13 @@ def genUID(date, region, ifc_type, pos_in_shp):
     '''Generate unique id using date, region, time period and feature index in retrieved GeoJSON
     INPUT   date: date for which we want to generate id (string)
             region: region for which we are collecting data (string)
-
             ifc_type: time period of the data. (string) 
-            ifc_type can be: 
-            CS = "current status",
-            ML1 = "most likely status in next four months"
-            ML2 = "most likely status in following four months"
-            
+                ifc_type can be: 
+                CS = "current status",
+                ML1 = "most likely status in next four months"
+                ML2 = "most likely status in the following four months"
             pos_in_shp: index of the feature in GeoJSON (integer)
+    RETURN unique id for row (string)
     '''
     return str('{}_{}_{}_{}'.format(date, region, ifc_type, pos_in_shp))
 
@@ -221,7 +221,7 @@ def simplifyGeom(geom):
     return geometry.mapping(simp)
 
 
-def processNewData(exclude_ids):
+def processNewData(existing_ids):
     '''
     Fetch, process and upload new data
     INPUT  existing_ids: list of unique IDs that we already have in our Carto table (list of strings)
@@ -300,7 +300,7 @@ def processNewData(exclude_ids):
                         uid = genUID(datestr, region, ifc_type, pos_in_shp)
                         # if the id doesn't already exist in Carto table or 
                         # isn't added to the list for sending to Carto yet 
-                        if uid not in exclude_ids and uid not in new_ids:
+                        if uid not in existing_ids and uid not in new_ids:
                             # append the id to the list for sending to Carto 
                             new_ids.append(uid)
                             # create an empty list to store data from this row
@@ -352,6 +352,8 @@ def processNewData(exclude_ids):
             # insert new data into the carto table
             cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
                                 CARTO_SCHEMA.values(), rows, user=CARTO_USER, key=CARTO_KEY)
+        # if the data request didn't return any results and we have already searched through the minimum number
+        # of months specified by the MINDATES variables, break
         elif date < datetime.datetime.today() - relativedelta(months=MINDATES):
             break
     # length (number of rows) of new_data 
@@ -403,7 +405,7 @@ def get_most_recent_date(table):
     RETURN  most_recent_date: most recent date of data in the Carto table, found in the TIME_FIELD column of the table (datetime object)
     '''
     # get dates in TIME_FIELD column
-    # get only check times for current state (CS) because dates associated with projections are
+    # only check times for current state (CS) because dates associated with projections are
     # in the future and don't make sense to list as our most recent update date
     r = cartosql.getFields(TIME_FIELD, table, where="ifc_type LIKE 'CS'", f='csv', post=True)
     # turn the response into a list of dates
