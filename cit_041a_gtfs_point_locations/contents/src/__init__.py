@@ -30,7 +30,6 @@ UID_FIELD = 'feed_id'
 
 # column that stores datetime information
 TIME_FIELD = 'ts_latest'
-
 # column names and types for data table
 # column names should be lowercase
 # column types should be one of the following: geometry, text, numeric, timestamp
