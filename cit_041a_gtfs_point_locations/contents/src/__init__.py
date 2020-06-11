@@ -118,7 +118,7 @@ def getGeom(lon, lat):
     '''
     Define point geometry from latitude and longitude
     '''
-    # construct geomtery using values from lon, lat columns
+    # construct geojson using values from lon, lat columns
     geometry = {
         'type': 'Point',
         'coordinates': [float(lon), float(lat)]
