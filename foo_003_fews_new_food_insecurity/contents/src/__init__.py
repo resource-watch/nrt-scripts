@@ -178,10 +178,10 @@ def genUID(date, region, ifc_type, pos_in_shp):
 def findShps(zfile):
     '''
     Check if the zipfile contains all the expected shapefiles and return them as a dictionary
-    INPUT  zfile: zipfile containing retrieved data from source url (list of strings)
+    INPUT   zfile: zipfile containing retrieved data from source url (list of strings)
     RETURN  files: dictionary with ifc_type as key and shapefiles as value (dictionary)
     '''
-    # craete an empty dictionary to store the path of shapefiles
+    # create an empty dictionary to store the path of shapefiles
     files = {}
     # loop through all files in the zipped file
     with zipfile.ZipFile(zfile) as z:
@@ -251,7 +251,7 @@ def processNewData(existing_ids):
             filename = fileTemplate.format(date=datestr)
             # generate url to pull the data
             url = SOURCE_URL.format(region=region, target_file=filename)
-            # create a temporary file to save data from url
+            # create file name to use to store the data from the source url
             tmpfile = os.path.join(DATA_DIR, filename)
 
             try:
@@ -265,9 +265,9 @@ def processNewData(existing_ids):
             # Parse fetched data and generate unique ids
             logging.info('Parsing data for {}'.format(region))
             # check if the tmpfile contains all the expected shapefiles
-            # srore the shapefiles name with region in the dictionary 'shpfiles'
+            # store the names of the shapefiles for each time period (CS, ML1, ML2) in the dictionary 'shpfiles'
             shpfiles = findShps(tmpfile)
-            # process each shapefiles
+            # process each shapefile
             for ifc_type, shpfile in shpfiles.items():
                 # format path for the shapefiles
                 shpfile = '/{}'.format(shpfile)
@@ -279,7 +279,6 @@ def processNewData(existing_ids):
                 # if the shapefile is related to near-term projections
                 if ifc_type == 'ML1':
                     # set end date as four months from current date 
-                    # current date is one month ago from today's date
                     end_date = date + relativedelta(months=4)
                 # if the shapefile is related to medium-term projections
                 elif ifc_type == 'ML2':
