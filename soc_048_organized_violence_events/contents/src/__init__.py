@@ -181,18 +181,21 @@ They should all be checked because their format likely will need to be changed.
 '''
 
 def genUID(obs):
-    '''Generate unique id using variable 'id' from 'Result' feature in json
-    INPUT   obs: Data from 'Result' feature in retrieved json (json)
+    '''Generate unique id using variable 'id' from input json
+    INPUT   obs: single row of data in json format (json)
+    RETURN unique id for row (string)
     '''
     return str(obs['id'])
 
 def fetchResults(page, start_date=None):
-    '''Generate the url and pull data for the selected interval from 'Result' feature in the json
+    '''Generate the url and pull data for the selected start time and page
     INPUT   page: page number that we want to search for (string)
             start_date: date from which we want to begin search for data (string)
+    RETURN list of data rows for url (list of dictionaries)
     '''
     if PROCESS_HISTORY:
         # if want to get all data to date, don't specify any start_date
+        # generate the url and pull data
         return requests.get(HISTORY_URL.format(page=page)).json()['Result']
     else:
         # generate the url and pull data using a starting date specified by the start_date variable
@@ -201,13 +204,13 @@ def fetchResults(page, start_date=None):
 def genRow(obs):
     '''
     List of new data from each page in the retrieved url
-    INPUT   obs: Data from 'Result' feature in retrieved json (json)
-    RETURN  row: list of new data from current page in the retrieved json (list of strings)
+    INPUT   obs: single row of data in json format (json)
+    RETURN  row: list of new data from the input row of data (list)
     '''
 
-    # generate unique id by using the variable 'id' from 'Result' feature in json
+    # generate unique id from 'id' variable in source data
     uid = genUID(obs)
-    # create an empty list to store each row of new data
+    # create an empty list to store the processed data for this row that we will send to Carto
     row = []
     # go through each column in the Carto table
     for field in CARTO_SCHEMA.keys():
@@ -245,15 +248,18 @@ def genRow(obs):
 def keep_if_new(obs, existing_ids):
     '''
     Check if the unique id already exist in our Carto table
-    INPUT   obs: Data from 'Result' feature in retrieved json (json)
+    INPUT   obs: single row of data in json format (json)
             existing_ids: list of unique IDs that we already have in our Carto table (list of strings)
+    RETURN    is the unique id a new observation that needs to be sent to the Carto table (boolean)
     '''
     # get the unique id from first variable of 'Result' feature
+    # if the id is already in the table, return False (so we can drop this observation)
     if obs[0] in existing_ids:
         return False
     else:
         # if the unique id don't exist in existing_ids, add it
         existing_ids.append(obs[0])
+        # return True (so we can keep this observation)
         return True
 
 def processNewData(existing_ids):
@@ -272,7 +278,7 @@ def processNewData(existing_ids):
         num_pages = requests.get(HISTORY_URL.format(page=0)).json()['TotalPages']
     else:
         # get the start date by going back number of days set by the "DAYS_TO_LOOK_BACK" variable
-        # convert the datetime to string in the formet set by DATE_FORMAT variable
+        # convert the datetime to string in the format set by DATE_FORMAT variable
         start_date = (datetime.datetime.today() - datetime.timedelta(days=DAYS_TO_LOOK_BACK)).strftime(DATE_FORMAT)
         # generate and retrieve the url to get the contents from page 0 for the specified start date and then
         # get the total number of pages from the 'TotalPages' feature
@@ -282,15 +288,16 @@ def processNewData(existing_ids):
 
     # set the length (number of rows) of new_data to 0 as starting point
     total_new = 0
-    # loop thorough each pages in the retrieved url and process the data
+    # loop through each of the pages in the retrieved url and process the data
     for page in range(num_pages):
         logging.info('Processing page {}/{}'.format(page, num_pages))
         # generate the url and pull data for the selected interval from current page
         results = fetchResults(page, start_date)
-        # get list of new data from fetched results for each column in Carto table 
+        # get list of new data rows from fetched results
         parsed_rows = map(genRow, results)
-        # check if the current row already exist in our Carto table
-        # if it doesn't, add it to the list of new rows to send to Carto
+        # check if each row already exists in our Carto table
+        # if it doesn't, keep it in the list of new rows to send to Carto
+        # if it does, drop it from the list of new rows
         # also add it to existing_ids list, since it will be sent to Carto now
         new_rows = list(filter(lambda row: keep_if_new(row, existing_ids), parsed_rows))
         # length (number of rows) of new_data   
@@ -298,6 +305,7 @@ def processNewData(existing_ids):
         # if we have found new data to process
         if new_count:
             logging.info('Pushing {} new rows'.format(new_count))
+            # insert new data into the Carto table
             cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
                                 CARTO_SCHEMA.values(), new_rows, user=CARTO_USER, key=CARTO_KEY)
             # add this to the number of rows of new data sent to Carto table
