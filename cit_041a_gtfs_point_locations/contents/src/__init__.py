@@ -28,8 +28,6 @@ CARTO_TABLE = 'cit_041_gtfs'
 # column of table that can be used as an unique ID (UID)
 UID_FIELD = 'feed_id'
 
-# column that stores datetime information
-TIME_FIELD = 'ts_latest'
 # column names and types for data table
 # column names should be lowercase
 # column types should be one of the following: geometry, text, numeric, timestamp
@@ -117,6 +115,9 @@ They should all be checked because their format likely will need to be changed.
 def getGeom(lon, lat):
     '''
     Define point geometry from latitude and longitude
+    INPUT   lon: longitude for point location (float)
+            lat: latitude for point location (float)
+    RETURN  geojson for point location (geojson)
     '''
     # construct geojson using values from lon, lat columns
     geometry = {
@@ -127,7 +128,9 @@ def getGeom(lon, lat):
 
 def convert_time_since_epoch(timestamp):
     '''
-    Function to convert seconds since the epoch to human readable time
+    Function to convert seconds since the epoch to human-readable time
+    INPUT   timestamp: date, formatted as time since linux epoch (integer)
+    RETURN  formatted string of date (string)
     '''
     # create a datetime object from timestamp
     value = datetime.datetime.fromtimestamp(timestamp)
@@ -165,6 +168,7 @@ def feeds():
     '''
     Function to use API location ids to obtain the feed information and put them into a 
     pandas dataframe with all the levels of the json unpacked
+    RETURN  df: dataframe of transit feed data for all locations (pandas dataframe)
     '''
     # create an empty list to store feed results
     feed_list = []
@@ -206,7 +210,7 @@ def feeds():
     df['the_geom'] = df.apply(lambda row: getGeom(row['longitude'], row['latitude']), axis=1)
     # replace NaN with zero and infinity with large finite numbers for 'timestamp_epoch' column
     df['timestamp_epoch'] = np.nan_to_num(df['timestamp_epoch'].values)
-    # create datetime object from 'timestamp_epoch' column and add the values to a new column
+    # create date string from 'timestamp_epoch' column and add the values to a new column
     df['ts_latest'] = [convert_time_since_epoch(x) for x in df['timestamp_epoch'].values]
 
     return df
@@ -237,7 +241,6 @@ def processData():
             tries = tries + 1
             if tries == MAX_TRIES:
                 logging.error("Error fetching data, and max tries reached. See source for last data update.")
-            success = False
     # if we suceessfully collected data from the url
     if success == True:
         # check it the table doesn't already exist in Carto
