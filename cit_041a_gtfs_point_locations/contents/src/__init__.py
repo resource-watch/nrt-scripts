@@ -137,7 +137,8 @@ def convert_time_since_epoch(timestamp):
 
 def location():
     '''
-    Function to grab the unique location id (uids) from the locations api.
+    Function to grab the unique location id from the locations api.
+    RETURN  list of location ids (list of integers)
     '''
     logging.info('Fetching location ids')
     # get the transit feed data from the url through a request response json
@@ -162,24 +163,23 @@ def location():
 
 def feeds():
     '''
-    Function to use the uids to obtain the feed information and put them into a 
-    pandas dataframe with all the dictionaries unpacked
+    Function to use API location ids to obtain the feed information and put them into a 
+    pandas dataframe with all the levels of the json unpacked
     '''
     # create an empty list to store feed results
     feed_list = []
     logging.info('Fetching Feed info')
     # loop through each locations in the transit feed data using 'id' variable from the JSON
     for id in location():
-        # generate url using id and get the url through a request response JSON
+        # generate url using id and get the data for this location
         r = requests.get(DATA_URL.format(id))
         json_obj = r.json()
         # store 'results' feature from the JSON to a list
         feed_results = json_obj['results']
         # store 'feeds' variable from 'result' feature to a list
         feed_feeds = feed_results['feeds']
+        # append the data for this location to the feed_list, if any data is in the list
         try:
-            # get the first element of the feed_feeds variable
-            # append it to the feed_list
             feed_list.append(feed_feeds[0])
         except:
             continue
@@ -198,10 +198,9 @@ def feeds():
     df = df.dropna(axis=1, how='all')
     # Original columns = 'id', 'ty', 't', 'id', 'pid', 't', 'n', 'lat', 'lng', 0, 'ts', 'd', 'i', 
     # described in API documentation http://transitfeeds.com/api/swagger/#!/default/getFeeds
-    # new column names
+    # rename the columns to be more descriptive
     new_columns = ['feed_id', 'feed_type', 'feed_title', 'loc_id', 'ploc_id', 'loc_title_l', 'loc_title_s', 'latitude',
                    'longitude', 'timestamp_epoch', 'gtfs_zip', 'gtfs_txt']
-    # change column names according to new_columns 
     df.columns = new_columns
     # add a new column for geometry using the coulmns 'latitude' and'longitude'
     df['the_geom'] = df.apply(lambda row: getGeom(row['longitude'], row['latitude']), axis=1)
