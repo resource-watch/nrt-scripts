@@ -249,7 +249,7 @@ def processData():
             logging.info('Writing to Carto')
             cc = cartoframes.CartoContext(base_url="https://{user}.carto.com/".format(user=CARTO_USER),
                                           api_key=CARTO_KEY)
-            cc.write(df, CARTO_TABLE, overwrite=True, privacy='public')
+            cc.write(df, CARTO_TABLE, overwrite=True, privacy='link')
         else:
             # if the table already exists, delete all the rows
             cartosql.deleteRows(CARTO_TABLE, 'cartodb_id IS NOT NULL', user=CARTO_USER, key=CARTO_KEY)
