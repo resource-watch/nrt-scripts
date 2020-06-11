@@ -257,7 +257,7 @@ def processData():
             logging.info('Writing to Carto')
             cc = cartoframes.CartoContext(base_url="https://{user}.carto.com/".format(user=CARTO_USER),
                                           api_key=CARTO_KEY)
-            cc.write(df, CARTO_TABLE, overwrite=True, privacy='public')
+            cc.write(df, CARTO_TABLE, overwrite=True, privacy='link')
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
