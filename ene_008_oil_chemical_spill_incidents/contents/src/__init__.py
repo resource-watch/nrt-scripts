@@ -203,7 +203,6 @@ def processData(existing_ids):
                                 logging.debug('No lat long available for this data point - skipping!')
                                 new_row.append(None)
                         else:
-                            # To fix trouble w/ cartosql not being able to handle '' for numeric:
                             try:
                                 # for all other columns, we can fetch the data using our column name in Carto
                                 # if the column we are trying to retrieve doesn't exist in the source data, store None
@@ -247,13 +246,6 @@ def processData(existing_ids):
                             except IndexError:
                                 pass
                         # check if last row in new_rows matches with the new_row list
-                        new_rows[-1]==new_row
-                        '''
-                        for item in row[1:]:
-                            val = row[idx[field]] if row[idx[field]] != '' else None
-                            new_row.append(val)
-                            new_rows[-1].append(item)
-                        '''
     # find the length (number of rows) of new_data 
     num_new = len(new_rows)
     # check if new data is available
