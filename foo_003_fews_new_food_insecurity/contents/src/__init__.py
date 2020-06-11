@@ -64,8 +64,10 @@ REGIONS = {'WA':'west-africa{date}.zip',
 # oldest date that can be stored in the Carto table before we start deleting
 MAXAGE = datetime.datetime.today() - datetime.timedelta(days=365*5)
 
-# these two variables are used as parameters for simplifying geometry of the shapefiles
-# all points in the simplified object will be within this distance of the original geometry
+# these two variables are used as parameters for the shapely simplify function, which simplifies the geometry of the shapefiles
+# please read the documentation for further details:
+# https://shapely.readthedocs.io/en/stable/manual.html#object.simplify
+# all points in the simplified object will be within this tolerance level of difference from the original geometry
 SIMPLIFICATION_TOLERANCE = .04
 # decide whether to preserve topology of the geometry
 # a slower algorithm is used that preserves topology
@@ -210,7 +212,8 @@ def findShps(zfile):
 def simplifyGeom(geom):
     '''
     Return a simplified representation of the geometric object
-    INPUT  geom: list of unique IDs that we already have in our Carto table (list of strings)
+    INPUT   geom: geojson of current geometry (geojson)
+    RETURN  simplified geometry (geojson)
     '''
     # create a shapely geometry from the input geojson
     shp = geometry.shape(geom)
@@ -328,8 +331,7 @@ def processNewData(existing_ids):
                                     # convert the datetime for start_date to string 
                                     # add start_date to the list of data from this row
                                     row.append(start_date.strftime(DATETIME_FORMAT))
-                                # convert the datetime for end_date to string 
-                                # add start_date to the list of data from this row
+                                # if we are fetching data for end_date column
                                 elif field == 'end_date':
                                     # convert the datetime for end_date to string 
                                     # add end_date to the list of data from this row
