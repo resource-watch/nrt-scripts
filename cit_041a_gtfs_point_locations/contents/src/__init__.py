@@ -228,7 +228,7 @@ def processData():
     while tries < MAX_TRIES and success == False:
         logging.info('Try running feeds, try number = {}'.format(tries))
         try:
-            # get the data from the url and put them into a pandas dataframe
+            # pull transit feed data from all locations and format the data into a pandas dataframe
             df = feeds()
             # set success as True after retrieving the data to break out of this loop
             success = True
