@@ -21,7 +21,7 @@ EARTHDATA_USER = os.getenv('EARTHDATA_USER')
 EARTHDATA_KEY = os.getenv('EARTHDATA_KEY')
 
 # name of table in Carto where we will upload the data
-CARTO_TABLE = 'cli_041_antarctic_ice'
+CARTO_TABLE = 'cli_043_arctic_sea_ice_minimum'
 
 # column of table that can be used as a unique ID (UID)
 UID_FIELD = 'date'
@@ -33,22 +33,24 @@ TIME_FIELD = 'date'
 # column names should be lowercase
 # column types should be one of the following: geometry, text, numeric, timestamp
 CARTO_SCHEMA = OrderedDict([
+        ('year', 'numeric'),
+        ('month', 'numeric'),
         ('date', 'timestamp'),
-        ('mass', 'numeric'),
-        ('uncertainty', 'text')
+        ('extent', 'numeric'),
+        ('area', 'numeric')
     ])
 
 # how many rows can be stored in the Carto table before the oldest ones are deleted?
 MAX_ROWS = 1000000
 
-# url for antarctica mass data
-SOURCE_URL = 'https://podaac-tools.jpl.nasa.gov/drive/files/allData/tellus/L4/ice_mass/RL06/v02/mascon_CRI'
+# url for Arctic Sea Ice Minimum dataset
+SOURCE_URL = 'https://climate.nasa.gov/vital-signs/arctic-sea-ice/'
 
 # Resource Watch dataset API ID
 # Important! Before testing this script:
 # Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
 # Failing to do so will overwrite the last update date on a different dataset on Resource Watch
-DATASET_ID = '0570f6d0-b34b-4bb3-bd93-46644a078996'
+DATASET_ID = '782b2e43-f492-4cea-a195-6635148a3c1b'
 
 '''
 FUNCTIONS FOR ALL DATASETS
@@ -130,39 +132,6 @@ The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
 
-def fetchDataFileName(url):
-    ''' 
-    Get the filename from source url for which we want to download data
-    INPUT   url: source url to download data (string)
-    RETURN  filename: filename for source data (string)
-    '''  
-    # pull website content from the source url where data for antarctica ice mass is stored
-    r = requests.get(url, auth=HTTPBasicAuth(EARTHDATA_USER, EARTHDATA_KEY), stream=True)
-    # use BeautifulSoup to read the content as a nested data structure
-    soup = BeautifulSoup(r.text, 'html.parser')
-    # create a boolean variable which will be set to "True" once the desired file is found
-    already_found = False
-
-    # extract all the <a> tags within the html content. The <a> tags are used to mark links, so 
-    # we will be able to find the files available for download marked with these tags.
-    for item in soup.findAll('a'):
-        # if one of the links available to download is a text file & contains the word 'antarctica_mass'
-        if item['href'].endswith(".txt") and 'antarctica_mass' in item['href']:
-            if already_found:
-                logging.warning("There are multiple filenames which match criteria, passing most recent")
-            # get the filename    
-            filename = item['href'].split('/')[-1]
-            # set this variable to "True" since we found the desired file
-            already_found = True
-    if already_found:
-        # if successful, log that the filename was found successfully
-        logging.info("Selected filename: {}".format(filename))
-    else:
-        # if unsuccessful, log an error that the filename was not found
-        logging.warning("No valid filename found")
-
-    return(filename)
-
 def deleteExcessRows(table, max_rows, time_field):
     ''' 
     Delete rows to bring count down to max_rows
@@ -187,14 +156,50 @@ def deleteExcessRows(table, max_rows, time_field):
     if num_dropped:
         logging.info('Dropped {} old rows from {}'.format(num_dropped, table))
 
-    return(num_dropped)
+def fetchDataFileName(url):
+    ''' 
+    Get the link from source url for which we want to download data
+    INPUT   url: source url to download data (string)
+    RETURN  https_link: link for source data (string)
+    '''  
+    # pull website content from the source url where data for arctic ice mass is stored
+    r = requests.get(url, auth=HTTPBasicAuth(EARTHDATA_USER, EARTHDATA_KEY), stream=True)
+    # use BeautifulSoup to read the content as a nested data structure
+    soup = BeautifulSoup(r.text, 'html.parser')
+    # create a boolean variable which will be set to "True" once the desired file is found
+    already_found = False
 
+    # extract all the <a> tags within the html content. The <a> tags are used to mark links, so 
+    # we will be able to find the files available for download marked with these tags.
+    links = soup.findAll('a')
+    # There are some anchors (<a> tags) without href attribute
+    # first filter your links for the existence of the href attribute
+    # https://stackoverflow.com/questions/52398738/python-sort-to-avoid-keyerror-href?noredirect=1&lq=1
+    links = filter(lambda x: x.has_attr('href'), links)
+    # loop through each link to find the link for arctic sea ice minimum data
+    for item in links:
+        # if one of the links available to download is a text file & contains the word 'Arctic_data'
+        if item['href'].endswith(".txt") and 'Arctic_data' in item['href']:
+            if already_found:
+                logging.warning("There are multiple links which match criteria, passing most recent")
+            # get the link   
+            https_link = item['href']
+            # set this variable to "True" since we found the desired file
+            already_found = True
+    if already_found:
+        # if successful, log that the link was found successfully
+        logging.info("Selected https: {}".format(https_link))
+    else:
+        # if unsuccessful, log an error that the link was not found
+        logging.warning("No valid link found")
 
-def tryRetrieveData(url, filename, timeout=300, encoding='utf-8'):
+    return(https_link)
+
+def tryRetrieveData(url, resource_location, timeout=300, encoding='utf-8'):
     ''' 
     Download data from the source
     INPUT   url: source url to download data (string)
-            filename: filename for source data (string)
+            resource_location: link for source data (string)
             timeout: how many seconds we will wait to get the data from url (integer) 
             encoding: encoding of the url content (string)
     RETURN  res_rows: list of lines in the source data file (list of strings)
@@ -203,8 +208,6 @@ def tryRetrieveData(url, filename, timeout=300, encoding='utf-8'):
     start = time.time()
     # elapsed time is initialized with zero
     elapsed = 0
-    # generate the url to pull data for this file
-    resource_location = os.path.join(url, filename)
 
     # try to fetch data from generated url while elapsed time is less than the allowed time
     while elapsed < timeout:
@@ -224,36 +227,14 @@ def tryRetrieveData(url, filename, timeout=300, encoding='utf-8'):
 
     return([])
 
-def decimalToDatetime(dec, date_pattern="%Y-%m-%d %H:%M:%S"):
-    ''' 
-    Convert a decimal representation of a year to a desired string representation
-    For example: 2016.5 -> 2016-06-01 00:00:00
-    useful resource: https://stackoverflow.com/questions/20911015/decimal-years-to-datetime-in-python
-    INPUT   dec: decimal representation of a year (string)
-            date_pattern: format in which we want to convert the input date to (string)
-    RETURN  result: date formatted according to date_pattern (string)
-    ''' 
-    # convert the date from string to float
-    dec = float(dec)
-    # convert the date from float to integer to separate out the year (i.e. 2016.5 -> 2016)
-    year = int(dec)
-    # get the decimal part of the date  (i.e. 2016.5 -> 0.5)
-    rem = dec - year
-    # create a datetime object for the 1st of January of the year
-    base = datetime.datetime(year, 1, 1)
-    # generate a complete datetime object to include month, day and time
-    dt = base + datetime.timedelta(seconds=(base.replace(year=base.year + 1) - base).total_seconds() * rem)
-    # convert datetime object to string formatted according to date_pattern
-    result = dt.strftime(date_pattern)
-    return(result)
-
 def insertIfNew(newUID, newValues, existing_ids, new_data):
     '''
     For data pulled from the source data file, check whether it is already in our table. If not, add it to the queue for processing
     INPUT   newUID: date for the current row of data (string)
-            newValues: date, mass index and uncertainty index for current row of data (list of strings)
+            newValues: year, month, date, extent and area for current row of data (list of strings)
             existing_ids: list of date IDs that we already have in our Carto table (list of strings)
-            new_data: dictionary of new data to be added to Carto, in which the key is the date and the value is a list of strings containing the date, mass index, and uncertainty index for new data (dictionary)
+            new_data: dictionary of new data to be added to Carto, in which the key is the date and the value is a list of strings 
+            containing year, month, date, extent and area for new data (dictionary)
     RETURN  new_data: updated dictionary of new data to be added to Carto, in which the input newValues have been added (dictionary)
     '''
     # get dates that are already in the table along with the new dates that are already processed
@@ -264,41 +245,51 @@ def insertIfNew(newUID, newValues, existing_ids, new_data):
         logging.debug("Adding {} data to table".format(newUID))
     else:
         logging.debug("{} data already in table".format(newUID))
-    return(new_data)
 
-def processData(url, existing_ids):
+    return(new_data)   
+
+def processData(url, existing_ids, date_format='%Y-%m-%d %H:%M:%S'):
     '''
     Fetch, process and upload new data
     INPUT   url: url where you can find the download link for the source data (string)
             existing_ids: list of date IDs that we already have in our Carto table (list of strings)
+            date_format: format of dates in Carto table (string)
     RETURN  num_new: number of rows of new data sent to Carto table (integer)
     '''
     # initialize variable to store number of new rows sent to Carto
     num_new = 0
-    # Get the filename from source url for which we want to download data
-    filename = fetchDataFileName(url)
+    # Get the link from source url for which we want to download data
+    resource_location = fetchDataFileName(url)
     # get the data from source as a list of strings, with each string holding one line from the source data file
-    res_rows = tryRetrieveData(url, filename)
+    res_rows = tryRetrieveData(url, resource_location)
     # create an empty dictionary to store new data (data that's not already in our Carto table)
     new_data = {}
     # go through each line of content retrieved from source
     for row in res_rows:
-        # get dates, mass, uncertainty index by processing lines that come after the header (header lines start with "HDR")
-        if not (row.startswith("HDR")):
-            # split line by space to get dates, mass and uncertainty index as separate elements
+        # get dates, extent, area by processing lines that come after the header (header line start with "year")
+        if not (row.startswith("year")):
+            # split line by space to get each columns as separate elements
             row = row.split()
-            # if length of contents in row matches the length of CARTO_SCHEMA
-            if len(row)==len(CARTO_SCHEMA):
-                logging.debug("Processing row: {}".format(row))
-                # get date by accessing the first element in the list of row
-                date = decimalToDatetime(row[0])
-                # store date, mass index (row[1]) and uncertainty index (row[2]) into a list
-                values = [date, row[1], row[2]]
-                # For new date, check whether this is already in our table. 
-                # If not, add it to the queue for processing
-                new_data = insertIfNew(date, values, existing_ids, new_data)
-            else:
-                logging.debug("Skipping row: {}".format(row))
+            logging.debug("Processing row: {}".format(row))
+            # get area by accessing the last column 
+            # convert the unit from million sq-km to sq-km, round to 3 significant figure
+            area = round(float(row[-1])*1000000, 3)
+            # get extent by accessing the second last column
+            # convert the unit from million sq-km to sq-km, round to 3 significant figure
+            extent = round(float(row[-2])*1000000, 3)
+            # get year from first column
+            year = int(row[0])
+            # get month from second column
+            month = int(row[1])
+            # construct date using year, month and first day of the month as day
+            date = datetime.datetime(year, month, 1)
+            # convert datetime object to string formatted according to date_pattern
+            date = date.strftime(date_format)
+            # store all the variables into a list
+            values = [year, month, date, extent, area]
+            # For new date, check whether this is already in our table. 
+            # If not, add it to the queue for processing
+            new_data = insertIfNew(date, values, existing_ids, new_data)
 
     # if we have found new dates to process
     if len(new_data):
@@ -365,7 +356,7 @@ def main():
     logging.info('Previous rows: {},  New rows: {}'.format(len(existing_ids), num_new))
 
     # Delete data to get back to MAX_ROWS
-    num_deleted = deleteExcessRows(CARTO_TABLE, MAX_ROWS, TIME_FIELD)
+    deleteExcessRows(CARTO_TABLE, MAX_ROWS, TIME_FIELD)
 
     # Update Resource Watch
     updateResourceWatch(num_new)

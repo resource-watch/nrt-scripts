@@ -9,6 +9,9 @@ RUN pip install pandas==0.24.2
 RUN pip install boto3==1.10.45
 RUN pip install requests==2.22.0
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
+RUN pip install carto==1.11.1
+RUN pip install LMIPy==0.2.8
+RUN pip install cartoframes==1.0.2
 
 # set name
 ARG NAME=upload-world-bank
@@ -25,5 +28,4 @@ VOLUME /opt/$NAME/data
 USER $NAME
 ENV PYTHONPATH /src
 
-CMD ["python", "update_worldbank_data_on_carto.py"]
-CMD ["python", "update_worldbank_layers_on_rw.py"]
+CMD ["python", "main.py"]

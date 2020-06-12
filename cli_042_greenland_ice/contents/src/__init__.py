@@ -41,9 +41,6 @@ CARTO_SCHEMA = OrderedDict([
 # how many rows can be stored in the Carto table before the oldest ones are deleted?
 MAX_ROWS = 1000000
 
-# oldest date that can be stored in the Carto table before we start deleting
-MAX_AGE = datetime.datetime.today() - datetime.timedelta(days=365*150)
-
 # url for Greenland mass data
 SOURCE_URL = 'https://podaac-tools.jpl.nasa.gov/drive/files/allData/tellus/L4/ice_mass/RL06/v02/mascon_CRI'
 
@@ -132,36 +129,6 @@ FUNCTIONS FOR THIS DATASET
 The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
-
-def cleanOldRows(table, time_field, max_age, date_format='%Y-%m-%d %H:%M:%S'):
-    ''' 
-    Delete rows that are older than a certain threshold
-    INPUT   table: name of table in Carto from which we will delete the old data (string)
-            time_field: column that stores datetime information (string) 
-            max_age: oldest date that can be stored in the Carto table (datetime object)
-            date_format: format of dates in Carto table (string)
-    RETURN  num_expired: number of rows that have been dropped from the table (integer)
-    ''' 
-    # initialize number of rows that will be dropped as 0
-    num_expired = 0
-    # if the table exists
-    if cartosql.tableExists(table, CARTO_USER, CARTO_KEY):
-        # check if max_age variable is a datetime object
-        if isinstance(max_age, datetime.datetime):
-            # convert datetime object to string formatted according to date_format
-            max_age = max_age.strftime(date_format)
-        elif isinstance(max_age, str):
-            # raise an error if max_age is a string
-            logging.error('Max age must be expressed as a datetime.datetime object')
-        # delete rows from table which are older than the max_age
-        r = cartosql.deleteRows(table, "{} < '{}'".format(time_field, max_age), CARTO_USER, CARTO_KEY)
-        # get the number of rows that were dropped from the table
-        num_expired = r.json()['total_rows']
-    else:
-        # raise an error if the table doesn't exist
-        logging.error("{} table does not exist yet".format(table))
-
-    return(num_expired)
 
 def fetchDataFileName(url):
     ''' 
@@ -299,15 +266,17 @@ def insertIfNew(newUID, newValues, existing_ids, new_data):
         logging.debug("{} data already in table".format(newUID))
     return(new_data)
 
-def processData(url, filename, existing_ids):
+def processData(url, existing_ids):
     '''
     Fetch, process and upload new data
     INPUT   url: url where you can find the download link for the source data (string)
-            filename: filename for source data (string)
             existing_ids: list of date IDs that we already have in our Carto table (list of strings)
     RETURN  num_new: number of rows of new data sent to Carto table (integer)
     '''
+    # initialize variable to store number of new rows sent to Carto
     num_new = 0
+    # Get the filename from source url for which we want to download data
+    filename = fetchDataFileName(url)
     # get the data from source as a list of strings, with each string holding one line from the source data file
     res_rows = tryRetrieveData(url, filename)
     # create an empty dictionary to store new data (data that's not already in our Carto table)
@@ -390,15 +359,9 @@ def main():
     logging.info('Checking if table exists and getting existing IDs.')
     existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, TIME_FIELD)
 
-    # Delete rows that are older than a certain threshold
-    num_expired = cleanOldRows(CARTO_TABLE, TIME_FIELD, MAX_AGE)
-
-    # Get the filename from source url for which we want to download data
-    filename = fetchDataFileName(SOURCE_URL)
-
     # Fetch, process, and upload new data
     logging.info('Fetching new data')
-    num_new = processData(SOURCE_URL, filename, existing_ids)
+    num_new = processData(SOURCE_URL, existing_ids)
     logging.info('Previous rows: {},  New rows: {}'.format(len(existing_ids), num_new))
 
     # Delete data to get back to MAX_ROWS
