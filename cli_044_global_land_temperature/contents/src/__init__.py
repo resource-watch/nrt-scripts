@@ -24,7 +24,7 @@ EARTHDATA_KEY = os.getenv('EARTHDATA_KEY')
 CARTO_TABLE = 'cli_044_global_land_temperature'
 
 # column of table that can be used as a unique ID (UID)
-UID_FIELD = 'uid'
+UID_FIELD = 'date'
 
 # column that stores datetime information
 TIME_FIELD = 'date'
@@ -33,10 +33,9 @@ TIME_FIELD = 'date'
 # column names should be lowercase
 # column types should be one of the following: geometry, text, numeric, timestamp
 CARTO_SCHEMA = OrderedDict([
-        ('uid', 'text'),
         ('date', 'timestamp'),
-        ('value', 'numeric'),
-        ('value_type', 'text')
+        ('no_smoothing', 'numeric'),
+        ('lowess_5_smoothing', 'numeric')
     ])
 
 # how many rows can be stored in the Carto table before the oldest ones are deleted?
@@ -231,11 +230,11 @@ def tryRetrieveData(url, resource_location, timeout=300, encoding='utf-8'):
 def insertIfNew(newUID, newValues, existing_ids, new_data):
     '''
     For data pulled from the source data file, check whether it is already in our table. If not, add it to the queue for processing
-    INPUT   newUID: unique id for the current row of data (string)
-            newValues: unique id, date, temperature change and change calculation method for current row of data (list of strings)
-            existing_ids: list of unique IDs that we already have in our Carto table (list of strings)
-            new_data: dictionary of new data to be added to Carto, in which the key is the unique id and the value is a list of strings 
-            containing unique id, date, temperature change and change calculation method for new data (dictionary)
+    INPUT   newUID: date for the current row of data (string)
+            newValues: date, unsmoothed temperature change and Lowess smoothed temperature change for current row of data (list of strings)
+            existing_ids: list of date IDs that we already have in our Carto table (list of strings)
+            new_data: dictionary of new data to be added to Carto, in which the key is the date and the value is a list of strings 
+            containing date, unsmoothed temperature change and Lowess smoothed (five year) temperature change for new data (dictionary)
     RETURN  new_data: updated dictionary of new data to be added to Carto, in which the input newValues have been added (dictionary)
     '''
     # get dates that are already in the table along with the new dates that are already processed
@@ -253,7 +252,7 @@ def processData(url, existing_ids, date_format='%Y-%m-%d %H:%M:%S'):
     '''
     Fetch, process and upload new data
     INPUT   url: url where you can find the download link for the source data (string)
-            existing_ids: list of unique ids that we already have in our Carto table (list of strings)
+            existing_ids: list of date IDs that we already have in our Carto table (list of strings)
             date_format: format of dates in Carto table (string)
     RETURN  num_new: number of rows of new data sent to Carto table (integer)
     '''
@@ -280,21 +279,15 @@ def processData(url, existing_ids, date_format='%Y-%m-%d %H:%M:%S'):
         date_obj = datetime.datetime(year, 1, 1)
         # convert datetime object to string formatted according to date_pattern
         date = date_obj.strftime(date_format)
-        # get annual mean temperature change by accessing the second column 
-        annual_mean = float(row[1])
-        # get five year mean temperature change by accessing the last column
-        five_year_mean = float(row[-1])
-        # create a dictionary with temperature change calculation method and their values
-        value_types = {'annual_mean':annual_mean, 'five_year_mean':five_year_mean}
-        # loop through each item in value_types to store them as separate rows
-        for value_type, value in value_types.items():                   
-            # create unique id for each row by joining change calculation method and date
-            uid = value_type + '_' + date_obj.strftime('%Y-%m-%d')
-            # store all the variables into a list
-            values = [uid, date, value, value_type]
-            # For new unique id, check whether this is already in our table. 
-            # If not, add it to the queue for processing
-            new_data = insertIfNew(uid, values, existing_ids, new_data)
+        # get unsmoothed temperature change by accessing the second column 
+        no_smoothing = float(row[1])
+        # get five year Lowess smoothed temperature change by accessing the last column
+        lowess_smoothing = float(row[-1])
+        # store all the variables into a list
+        values = [date, no_smoothing, lowess_smoothing]
+        # For new date, check whether this is already in our table. 
+        # If not, add it to the queue for processing
+        new_data = insertIfNew(date, values, existing_ids, new_data)
 
     # if we have found new data to process
     if len(new_data):
