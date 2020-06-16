@@ -69,84 +69,25 @@ The functions below must go in every near real-time script.
 Their format should not need to be changed.
 '''
 
-def getLastUpdate(dataset):
-    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{}'.format(dataset)
-    r = requests.get(apiUrl)
-    lastUpdateString=r.json()['data']['attributes']['dataLastUpdated']
-    nofrag, frag = lastUpdateString.split('.')
-    nofrag_dt = datetime.datetime.strptime(nofrag, "%Y-%m-%dT%H:%M:%S")
-    lastUpdateDT = nofrag_dt.replace(microsecond=int(frag[:-1])*1000)
-    return lastUpdateDT
-
-def getLayerIDs(dataset):
-    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{}?includes=layer'.format(dataset)
-    r = requests.get(apiUrl)
-    layers = r.json()['data']['attributes']['layer']
-    layerIDs =[]
-    for layer in layers:
-        if layer['attributes']['application']==['rw']:
-            layerIDs.append(layer['id'])
-    return layerIDs
-
-def flushTileCache(layer_id):
-    """
-    This function will delete the layer cache built for a GEE tiler layer.
-     """
-    apiUrl = 'http://api.resourcewatch.org/v1/layer/{}/expire-cache'.format(layer_id)
-    headers = {
-    'Content-Type': 'application/json',
-    'Authorization': os.getenv('apiToken')
-    }
-    try_num=1
-    tries=4
-    while try_num<tries:
-        try:
-            r = requests.delete(url = apiUrl, headers = headers, timeout=1000)
-            if r.ok or r.status_code==504:
-                logging.info('[Cache tiles deleted] for {}: status code {}'.format(layer_id, r.status_code))
-                return r.status_code
-            else:
-                if try_num < (tries-1):
-                    logging.info('Cache failed to flush: status code {}'.format(r.status_code))
-                    time.sleep(60)
-                    logging.info('Trying again.')
-                else:
-                    logging.error('Cache failed to flush: status code {}'.format(r.status_code))
-                    logging.error('Aborting.')
-            try_num += 1
-        except Exception as e:
-            logging.error('Failed: {}'.format(e))
-
 def lastUpdateDate(dataset, date):
-   apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
-   headers = {
-   'Content-Type': 'application/json',
-   'Authorization': os.getenv('apiToken')
-   }
-   body = {
-       "dataLastUpdated": date.isoformat()
-   }
-   try:
-       r = requests.patch(url = apiUrl, json = body, headers = headers)
-       logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
-       return 0
-   except Exception as e:
-       logging.error('[lastUpdated]: '+str(e))
-
-# https://gist.github.com/tomkralidis/baabcad8c108e91ee7ab
-#os.environ['GDAL_NETCDF_BOTTOMUP']='NO'
-DATASET_ID = '4828c405-06a2-4460-a78c-90969bce582b'
-
-
-def lastUpdateDate(dataset, date):
+    '''
+    Given a Resource Watch dataset's API ID and a datetime,
+    this function will update the dataset's 'last update date' on the API with the given datetime
+    INPUT   dataset: Resource Watch API dataset ID (string)
+            date: date to set as the 'last update date' for the input dataset (datetime)
+    '''
+    # generate the API url for this dataset
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
+    # create headers to send with the request to update the 'last update date'
     headers = {
     'Content-Type': 'application/json',
     'Authorization': os.getenv('apiToken')
     }
+    # create the json data to send in the request
     body = {
-        "dataLastUpdated": date.isoformat()
+        "dataLastUpdated": date.isoformat() # date should be a string in the format 'YYYY-MM-DDTHH:MM:SS'
     }
+    # send the request
     try:
         r = requests.patch(url = apiUrl, json = body, headers = headers)
         logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
@@ -154,12 +95,119 @@ def lastUpdateDate(dataset, date):
     except Exception as e:
         logging.error('[lastUpdated]: '+str(e))
 
-###
-## Handling RASTERS
-###
+'''
+FUNCTIONS FOR RASTER DATASETS
+
+The functions below must go in every near real-time script for a RASTER dataset.
+Their format should not need to be changed.
+'''
+
+def getLastUpdate(dataset):
+    '''
+    Given a Resource Watch dataset's API ID,
+    this function will get the current 'last update date' from the API
+    and return it as a datetime
+    INPUT   dataset: Resource Watch API dataset ID (string)
+    RETURN  lastUpdateDT: current 'last update date' for the input dataset (datetime)
+    '''
+    # generate the API url for this dataset
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{}'.format(dataset)
+    # pull the dataset from the API
+    r = requests.get(apiUrl)
+    # find the 'last update date'
+    lastUpdateString=r.json()['data']['attributes']['dataLastUpdated']
+    # split this date into two pieces at the seconds decimal so that the datetime module can read it:
+    # ex: '2020-03-11T00:00:00.000Z' will become '2020-03-11T00:00:00' (nofrag) and '000Z' (frag)
+    nofrag, frag = lastUpdateString.split('.')
+    # generate a datetime object
+    nofrag_dt = datetime.datetime.strptime(nofrag, "%Y-%m-%dT%H:%M:%S")
+    # add back the microseconds to the datetime
+    lastUpdateDT = nofrag_dt.replace(microsecond=int(frag[:-1])*1000)
+    return lastUpdateDT
+
+def getLayerIDs(dataset):
+    '''
+    Given a Resource Watch dataset's API ID,
+    this function will return a list of all the layer IDs associated with it
+    INPUT   dataset: Resource Watch API dataset ID (string)
+    RETURN  layerIDs: Resource Watch API layer IDs for the input dataset (list of strings)
+    '''
+    # generate the API url for this dataset - this must include the layers
+    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{}?includes=layer'.format(dataset)
+    # pull the dataset from the API
+    r = requests.get(apiUrl)
+    #get a list of all the layers
+    layers = r.json()['data']['attributes']['layer']
+    # create an empty list to store the layer IDs
+    layerIDs =[]
+    # go through each layer and add its ID to the list
+    for layer in layers:
+        # only add layers that have Resource Watch listed as its application
+        if layer['attributes']['application']==['rw']:
+            layerIDs.append(layer['id'])
+    return layerIDs
+
+def flushTileCache(layer_id):
+    """
+    Given the API ID for a GEE layer on Resource Watch,
+    this function will clear the layer cache.
+    If the cache is not cleared, when you view the dataset on Resource Watch, old and new tiles will be mixed together.
+    INPUT   layer_id: Resource Watch API layer ID (string)
+    """
+    # generate the API url for this layer's cache
+    apiUrl = 'http://api.resourcewatch.org/v1/layer/{}/expire-cache'.format(layer_id)
+    # create headers to send with the request to clear the cache
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': os.getenv('apiToken')
+    }
+
+    # clear the cache for the layer
+    # sometimetimes this fails, so we will try multiple times, if it does
+
+    # specify that we are on the first try
+    try_num=1
+    # specify the maximum number of attempt we will make
+    tries = 4
+    while try_num<tries:
+        try:
+            # try to delete the cache
+            r = requests.delete(url = apiUrl, headers = headers, timeout=1000)
+            # if we get a 200, the cache has been deleted
+            # if we get a 504 (gateway timeout) - the tiles are still being deleted, but it worked
+            if r.ok or r.status_code==504:
+                logging.info('[Cache tiles deleted] for {}: status code {}'.format(layer_id, r.status_code))
+                return r.status_code
+            # if we don't get a 200 or 504:
+            else:
+                # if we are not on our last try, wait 60 seconds and try to clear the cache again
+                if try_num < (tries-1):
+                    logging.info('Cache failed to flush: status code {}'.format(r.status_code))
+                    time.sleep(60)
+                    logging.info('Trying again.')
+                # if we are on our last try, log that the cache flush failed
+                else:
+                    logging.error('Cache failed to flush: status code {}'.format(r.status_code))
+                    logging.error('Aborting.')
+            try_num += 1
+        except Exception as e:
+            logging.error('Failed: {}'.format(e))
+
+'''
+FUNCTIONS FOR THIS DATASET
+
+The functions below have been tailored to this specific dataset.
+They should all be checked because their format likely will need to be changed.
+'''
 
 def getAssetName(tif, rw_id, varname):
-    '''get asset name from tif name, extract datetime and location'''
+    '''
+    get asset name from tif name, extract datetime and location
+    INPUT   tif:  ()
+            rw_id:  ()
+            varname:  ()
+    RETURN   ()
+    '''
     date = getRasterDate(tif)
     return os.path.join(EE_COLLECTION.format(rw_id=rw_id,
                                                 varname=varname),
@@ -168,11 +216,19 @@ def getAssetName(tif, rw_id, varname):
                                           date=date))
 
 def getRasterDate(filename):
-    '''get last 7 chrs of filename, 4 for year and 3 for week'''
+    '''
+    get last 7 chrs of filename, 4 for year and 3 for week
+    INPUT   filename:  ()
+    RETURN  ()
+    '''
     return os.path.splitext(os.path.basename(filename))[0][-7:]
 
 def getNewTargetDates(exclude_dates):
-    '''Get new dates excluding existing'''
+    '''
+    Get new dates excluding existing
+    INPUT   exclude_dates:  ()
+    RETURN  new_dates:  ()
+    '''
     new_dates = []
     date = datetime.date.today()
     #start at previous week of data
@@ -185,7 +241,11 @@ def getNewTargetDates(exclude_dates):
     return new_dates
 
 def fetch(datestr):
-    '''Fetch files by datestamp'''
+    '''
+    Fetch files by datestamp
+    INPUT   datestr:  ()
+    RETURN   ()
+    '''
     target_file = SOURCE_FILENAME.format(date=datestr)
     _file = SOURCE_URL.format(target_file=target_file)
     urllib.request.urlretrieve(_file, os.path.join(DATA_DIR,target_file))
@@ -194,6 +254,9 @@ def fetch(datestr):
 def extract_subdata(nc_file, rw_id):
     '''
     new_dates should be a list of tuples of form (date, index_in_netcdf)
+    INPUT   nc_file:  ()
+            rw_id:  ()
+    RETURN  var_tif:  ()
     '''
     # Set filename
     nc = Dataset(nc_file)
@@ -245,6 +308,12 @@ def extract_subdata(nc_file, rw_id):
     return var_tif
 
 def reproject(ncfile, rw_id, date):
+    '''
+    INPUT   ncfile:  ()
+            rw_id:  ()
+            date:  ()
+    RETURN  new_file:  ()
+    '''
     # Output filename
     new_file = os.path.join(DATA_DIR, '{}.tif'.format(FILENAME.format(rw_id = rw_id, varname = ASSET_NAMES[rw_id], date = date)))
 
@@ -265,6 +334,13 @@ def reproject(ncfile, rw_id, date):
     return new_file
 
 def _processAssets1(tifs, rw_id, varname):
+    '''
+
+    INPUT   tifs:  ()
+            rw_id:  ()
+            varname:  ()
+    RETURN  assets:  ()
+    '''
     assets = [getAssetName(tif, rw_id, varname) for tif in tifs]
     dates = [getRasterDate(tif) for tif in tifs]
     # Get a list of datetimes from these dates for each of the dates we are uploading
@@ -284,16 +360,32 @@ def _processAssets1(tifs, rw_id, varname):
     return assets
 
 def processAssets2(agg, rw_id, tifs):
+    '''
+
+    INPUT   agg:  ()
+            rw_id:  ()
+            tifs:  ()
+    RETURN  agg:  ()
+    '''
     agg[rw_id] = _processAssets1(tifs[rw_id], rw_id, ASSET_NAMES[rw_id])
     return agg
 
 
 
 def deleteLocalFiles(tifs):
+    '''
+
+    INPUT   tifs:  ()
+    RETURN   ()
+    '''
     return list(map(os.remove, tifs))
 
 def processNewRasterData(existing_dates_by_id):
-    '''fetch, process, upload, and clean new data'''
+    '''
+    fetch, process, upload, and clean new data
+    INPUT   existing_dates_by_id:  ()
+    RETURN  new_assets:  ()
+    '''
 
     # 0. Prep dates
     existing_dates = []
@@ -332,16 +424,19 @@ def processNewRasterData(existing_dates_by_id):
 
     return new_assets
 
-
-
-
 def checkCreateCollection(collection):
-    '''List assests in collection else create new collection'''
+    '''
+    List assests in collection if it exists, else create new collection
+    INPUT   collection: GEE collection to check or create (string)
+    RETURN  list of assets in collection (list of strings)
+    '''
+    # if collection exists, return list of assets in collection
     if eeUtil.exists(collection):
         return eeUtil.ls(collection)
+    # if collection does not exist, create it and return an empty list (because no assets are in the collection)
     else:
         logging.info('{} does not exist, creating'.format(collection))
-        eeUtil.createFolder(collection, imageCollection=True, public=True)
+        eeUtil.createFolder(collection, True, public=True)
         return []
 
 def deleteExcessAssets(dates, rw_id, varname, max_assets):
@@ -359,10 +454,6 @@ def deleteExcessAssets(dates, rw_id, varname, max_assets):
                                                           date=date))
             eeUtil.removeAsset(asset_name)
 
-###
-## Application code
-###
-
 def get_most_recent_date(collection):
     existing_assets = checkCreateCollection(collection)  # make image collection if doesn't have one
     existing_dates = [getRasterDate(a) for a in existing_assets]
@@ -378,7 +469,7 @@ def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
 
-    ### 0. Initialize GEE
+    # Initialize eeUtil
     eeUtil.initJson()
 
     ### 1. Create collection names, clear if desired
@@ -386,11 +477,12 @@ def main():
     for rw_id, varname in ASSET_NAMES.items():
         collections[rw_id] = EE_COLLECTION.format(rw_id=rw_id,varname=varname)
 
+    # Clear the GEE collection, if specified above
     if CLEAR_COLLECTION_FIRST:
         for collection in collections.values():
             if eeUtil.exists(collection):
                 eeUtil.removeAsset(collection, recursive=True)
-
+                
     ### 2. Grab existing assets and their dates
     existing_assets = {}
     for rw_id, coll in collections.items():
