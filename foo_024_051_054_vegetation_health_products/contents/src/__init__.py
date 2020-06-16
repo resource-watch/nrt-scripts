@@ -14,49 +14,60 @@ from collections import defaultdict
 import requests
 import time
 
-LOG_LEVEL = logging.INFO
 CLEAR_COLLECTION_FIRST = False
 DELETE_LOCAL = True
 
-# Sources for nrt data
-#SOURCE_URL = 'ftp://ftp.star.nesdis.noaa.gov/pub/corp/scsb/wguo/data/VHP_4km/VH/{target_file}'
+# url for vegetation health products data
 SOURCE_URL = 'ftp://ftp.star.nesdis.noaa.gov/pub/corp/scsb/wguo/data/Blended_VH_4km/VH/{target_file}'
-SOURCE_FILENAME = 'VHP.G04.C07.npp.P{date}.VH.nc'
-#SOURCE_FILENAME = 'VGVI_21Bands.G04.C07.npp.P{date}.VH.nc'
-#SDS_NAME = 'NETCDF:"{fname}":{varname}'
 
+# filename format for GEE
+SOURCE_FILENAME = 'VHP.G04.C07.npp.P{date}.VH.nc'
+
+# netcdf subdataset variables to be converted to tif files, and their associated dataset IDs
 VARIABLES = {
     'foo_024':'VHI',
     'foo_051':'VCI'
 }
 
+# dataset IDs and descriptive text, to be combined into Google Earth Engine asset names
 ASSET_NAMES = {
     'foo_024':'vegetation_health_index',
     'foo_051':'vegetation_condition_index',
 }
 
-EE_COLLECTION = '{rw_id}_{varname}'
-ASSET_NAME = '{rw_id}_{varname}_{date}'
-
-# For naming and storing assets
+# name of data directory in Docker container
 DATA_DIR = 'data'
+
+# name of folder to store data in Google Cloud Storage
 GS_PREFIX = '{rw_id}_{varname}'
 
-MAX_DATES = 36
-# http://php.net/manual/en/function.strftime.php
+# name of collection in GEE where we will upload the final data
+EE_COLLECTION = '{rw_id}_{varname}'
+
+# filename format for GEE
+FILENAME = '{rw_id}_{varname}_{date}'
+
+# how many assets can be stored in the GEE collection before the oldest ones are deleted?
+MAX_ASSETS = 36
+
+# format of date (used in both the source data files and GEE)
 DATE_FORMAT = '%Y0%V'
-DATE_FORMAT_ISO = '%G0%V-%w'
 
-TIMESTEP = {'days': 7}
-#S_SRS = 'EPSG:32662'
+# Resource Watch dataset API IDs
+# Important! Before testing this script:
+# Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
+# Failing to do so will overwrite the last update date on a different dataset on Resource Watch
+DATASET_IDS = {
+    'foo_051_vegetation_condition_index':'2447d765-dc04-4e4a-aeaa-904760e94991',
+    'foo_024_vegetation_health_index':'c12446ce-174f-4ffb-b2f7-77ecb0116aba'
+}
 
-EXTENT = '-180 -55.152 180 75.024002'
-DTYPE = rio.float32
-NODATA = -999
-SCALE_FACTOR = .01
+'''
+FUNCTIONS FOR ALL DATASETS
 
-DATASET_IDS = {'foo_051_vegetation_condition_index':'2447d765-dc04-4e4a-aeaa-904760e94991',
-'foo_024_vegetation_health_index':'c12446ce-174f-4ffb-b2f7-77ecb0116aba'}
+The functions below must go in every near real-time script.
+Their format should not need to be changed.
+'''
 
 def getLastUpdate(dataset):
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{}'.format(dataset)
@@ -152,7 +163,7 @@ def getAssetName(tif, rw_id, varname):
     date = getRasterDate(tif)
     return os.path.join(EE_COLLECTION.format(rw_id=rw_id,
                                                 varname=varname),
-                        ASSET_NAME.format(rw_id=rw_id,
+                        FILENAME.format(rw_id=rw_id,
                                           varname=varname,
                                           date=date))
 
@@ -165,12 +176,12 @@ def getNewTargetDates(exclude_dates):
     new_dates = []
     date = datetime.date.today()
     #start at previous week of data
-    date -= datetime.timedelta(**TIMESTEP)
-    for i in range(MAX_DATES):
+    date -= datetime.timedelta(days = 7)
+    for i in range(MAX_ASSETS):
         datestr = date.strftime(DATE_FORMAT)
         if datestr not in exclude_dates:
             new_dates.append(datestr)
-        date -= datetime.timedelta(**TIMESTEP)
+        date -= datetime.timedelta(days = 7)
     return new_dates
 
 def fetch(datestr):
@@ -199,16 +210,21 @@ def extract_subdata(nc_file, rw_id):
     # not sure why this works, but it gets us to the right numbers
     # except for no-data values
     outdata = data.data.copy()
-    outdata[outdata>=0] = outdata[outdata>=0] * SCALE_FACTOR
+    # get the scale factor for this variable
+    scale_factor = nc[var_code].scale_factor
+    # get the add offset for this variable
+    add_offset = nc[var_code].add_offset
+    outdata[outdata>=0] = outdata[outdata>=0] * scale_factor + add_offset
 
     # There's some strange deferred execution going on here
     # if I set the mask like this, it scales down unmasked data by 10k
-    # outdata[data.mask] = NODATA
+    # outdata[data.mask] = nc['VHI']._FillValue
     logging.debug('Out min, max: {},{}'.format(outdata.min(), outdata.max()))
 
 
     # Transformation function
-    transform = rio.transform.from_bounds(*[float(pos) for pos in EXTENT.split(' ')], data.shape[1], data.shape[0])
+    extent = [nc.geospatial_lon_min, nc.geospatial_lat_min, nc.geospatial_lon_max, nc.geospatial_lat_max]
+    transform = rio.transform.from_bounds(*extent, data.shape[1], data.shape[0])
 
     # Profile
     profile = {
@@ -216,38 +232,25 @@ def extract_subdata(nc_file, rw_id):
         'height': data.shape[0],
         'width': data.shape[1],
         'count': 1,
-        'dtype': DTYPE,
+        'dtype': nc[var_code].datatype,
         'crs':'EPSG:4326',
         'transform': transform,
-        'nodata': NODATA
+        'nodata': nc[var_code]._FillValue
     }
 
     with rio.open(var_tif, 'w', **profile) as dst:
-        dst.write(outdata.astype(DTYPE), 1)
+        dst.write(outdata.astype(nc[var_code].datatype,), 1)
 
     del nc
     return var_tif
 
 def reproject(ncfile, rw_id, date):
     # Output filename
-    new_file = os.path.join(DATA_DIR, '{}.tif'.format(ASSET_NAME.format(rw_id = rw_id, varname = ASSET_NAMES[rw_id], date = date)))
+    new_file = os.path.join(DATA_DIR, '{}.tif'.format(FILENAME.format(rw_id = rw_id, varname = ASSET_NAMES[rw_id], date = date)))
 
     logging.info('Extracting subdata')
     # METHOD 1
     extracted_var_tif = extract_subdata(ncfile, rw_id)
-
-    # METHOD 2
-    ### Using this, get error:
-    # ERROR 1: Unable to compute a transformation between pixel/line
-    # and georeferenced coordinates for data/VHP.G04.C07.NP.P2018008.VH.tif.
-    # There is no affine transformation and no GCPs.
-    # varname = VARIABLES[rw_id]
-    # sds_path = SDS_NAME.format(fname=ncfile, varname=varname)
-    # extracted_var_tif = '{}.tif'.format(os.path.splitext(ncfile)[0])
-    # # nodata value -5 equals 251 for Byte type?
-    # cmd = ['gdal_translate', '-a_srs', S_SRS, sds_path, extracted_var_tif]
-    # logging.debug('Extracting var {} from {} to {}'.format(varname, ncfile, extracted_var_tif))
-    # subprocess.call(cmd)
 
     logging.info('Compressing')
     cmd = ['gdal_translate','-co','COMPRESS=LZW','-of','GTiff',
@@ -264,9 +267,10 @@ def reproject(ncfile, rw_id, date):
 def _processAssets1(tifs, rw_id, varname):
     assets = [getAssetName(tif, rw_id, varname) for tif in tifs]
     dates = [getRasterDate(tif) for tif in tifs]
+    # Get a list of datetimes from these dates for each of the dates we are uploading
     # Set date to the end of the reported week,
     # -0 corresponding to Sunday at end of week
-    datestamps = [datetime.datetime.strptime(date + '-0', DATE_FORMAT_ISO)
+    datestamps = [datetime.datetime.strptime(date + '-0', '%G0%V-%w')
                   for date in dates]
     #try to upload data twice before quitting
     try_num=1
@@ -351,7 +355,7 @@ def deleteExcessAssets(dates, rw_id, varname, max_assets):
             logging.debug('deleting asset from date: {}'.format(date))
             asset_name = os.path.join(EE_COLLECTION.format(rw_id=rw_id,
                                                         varname=varname),
-                                        ASSET_NAME.format(rw_id=rw_id,
+                                        FILENAME.format(rw_id=rw_id,
                                                           varname=varname,
                                                           date=date))
             eeUtil.removeAsset(asset_name)
@@ -372,7 +376,7 @@ def get_most_recent_date(collection):
 
 def main():
     '''Ingest new data into EE and delete old data'''
-    logging.basicConfig(stream=sys.stderr, level=LOG_LEVEL)
+    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
 
     ### 0. Initialize GEE
@@ -410,8 +414,8 @@ def main():
         n = new_dates[rw_id] if rw_id in new_dates else []
         total = e + n
         logging.info('Existing assets in {}: {}, new: {}, max: {}'.format(
-            rw_id, len(e), len(n), MAX_DATES))
-        deleteExcessAssets(total,rw_id,ASSET_NAMES[rw_id],MAX_DATES)
+            rw_id, len(e), len(n), MAX_ASSETS))
+        deleteExcessAssets(total,rw_id,ASSET_NAMES[rw_id],MAX_ASSETS)
 
     # Get most recent update date
     for collection, id in DATASET_IDS.items():
