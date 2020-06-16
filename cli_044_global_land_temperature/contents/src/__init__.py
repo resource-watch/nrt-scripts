@@ -256,8 +256,6 @@ def processData(url, existing_ids, date_format='%Y-%m-%d %H:%M:%S'):
             date_format: format of dates in Carto table (string)
     RETURN  num_new: number of rows of new data sent to Carto table (integer)
     '''
-    # initialize variable to store number of new rows sent to Carto
-    num_new = 0
     # Get the link from source url for which we want to download data
     resource_location = fetchDataFileName(url)
     # get the data from source as a list of strings, with each string holding one line from the source data file
@@ -265,7 +263,6 @@ def processData(url, existing_ids, date_format='%Y-%m-%d %H:%M:%S'):
     # create an empty dictionary to store new data (data that's not already in our Carto table)
     new_data = {}
     # remove headers by deleting first five rows
-    # !!!I TRIED TO FIND MORE POLISHED WAY TO ACHIEVE THIS BUT NONE OF THEM WERE WORKING CORRECTLY!!!
     res_rows = res_rows[5:]
 
     # go through each line of content retrieved from source
@@ -291,7 +288,7 @@ def processData(url, existing_ids, date_format='%Y-%m-%d %H:%M:%S'):
 
     # if we have found new data to process
     if len(new_data):
-        num_new += len(new_data)
+        num_new = len(new_data)
         # create a list of new data
         new_data = list(new_data.values())
         # insert new data into the carto table
