@@ -13,12 +13,16 @@ import rasterio as rio
 from collections import defaultdict
 import requests
 import time
+import ee
 
 # url for vegetation health products data
 SOURCE_URL = 'ftp://ftp.star.nesdis.noaa.gov/pub/corp/scsb/wguo/data/Blended_VH_4km/VH/{target_file}'
 
 # filename format for GEE
 SOURCE_FILENAME = 'VHP.G04.C07.npp.P{date}.VH.nc'
+
+# list variables (as named in GEE) that we want to pull
+VARS = ['VHI', 'VCI']
 
 # netcdf subdataset variables to be converted to tif files, and their associated dataset IDs
 VARIABLES = {
@@ -30,6 +34,12 @@ VARIABLES = {
 ASSET_NAMES = {
     'foo_024':'vegetation_health_index',
     'foo_051':'vegetation_condition_index',
+}
+
+#  netcdf subdataset variables to be converted to tif files and their associated GEE collection names
+COLLECTION_NAMES = {
+    'VHI':'foo_024_vegetation_health_index',
+    'VCI':'foo_051_vegetation_condition_index',
 }
 
 # name of data directory in Docker container
@@ -199,6 +209,41 @@ FUNCTIONS FOR THIS DATASET
 The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
+
+def getCollectionName(var):
+    '''
+    get GEE collection name
+    INPUT   var: variable we are creating asset name for (string)
+    RETURN  GEE collection name for input date (string)
+    '''
+    return COLLECTION_NAMES[var]
+
+def clearCollectionMultiVar():
+    '''
+    Clear the GEE collection for all variables
+    '''
+    logging.info('Clearing collections.')
+    for var_num in range(len(VARS)):
+        # get name of variable we are clearing GEE collections for
+        var = VARS[var_num]
+        # get name of GEE collection for variable
+        collection = getCollectionName(var)
+        # if the collection exists,
+        if eeUtil.exists(collection):
+            # remove the / from the beginning of the collection name to be used in ee module
+            if collection[0] == '/':
+                collection = collection[1:]
+            # pull the image collection
+            a = ee.ImageCollection(collection)
+            # check how many assets are in the collection
+            collection_size = a.size().getInfo()
+            # if there are assets in the collection
+            if collection_size > 0:
+                # create a list of assets in the collection
+                list = a.toList(collection_size)
+                # delete each asset
+                for item in list.getInfo():
+                    ee.data.deleteAsset(item['id'])
 
 def getAssetName(tif, rw_id, varname):
     '''
@@ -464,13 +509,27 @@ def get_most_recent_date(collection):
     most_recent_date = datetime.datetime.strptime(datestr, '%G0%V%u')
     return most_recent_date
 
+def initialize_ee():
+    '''
+    Initialize ee module
+    '''
+    # get GEE credentials from env file
+    GEE_JSON = os.environ.get("GEE_JSON")
+    _CREDENTIAL_FILE = 'credentials.json'
+    GEE_SERVICE_ACCOUNT = os.environ.get("GEE_SERVICE_ACCOUNT")
+    with open(_CREDENTIAL_FILE, 'w') as f:
+        f.write(GEE_JSON)
+    auth = ee.ServiceAccountCredentials(GEE_SERVICE_ACCOUNT, _CREDENTIAL_FILE)
+    ee.Initialize(auth)
+
 def main():
     '''Ingest new data into EE and delete old data'''
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
 
-    # Initialize eeUtil
+    # Initialize eeUtil and ee modules
     eeUtil.initJson()
+    initialize_ee()
 
     ### 1. Create collection names, clear if desired
     collections = {}
@@ -479,10 +538,8 @@ def main():
 
     # Clear the GEE collection, if specified above
     if CLEAR_COLLECTION_FIRST:
-        for collection in collections.values():
-            if eeUtil.exists(collection):
-                eeUtil.removeAsset(collection, recursive=True)
-                
+        clearCollectionMultiVar()
+
     ### 2. Grab existing assets and their dates
     existing_assets = {}
     for rw_id, coll in collections.items():
