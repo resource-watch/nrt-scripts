@@ -14,9 +14,6 @@ from collections import defaultdict
 import requests
 import time
 
-CLEAR_COLLECTION_FIRST = False
-DELETE_LOCAL = True
-
 # url for vegetation health products data
 SOURCE_URL = 'ftp://ftp.star.nesdis.noaa.gov/pub/corp/scsb/wguo/data/Blended_VH_4km/VH/{target_file}'
 
@@ -43,6 +40,9 @@ GS_PREFIX = '{rw_id}_{varname}'
 
 # name of collection in GEE where we will upload the final data
 EE_COLLECTION = '{rw_id}_{varname}'
+
+# do you want to delete everything currently in the GEE collection when you run this script?
+CLEAR_COLLECTION_FIRST = False
 
 # filename format for GEE
 FILENAME = '{rw_id}_{varname}_{date}'
@@ -258,8 +258,8 @@ def reproject(ncfile, rw_id, date):
            new_file]
     subprocess.call(cmd)
 
-    if DELETE_LOCAL:
-        os.remove(extracted_var_tif)
+    # delete
+    os.remove(extracted_var_tif)
 
     logging.info('Reprojected {} to {}'.format(ncfile, new_file))
     return new_file
@@ -318,8 +318,8 @@ def processNewRasterData(existing_dates_by_id):
             for rw_id in VARIABLES:
                 reproj_file = reproject(nc, rw_id, date)
                 tifs[rw_id].append(reproj_file)
-            if DELETE_LOCAL:
-                os.remove(nc)
+            # delete
+            os.remove(nc)
 
 
     # 3. Upload new files
@@ -328,8 +328,7 @@ def processNewRasterData(existing_dates_by_id):
     logging.debug('New Assets object: {}'.format(new_assets))
 
     # 4. Delete local files
-    if DELETE_LOCAL:
-         deleted_files = list(map(lambda rw_id: deleteLocalFiles(tifs[rw_id]), tifs))
+    deleted_files = list(map(lambda rw_id: deleteLocalFiles(tifs[rw_id]), tifs))
 
     return new_assets
 
