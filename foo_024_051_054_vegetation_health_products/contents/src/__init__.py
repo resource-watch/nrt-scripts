@@ -340,7 +340,7 @@ def convert(nc_file, var, collection, date):
     # delete uncompressed tif file
     os.remove(extracted_var_tif)
 
-    logging.info('Converted {} to {}'.format(nc, new_file))
+    logging.info('Converted {} to {}'.format(nc_file, new_file))
     return new_file
 
 def uploadAssets(tifs, collection):
