@@ -7,7 +7,6 @@ import datetime
 import logging
 import subprocess
 import eeUtil
-from functools import reduce
 from netCDF4 import Dataset
 import rasterio as rio
 from collections import defaultdict
