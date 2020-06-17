@@ -319,14 +319,14 @@ def convert(nc_file, var, collection, date):
         'height': data.shape[0],
         'width': data.shape[1],
         'count': 1,
-        'dtype': nc[var].datatype,
+        'dtype': rio.float32,
         'crs':'EPSG:4326',
         'transform': transform,
         'nodata': nc[var]._FillValue
     }
     # write the tif file
     with rio.open(extracted_var_tif, 'w', **profile) as dst:
-        dst.write(outdata.astype(nc[var].datatype,), 1)
+        dst.write(outdata.astype(rio.float32), 1)
     # delete the netcdf variable
     del nc
 
