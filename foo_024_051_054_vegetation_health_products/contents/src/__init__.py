@@ -541,11 +541,11 @@ def main():
 
     # Delete excess assets
     for var, collection in COLLECTION_NAMES.items():
-        logging.info('Previous assets: {}, new: {}, max: {}'.format(len(e), len(n), MAX_ASSETS))
         # get previously existing dates for this variable
         e = existing_dates_by_var[collection]
         # get new dates added for this variable
         n = new_dates[collection] if collection in new_dates else []
+        logging.info('Previous assets: {}, new: {}, max: {}'.format(len(e), len(n), MAX_ASSETS))
         # delete any excess assets
         deleteExcessAssets(e+n, collection, MAX_ASSETS)
 
