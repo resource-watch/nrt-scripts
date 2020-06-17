@@ -229,19 +229,20 @@ def clearCollectionMultiVar():
 
 def getAssetName(tif, collection):
     '''
-    get asset name from tif name, extract datetime and location
-    INPUT   tif:  ()
-            collection:  ()
-    RETURN   ()
+    get asset name from tif name
+    INPUT   tif: name of tif file (string)
+            collection: GEE collection where the asset will be uploaded (string)
+    RETURN  name of asset that this tif should be uploaded as (string)
     '''
-    date = getRasterDate(tif)
+    # get the date from the tif file name
+    date = getDate(tif)
     return os.path.join(collection, FILENAME.format(collection=collection, date=date))
 
-def getRasterDate(filename):
+def getDate(filename):
     '''
-    get last 7 chrs of filename, 4 for year and 3 for week
-    INPUT   filename:  ()
-    RETURN  ()
+    get date from filename (last 7 characters of filename after removing extension)
+    INPUT   filename: file name that ends in a date, in the format of the DATE_FORMAT variable (string)
+    RETURN  date, in the format of the DATE_FORMAT variable (string)
     '''
     return os.path.splitext(os.path.basename(filename))[0][-7:]
 
@@ -268,55 +269,51 @@ def getNewTargetDates(existing_dates):
         date -= datetime.timedelta(days = 7)
     return new_dates
 
-def fetch(datestr):
+def fetch(date):
     '''
     Fetch files by datestamp
-    INPUT   datestr:  ()
-    RETURN   ()
+    INPUT   date: date we are fetching data for in the format specified in DATE_FORMAT variable (string)
+    RETURN  file we have downloaded (string)
     '''
-    target_file = SOURCE_FILENAME.format(date=datestr)
+    # format the source filename with the date we are fetching
+    target_file = SOURCE_FILENAME.format(date=date)
+    # generate the full url where we can fetch this data
     _file = SOURCE_URL.format(target_file=target_file)
+    # try to download the data
     urllib.request.urlretrieve(_file, os.path.join(DATA_DIR,target_file))
     return os.path.join(DATA_DIR,target_file)
 
-def extract_subdata(nc_file, var):
+def convert(nc_file, var, collection, date):
     '''
-    new_dates should be a list of tuples of form (date, index_in_netcdf)
-    INPUT   nc_file:  ()
-            var:  ()
-    RETURN  var_tif:  ()
+    convert variable in netcdf file to compressed tif file
+    INPUT   nc_file: file location of netcdf we are converting to a tif (string)
+            var: variable we are converting to tif (string)
+            collection: GEE collection where this file will be uploaded (string)
+            date: date of file we are converting in the format specified in DATE_FORMAT variable (string)
+    RETURN  new_file: tif file that we have generated (string)
     '''
-    # Set filename
+
+    logging.info('Extracting subdata')
+    # open netcdf file
     nc = Dataset(nc_file)
-
-    var_tif = '{}_{}.tif'.format(os.path.splitext(nc_file)[0], var)
-    logging.info('New tif: {}'.format(var_tif))
-
-    # Extract data
+    # generate a file name for the tif file we will extract
+    extracted_var_tif = '{}_{}.tif'.format(os.path.splitext(nc_file)[0], var)
+    # extract data
     data = nc[var][:, :]
-    logging.debug('Type of data: {}'.format(type(data)))
-    logging.debug('Shape: {}'.format(data.shape))
-    logging.debug('Min,Max: {},{}'.format(data.data.min(), data.data.max()))
-    # not sure why this works, but it gets us to the right numbers
-    # except for no-data values
+    # create a copy of the data
     outdata = data.data.copy()
     # get the scale factor for this variable
     scale_factor = nc[var].scale_factor
     # get the add offset for this variable
     add_offset = nc[var].add_offset
+    # apply the scale_factor and add_offset to the data to get the correct data values
     outdata[outdata>=0] = outdata[outdata>=0] * scale_factor + add_offset
 
-    # There's some strange deferred execution going on here
-    # if I set the mask like this, it scales down unmasked data by 10k
-    # outdata[data.mask] = nc['VHI']._FillValue
-    logging.debug('Out min, max: {},{}'.format(outdata.min(), outdata.max()))
-
-
-    # Transformation function
+    # pull the extent of the dataset and generate its transform
     extent = [nc.geospatial_lon_min, nc.geospatial_lat_min, nc.geospatial_lon_max, nc.geospatial_lat_max]
     transform = rio.transform.from_bounds(*extent, data.shape[1], data.shape[0])
 
-    # Profile
+    # create a profile for the tif file we will generate
     profile = {
         'driver': 'GTiff',
         'height': data.shape[0],
@@ -327,43 +324,28 @@ def extract_subdata(nc_file, var):
         'transform': transform,
         'nodata': nc[var]._FillValue
     }
-
-    with rio.open(var_tif, 'w', **profile) as dst:
+    # write the tif file
+    with rio.open(extracted_var_tif, 'w', **profile) as dst:
         dst.write(outdata.astype(nc[var].datatype,), 1)
-
+    # delete the netcdf variable
     del nc
-    return var_tif
-
-def reproject(nc, var, collection, date):
-    '''
-    INPUT   nc:  ()
-            var:  ()
-            collection:  ()
-            date:  ()
-    RETURN  new_file:  ()
-    '''
-    # Output filename
-    new_file = os.path.join(DATA_DIR, '{}.tif'.format(FILENAME.format(collection = collection, date = date)))
-
-    logging.info('Extracting subdata')
-    # METHOD 1
-    extracted_var_tif = extract_subdata(nc, var)
 
     logging.info('Compressing')
-    cmd = ['gdal_translate','-co','COMPRESS=LZW','-of','GTiff',
-           extracted_var_tif,
-           new_file]
+    # generate a file name to use for the compressed tif file we will create
+    new_file = os.path.join(DATA_DIR, '{}.tif'.format(FILENAME.format(collection = collection, date = date)))
+    # compress tif file
+    cmd = ['gdal_translate','-co','COMPRESS=LZW','-of','GTiff', extracted_var_tif, new_file]
     subprocess.call(cmd)
 
-    # delete
+    # delete uncompressed tif file
     os.remove(extracted_var_tif)
 
-    logging.info('Reprojected {} to {}'.format(nc, new_file))
+    logging.info('Converted {} to {}'.format(nc, new_file))
     return new_file
 
-def processAssets(tifs, collection):
+def uploadAssets(tifs, collection):
     '''
-
+    upload tif files to Google Earth Engine collection
     INPUT   tifs: list of tif files to upload (list of strings)
             collection: GEE collection we want to upload the files to(string)
     RETURN  assets: list of GEE assets that have been uploaded (list of strings)
@@ -371,7 +353,7 @@ def processAssets(tifs, collection):
     # get a list of asset names to use for the input tif files
     assets = [getAssetName(tif, collection) for tif in tifs]
     # get a list of dates associated with each tif file
-    dates = [getRasterDate(tif) for tif in tifs]
+    dates = [getDate(tif) for tif in tifs]
     # Get a list of datetimes from these dates for each of the dates we are uploading
     # Set date to the end of the reported week, -0 corresponding to Sunday at end of week
     datestamps = [datetime.datetime.strptime(date + '-0', '%G0%V-%w') for date in dates]
@@ -389,11 +371,13 @@ def processAssets(tifs, collection):
 def processNewData(existing_dates_by_var):
     '''
     fetch, process, upload, and clean new data
-    INPUT   existing_dates_by_var: dictionary containing GEE collection name and list of dates that it already has uploaded to it (dictionary)
-    RETURN  new_assets:  ()
+    INPUT   existing_dates_by_var: dictionary containing GEE collection name and list of dates that it already
+                                    has uploaded to it (dictionary)
+    RETURN  new_assets_by_var: dictionary containing GEE collection name and list of new dates that that have just
+                                    been uploaded to it (dictionary)
     '''
 
-    # Turn the dictionary of existing dates by variable into a list of existing dates
+    # Turn the dictionary of existing dates by variable into a single, combined list of existing dates
     existing_dates = []
     for collection, e_dates in existing_dates_by_var.items():
         existing_dates.extend(e_dates)
@@ -401,44 +385,45 @@ def processNewData(existing_dates_by_var):
     # get a list of dates that we want to try to fetch data for
     target_dates = getNewTargetDates(existing_dates)
 
-    # Fetch new files
+    # fetch new files
     logging.info('Fetching files')
-    # create an empty dictionary to store the file locations of the tifs we will create
+    # create an empty dictionary to store the file locations of the tifs we will create and upload to each collection
     tifs_dict = defaultdict(list)
     # loop through each date we want to try to fetch
     for date in target_dates:
         # try to fetch the data
         try:
-            nc = fetch(date)
+            nc_file = fetch(date)
         # if we can't fetch the file, log an error and continue to next date
         except Exception as e:
             logging.error('Could not fetch data for date: {}'.format(date))
             logging.error(e)
             continue
-        # process each variable of interest in the netcdf file
+        # process each variable of interest
         for var, collection in COLLECTION_NAMES.items():
-            reproj_file = reproject(nc, var, collection, date)
+            # convert each variable into its own tif file
+            tif = convert(nc_file, var, collection, date)
             # add the processed tif file location to our dictionary of tifs to upload
-            tifs_dict[collection].append(reproj_file)
-        # delete netcdf file because we have finished processing it
-        os.remove(nc)
+            tifs_dict[collection].append(tif)
+        # delete netcdf file for this date because we have finished processing it
+        os.remove(nc_file)
 
     # Upload new files (tifs) to GEE
     logging.info('Uploading files')
-    new_assets = defaultdict(list)
+    new_assets_by_var = defaultdict(list)
     for collection, tifs in tifs_dict.items():
-        new_assets[collection] = processAssets(tifs, collection)
+        new_assets_by_var[collection] = uploadAssets(tifs, collection)
 
     # Delete local files
     logging.info('Cleaning local files')
     for collection, tifs in tifs_dict.items():
         for tif in tifs:
             os.remove(tif)
-    return new_assets
+    return new_assets_by_var
 
 def checkCreateCollection(collection):
     '''
-    List assests in collection if it exists, else create new collection
+    List assets in collection if it exists, else create new collection
     INPUT   collection: GEE collection to check or create (string)
     RETURN  list of assets in collection (list of strings)
     '''
@@ -452,23 +437,37 @@ def checkCreateCollection(collection):
         return []
 
 def deleteExcessAssets(dates, collection, max_assets):
-    '''Delete assets if too many'''
-    # oldest first
+    '''
+    Delete oldest assets, if more than specified in max_assets variable
+    INPUT   dates: dates for all the assets currently in the GEE collection; dates should be in the format specified
+                    in DATE_FORMAT variable (list of strings)
+            collection: name of collection that dates are in (string)
+            max_assets: maximum number of assets allowed in the collection (int)
+    '''
+    # sort the list of dates so that the oldest is first
     dates.sort()
-    logging.debug('ordered dates: {}'.format(dates))
+    # if we have more dates of data than allowed,
     if len(dates) > max_assets:
-        for date in set(dates[:-max_assets]):
-            logging.debug('deleting asset from date: {}'.format(date))
+        # go through each date, starting with the oldest, and delete until we only have the max number of assets left
+        for date in dates[:-max_assets]:
             asset_name = os.path.join(collection, FILENAME.format(collection=collection, date=date))
             eeUtil.removeAsset(asset_name)
 
 def get_most_recent_date(collection):
-    existing_assets = checkCreateCollection(collection)  # make image collection if doesn't have one
-    existing_dates = [getRasterDate(a) for a in existing_assets]
+    '''
+    Get most recent date from the data in the GEE collection
+    INPUT   collection: GEE collection to check dates for (string)
+    RETURN  most_recent_date: most recent date in GEE collection (datetime)
+    '''
+    # get list of assets in collection
+    existing_assets = checkCreateCollection(collection)
+    # get a list of strings of dates in the collection
+    existing_dates = [getDate(a) for a in existing_assets]
+    # sort these dates oldest to newest
     existing_dates.sort()
-    #since data sets represent a week of data, take the last day of the week (7) as the most recent update
+    # get the most recent date (last in the list) and turn it into a datetime
+    # since data sets represent a week of data, take the last day of the week (7) as the most recent update
     datestr = existing_dates[-1]+'7'
-    logging.info(datestr)
     most_recent_date = datetime.datetime.strptime(datestr, '%G0%V%u')
     return most_recent_date
 
@@ -484,6 +483,27 @@ def initialize_ee():
         f.write(GEE_JSON)
     auth = ee.ServiceAccountCredentials(GEE_SERVICE_ACCOUNT, _CREDENTIAL_FILE)
     ee.Initialize(auth)
+
+def updateResourceWatch():
+    '''
+    This function should update Resource Watch to reflect the new data.
+    This may include updating the 'last update date', flushing the tile cache, and updating any dates on layers
+    '''
+    for collection, id in DATASET_IDS.items():
+        # Get most recent date in GEE
+        most_recent_date = get_most_recent_date(collection)
+        # Get the current 'last update date' from the dataset on Resource Watch
+        current_date = getLastUpdate(id)
+        # If the most recent date from the GEE collection does not match the 'last update date' on the RW API, update it
+        if current_date != most_recent_date:
+            logging.info('Updating last update date and flushing cache.')
+            # Update dataset's last update date on Resource Watch
+            lastUpdateDate(id, most_recent_date)
+            # get layer ids and flush tile cache for each
+            layer_ids = getLayerIDs(id)
+            for layer_id in layer_ids:
+                flushTileCache(layer_id)
+    # Update the dates on layer legends - TO BE ADDED IN FUTURE
 
 def main():
     '''Ingest new data into EE and delete old data'''
@@ -507,39 +527,29 @@ def main():
         # get name of GEE collection for variable
         collection = getCollectionName(var)
         existing_assets[collection] = checkCreateCollection(collection)
-
     # Get a list of the dates of data we already have in each collection
     existing_dates_by_var = {}
     for collection, ex_assets in existing_assets.items():
-        existing_dates_by_var[collection] = list(map(getRasterDate, ex_assets))
+        existing_dates_by_var[collection] = list(map(getDate, ex_assets))
 
     # Fetch, process, and upload the new data
     new_assets = processNewData(existing_dates_by_var)
-
+    # Get the dates of the new data we have added
     new_dates = {}
     for collection, assets in new_assets.items():
-        new_dates[collection] = list(map(getRasterDate, assets))
+        new_dates[collection] = list(map(getDate, assets))
 
-    ### 5. Delete old assets
+    # Delete excess assets
     for var, collection in COLLECTION_NAMES.items():
+        logging.info('Previous assets: {}, new: {}, max: {}'.format(len(e), len(n), MAX_ASSETS))
+        # get previously existing dates for this variable
         e = existing_dates_by_var[collection]
+        # get new dates added for this variable
         n = new_dates[collection] if collection in new_dates else []
-        logging.info('Previous assets: {}, new: {}, max: {}'.format(
-            len(e), len(n), MAX_ASSETS))
+        # delete any excess assets
         deleteExcessAssets(e+n, collection, MAX_ASSETS)
 
-    # Get most recent update date
-    for collection, id in DATASET_IDS.items():
-        most_recent_date = get_most_recent_date(collection)
-        current_date = getLastUpdate(id)
-
-        if current_date != most_recent_date:
-            logging.info('Updating last update date and flushing cache.')
-            # Update data set's last update date on Resource Watch
-            lastUpdateDate(id, most_recent_date)
-            # get layer ids and flush tile cache for each
-            layer_ids = getLayerIDs(id)
-            for layer_id in layer_ids:
-                flushTileCache(layer_id)
+    # Update Resource Watch
+    updateResourceWatch()
     
     logging.info('SUCCESS')
