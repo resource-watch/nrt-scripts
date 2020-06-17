@@ -272,8 +272,8 @@ def processData(url, existing_ids, date_format='%Y-%m-%d %H:%M:%S'):
         logging.debug("Processing row: {}".format(row))
         # get year from the first column
         year = int(row[0])
-        # construct datetime object using year and first day of January 
-        date_obj = datetime.datetime(year, 1, 1)
+        # construct datetime object using year and last day of December
+        date_obj = datetime.datetime(year, 12, 31)
         # convert datetime object to string formatted according to date_pattern
         date = date_obj.strftime(date_format)
         # get unsmoothed temperature change by accessing the second column 
