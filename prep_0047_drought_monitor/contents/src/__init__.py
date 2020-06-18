@@ -150,7 +150,6 @@ The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
 
-# Generate UID
 def genUID(obs, date):
     '''Generate unique id using date and OBJECTID variable from retrieved GeoJSON
     INPUT   date: date for which we want to generate id (string)
