@@ -159,22 +159,25 @@ def genUID(date, pos_in_shp):
     '''Generate unique id using date and feature index in retrieved GeoJSON
     INPUT   date: date for which we want to generate id (string)
             pos_in_shp: index of the feature in GeoJSON (integer)
+    RETURN  unique id of the feature in GeoJSON (string)
     '''
     return str('{}_{}'.format(date, pos_in_shp))
 
 def getDate(uid):
     '''
     Split uid variable using '_' to get the first eight elements which represent the date 
-    INPUT  uid: unique ID that we already have in our Carto table (string)
+    INPUT   uid: unique ID that we already have in our Carto table (string)
+    RETURN  date of the feature in GeoJSON (string)
     '''
     return uid.split('_')[0]
 
 def formatObservationDatetime(start, end, datetime_format=DATETIME_FORMAT):
     '''
     Reformat the start and end date according to DATETIME_FORMAT
-    INPUT  start: start date of smoke plume observation (string)
-           end: end date of smoke plume observation (string)
-           datetime_format: format of date in source shapefile (string)
+    INPUT   start: start date of smoke plume observation (string)
+            end: end date of smoke plume observation (string)
+            datetime_format: format of date in source shapefile (string)
+    RETURN  start date, end date and duration of the observation (strings)
     '''
     # split the start date to separate out date and time
     date, time = start.split(' ')
