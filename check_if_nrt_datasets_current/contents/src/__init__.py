@@ -8,22 +8,15 @@ import sys
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 def main():
-    # get 'Update Strategy' column from Master metadata sheet to determine which datasets are NRT
-    sheet = requests.get(os.getenv('MASTER_SHEET'))
-    master_df = pd.read_csv(pd.compat.StringIO(sheet.text), header=0, usecols=['WRI_ID', 'Update strategy', 'API_ID'])
-
     # Get ‘Frequency of Updates’ column from Launch metadata to determine how frequently we expect each dataset to update
+    # get 'Update Strategy' column from Master metadata sheet to determine which datasets are NRT
     sheet = requests.get(os.getenv('METADATA_SHEET'))
-    metadata_df = pd.read_csv(pd.compat.StringIO(sheet.text), header=0,
-                              usecols=['WRI ID', 'Public Title', 'Frequency of Updates'])
-
-    # merge two data frames, based on their WRI ID
-    df = metadata_df.merge(master_df, how='inner', left_on='WRI ID', right_on='WRI_ID').drop(['WRI_ID'],
-                                                                                             axis=1).dropna()
+    df = pd.read_csv(pd.compat.StringIO(sheet.text), header=0,
+                              usecols=['WRI_ID', 'API_ID', 'Public Title', 'Frequency of Updates', 'Update strategy']).dropna()
     # get data sets marked as RT
     full_nrt_df = df[df['Update strategy'].str.startswith('RT')]
     # get rid of Archived data sets
-    full_nrt_df = full_nrt_df[~full_nrt_df['WRI ID'].str.contains('Archived')]
+    full_nrt_df = full_nrt_df[~full_nrt_df['WRI_ID'].str.contains('Archived')]
     # get rid of data sets I can't do anything to fix, such as datasets updated by GEE
     nrt_df = full_nrt_df[~full_nrt_df['Update strategy'].str.contains('RT - GEE')]
 
@@ -128,36 +121,36 @@ def main():
         # if the dataset is out-of-date
         if allowed_time < time_since_update:
             # if this outdated dataset has already been added to the sheet of outdated datasets:
-            if dataset['WRI ID'] in error_tracking_df['WRI ID'].tolist():
+            if dataset['WRI_ID'] in error_tracking_df['WRI ID'].tolist():
                 # if no explanation has been added to the sheet, log an error
-                if pd.isna(error_tracking_df[error_tracking_df['WRI ID'] == dataset['WRI ID']][
+                if pd.isna(error_tracking_df[error_tracking_df['WRI ID'] == dataset['WRI_ID']][
                                'Known Reason?'].tolist()[0]):
                     logging.error(
                         '(OUTDATED) {wri_id} {public_title} - expected update frequency: {exp_up}. It has been {days} days since the last update.'.format(
-                            wri_id=dataset['WRI ID'], public_title=dataset['Public Title'],
+                            wri_id=dataset['WRI_ID'], public_title=dataset['Public Title'],
                             exp_up=dataset['Frequency of Updates'].lower(),
                             days=time_since_update.days))
                 # if the explanation is included, log info instead of error
                 else:
                     logging.info(
                         '(OUTDATED) {wri_id} {public_title} - expected update frequency: {exp_up}. It has been {days} days since the last update.'.format(
-                            wri_id=dataset['WRI ID'], public_title=dataset['Public Title'],
+                            wri_id=dataset['WRI_ID'], public_title=dataset['Public Title'],
                             exp_up=dataset['Frequency of Updates'].lower(),
                             days=time_since_update.days))
             # if the dataset has not been added to the sheet of outdated datasets:
             else:
                 logging.error(
                     '(OUTDATED) {wri_id} {public_title} - expected update frequency: {exp_up}. It has been {days} days since the last update.'.format(
-                        wri_id=dataset['WRI ID'], public_title=dataset['Public Title'],
+                        wri_id=dataset['WRI_ID'], public_title=dataset['Public Title'],
                         exp_up=dataset['Frequency of Updates'].lower(),
                         days=time_since_update.days))
         # if the dataset is still up-to-date use logging.info to note that
         else:
-            logging.info('(OK) {wri_id} {public_title} up to date.'.format(wri_id=dataset['WRI ID'],
+            logging.info('(OK) {wri_id} {public_title} up to date.'.format(wri_id=dataset['WRI_ID'],
                                                                            public_title=dataset['Public Title']))
             # if that data set was previously outdated, send an alert to go remove it from the sheet
-            if dataset['WRI ID'] in error_tracking_df['WRI ID'].tolist():
-                logging.error('{wri_id} {public_title} is now up to date.'.format(wri_id=dataset['WRI ID'],
+            if dataset['WRI_ID'] in error_tracking_df['WRI ID'].tolist():
+                logging.error('{wri_id} {public_title} is now up to date.'.format(wri_id=dataset['WRI_ID'],
                                                                                   public_title=dataset[
                                                                                       'Public Title']))
 
@@ -172,5 +165,5 @@ def main():
         days = time_since_checking.days
         # if it has been more than a week, log an error
         if days > 7:
-            logging.error('The status of {wri_id} has not been checked in {days} days.'.format(wri_id=dataset['WRI ID'],
+            logging.error('The status of {wri_id} has not been checked in {days} days.'.format(wri_id=dataset['WRI_ID'],
                                                                                                days=days))
