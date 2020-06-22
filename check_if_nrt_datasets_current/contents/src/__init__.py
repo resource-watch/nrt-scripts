@@ -8,8 +8,8 @@ import sys
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 def main():
-    # Get ‘Frequency of Updates’ column from Launch metadata to determine how frequently we expect each dataset to update
-    # get 'Update Strategy' column from Master metadata sheet to determine which datasets are NRT
+    # Get ‘Frequency of Updates’ column to determine how frequently we expect each dataset to update
+    # get 'Update Strategy' column to determine which datasets are NRT
     sheet = requests.get(os.getenv('METADATA_SHEET'))
     df = pd.read_csv(pd.compat.StringIO(sheet.text), header=0,
                               usecols=['WRI_ID', 'API_ID', 'Public Title', 'Frequency of Updates', 'Update strategy']).dropna()
