@@ -92,7 +92,7 @@ LATEST_URL = 'http://ucdpapi.pcr.uu.se/api/gedevents/20.1?pagesize=1000&page={pa
 PROCESS_HISTORY = False
 
 # Specify how many days we want to go back from today's date to search for data
-DAYS_TO_LOOK_BACK = 60
+DAYS_TO_LOOK_BACK = 400
 
 # Resource Watch dataset API ID
 # Important! Before testing this script:
