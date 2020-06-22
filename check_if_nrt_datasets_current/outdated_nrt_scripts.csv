@@ -1,4 +1,4 @@
 WRI ID,Public Title,Date Added to Sheet,Last Check,Known Reason?,Website
 soc.069.nrt,Political Violence Risk Assessment,3/18/2019,6/18/2020,"can't find data anywhere, hasn't synced since Feb 15 2018","https://dwh.hcss.nl/apps/political_violence_alert/#section-about-monthly-alerts, https://dwh.hcss.nl/df_map_2ylag.csv"
 bio.037.nrt,Chlorophyll a,1/23/2020,6/18/2020,need to figure out problem with gdal,
-soc.048.nrt,Organized Violence Events,5/20/2020,6/18/2020,not updated yet,
+soc.048.nrt,Organized Violence Events,5/20/2020,6/18/2020,hasn't updated since 1/1/2018,https://ucdpapi.pcr.uu.se/api/gedevents/18.1?pagesize=1000&page=&StartDate=2018-01-01T00:00:00
