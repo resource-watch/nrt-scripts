@@ -164,7 +164,8 @@ They should all be checked because their format likely will need to be changed.
 '''
 
 def genUID(obs):
-    '''Generate unique id using 'ID' variable from GeoJSON
+    '''
+    Generate unique id using 'ID' variable from GeoJSON
     INPUT   obs: features from the GeoJSON (GeoJSON feature)
     RETURN  unique id for row (string)
     '''
