@@ -156,7 +156,8 @@ They should all be checked because their format likely will need to be changed.
 
 # Generate UID
 def genUID(date, pos_in_shp):
-    '''Generate unique id using date and feature index in retrieved GeoJSON
+    '''
+    Generate unique id using date and feature index in retrieved GeoJSON
     INPUT   date: date for which we want to generate id (string)
             pos_in_shp: index of the feature in GeoJSON (integer)
     RETURN  unique id of the feature in GeoJSON (string)
@@ -166,7 +167,7 @@ def genUID(date, pos_in_shp):
 def getDate(uid):
     '''
     Split uid variable using '_' to get the first eight elements which represent the date 
-    INPUT   uid: unique ID that we already have in our Carto table (string)
+    INPUT   uid: unique ID used in Carto table (string)
     RETURN  date of the feature in GeoJSON (string)
     '''
     return uid.split('_')[0]
@@ -226,7 +227,7 @@ def findShp(zfile):
 
 def getNewDates(exclude_dates):
     '''
-    Find dates that don't already exist in our Carto table
+    Get new dates that we want to try to fetch data for
     INPUT  exclude_dates: list of dates that we already have in our Carto table (list of strings)
     RETURN  num_new: number of rows of new data sent to Carto table (integer)
     '''
@@ -243,14 +244,14 @@ def getNewDates(exclude_dates):
         logging.debug(datestr)
         # if the date don't exist in Carto
         if datestr not in exclude_dates:
-            # append the date to list of new dates to upload
+            # append the date to list of new dates to try to fetch
             new_dates.append(datestr)
         else:
             logging.debug(datestr + "already in table")
 
     return new_dates
 
-def processNewData(exclude_ids):
+def processNewData(existing_ids):
     '''
     Fetch, process and upload new data
     INPUT  existing_ids: list of unique IDs that we already have in our Carto table (list of strings)
@@ -260,13 +261,12 @@ def processNewData(exclude_ids):
     new_ids = []
 
     # get dates that already exist in the Carto table
-    dates = [getDate(uid) for uid in exclude_ids]
-    # get new dates to upload
+    dates = [getDate(uid) for uid in existing_ids]
+    # get new dates to try to fetch
     new_dates = getNewDates(dates)
-    logging.debug(new_dates)
-    # loop through each new dates to upload
+    # loop through each new dates to fetch
     for date in new_dates:
-        # create a filename with directory for each dates
+        # create a filename for the current date's data
         tmpfile = '{}.zip'.format(os.path.join(DATA_DIR,
                                                FILENAME.format(date=date)))
         logging.info('Fetching {}'.format(date))
@@ -296,9 +296,9 @@ def processNewData(exclude_ids):
         # Parse fetched data and generate unique ids
         logging.info('Parsing data')
         # find the shapefile from retrieved tmpfile
-        # format path for the shapefiles
+        # format path for the shapefile
         shpfile = '/{}'.format(findShp(tmpfile))
-        # format path for the zipfiles
+        # format path for the zipfile
         zfile = 'zip://{}'.format(tmpfile)
         # create an empty list to store each row of new data
         rows = []
@@ -348,7 +348,7 @@ def processNewData(exclude_ids):
                 # add the list of values from this row to the list of new data
                 rows.append(row)
                 pos_in_shp += 1
-        # Delete local files
+        # Delete local file
         os.remove(tmpfile)
 
         # find the length (number of rows) of new_data
