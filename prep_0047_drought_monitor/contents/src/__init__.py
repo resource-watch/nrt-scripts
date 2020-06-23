@@ -35,7 +35,7 @@ DATE_FORMAT = '%Y%m%d'
 
 # The weekly maps of U.S. Drought Monitor are released each Thursday and are assessments 
 # of past conditions based on data through the preceding Tuesday.
-# So, we want to process Tuesday and Tuesday = 1 according to date.weekday() function 
+# We want to process Tuesday, and Tuesday is represented by 1 in the date.weekday() function 
 WEEKDAY = 1
 
 # name of table in Carto where we will upload the data
@@ -151,7 +151,8 @@ They should all be checked because their format likely will need to be changed.
 '''
 
 def genUID(obs, date):
-    '''Generate unique id using date and OBJECTID variable from retrieved GeoJSON
+    '''
+    Generate unique id using date and OBJECTID variable
     INPUT   date: date for which we want to generate id (string)
             obs: features from the GeoJSON (GeoJSON feature)
     RETURN unique id for row (string)
@@ -162,7 +163,7 @@ def genUID(obs, date):
 def getDate(uid):
     '''
     Get date from first eight characters of the unique id
-    INPUT   uid: unique ID that we already have in our Carto table (string)
+    INPUT   uid: unique ID for Carto table (string)
     RETURN  date from the unique ID (integer)
     '''
     return uid[:8]
@@ -170,7 +171,7 @@ def getDate(uid):
 
 def findShp(zfile):
     '''
-    Check if the input zipfile contain shapefile and return the shapefile
+    Check if the input zipfile contains a shapefile and return the shapefile
     INPUT   zfile: zipfile containing retrieved data from source url (list of strings)
     RETURN  shapefile: name of the shapefile (string)
     '''
