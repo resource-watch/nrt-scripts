@@ -163,7 +163,6 @@ The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
 
-# Generate UID
 def genUID(obs):
     '''Generate unique id using 'ID' variable from GeoJSON
     INPUT   obs: features from the GeoJSON (GeoJSON feature)
