@@ -245,10 +245,10 @@ def processNewData(existing_ids):
 
         # parse fetched data and generate unique ids
         logging.info('Parsing data')
-        # check if the tmpfile contain the expected shapefile
+        # check if the tmpfile contains a shapefile
         # format path for the shapefile
         shpfile = '/{}'.format(findShp(tmpfile))
-        # format path for the zipfiles
+        # format path for the zipfile
         zfile = 'zip://{}'.format(tmpfile)
         # create an empty list to store each row of new data
         rows = []
@@ -276,14 +276,14 @@ def processNewData(existing_ids):
                         row.append(uid)
                     # if we are fetching data for datetime column
                     elif field == TIME_FIELD:
-                        # add datetime information to the list of data from this row
+                        # add date information to the list of data from this row
                         row.append(date)
                     else:
                         # add data for remaining fields to the list of data from this row
                         row.append(obs['properties'][field])
                 # add the list of values from this row to the list of new data
                 rows.append(row)
-        # delete local files
+        # delete local file
         os.remove(tmpfile)
 
         # find the length (number of rows) of new_data 
