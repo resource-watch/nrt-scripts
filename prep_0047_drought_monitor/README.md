@@ -1,7 +1,7 @@
 ## U.S. Drought Monitor Dataset Near Real-time Script
 This file describes the near real-time script that retrieves and processes the [United States Drought Monitor dataset](https://droughtmonitor.unl.edu/Data/GISData.aspx) for [display on PREPdata](https://prepdata.org/dataset/PREP_0047-US-Drought-Monitor).
 
-This dataset was provided by the source as zipped shapefiles. From the zipped file, shpafiles were collected and processed for upload. The shapefiles were read as GeoJSONs using Fiona library. The GeoJSONs was transformed into a table so that it could be uploaded to Carto.
+This dataset was provided by the source as zipped shapefiles. The shapefiles were read as GeoJSONs using the fiona library. The GeoJSONs was transformed into a table so that it could be uploaded to Carto.
 
 The data shown on PREPdata can be found in the 'DM' variable of the 'properties' feature of the GeoJSON.
 
