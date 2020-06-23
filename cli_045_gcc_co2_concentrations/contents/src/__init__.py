@@ -19,6 +19,9 @@ CARTO_KEY = os.getenv('CARTO_KEY')
 # name of table in Carto where we will upload the data
 CARTO_TABLE = 'cli_045_carbon_dioxide_concentration'
 
+# column that stores datetime information
+TIME_FIELD = 'date'
+
 # format of dates in Carto table
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
@@ -176,6 +179,34 @@ def processData():
                                           api_key=CARTO_KEY)
             cc.write(df, CARTO_TABLE, overwrite=True, privacy='link')
 
+def get_most_recent_date(table):
+    '''
+    Find the most recent date of data in the specified Carto table
+    INPUT   table: name of table in Carto we want to find the most recent date for (string)
+    RETURN  most_recent_date: most recent date of data in the Carto table, found in the TIME_FIELD column of the table (datetime object)
+    '''
+    # get dates in TIME_FIELD column
+    r = cartosql.getFields(TIME_FIELD, table, f='csv', post=True, user=CARTO_USER, key=CARTO_KEY)
+    # turn the response into a list of dates
+    dates = r.text.split('\r\n')[1:-1]
+    # sort the dates from oldest to newest
+    dates.sort()
+    # turn the last (newest) date into a datetime object
+    most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
+
+    return most_recent_date
+
+def updateResourceWatch():
+    '''
+    This function should update Resource Watch to reflect the new data.
+    This may include updating the 'last update date' and updating any dates on layers
+    '''
+    # Update dataset's last update date on Resource Watch
+    most_recent_date = get_most_recent_date(CARTO_TABLE)
+    lastUpdateDate(DATASET_ID, most_recent_date)
+
+    # Update the dates on layer legends - TO BE ADDED IN FUTURE
+
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
@@ -183,7 +214,7 @@ def main():
     # Fetch, process, and upload new data
     processData()
 
-    # Update dataset's last update date on Resource Watch
-    lastUpdateDate(DATASET_ID, datetime.datetime.now())
+    # Update Resource Watch
+    updateResourceWatch()
 
     logging.info('SUCCESS')
