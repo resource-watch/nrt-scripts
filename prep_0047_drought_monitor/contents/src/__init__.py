@@ -195,7 +195,7 @@ def getNewDates(exclude_dates):
     new_dates = []
     # get the start date by going back number of days set by the "TIMESTEP" variable
     date = datetime.datetime.today() - datetime.timedelta(**TIMESTEP)
-    # Get new dates; continue until the current date is older than the oldest date
+    # Get new dates to try and fetch; continue until the date is the oldest date
     # allowed in the table, set by the MAX_AGE variable
     while date > MAXAGE:
         # iterate backwards by going back number of days set by the "TIMESTEP" variable
