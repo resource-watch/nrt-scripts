@@ -13,7 +13,8 @@ RUN apt-get install -y cron
 RUN pip install --upgrade pip
 RUN pip install requests==2.22.0 \
     python-dateutil==2.6.1 \
-    pytz==2017.3 
+    pytz==2017.3 \
+    wget==3.2
 RUN pip install pandas==0.25.3 numpy==1.18.1
 RUN pip install carto==1.8.4 cartoframes==0.9.2
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
