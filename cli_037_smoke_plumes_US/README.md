@@ -1,9 +1,9 @@
 ## Smoke Plumes (North America) Dataset Near Real-time Script
 This file describes the near real-time script that retrieves and processes the [Hazard Mapping System (HMS) Fire and Smoke Analysis dataset](https://www.ospo.noaa.gov/Products/land/hms.html) for [display on Resource Watch](https://resourcewatch.org/data/explore/US-Smoke-Plumes_1).
 
-{Describe how the original data came from the source.}
+This dataset was provided by the source as zipped shapefiles. The shapefiles were read as GeoJSONs using the fiona library. The GeoJSONs was transformed into a table so that it could be uploaded to Carto. Start and end dates were obtained from the 'Start' and 'End' features of the GeoJSON. The difference between these two times were used to add a 'duration' value for each smoke plume event.
 
-{Describe the steps used to process the data, e.g., "convert variable X from the original netcdf file to a tif to upload to Google Earth Engine."}
+The data shown on Resource Watch can be found in the 'Density' feature of the GeoJSON.
 
 Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/cli_037_smoke_plumes_US/contents/src/__init__.py) for more details on this processing.
 
