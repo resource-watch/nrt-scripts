@@ -36,7 +36,7 @@ CARTO_SCHEMA = OrderedDict([
         ('num_days', 'numeric')
     ])
 
-# url for antarctica mass data
+# url for source data
 SOURCE_URL = 'ftp://aftp.cmdl.noaa.gov/products/trends/co2/co2_mm_mlo.txt'
 
 # maximum attempt that will be made to download the data
