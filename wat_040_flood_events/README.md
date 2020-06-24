@@ -1,9 +1,7 @@
 ## Flood Events Dataset Near Real-time Script
 This file describes the near real-time script that retrieves and processes the [Global Active Archive of Large Flood Events dataset](http://floodobservatory.colorado.edu/) for [display on Resource Watch](https://resourcewatch.org/data/explore/Current-Floods).
 
-{Describe how the original data came from the source.}
-
-{Describe the steps used to process the data, e.g., "convert variable X from the original netcdf file to a tif to upload to Google Earth Engine."}
+This dataset was provided by the source as tab-delimited file and zipped shapefile. The tab-delimited file was processed to get the point data for flood events and the zipped shapefile was processed to get the area of the flood events. Both files were read as GeoJSONs using Fiona library. The GeoJSONs were transformed into table and then uploaded to Carto as separate tables.
 
 Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/wat_040_flood_events/contents/src/__init__.py) for more details on this processing.
 
