@@ -56,9 +56,6 @@ SOURCE_URL_ARCHIVE = 'http://satepsanone.nesdis.noaa.gov/pub/FIRE/HMS/GIS/ARCHIV
 # file name to save data retrieved from source url
 FILENAME = 'hms_smoke{date}'
 
-# Time step to go back while searching for new data
-TIMESTEP = {'days': 1}
-
 # format of dates in Carto table
 DATE_FORMAT = '%Y%m%d'
 
@@ -168,7 +165,7 @@ def getDate(uid):
     '''
     Split uid variable using '_' to get the first eight elements which represent the date 
     INPUT   uid: unique ID used in Carto table (string)
-    RETURN  date of the feature in GeoJSON (string)
+    RETURN  date in the format YYYYMMDD (string)
     '''
     return uid.split('_')[0]
 
@@ -177,19 +174,21 @@ def formatObservationDatetime(start, end, datetime_format=DATETIME_FORMAT):
     Reformat the start and end date according to DATETIME_FORMAT
     INPUT   start: start date of smoke plume observation (string)
             end: end date of smoke plume observation (string)
-            datetime_format: format of date in source shapefile (string)
-    RETURN  start date, end date and duration of the observation (strings)
+            datetime_format: format in which this function will return the datestrings (string)
+    RETURN  start: start date of the observation, in the format specified by datetime_format (string)
+                   end: end date of the observation, in the format specified by datetime_format (string)
+                   duration: duration of the observation, in the format HH:MM:SS (string)
     '''
     # split the start date to separate out date and time
     date, time = start.split(' ')
-    # get year of start date from first four index of date
+    # get year of start date from first four characters of the date
     year = int(date[:4])
-    # get fourth and the following indexes from date and subrtract 1 to get day
-    # to account for fact that we're initiating from day 1
+    # get fourth and the following characters from the date and subtract 1 to get day
+    # 1 is subtracted because we will add the day number to January 1 to get the date. The source starts with January 1 having a day number of 1, so we would want to add 0 to January 1 to get the correct date.
     day = int(date[4:])-1 
-    # get hour by accessing last two indexes of time
+    # get hour from the last two characters of the time string
     hour = int(time[:-2])
-    # get minute by accessing time, ignore last two indexes
+    # get minute from the time string (up until the last two characters)
     minute = int(time[-2:])
     # create a datetime object for the 1st of January of the year
     # generate a complete datetime object to include month, day and time
@@ -205,7 +204,7 @@ def formatObservationDatetime(start, end, datetime_format=DATETIME_FORMAT):
     start = start_dt.strftime(datetime_format)
     # convert datetime object to string formatted according to datetime_format
     end = end_dt.strftime(datetime_format)
-    # get duration of the event by subtracting start date from end date
+    # get duration of the event, in the format HH:MM:SS, by subtracting start date from end date
     duration = str((end_dt - start_dt))
 
     return(start,end,duration)
@@ -229,20 +228,20 @@ def getNewDates(exclude_dates):
     '''
     Get new dates that we want to try to fetch data for
     INPUT  exclude_dates: list of dates that we already have in our Carto table (list of strings)
-    RETURN  num_new: number of rows of new data sent to Carto table (integer)
+    RETURN  new_dates: new dates that we want to try to fetch data for, in the format of the DATE_FORMAT variable (list of strings)
     '''
     # create an empty list to store new dates to upload
     new_dates = []
     # create a datetime object with today's date
     date = datetime.datetime.today()
-    # continue until the date is newer than the date set by the MAXAGE_UPLOAD variable
+    # continue until the date is the same as the one set by the MAXAGE_UPLOAD variable
     while date > MAXAGE_UPLOAD:
-        # go back 1 days at a time as set by the TIMESTEP variable
-        date -= datetime.timedelta(**TIMESTEP)
+        # go back 1 day at a time
+        date -= datetime.timedelta(days=1)
         # convert datetime object to string formatted according to DATE_FORMAT
         datestr = date.strftime(DATE_FORMAT)
         logging.debug(datestr)
-        # if the date don't exist in Carto
+        # if the date doesn't exist in Carto
         if datestr not in exclude_dates:
             # append the date to list of new dates to try to fetch
             new_dates.append(datestr)
@@ -278,7 +277,7 @@ def processNewData(existing_ids):
             # pull data from url and save to tmpfile
             urllib.request.urlretrieve(url, tmpfile)
         except urllib.error.HTTPError as e:
-            # if the date don't exist in archive url and less than 1 week old
+            # if the data doesn't exist in archive url and is less than 1 week old
             # try current folder
             if datetime.datetime.strptime(date, DATE_FORMAT) > MAX_CHECK_CURRENT:
                 try:
@@ -347,6 +346,7 @@ def processNewData(existing_ids):
                         row.append(obs['properties'][field])
                 # add the list of values from this row to the list of new data
                 rows.append(row)
+                # update the index before we move on to the next feature
                 pos_in_shp += 1
         # Delete local file
         os.remove(tmpfile)
@@ -453,6 +453,8 @@ def main():
 
     # Fetch, process, and upload new data
     num_new = processNewData(existing_ids)
+    
+    logging.info('Previous rows: {},  New rows: {}, Max: {}'.format(len(existing_ids), num_new, MAXROWS))
 
     # Remove old observations
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD, MAXAGE)
