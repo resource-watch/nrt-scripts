@@ -174,10 +174,10 @@ def genUID(obs):
 def updateEndDate(source_file, table, num_obs_to_update, encoding=None):
     '''
     Update end dates in Carto table for most recent floods
-    INPUT   source_file: file that we want to process to get the end dates (string)
+    INPUT   source_file: file that we want to process to get the end dates and geometries (string)
             table: name of table in Carto we want to update (string)
             num_obs_to_update: number of flood events that we want to update (integer)
-            encoding: encoding used in the input file (string)
+            encoding: optional, encoding used in the input file (string)
     '''
 
     # open and read the source_file as GeoJSON
@@ -194,13 +194,13 @@ def updateEndDate(source_file, table, num_obs_to_update, encoding=None):
                 'coordinates': [obs['properties']['long'], obs['properties']['lat']]
             }
 
-            # udpate 'ended' column in Carto table with latest end dates
+            # update 'ended' column in Carto table with latest end dates
             requests.get(
                 "https://{username}.carto.com/api/v2/sql?q=UPDATE {table} SET {column} = '{value}' WHERE _uid = '{id}' &api_key={api_key}".format(
                     username=os.getenv('CARTO_USER'), table=table, column='ended', value=end_date, id=uid,
                     api_key=os.getenv('CARTO_KEY')))
 
-            # udpate 'the_geom' column in Carto table for latest end dates
+            # update 'the_geom' column in Carto table with latest geometry
             requests.get("https://{username}.carto.com/api/v2/sql?q=UPDATE {table} SET {column} = '{value}' WHERE _uid = '{id}' &api_key={api_key}".format(
                 username=os.getenv('CARTO_USER'), table=table, column='the_geom', value=geom, id=uid,
                 api_key=os.getenv('CARTO_KEY')))
@@ -327,10 +327,10 @@ def processNewData(existing_ids):
                             CARTO_SCHEMA.values(), rows, user=os.getenv('CARTO_USER'),key=os.getenv('CARTO_KEY'))
 
     # Update end dates for most recent floods because they are updated if the flood is still happening
-    # Update end dates for point data
+    # Update end dates and geometry for point data
     logging.info('Updating end dates for point data')
     updateEndDate(TABFILE, CARTO_TABLE, 20, encoding=ENCODING)
-    # Update end dates for shapefile data
+    # Update end dates and geometry for shapefile data
     logging.info('Updating end dates for shapefile data')
     updateEndDate(SHPFILE, CARTO_TABLE_SHP, 20)
 
@@ -402,6 +402,8 @@ def main():
 
     # Fetch, process, and upload new data
     num_new = processNewData(existing_ids)
+    
+    logging.info('Previous rows: {},  New rows: {}, Max: {}'.format(len(existing_ids), num_new, MAXROWS))
 
     # Remove old observations
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD, MAXAGE)
