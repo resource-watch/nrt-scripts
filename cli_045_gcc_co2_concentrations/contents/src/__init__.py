@@ -39,7 +39,7 @@ CARTO_SCHEMA = OrderedDict([
 # url for antarctica mass data
 SOURCE_URL = 'ftp://aftp.cmdl.noaa.gov/products/trends/co2/co2_mm_mlo.txt'
 
-# maximum attempt that will be made to download the data
+# maximum number of attempts that will be made to download the data
 MAX_TRIES = 5
 
 # Resource Watch dataset API ID
@@ -142,8 +142,6 @@ def processData():
     success = False
     # initialize tries count as 0
     tries = 0
-    # create an empty variable to store pandas dataframe
-    df = None
     # try to get the data from the url for MAX_TRIES 
     while tries < MAX_TRIES and success == False:
         logging.info('Try retrieving CO2 data, try number = {}'.format(tries))
@@ -160,7 +158,7 @@ def processData():
                 logging.error("Error fetching data, and max tries reached. See source for last data update.")
     # if we suceessfully collected data from the url
     if success == True:
-        # check it the table doesn't already exist in Carto
+        # check if the table doesn't already exist in Carto
         if not cartosql.tableExists(CARTO_TABLE, user=CARTO_USER, key=CARTO_KEY):
             logging.info('Table {} does not exist'.format(CARTO_TABLE))
             # if the table does not exist, create it with columns based on the schema input
