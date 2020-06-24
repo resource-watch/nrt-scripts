@@ -318,7 +318,10 @@ def processData(existing_ids):
     return(num_new)
 
 def processInteractions():
-
+    '''
+    Process and upload data for interaction table. This additional interaction table was created to 
+    display multiple ongoing disaster events in a country.
+    '''
     # get all the rows from Carto table where the column current is equal to True
     r = cartosql.get("SELECT * FROM {} WHERE current='True'".format(CARTO_TABLE),
                      user=CARTO_USER, key=CARTO_KEY)
