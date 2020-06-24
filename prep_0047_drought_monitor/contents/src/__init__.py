@@ -24,13 +24,10 @@ CARTO_KEY = os.getenv('CARTO_KEY')
 # url for source data
 SOURCE_URL = 'http://droughtmonitor.unl.edu/data/shapefiles_m/USDM_{date}_M.zip'
 
-# Specify filename that will be used to construct source url
+# Specify filename that will be used for the downloaded data
 FILENAME = 'USDM_{date}'
 
-# Specify how many days we want to go back from today's date to search for data
-TIMESTEP = {'days': 1}
-
-# format of dates in Carto table
+# format of dates in Carto table and the source data
 DATE_FORMAT = '%Y%m%d'
 
 # The weekly maps of U.S. Drought Monitor are released each Thursday and are assessments 
@@ -164,7 +161,7 @@ def getDate(uid):
     '''
     Get date from first eight characters of the unique id
     INPUT   uid: unique ID for Carto table (string)
-    RETURN  date from the unique ID (integer)
+    RETURN  date from the unique ID in the format YYYYMMDD (string)
     '''
     return uid[:8]
 
@@ -172,7 +169,7 @@ def getDate(uid):
 def findShp(zfile):
     '''
     Check if the input zipfile contains a shapefile and return the shapefile
-    INPUT   zfile: zipfile containing retrieved data from source url (list of strings)
+    INPUT   zfile: zipfile containing retrieved data from source url (string)
     RETURN  shapefile: name of the shapefile (string)
     '''
     # loop through all files in the zipped file
@@ -187,19 +184,19 @@ def findShp(zfile):
 
 def getNewDates(exclude_dates):
     '''
-    Get new dates that we need to process
-    INPUT   exclude_dates: dates that we already have in our Carto table (list of strings)
-    RETURN  new_dates: new dates that we want to process (list of strings)
+    Get new dates that we want to try to fetch data for
+    INPUT   exclude_dates: dates that we already have in our Carto table, in the format of the DATE_FORMAT variable (list of strings)
+    RETURN  new_dates: new dates that we want to try to fetch data for, in the format of the DATE_FORMAT variable (list of strings)
     '''
     # create an empty list to store new dates
     new_dates = []
-    # get the start date by going back number of days set by the "TIMESTEP" variable
-    date = datetime.datetime.today() - datetime.timedelta(**TIMESTEP)
+    # start with yesterday's date
+    date = datetime.datetime.today() - datetime.timedelta(days=1)
     # Get new dates to try and fetch; continue until the date is the oldest date
     # allowed in the table, set by the MAX_AGE variable
     while date > MAXAGE:
-        # iterate backwards by going back number of days set by the "TIMESTEP" variable
-        date -= datetime.timedelta(**TIMESTEP)
+        # iterate backwards by going back one day at a time
+        date -= datetime.timedelta(days=1)
         # Check if the day is equal to the day set by the WEEKDAY variable. date.weekday() function 
         # returns the day of the week as an integer, where Monday is 0 and Sunday is 6.
         if date.weekday() == WEEKDAY:
