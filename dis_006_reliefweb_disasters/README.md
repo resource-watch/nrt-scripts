@@ -3,8 +3,8 @@ This file describes the near real-time script that retrieves and processes the [
 
 This dataset was provided by the source as a JSON file. This JSON was transformed into a table so that it could be uploaded to Carto. In order to transform the data from the JSON to the data table used by Resource Watch, the following changes were made:
 - A unique ID for each event was created using primary event id and country id. This was stored in a new column called 'uid'.
-- Along with the regular table, an additional interaction table was created to display multiple ongoing disaster events in a country.
-- The information shown on Resource Watch about current disaster events in each country was created using all the event names and the urls to each event description.
+- The 'lat' and 'lon' fields were used to construct the point geometry shown on Resource Watch.
+- Along with the regular table, an additional 'interaction' table was created. This table was created because, at any given time, a country may be experiencing multiple disaster events. The 'interaction' on the Resource Watch map is only able to display one row of data for a given geometry. In order to display information about multiple ongoing disaster events in one country, information from each event had to be combined into a single row of data. All current event names and links to more information about each event were combined into a single field for each country, which is what is shown on the Resource Watch map.
 
 Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/dis_006_reliefweb_disasters/contents/src/__init__.py) for more details on this processing.
 

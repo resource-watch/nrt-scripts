@@ -16,7 +16,7 @@ CLEAR_TABLE_FIRST = False
 CARTO_USER = os.getenv('CARTO_USER')
 CARTO_KEY = os.getenv('CARTO_KEY')
 
-# maximum number of feature we want to retrieve from source url
+# maximum number of features we want to retrieve from source url
 LIMIT = 1000
 
 # url for source data
@@ -162,8 +162,8 @@ They should all be checked because their format likely will need to be changed.
 def gen_uid(event_id, country_id):
     '''Generate unique id using event_id and country_id.
        Generate an MD5 sum from the formatted string
-    INPUT   event_id: root id of each primary event (string)
-            country_id: id for the country (string)
+    INPUT   event_id: id of primary event (string)
+            country_id: numeric id for the country (integer)
     RETURN  unique id for each country affected by this event (string)
     '''
     # join event_id and country_id using an underscore
@@ -213,8 +213,7 @@ def processData(existing_ids):
         for country in entry['fields']['country']:
             # get the id for the country
             country_id = country['id']
-            # generate unique id to record information about each country affected 
-            # by this event using primary event id and country id
+            # generate unique id for a single event in a particular country
             uid = gen_uid(event_id, country_id)
             # if the id doesn't already exist in Carto table or 
             # isn't added to the list for sending to Carto yet 
@@ -260,7 +259,7 @@ def processData(existing_ids):
                             item = entry['fields']['primary_country']['iso3']
                         # if we are fetching data for featured column 
                         elif key=='featured':
-                            # get the data for this column from 'featrued' feature which is a 
+                            # get the data for this column from 'featured' feature which is a 
                             # binary 'True' or 'False' value and covert it to a string
                             item = str(entry['fields']['featured'])
                         # if we are fetching data for country_name column
@@ -293,7 +292,7 @@ def processData(existing_ids):
                             # get the event name from 'name' feature
                             item = entry['fields']['name']
                         # if we are fetching data for coordinates
-                        elif key == 'lon' or 'lat':
+                        elif key == 'lon' or key == 'lat':
                             # get the lat, long information from location feature
                             item = country['location'][key]
                         # for all other columns, we can fetch the data from fields feature 
@@ -320,9 +319,9 @@ def processData(existing_ids):
 def processInteractions():
     '''
     Process and upload data for interaction table. This additional interaction table was created to 
-    display multiple ongoing disaster events in a country.
+    display the multiple ongoing disaster events in a country as a single row in the Carto table. For each geometry, only one row of data will be used on Resource Watch map interactions, so when there are multiple events for a given geometry, we need to compact them into a single row so that all the information will be shown on an interaction.
     '''
-    # get all the rows from Carto table where the column current is equal to True
+    # get all the rows from Carto table where the event is 'current' (ongoing)
     r = cartosql.get("SELECT * FROM {} WHERE current='True'".format(CARTO_TABLE),
                      user=CARTO_USER, key=CARTO_KEY)
     # turn the response into a JSON
@@ -379,25 +378,19 @@ def processInteractions():
             event = interaction['event_name'].split(": ",1)
             # if we are on the first iteration
             if event_num == 1:
-                # if there are only one event
+                # if there was no ':' in the event name, generate interaction to use the given event_name and the url for the event
                 if len(event)==1:
-                    # generate interaction to display using first element of event variable and url for the event
                     interaction_str = '{} ({})'.format(event[0], interaction['url'])
-                # if there are more than one event
+                # if there was a ':' in the event_name, generate interaction to display the event name after the ':' and the url for the event
                 else:
-                    # generate interaction to display using second element of event variable and url for the event
                     interaction_str = '{} ({})'.format(event[1], interaction['url'])
-            # for second and future iterations
+            # for all events after the first one, add the event name and url to the existing one(s), separated by a semicolon
             else:
-                # if there are only one event
+                # if there was no ':' in the event name, generate interaction to use the given event_name and the url for the event
                 if len(event)==1:
-                    # generate interaction to display using interaction_str from previous iterations and adding
-                    # first element of event variable and url for the event in current iteration
                     interaction_str = interaction_str + '; ' + '{} ({})'.format(event[0], interaction['url'])
-                # if there are more than one event
+                # if there was a ':' in the event_name, generate interaction to display the event name after the ':' and the url for the event
                 else:
-                    # generate interaction to display using interaction_str from previous iterations and adding
-                    # first element of event variable and url for the event in current iteration
                     interaction_str = interaction_str + '; ' + '{} ({})'.format(event[1], interaction['url'])
             # increase event_num by 1 for next iteration
             event_num+=1
@@ -419,7 +412,7 @@ def processInteractions():
                             'type': 'Point',
                             'coordinates': [lon, lat]
                         }
-                    # if we are fetching data for interraction column    
+                    # if we are fetching data for interaction column    
                     elif key=='interaction':
                         # get interaction from interaction_str variable
                         item=interaction_str
@@ -430,7 +423,7 @@ def processInteractions():
                 except KeyError:
                     # if the column we are trying to retrieve doesn't exist in the source data, store None
                     item=None
-                # store the retrieved item from this row to a list
+                # append the information for the current column to the current row of data
                 row.append(item)
             # add the list of values from this row to the list of new_interactions
             new_interactions.append(row)
@@ -513,4 +506,5 @@ def main():
     # Update Resource Watch
     updateResourceWatch(num_new)
 
+    logging.info('Previous rows: {},  New rows: {}, Max: {}'.format(len(existing_ids), num_new, MAX_ROWS))
     logging.info("SUCCESS")
