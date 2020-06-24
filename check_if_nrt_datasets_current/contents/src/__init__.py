@@ -110,6 +110,9 @@ def main():
         # Vegetation Health Index
         elif 'foo.024' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=12)
+        # Vegetation Condition Index
+        elif 'foo.051' in r['data']['attributes']['name']:
+            allowed_time = datetime.timedelta(days=12)
         # Fire Risk Index often goes offline for a few days
         elif 'for.012' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=10)
