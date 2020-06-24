@@ -66,10 +66,10 @@ They should all be checked because their format likely will need to be changed.
 
 def create_geom(lat, lon):
     ''' 
-    Create geogetry using latitude and longitude information from source data
+    Create geometry using latitude and longitude information from source data
     INPUT   lat: latitude of the tsunami event (string)
             lon: longitude of the tsunami event (string)
-    RETURN  geom: geomtery of the tsunami event (dictionary)
+    RETURN  geom: geometry of the tsunami event (geojson)
     ''' 
     # check if there is input data for latitude
     if lat:
@@ -88,7 +88,7 @@ def create_geom(lat, lon):
 def processData():
     """
     Retrive data from source url, create a dataframe, and return the processed dataframe
-    Output: Dataframe with data (dataframe object)
+    RETURN  df: dataframe with data (dataframe object)
     """
 
     # get data from source url through a request response JSON
@@ -99,7 +99,7 @@ def processData():
     lines = [line.split('\t') for line in data]
     # get header from first row
     header = lines[0]
-    # process all rows that come after the header
+    # get all rows of data (all rows that come after the header)
     rows = lines[1:]
     # create a pandas dataframe using the data
     df = pd.DataFrame(rows)
@@ -108,9 +108,9 @@ def processData():
     # create the geomtery for each data point using 'LATITUDE' and 'LONGITUDE' columns from source data
     # add the geometry to a new column in pandas dataframe
     df['the_geom'] = list(map(lambda coords: create_geom(*coords), zip(df['LATITUDE'],df['LONGITUDE'])))
-    # speicfy column names that are string
+    # specify column names for columns containing string data
     text_cols = ['the_geom', 'COUNTRY', 'STATE', 'LOCATION_NAME']
-    # find numeric columns by using the list of text coulmn names
+    # find numeric columns (all columns that are not in the text_cols list)
     number_cols = [x for x in df.columns if x not in text_cols]
     # check if there are any empty entries; replace them with NAN
     df = df.replace(r'^\s*$', np.nan, regex=True)
@@ -158,6 +158,7 @@ def updateResourceWatch(df):
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+    logging.info('STARTING')
 
     # create a CartoContext object that is authenticated against our CARTO account
     # it will be used to write dataframe to Carto table
@@ -169,7 +170,7 @@ def main():
 
     # get the number of rows in the dataframe
     num_rows = df.shape[0]
-    # write the dataframe to the Carto table
+    # write the dataframe to the Carto table, overwriting existing data
     cc.write(df, CARTO_TABLE, overwrite=True, privacy='public')
 
     # Update Resource Watch
