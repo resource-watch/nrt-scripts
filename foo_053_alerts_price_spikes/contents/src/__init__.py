@@ -224,7 +224,7 @@ def genMarketUID(rid, mid, mname):
     '''
     Generate unique id for a market in the markets table using region id, market id and market name
     Generate an MD5 sum from the formatted string
-    INPUT   rid: region id for the market (integer)
+    INPUT   rid: region id for region in which the market is located (integer)
             mid: id for the market (string)
             mname: name of market (string)
     RETURN  unique id for the market (string)
@@ -259,7 +259,7 @@ def parseMarkets(region_scale, existing_markets):
     # if 'items' variable doesn't exist in the parsed JSON
     if 'items' not in region_scale:
         logging.debug('Unfamiliar structure, probably National Average entry')
-        # return None for every columns in Carto
+        # return None for every column in Carto
         return [None]*len(CARTO_MARKET_SCHEMA)
     # create an empty list to store new data (data that's not already in our Carto table)
     new_rows = []
@@ -269,7 +269,7 @@ def parseMarkets(region_scale, existing_markets):
     region_name = region_scale['text']
     # loop each market in the region
     for mkt in region_scale['items']:
-        # get the market id from 'id' variable and remove texts from the begining of the id
+        # get the market id from 'id' variable and remove text from the beginning of the id
         market_id = mkt['id'].replace('mk', '')
         # get the name of the market from 'text' variable
         market_name = mkt['text']
@@ -543,7 +543,7 @@ def clean_null_rows(row):
     '''
     Clean any rows that are all None
     INPUT   row: input row to check for values (list of strings)
-    RETURN  'True' if the row contain True values, else return 'False'
+    RETURN  'True' if the row contains True values, else return 'False' (boolean)
     '''
     return any(row)
 
@@ -554,10 +554,12 @@ def processNewData(existing_markets, existing_alps):
             existing_alps: list of unique IDs that we already have in our alps Carto table (list of strings)
     RETURN  num_new_markets: number of rows of new data sent to markets Carto table (integer)
             num_new_alps: number of rows of new data sent to alps Carto table (integer)
-            markets_updated: list of new unique market IDs (list of strings)
+            markets_updated: list of unique market IDs for markets that were updated (list of strings)
     '''
+    # initialize the number of new markets and alps table entries as zero
     num_new_markets = 0
     num_new_alps = 0
+    # create an empty list to store the ids of the markets that are updated
     markets_updated = []
 
     #get list of country codes
@@ -572,9 +574,9 @@ def processNewData(existing_markets, existing_alps):
      198, 199, 200, 201, 202, 206, 203, 204, 205, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 2648, 220, 221, 222, 223, 224, 225, 226, 227, 228, 70001, 229, 230, 231, 
      999, 40764, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 256, 253, 254, 255, 257, 259, 258, 260, 261, 262, 263, 264, 265, 266, 
      268, 269, 270, 271]
-    # get and parse each page; stop when no new results or 200 pages
+    # get and parse each data for each country
     for country_code in country_codes:
-        # 1. Fetch new data
+        # Fetch new data
         logging.info("Fetching country code {}".format(country_code))
         # initialize number of tries to fetch data as zero
         try_num=0
@@ -592,6 +594,9 @@ def processNewData(existing_markets, existing_alps):
                 logging.error(e)
 
         # Parse regional market data excluding existing observations
+        # returns a 3D list, 1st dimension represents a particular region
+        # 2nd dimension represents a particular market
+        # 3rd dimention represents the columns of the Carto table for that region and market
         new_markets = [parseMarkets(mkt, existing_markets) for mkt in markets]
 
         # Parse alps data excluding existing observations
@@ -604,7 +609,7 @@ def processNewData(existing_markets, existing_alps):
         logging.debug(new_markets)
         logging.debug(new_alps)
 
-        # removes market dimension of array
+        # removes extra dimensions of array
         # now each element of the array is just a row to be inserted into Carto table
         new_markets = reduce(flatten, new_markets , [])
         new_alps = reduce(flatten, new_alps, [])
@@ -634,7 +639,7 @@ def processNewData(existing_markets, existing_alps):
         # get market id index
         if len(new_alps)>0:
             for entry in new_alps:
-                # Generate unique id for a market using region id, market id and market name
+                # get the unique id for this particular market using its region id, market id and market name
                 uid=genMarketUID(entry[list(CARTO_ALPS_SCHEMA.keys()).index("adm1id")],
                                  entry[list(CARTO_ALPS_SCHEMA.keys()).index("mktid")],
                                  entry[list(CARTO_ALPS_SCHEMA.keys()).index("mktname")])
@@ -645,20 +650,20 @@ def processNewData(existing_markets, existing_alps):
         logging.debug('Country {} Data: After filter:'.format(country_code))
         logging.debug(new_markets)
         logging.debug(new_alps)
-        # number of rows of new data that will be sent to markets Carto table
+        # update the number of rows of new data that will be sent to markets Carto table
         num_new_markets += len(new_markets)
-        # number of rows of new data that will be sent to alps Carto table
+        # update the number of rows of new data that will be sent to alps Carto table
         num_new_alps += len(new_alps)
 
         # Insert new rows
-        # if we have found new data to process
+        # if we have found new market data
         if len(new_markets):
             # insert new data into the markets carto table
             logging.info('Pushing {} new Markets rows'.format(len(new_markets)))
             cartosql.insertRows(CARTO_MARKET_TABLE, CARTO_MARKET_SCHEMA.keys(),
                                 CARTO_MARKET_SCHEMA.values(), new_markets,
                                 user=CARTO_USER, key =CARTO_KEY)
-        # if we have found new data to process
+        # if we have found new alps data
         if len(new_alps):
             # insert new data into the alps carto table
             logging.info('Pushing {} new ALPS rows'.format(len(new_alps)))
@@ -676,7 +681,7 @@ def processInteractions(markets_updated):
     For each geometry, only one row of data will be used on Resource Watch map interactions, so when 
     there are multiple food commodities for a given geometry, we need to compact them into a single row so that 
     all the information will be shown on an interaction.
-    INPUT   markets_updated: list of new market IDs (list of strings)
+    INPUT   markets_updated: list of market IDs for markets that have been updated (list of strings)
     RETURN  num_new_interactions: number of rows of new data sent to market interactions Carto table (integer)
     '''
     # initialize number of rows of new data sent to Carto table as zero
@@ -687,6 +692,8 @@ def processInteractions(markets_updated):
         # get ids for all markets
         markets_to_process = getIds(CARTO_MARKET_TABLE, 'uid')
 
+    # otherwise, we will only re-process interactions for markets that have been updated or that have data older than
+    # what is allowed (specified by LOOKBACK variable)
     else:
         logging.info('Getting IDs of interactions that should be updated')
         # get a list of all the values from 'region_id', 'market_id', 'market_name' columns where oldest interaction date is than three months ago
@@ -695,7 +702,7 @@ def processInteractions(markets_updated):
         # turn the response into a list of strings, removing the first and last entries (header and an empty space at end)
         # split each list using ',' to separately retrieve region_id, market_id and market_name
         old_ids = [market.split(',') for market in r.text.split('\r\n')[1:-1]]
-        # Generate unique id for each market using region id, market id and market name
+        # get the unique id for each market using region id, market id and market name
         old_market_uids = [genMarketUID(old_id[0], old_id[1], old_id[2]) for old_id in old_ids]
 
         logging.info('Processing interactions for new ALPS data and re-processing interactions that are out of date')
@@ -704,7 +711,7 @@ def processInteractions(markets_updated):
     # initialize number of markets as one
     market_num = 1
     logging.info('{} markets to update interactions for'.format(len(markets_to_process)))
-    # go through each market that was updated and create the correct rows for them
+    # go through each market that was updated and update the interaction rows for it
     for m_uid in markets_to_process:
         logging.info('processing {} out of {} markets'.format(market_num, len(markets_to_process)))
         # create an empty list to store new data for this table
@@ -754,7 +761,7 @@ def processInteractions(markets_updated):
                     if commodity_num==1:
                         # generate the text to display in interaction using commodity number, commodity name, alert level and date
                         interaction_string = INTERACTION_STRING_FORMAT.format(num=commodity_num, commodity=entry['cmname'], alps=entry['alps'].lower(), date=entry['date'][:10])
-                    # if there are more than one commodities, add the interaction_string to the existing one(s), separated by a semicolon
+                    # if there is more than one commodity, add the interaction_string to the existing one(s), separated by a semicolon
                     else:
                         interaction_string = interaction_string + '; ' + INTERACTION_STRING_FORMAT.format(num=commodity_num, commodity=entry['cmname'], alps=entry['alps'].lower(), date=entry['date'][:10])
                     # increase commodity_num by 1 for next iteration
@@ -855,9 +862,7 @@ def getIds(table, id_field):
     '''
     Get ids from table
     INPUT   table: Carto table to check (string)
-            id_field: name of column that we want to use as a unique ID for this table; this will be used to compare the
-                    source data to the our table each time we run the script so that we only have to pull data we
-                    haven't previously uploaded (string)
+            id_field: name of column containing the values/ids we want to pull (string)
     RETURN  list of existing IDs in the table, pulled from the id_field column (list of strings)
     '''
     r = cartosql.getFields(id_field, table, f='csv', user=CARTO_USER, key =CARTO_KEY)
