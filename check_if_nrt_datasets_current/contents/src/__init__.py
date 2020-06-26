@@ -168,5 +168,5 @@ def main():
         days = time_since_checking.days
         # if it has been more than a week, log an error
         if days > 7:
-            logging.error('The status of {wri_id} has not been checked in {days} days.'.format(wri_id=dataset['WRI_ID'],
+            logging.error('The status of {wri_id} has not been checked in {days} days.'.format(wri_id=dataset['WRI ID'],
                                                                                                days=days))
