@@ -122,10 +122,10 @@ def processData():
 
     return(df)
 
-def get_most_recent_date(df):
+def get_most_recent_date(table):
     '''
     Find the most recent date of data in the Carto table using the parsed dataframe
-    INPUT   df: dataframe that was written to the Carto table (dataframe object)
+    INPUT   table: dataframe that was written to the Carto table (dataframe object)
     RETURN  most_recent_date: most recent date of data in the Carto table, 
             found using the 'YEAR', 'MONTH' and 'DAY' column of the dataframe (datetime object)
     '''
@@ -149,6 +149,7 @@ def updateResourceWatch(df):
     '''
     This function should update Resource Watch to reflect the uploaded data.
     This may include updating the 'last update date' and updating any dates on layers
+    INPUT   df: dataframe that was written to the Carto table (dataframe object)
     '''
     # Update dataset's last update date on Resource Watch
     most_recent_date = get_most_recent_date(df)
