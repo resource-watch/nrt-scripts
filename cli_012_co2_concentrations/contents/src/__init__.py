@@ -25,7 +25,7 @@ ASSET_NAME = 'cli_012_co2_concentrations_{date}'
 NODATA_VALUE = -9999
 
 # name of data directory in Docker container
-DATA_DIR = 'data'
+DATA_DIR = os.path.join(os.getcwd(),'data')
 
 # name of folder to store data in Google Cloud Storage
 GS_FOLDER = 'cli_012_co2_concentrations'
@@ -362,8 +362,8 @@ def processNewData(existing_dates):
     # add list of assets uploaded to the new_assets list
     new_assets.extend(assets)
     
-        # Delete local files
-        clearDir()
+    # Delete local files
+    clearDir()
     return new_assets
 
 def checkCreateCollection(collection):
@@ -449,18 +449,18 @@ def main():
     # If it exists return the list of assets currently in the collection
     existing_assets = checkCreateCollection(EE_COLLECTION)
     # Get a list of the dates of data we already have in the collection
-    existing_dates = [getDate(asset) for asset in existing_ids]
-    logging.debug(exclude_dates)
+    existing_dates = [getDate(asset) for asset in existing_assets]
+    logging.debug(existing_dates)
 
     # Fetch, process, and upload the new data
-    os.chdir('data')
+    os.chdir(DATA_DIR)
     new_assets = processNewData(existing_dates)
 
     logging.info('Existing assets: {}, new: {}, max: {}'.format(
-        len(existing_ids), len(new_assets), MAX_ASSETS))
+        len(existing_assets), len(new_assets), MAX_ASSETS))
 
     # Delete excess assets
-    deleteExcessAssets(existing_ids+new_assets, MAX_ASSETS)
+    deleteExcessAssets(existing_assets+new_assets, MAX_ASSETS)
 
     # Update Resource Watch
     updateResourceWatch()
