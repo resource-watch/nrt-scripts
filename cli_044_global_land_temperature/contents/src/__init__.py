@@ -285,7 +285,9 @@ def processData(url, existing_ids, date_format='%Y-%m-%d %H:%M:%S'):
         # For new date, check whether this is already in our table. 
         # If not, add it to the queue for processing
         new_data = insertIfNew(date, values, existing_ids, new_data)
-
+        
+    # initialize variable to store number of new rows sent to Carto
+    num_new = 0   
     # if we have found new data to process
     if len(new_data):
         num_new = len(new_data)
