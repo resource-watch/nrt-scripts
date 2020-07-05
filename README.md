@@ -2,6 +2,12 @@
 
 A collection of tools to automatically handle a variety of datasets.
 
+## Dependencies
+
+Dependencies on other Microservices:
+- [Dataset](https://github.com/resource-watch/dataset/)
+- [Layer](https://github.com/resource-watch/layer)
+
 ### Develop
 
 Each job should be in it's own folder with `time.cron` and `start.sh` files, as follows. A deploy script constructs a crontab with an entry for each folder with a `time.cron` and `start.sh`.
