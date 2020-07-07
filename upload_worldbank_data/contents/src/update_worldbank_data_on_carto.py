@@ -127,7 +127,7 @@ def fetch_wb_data(table):
 
         # fetch data for this indicator (only the first 10,000 entries will be returned)
         res = requests.get(
-            "http://api.worldbank.org/countries/all/indicators/{}?format=json&per_page=10000".format(indicator))
+            "http://api.worldbank.org/v2/countries/all/indicators/{}?format=json&per_page=10000".format(indicator))
         # check how many pages of data there are for this indicator
         pages = int(res.json()[0]['pages'])
 
@@ -135,7 +135,7 @@ def fetch_wb_data(table):
         json = []
         for page in range(pages):
             res = requests.get(
-                "http://api.worldbank.org/countries/all/indicators/{}?format=json&per_page=10000&page={}".format(
+                "http://api.worldbank.org/v2/countries/all/indicators/{}?format=json&per_page=10000&page={}".format(
                     indicator, page + 1))
             json = json + res.json()[1]
 
