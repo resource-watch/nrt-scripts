@@ -101,6 +101,9 @@ def main():
         # greenland ice mass data set updates at 2-3 month delay
         elif 'cli.042' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=120)
+        # carbon dioxide concentration data set updates at 2-3 month delay
+        elif 'cli.045' in r['data']['attributes']['name']:
+            allowed_time = datetime.timedelta(days=120)            
         # NDC ratification status probably would only update once a year, after COP
         elif 'cli.047' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=400)
