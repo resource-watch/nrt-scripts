@@ -107,8 +107,10 @@ def decimalToDatetime(dec, date_pattern=DATE_FORMAT):
     base = datetime.datetime(year, 1, 1)
     # generate a complete datetime object to include month, day and time
     dt = base + datetime.timedelta(seconds=(base.replace(year=base.year + 1) - base).total_seconds() * rem)
-    
-    return(dt)
+    # convert datetime object to string formatted according to date_pattern
+    result = dt.strftime(date_pattern)
+
+    return(result)
     
 
 def fetch_data():
