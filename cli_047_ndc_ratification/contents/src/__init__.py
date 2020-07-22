@@ -18,7 +18,7 @@ import pandas as pd
 #    into the indicator_id variable, below.
 ----------------------------------------------------Important Note--------------------------------------------------------
 '''
-indicator_id = 18160
+indicator_id = 21766
 
 # do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = False
