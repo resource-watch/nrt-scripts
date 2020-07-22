@@ -243,12 +243,13 @@ def find_latest_date():
       formt_available_dates.sort()
       # get the most recent date (last in the list) and convert it to a string
       latest_available_date = datetime.datetime.strftime(formt_available_dates[-1], DATE_FORMAT)
+
+      return latest_available_date
+
     except Exception as e:
       # if unsuccessful, log that no data were found from the source url
       logging.debug('No data found from url {})'.format(url))
       logging.debug(e)
-    
-    return latest_available_date
 
 def find_latest_time(date):
     '''
