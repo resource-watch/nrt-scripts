@@ -12,6 +12,7 @@ RUN pip install oauth2client==4.1.3
 RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
 RUN pip install requests==2.22.0
 RUN pip install numpy==1.14.3
+RUN pip install Cython==0.29.15
 
 # set name
 ARG NAME=nrt-script
