@@ -53,7 +53,7 @@ def lastUpdateDate(dataset, date):
     '''
     Given a Resource Watch dataset's API ID and a datetime,
     this function will update the dataset's 'last update date' on the API with the given datetime
-    INPUT   dataset: Resource Watch API dataset ID (string)
+    INPUT   dataset: Resource Watch API dataset ID (string)
             date: date to set as the 'last update date' for the input dataset (datetime)
     '''
     # generate the API url for this dataset
@@ -80,15 +80,15 @@ FUNCTIONS FOR RASTER DATASETS
 
 The functions below must go in every near real-time script for a RASTER dataset.
 Their format should not need to be changed.
-'''      
+'''
 
 def getLastUpdate(dataset):
     '''
     Given a Resource Watch dataset's API ID,
     this function will get the current 'last update date' from the API
     and return it as a datetime
-    INPUT   dataset: Resource Watch API dataset ID (string)
-    RETURN  lastUpdateDT: current 'last update date' for the input dataset (datetime)
+    INPUT   dataset: Resource Watch API dataset ID (string)
+    RETURN  lastUpdateDT: current 'last update date' for the input dataset (datetime)
     '''
     # generate the API url for this dataset
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{}'.format(dataset)
@@ -109,8 +109,8 @@ def getLayerIDs(dataset):
     '''
     Given a Resource Watch dataset's API ID,
     this function will return a list of all the layer IDs associated with it
-    INPUT   dataset: Resource Watch API dataset ID (string)
-    RETURN  layerIDs: Resource Watch API layer IDs for the input dataset (list of strings)
+    INPUT   dataset: Resource Watch API dataset ID (string)
+    RETURN  layerIDs: Resource Watch API layer IDs for the input dataset (list of strings)
     '''
     # generate the API url for this dataset - this must include the layers
     apiUrl = 'http://api.resourcewatch.org/v1/dataset/{}?includes=layer'.format(dataset)
@@ -132,7 +132,7 @@ def flushTileCache(layer_id):
     Given the API ID for a GEE layer on Resource Watch,
     this function will clear the layer cache.
     If the cache is not cleared, when you view the dataset on Resource Watch, old and new tiles will be mixed together.
-    INPUT   layer_id: Resource Watch API layer ID (string)
+    INPUT   layer_id: Resource Watch API layer ID (string)
     """
     # generate the API url for this layer's cache
     apiUrl = 'http://api.resourcewatch.org/v1/layer/{}/expire-cache'.format(layer_id)
@@ -182,33 +182,33 @@ They should all be checked because their format likely will need to be changed.
 def getUrl(date):
      '''
      format source url with date
-     INPUT   date: date in the format YYYYMMDD (string)
-     RETURN  source url to download data, formatted for the input date (string)
+     INPUT   date: date in the format YYYYMMDD (string)
+     RETURN  source url to download data, formatted for the input date (string)
      '''
      return SOURCE_URL.format(date=date)
 
 def getsubFilename(grib):
      '''
-     generate grib filename to save individual source file as 
-     INPUT   grib: file name for the grib file (string)
-     RETURN  file name to save individual grib from source under (string)
+     generate grib filename to save individual source file as
+     INPUT   grib: file name for the grib file (string)
+     RETURN  file name to save individual grib from source under (string)
      '''
      return os.path.join(DATA_DIR, grib)
 
 def getAssetName(time_step, date):
      '''
      get asset name
-     INPUT   time_step: time step for which we downloaded data (string)
+     INPUT   time_step: time step for which we downloaded data (string)
              date: date in the format of the DATE_FORMAT variable (string)
-     RETURN  GEE asset name for input date (string)
+     RETURN  GEE asset name for input date (string)
      '''
      return os.path.join(EE_COLLECTION, FILENAME.format(time=time_step,date=date))
 
 def getDate(filename):
      '''
      get date from asset name (last 8 characters of filename after removing extension)
-     INPUT   filename: file name that ends in a date of the format YYYYMMDD (string)
-     RETURN  existing_dates: dates in the format YYYYMMDD (string)
+     INPUT   filename: file name that ends in a date of the format YYYYMMDD (string)
+     RETURN  existing_dates: dates in the format YYYYMMDD (string)
              existing_timesteps: time steps in the format t**z (string)
      '''
      existing_dates = os.path.splitext(os.path.basename(filename))[0][-8:]
@@ -220,8 +220,8 @@ def find_latest_date():
     '''
     Fetch the latest date for which ocean wave height data is available
     RETURN  latest_available_date: latest date available for download from source website (string)
-    '''   
-    # get rid of date from SOURCE_URL to get the parent directory where 
+    '''
+    # get rid of date from SOURCE_URL to get the parent directory where
     # inidividual folder for each year is present
     url = SOURCE_URL.split('multi_1.')[0]
     try:
@@ -235,7 +235,7 @@ def find_latest_date():
       folders = [link for link in links if 'multi_' in link]
       # split the folder names on '.' and get the last elements after each split to retrieve dates
       split_dates = ([s.split('.')[-1] for s in folders])
-      # get rid of unnecessary '/' from every dates 
+      # get rid of unnecessary '/' from every dates
       available_dates = ([s.strip('/') for s in split_dates])
       # convert available dates to datetime according to format set by DATE_FORMAT
       formt_available_dates = [datetime.datetime.strptime(date, DATE_FORMAT) for date in available_dates]
@@ -247,16 +247,16 @@ def find_latest_date():
       # if unsuccessful, log that no data were found from the source url
       logging.debug('No data found from url {})'.format(url))
       logging.debug(e)
-    
+
     return latest_available_date
 
 def find_latest_time(date):
     '''
     Fetch the latest time step for which ocean wave height data is available
-    INPUT   date: date we want to try to fetch, in the format YYYYMMDD (string)
+    INPUT   date: date we want to try to fetch, in the format YYYYMMDD (string)
     RETURN  time_step: latest timestep available for download from source website (string)
             latest_grib: latest grib file from source (string)
-    '''   
+    '''
      # get the url where data for the given date is stored at the source
     url = getUrl(date)
     try:
@@ -293,15 +293,15 @@ def find_latest_time(date):
          # if unsuccessful, log that no data were found for the input date
          logging.debug('No data found for date {})'.format(date))
          logging.debug(e)
-    
+
     return time_step, latest_grib
 
 def fetch(date, latest_grib):
      '''
      Fetch latest grib files by datestamp
-     INPUT   date: date we want to try to fetch, in the format YYYYMMDD (string)
+     INPUT   date: date we want to try to fetch, in the format YYYYMMDD (string)
              latest_grib: latest grib files that we want to fetch (list of strings)
-     RETURN  files: list of file names for gribs that have been downloaded (list of strings)
+     RETURN  files: list of file names for gribs that have been downloaded (list of strings)
      '''
      # make an empty list to store names of the files we downloaded
      files = []
@@ -309,21 +309,21 @@ def fetch(date, latest_grib):
      # get the url where data for the given date is stored at the source
      url = getUrl(date)
 
-     # the model forecasts from 000 to 180 hours, 
+     # the model forecasts from 000 to 180 hours,
      # we only want current, 12th, 24th, 48th hour forecast
      req_frcsts = ['f000', 'f012', 'f024', 'f048']
 
      # create an empty list to store available current & forecast data
      required_files = []
-     
+
      # loop through each forecast step we care about
      for req_frcst in req_frcsts:
          # append the available files to the final list
          required_files += [frcst for frcst in latest_grib if req_frcst in frcst]
-    
+
      # loop through each grib file from the final list
      for file in required_files:
-         # join the source url with the id of each grib file to generate complete 
+         # join the source url with the id of each grib file to generate complete
          # URLs for each grib file download
          sub_url = os.path.join(url, file)
          # get the filename we want to save the individual file under locally
@@ -345,10 +345,10 @@ def fetch(date, latest_grib):
 def convert(file):
      '''
      Convert grib file to tif
-     INPUT   file: file name for grib that have already been downloaded (string)
-     RETURN  final_tif: file name for tif that have been generated (string)
+     INPUT   file: file name for grib that have already been downloaded (string)
+     RETURN  final_tif: file name for tif that have been generated (string)
      '''
-     
+
      '''
      Google Earth Engine needs to get tif files with longitudes of -180 to 180.
      These files have longitudes from 0 to 360. I checked this using gdalinfo.
@@ -363,8 +363,8 @@ def convert(file):
      # generate name for tif file that we are going to create from grib
      temp_tif = file.split('.grib2')[0] + '_temp.tif'
      # translate the grib file into a tif
-     cmd = ['gdal_translate','-b', '5', '-a_srs', 'EPSG:4326', file, temp_tif] 
-     subprocess.call(cmd) 
+     cmd = ['gdal_translate','-b', '5', '-a_srs', 'EPSG:4326', file, temp_tif]
+     subprocess.call(cmd)
      # Now we will fix the longitude. To do this we need the x and y resolution.
      # I also got x and y res for data set using the gdalinfo command described above.
      xres='0.500000000000000'
@@ -372,18 +372,18 @@ def convert(file):
      # generate name for the final corrected tif
      final_tif = file.split('.grib2')[0] + '.tif'
      # fix bounds
-     cmd_warp = ['gdalwarp', '-t_srs', 'EPSG:4326', '-tr', xres, yres, temp_tif, final_tif, '-wo', 
+     cmd_warp = ['gdalwarp', '-t_srs', 'EPSG:4326', '-tr', xres, yres, temp_tif, final_tif, '-wo',
                 'SOURCE_EXTRA=1000', '--config', 'CENTER_LONG', '0']
      # using the gdal from command line from inside python
-     subprocess.call(cmd_warp) 
+     subprocess.call(cmd_warp)
 
      return final_tif
 
 def processNewData(existing_dates_steps):
     '''
     fetch, process, upload, and clean new data
-    INPUT   existing_dates_steps: list of dates and timesteps we already have in GEE (list of tuple of strings)
-    RETURN  latest_date_step: list of tuple of dates and timesteps for which we have downloaded data (list of tuple of strings)
+    INPUT   existing_dates_steps: list of dates and timesteps we already have in GEE (list of tuple of strings)
+    RETURN  latest_date_step: list of tuple of dates and timesteps for which we have downloaded data (list of tuple of strings)
             asset: file name for asset that have been uploaded to GEE (string)
     '''
 
@@ -398,7 +398,7 @@ def processNewData(existing_dates_steps):
     # if we don't have this date and time step already in GEE
     if latest_date_step not in existing_dates_steps:
         # fetch grib files for new data
-        logging.info('Fetching files')        
+        logging.info('Fetching files')
         files = fetch(available_date, latest_grib)
         # create an empty list to store tifs that will be generated from fetched grib file
         tifs = []
@@ -407,21 +407,22 @@ def processNewData(existing_dates_steps):
             logging.info('Converting file: {}'.format(_file))
             # convert gribs to tifs and store the tif filenames to a list
             tifs.append(convert(_file))
-    
-        # generate a name to save the tif file that will be produced by merging all forecast data   
+
+        # generate a name to save the tif file that will be produced by merging all forecast data
         merged_tif = 'merged_' + available_time_step + '_' + available_date + '.tif'
-        # merge all forecast data from grib into a single tif by adding each forecast as 
+        # merge all forecast data from grib into a single tif by adding each forecast as
         # separate bands
         merge_cmd = ['gdal_merge.py', '-a_nodata', '9999', '-seperate'] + tifs + ['-o', merged_tif]
+        logging.info('Creatng the final merged tif: {}'.format(merged_tif))
         subprocess.call(merge_cmd)
 
         logging.info('Uploading files')
         # Generate a name we want to use for the asset once we upload the file to GEE
-        asset = getAssetName(available_time_step, available_date)
+        asset = [getAssetName(available_time_step, available_date)]
         # Get a datetime from the date we are uploading
         datestamp = [datetime.datetime.strptime(available_date, DATE_FORMAT)]
         # Upload new file (tif) to GEE
-        eeUtil.uploadAssets(merged_tif, asset, GS_FOLDER, dates=datestamp, public=True, timeout=3000)
+        eeUtil.uploadAssets([merged_tif], asset, GS_FOLDER, dates=datestamp, public=True, timeout=3000)
 
         return [latest_date_step], asset
     else:
@@ -432,8 +433,8 @@ def processNewData(existing_dates_steps):
 def checkCreateCollection(collection):
     '''
     List assests in collection if it exists, else create new collection
-    INPUT   collection: GEE collection to check or create (string)
-    RETURN  list of assets in collection (list of strings)
+    INPUT   collection: GEE collection to check or create (string)
+    RETURN  list of assets in collection (list of strings)
     '''
     # if collection exists, return list of assets in collection
     if eeUtil.exists(collection):
@@ -447,7 +448,7 @@ def checkCreateCollection(collection):
 def deleteExcessAssets(dates, max_assets):
     '''
     Delete oldest assets, if more than specified in max_assets variable
-    INPUT   dates: dates for all the assets currently in the GEE collection; 
+    INPUT   dates: dates for all the assets currently in the GEE collection;
                dates should be in the format specified in DATE_FORMAT variable (list of strings)
             max_assets: maximum number of assets allowed in the collection (int)
     '''
@@ -455,7 +456,7 @@ def deleteExcessAssets(dates, max_assets):
     dates.sort()
     # if we have more dates of data than allowed,
     if len(dates) > max_assets:
-        # go through each date, starting with the oldest, and 
+        # go through each date, starting with the oldest, and
         # delete until we only have the max number of assets left
         for date in dates[:-max_assets]:
             eeUtil.removeAsset(getAssetName(date))
@@ -463,8 +464,8 @@ def deleteExcessAssets(dates, max_assets):
 def get_most_recent_date(collection):
     '''
     Get most recent data we have assets for
-    INPUT   collection: GEE collection to check dates for (string)
-    RETURN  most_recent_date: most recent date in GEE collection (datetime)
+    INPUT   collection: GEE collection to check dates for (string)
+    RETURN  most_recent_date: most recent date in GEE collection (datetime)
     '''
     # get list of assets in collection
     existing_assets = checkCreateCollection(collection)
@@ -512,7 +513,7 @@ def main():
     # Check if collection exists, create it if it does not
     # If it exists return the list of assets currently in the collection
     existing_assets = checkCreateCollection(EE_COLLECTION)
-    
+
     # Get a list of tuples of the dates and timesteps of data we already have in the collection
     existing_dates_steps = [getDate(asset) for asset in existing_assets]
     logging.debug(existing_dates_steps)
