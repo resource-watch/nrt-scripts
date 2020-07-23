@@ -288,7 +288,7 @@ def find_latest_time(date):
              # we only want the data from latest run. once we find data for a timestep,
              # break out of the loop
              if latest_grib:
-                 logging.info('Available Time Step {}'.format(time_step))
+                 logging.info('Latest available time step {}'.format(time_step))
                  break
     except Exception as e:
          # if unsuccessful, log that no data were found for the input date
@@ -408,7 +408,8 @@ def processNewData(existing_dates_steps):
             logging.info('Converting file: {}'.format(_file))
             # convert gribs to tifs and store the tif filenames to a list
             tifs.append(convert(_file))
-    
+
+        logging.info('Merging all forecast data to a single tif as separate bands')
         # generate a name to save the tif file that will be produced by merging all forecast data   
         merged_tif = 'merged_' + available_time_step + '_' + available_date + '.tif'
         # merge all forecast data from grib into a single tif by adding each forecast as 
@@ -422,7 +423,7 @@ def processNewData(existing_dates_steps):
         # Get a datetime from the date we are uploading
         datestamp = [datetime.datetime.strptime(available_date, DATE_FORMAT)]
         # Upload new file (tif) to GEE
-        eeUtil.uploadAssets([merged_tif], asset, GS_FOLDER, dates=datestamp, public=True, timeout=3000)
+        eeUtil.uploadAssets([merged_tif], asset, GS_FOLDER, dates=datestamp, timeout=3000)
 
         return [latest_date_step], asset
     else:
