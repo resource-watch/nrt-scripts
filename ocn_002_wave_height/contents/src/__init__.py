@@ -30,7 +30,6 @@ EE_COLLECTION = 'ocn_002_wave_height'
 CLEAR_COLLECTION_FIRST = False
 
 # how many assets can be stored in the GEE collection before the oldest ones are deleted?
-# keeping 4 cycle of data; (current, 12th, 24th, 48th forecast)*4 = 16
 MAX_ASSETS = 16
 
 # format of date used in both source and GEE
@@ -446,21 +445,23 @@ def checkCreateCollection(collection):
         eeUtil.createFolder(collection, imageCollection=True, public=True)
         return []
 
-def deleteExcessAssets(dates, max_assets):
+def deleteExcessAssets(dates_steps, max_assets):
     '''
     Delete oldest assets, if more than specified in max_assets variable
-    INPUT   dates: dates for all the assets currently in the GEE collection; 
-               dates should be in the format specified in DATE_FORMAT variable (list of strings)
+    INPUT   dates_steps: date and time step for all the assets currently in the GEE collection; 
+            dates should be in the format specified in DATE_FORMAT variable (list of tuple of strings)
             max_assets: maximum number of assets allowed in the collection (int)
     '''
-    # sort the list of dates so that the oldest is first
-    dates.sort()
+    # sort the list of dates_steps so that the oldest is first
+    # this sorting also takes into account the time steps; if we have multiple times step data from same
+    # year, oldest time steps from same year are deleted first
+    dates_steps.sort()
     # if we have more dates of data than allowed,
-    if len(dates) > max_assets:
+    if len(dates_steps) > max_assets:
         # go through each date, starting with the oldest, and 
         # delete until we only have the max number of assets left
-        for date in dates[:-max_assets]:
-            eeUtil.removeAsset(getAssetName(date))
+        for date_step in dates_steps[:-max_assets]:
+            eeUtil.removeAsset(getAssetName(date_step[1], date_step[0]))
 
 def get_most_recent_date(collection):
     '''
