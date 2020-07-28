@@ -20,11 +20,11 @@ FILENAME = 'ocn_002_wave_height_{time}_{date}'
 # name of data directory in Docker container
 DATA_DIR = os.path.join(os.getcwd(),'data')
 
-# name of folder to store data in Google Cloud Storage
-GS_FOLDER = 'ocn_002_wave_height'
-
 # name of collection in GEE where we will upload the final data
-EE_COLLECTION = 'ocn_002_wave_height'
+EE_COLLECTION = '/projects/resource-watch-gee/ocn_002_wave_height'
+
+# name of folder to store data in Google Cloud Storage
+GS_FOLDER = EE_COLLECTION[1:]
 
 # do you want to delete everything currently in the GEE collection when you run this script?
 CLEAR_COLLECTION_FIRST = False
