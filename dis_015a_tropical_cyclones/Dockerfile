@@ -2,27 +2,33 @@ FROM python:3.6
 MAINTAINER Taufiq Rashid <taufiq.rashid@wri.org>
 #Note this script was originally developed by Taufiq Rashid <taufiq.rashid@wri.org>
 
-# install application libraries
-RUN pip install --upgrade pip && \
-	carto==1.8.4 cartoframes==0.9.2 \
-	geopandas==0.8.0 \
-	glob2==0.7 \
-    requests==2.22.0 fiona==1.8.13
-RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql 
-
 # set name
-ARG NAME=dis_015a
+ARG NAME=dis_015a_tropical_cyclones
 ENV NAME ${NAME}
 
-# copy the application folder inside the container
+# install core libraries
+RUN apt-get update
+RUN apt-get install -y cron
+
+# install application libraries
+RUN pip install --upgrade pip && 
+RUN pip install geopandas==0.8.0 \
+	glob2==0.7 \
+    requests==2.22.0 fiona==1.8.13
+RUN pip install carto==1.8.4 cartoframes==0.9.2
+RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql 
+
+# Copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data
 WORKDIR /opt/$NAME/
 COPY contents/ .
+COPY time.cron .
 VOLUME ./data
 
-# add user
-RUN groupadd -r $NAME && useradd -r -g $NAME $NAME
-RUN chown -R $NAME:$NAME /opt/$NAME/
-USER $NAME
+# Set user for container security
+RUN useradd -r $NAME
+RUN chown -R $NAME:$NAME /opt/$NAME
+#USER $NAME
 
+# Launch script
 CMD ["python", "main.py"]
