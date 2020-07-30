@@ -11,7 +11,7 @@ RUN apt-get update
 RUN apt-get install -y cron
 
 # install application libraries
-RUN pip install --upgrade pip && 
+RUN pip install --upgrade pip  
 RUN pip install geopandas==0.8.0 \
 	glob2==0.7 \
     requests==2.22.0 fiona==1.8.13
