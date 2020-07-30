@@ -1,5 +1,5 @@
 #Change the NAME variable with the name of your script
-NAME=dis_015s_tropical_cyclone
+NAME=dis_015a_tropical_cyclones
 LOG=${LOG:-udp://localhost}
 
 docker build -t $NAME --build-arg NAME=$NAME .
