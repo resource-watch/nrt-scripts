@@ -4,12 +4,11 @@ MAINTAINER Taufiq Rashid <taufiq.rashid@wri.org>
 
 # install application libraries
 RUN pip install --upgrade pip && \
-	pip install carto==1.8.4 cartoframes==0.9.2 \
-	pip install geopandas==0.8.0 \
-	pip install glob2==0.7 \
-    pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql && \
-    pip install requests==2.22.0 fiona==1.8.13
- 
+	carto==1.8.4 cartoframes==0.9.2 \
+	geopandas==0.8.0 \
+	glob2==0.7 \
+    requests==2.22.0 fiona==1.8.13
+RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql 
 
 # set name
 ARG NAME=dis_015a
