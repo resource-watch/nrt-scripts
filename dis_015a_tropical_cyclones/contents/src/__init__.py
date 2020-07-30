@@ -209,7 +209,7 @@ def processData():
     tries = 0
     # try to get the data from the url for MAX_TRIES 
     while tries < MAX_TRIES and success == False:
-        logging.info('Try retrieving cyclone track data data, try number = {}'.format(tries))
+        logging.info('Try retrieving cyclone track data, try number = {}'.format(tries))
         try:
             # pull cyclone track data from source url and format the data into a geopandas dataframe
             # download the shapefile from source and get the name of the file
