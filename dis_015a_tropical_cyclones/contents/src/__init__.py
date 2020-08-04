@@ -13,6 +13,9 @@ import requests
 import geopandas as gpd
 import glob
 
+import warnings
+warnings.filterwarnings("ignore")
+
 # name of data directory in Docker container
 DATA_DIR = 'data'
 
