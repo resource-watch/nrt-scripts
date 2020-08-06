@@ -10,7 +10,7 @@ import requests
 import time
 import urllib
 import urllib.request
-from osgeo import gdal
+import gdal
 import numpy as np
 from collections import OrderedDict 
 
@@ -293,7 +293,7 @@ def getFilename(date):
      INPUT   date: date in the format of the DATE_FORMAT variable (string)
      RETURN  file name to save merged tif file (string)
      '''
-     return os.path.join(DATA_DIR, FILENAME.format(date=date), '_merged.tif') 
+     return (os.path.join(DATA_DIR, FILENAME.format(date=date)) + '_merged.tif' )
 
 def getAssetName(date):
      '''
@@ -554,7 +554,7 @@ def processNewData(existing_dates_steps):
     if available_date not in existing_dates_steps:
         # fetch files for the latest date
         logging.info('Fetching files')        
-        fetch(available_date)
+        fetch()
         # convert netcdfs to tifs and store the tif filenames to a new key in the parent dictionary
         logging.info('Extracting relevant GeoTIFFs from source NetCDFs')
         for key, val in DATA_DICT.items():
@@ -594,11 +594,11 @@ def processNewData(existing_dates_steps):
         # Upload new file (tif) to GEE
         eeUtil.uploadAssets([merged_tif], asset, GS_FOLDER, dates=datestamp, timeout=3000)
 
-        return asset
+        return [(asset)]
     else:
         logging.info('Data already up to date')
         # if no new assets, return empty list
-        return ()
+        return []
 
 def checkCreateCollection(collection):
     '''
@@ -642,7 +642,7 @@ def get_most_recent_date(collection):
     # get list of assets in collection
     existing_assets = checkCreateCollection(collection)
     # get a list of strings of dates in the collection
-    existing_dates = [getDate(a)[0] for a in existing_assets]
+    existing_dates = [getDate(a) for a in existing_assets]
     # sort these dates oldest to newest
     existing_dates.sort()
     # get the most recent date (last in the list) and turn it into a datetime
