@@ -170,36 +170,43 @@ def fetch_data():
     tmpfile = '{}.zip'.format(os.path.join(DATA_DIR,'dis_015a_hurricane_tracks-shp'))
     logging.info('Fetching shapefile')
 
-    try:
-        # pull data from url and save to tmpfile
-        urllib.request.urlretrieve(SOURCE_URL, tmpfile)
-        # unzip source data
-        tmpfile_unzipped = tmpfile.split('.')[0]
-        zip_ref = ZipFile(tmpfile, 'r')
-        zip_ref.extractall(tmpfile_unzipped)
-        zip_ref.close()
+#    try:
+    logging.info('pull data from url and save to tmpfile')
+    # pull data from url and save to tmpfile
+    urllib.request.urlretrieve(SOURCE_URL, tmpfile)
+    logging.info('unzip source data')
+    # unzip source data
+    tmpfile_unzipped = tmpfile.split('.')[0]
+    zip_ref = ZipFile(tmpfile, 'r')
+    zip_ref.extractall(tmpfile_unzipped)
+    zip_ref.close()
+    logging.info('load in the polygon shapefile')
+    # load in the polygon shapefile
+    shapefile = glob.glob(os.path.join(tmpfile_unzipped, '*.shp'))[0]
+    gdf = gpd.read_file(shapefile)
+    logging.info('Find the columns where each value is null')
+    # Find the columns where each value is null
+    empty_cols = [col for col in gdf.columns if gdf[col].isnull().all()]
+    logging.info('Drop these columns from the dataframe')
+    # Drop these columns from the dataframe
+    gdf.drop(empty_cols, axis=1, inplace=True)
+    logging.info('there were invalid geometries (self intersection) which was preventing')        
+	# there were invalid geometries (self intersection) which was preventing
+    # them to be correctly interpreted by Carto. So, the lines are buffered
+    # by a very small distance to fix the issue (lines are converted to polygons)
+    gdf['geometry'] = gdf.geometry.buffer(0.0001)
+    logging.info('convert the geometries from shapely to geojson')
+    # convert the geometries from shapely to geojson
+    gdf['geometry'] = convert_geometry(gdf['geometry'])
+    logging.info('format geomteries to be correctly interpreted by Carto')
+    # format geomteries to be correctly interpreted by Carto
+    formt_gdf = match_carto(gdf)
+    
+    return formt_gdf, tmpfile
 
-        # load in the polygon shapefile
-        shapefile = glob.glob(os.path.join(tmpfile_unzipped, '*.shp'))[0]
-        gdf = gpd.read_file(shapefile)
-        # Find the columns where each value is null
-        empty_cols = [col for col in gdf.columns if gdf[col].isnull().all()]
-        # Drop these columns from the dataframe
-        gdf.drop(empty_cols, axis=1, inplace=True)
-        # there were invalid geometries (self intersection) which was preventing
-        # them to be correctly interpreted by Carto. So, the lines are buffered
-        # by a very small distance to fix the issue (lines are converted to polygons)
-        gdf['geometry'] = gdf.geometry.buffer(0.0001)
-        # convert the geometries from shapely to geojson
-        gdf['geometry'] = convert_geometry(gdf['geometry'])
-        # format geomteries to be correctly interpreted by Carto
-        formt_gdf = match_carto(gdf)
-        
-        return formt_gdf, tmpfile
-
-    except Exception as e:
-        logging.info(e)
-        logging.info("Error fetching data")
+#    except Exception as e:
+#        logging.info(e)
+#        logging.info("Error fetching data")
 
 def processData():
     '''
