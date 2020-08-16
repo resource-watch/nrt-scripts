@@ -131,7 +131,7 @@ FILENAME = 'ocn_007_coral_bleaching_monitoring_{date}'
 DATA_DIR = os.path.join(os.getcwd(),'data')
 
 # name of collection in GEE where we will upload the final data
-EE_COLLECTION = '/projects/resource-watch-gee/ocn_007_coral_bleaching_monitoring_test'
+EE_COLLECTION = '/projects/resource-watch-gee/ocn_007_coral_bleaching_monitoring'
 
 # name of folder to store data in Google Cloud Storage
 GS_FOLDER = EE_COLLECTION[1:]
@@ -538,12 +538,11 @@ def scale_geotiff(tif, scaledtif=None, scale_factor=None, nodata=None, gdal_type
     
     return scaledtif 
 
-def processNewData(existing_dates_steps):
+def processNewData(existing_dates):
     '''
     fetch, process, upload, and clean new data
-    INPUT   existing_dates_steps: list of dates and timesteps we already have in GEE (list of tuple of strings)
-    RETURN  latest_date_step: list of tuple of dates and timesteps for which we have downloaded data (list of tuple of strings)
-            asset: file name for asset that have been uploaded to GEE (string)
+    INPUT   existing_dates: list of dates we already have in GEE (list of strings)
+    RETURN  asset: file name for asset that have been uploaded to GEE (string)
     '''
 
     # Get latest available date that is availble on the source
@@ -551,7 +550,7 @@ def processNewData(existing_dates_steps):
     logging.debug('Latest available date: {}'.format(available_date))
 
     # if we don't have this date and time step already in GEE
-    if available_date not in existing_dates_steps:
+    if available_date not in existing_dates:
         # fetch files for the latest date
         logging.info('Fetching files')        
         fetch()
@@ -615,23 +614,20 @@ def checkCreateCollection(collection):
         eeUtil.createFolder(collection, imageCollection=True, public=True)
         return []
 
-def deleteExcessAssets(dates_steps, max_assets):
+def deleteExcessAssets(dates, max_assets):
     '''
     Delete oldest assets, if more than specified in max_assets variable
-    INPUT   dates_steps: date and time step for all the assets currently in the GEE collection; 
-            dates should be in the format specified in DATE_FORMAT variable (list of tuple of strings)
+    INPUT   dates: dates for all the assets currently in the GEE collection; dates should be in the format specified
+                    in DATE_FORMAT variable (list of strings)
             max_assets: maximum number of assets allowed in the collection (int)
     '''
-    # sort the list of dates_steps so that the oldest is first
-    # this sorting also takes into account the time steps; if we have multiple times step data from same
-    # year, oldest time steps from same year are deleted first
-    dates_steps.sort()
+    # sort the list of dates so that the oldest is first
+    dates.sort()
     # if we have more dates of data than allowed,
-    if len(dates_steps) > max_assets:
-        # go through each date, starting with the oldest, and 
-        # delete until we only have the max number of assets left
-        for date_step in dates_steps[:-max_assets]:
-            eeUtil.removeAsset(getAssetName(date_step[1], date_step[0]))
+    if len(dates) > max_assets:
+        # go through each date, starting with the oldest, and delete until we only have the max number of assets left
+        for date in dates[:-max_assets]:
+            eeUtil.removeAsset(getAssetName(date))
 
 def get_most_recent_date(collection):
     '''
