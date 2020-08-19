@@ -582,7 +582,7 @@ def processNewData(existing_dates):
         # generate a name to save the tif file that will be produced by merging all the individual tifs   
         merged_tif = getFilename(available_date) 
         # merge all tifs into a single tif by adding each tif as separate bands
-        merge_cmd = ['gdal_merge.py', '-seperate'] + alltifs + ['-o', merged_tif]
+        merge_cmd = ['gdal_merge.py', '-ot', 'float32', '-separate'] + alltifs + ['-o', merged_tif]
         subprocess.call(merge_cmd)
 
         logging.info('Uploading files')
