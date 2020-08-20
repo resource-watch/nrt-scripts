@@ -183,6 +183,8 @@ def fetch_data():
     logging.info('load in the polygon shapefile')
     # load in the polygon shapefile
     shapefile = glob.glob(os.path.join(tmpfile_unzipped, '*.shp'))[0]
+    logging.info(shapefile)
+    logging.info('gpd.read_file(shapefile)')
     gdf = gpd.read_file(shapefile)
     logging.info('Find the columns where each value is null')
     # Find the columns where each value is null
