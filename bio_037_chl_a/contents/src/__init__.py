@@ -16,7 +16,9 @@ import time
 
 # url for chlorophyll concentration data
 # example netcdf file name from source: A20181822018212.L3m_MO_CHL_chlor_a_9km.nc
-SOURCE_URL = 'https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/A{date}.L3m_MO_CHL_chlor_a_4km.nc'
+# SOURCE_URL = 'https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/A{date}.L3m_MO_CHL_chlor_a_4km.nc'
+# The above url stopped working recently and this is the current working url
+SOURCE_URL = 'https://oceandata.sci.gsfc.nasa.gov/opendap/hyrax/MODISA/L3SMI/{year}/{day}/A{date}.L3m_MO_CHL_chlor_a_4km.nc.nc4'
 
 # subdataset to be converted to tif
 # should be of the format 'NETCDF:"filename.nc":variable'
@@ -192,7 +194,12 @@ def getUrl(date):
     INPUT   date: date range, given as a Julian start and end date in the format YYYYDDDYYYYDDD (string)
     RETURN  source url to download data, formatted for the input date (string)
     '''
-    return SOURCE_URL.format(date=date)
+    # get year from first indices of date
+    year = date[0:4] 
+    # get day from fourth to sixth indices of date
+    day = date[4:7]
+
+    return SOURCE_URL.format(year=year, day=day, date=date)
 
 def getAssetName(date):
     '''
