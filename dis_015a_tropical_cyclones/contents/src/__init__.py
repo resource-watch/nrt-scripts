@@ -171,19 +171,19 @@ def fetch_data():
     logging.info('Fetching shapefile')
 
 #    try:
-    logging.info('pull data from url and save to tmpfile')
+#     logging.info('pull data from url and save to tmpfile')
     # pull data from url and save to tmpfile
     urllib.request.urlretrieve(SOURCE_URL, tmpfile)
-    logging.info('unzip source data')
+#     logging.info('unzip source data')
     # unzip source data
     tmpfile_unzipped = tmpfile.split('.')[0]
     zip_ref = ZipFile(tmpfile, 'r')
     zip_ref.extractall(tmpfile_unzipped)
     zip_ref.close()
-    logging.info('load in the polygon shapefile')
+#     logging.info('load in the polygon shapefile')
     # load in the polygon shapefile
     shapefile = glob.glob(os.path.join(tmpfile_unzipped, '*.shp'))[0]
-    logging.info(shapefile)
+#     logging.info(shapefile)
     logging.info('gpd.read_file(shapefile)')
     gdf = gpd.read_file(shapefile)
     logging.info('Find the columns where each value is null')
