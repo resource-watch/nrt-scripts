@@ -284,8 +284,8 @@ def getDateBounds(new_date):
 
 def getDateRange(date):
     '''
-    get start and end dates used to filter out period we are averaging over
-    INPUT   date: date we are processing, in the format of the DATE_FORMAT variable (string)
+    get start date from end date we are averaging over
+    INPUT   date: end date of days we will average, in the format of the DATE_FORMAT variable (string)
     RETURN  end_date: end date of days we will average, in the format of the DATE_FORMAT variable (datetime)
             start_date: start date of days we will average, in the format of the DATE_FORMAT variable (datetime)
     '''
