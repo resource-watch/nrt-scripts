@@ -8,18 +8,20 @@ import eeUtil
 import ee
 import time
 import requests
+import json
 
 # url for air quality data
 SOURCE_URL = 'COPERNICUS/S5P/OFFL/L3_{var}'
 
 # list variables (as named in GEE) that we want to pull
-VARS = ['NO2', 'CO', 'AER_AI', 'O3']
+# VARS = ['NO2', 'CO', 'AER_AI', 'O3']
+VARS = ['O3']
 
 # define band to use for each compound
 BAND_BY_COMPOUND = {
-    'NO2': 'tropospheric_NO2_column_number_density',
-    'CO': 'CO_column_number_density',
-    'AER_AI': 'absorbing_aerosol_index',
+    # 'NO2': 'tropospheric_NO2_column_number_density',
+    # 'CO': 'CO_column_number_density',
+    # 'AER_AI': 'absorbing_aerosol_index',
     'O3': 'O3_column_number_density',
 }
 
@@ -60,9 +62,9 @@ DATE_FORMAT = '%Y-%m-%d'
 # Please change these IDs OR comment out the getLayerIDs(DATASET_ID) function in the script below
 # Failing to do so will overwrite the last update date on different datasets on Resource Watch
 DATASET_IDS = {
-    'NO2': 'b75d8398-34f2-447d-832d-ea570451995a',
-    'CO': 'f84ce519-8128-4a24-b637-89711b9e4713',
-    'AER_AI': '793e4cc9-c060-4b7f-a4a2-0b1fbbe71b69',
+    # 'NO2': 'b75d8398-34f2-447d-832d-ea570451995a',
+    # 'CO': 'f84ce519-8128-4a24-b637-89711b9e4713',
+    # 'AER_AI': '793e4cc9-c060-4b7f-a4a2-0b1fbbe71b69',
     'O3': 'ada81921-28ff-4fbb-b971-7aa1f3ccdb22'
 }
 
@@ -280,6 +282,20 @@ def getDateBounds(new_date):
     start_date = (new_date_dt - (DAYS_TO_AVERAGE - 1) * datetime.timedelta(days=1)).strftime(DATE_FORMAT)
     return end_date, start_date
 
+def getDateRange(date):
+    '''
+    get start and end dates used to filter out period we are averaging over
+    INPUT   date: date we are processing, in the format of the DATE_FORMAT variable (string)
+    RETURN  end_date: end date of days we will average, in the format of the DATE_FORMAT variable (datetime)
+            start_date: start date of days we will average, in the format of the DATE_FORMAT variable (datetime)
+    '''
+    # turn the input date into a datetime object
+    end_date = datetime.datetime.strptime(date, DATE_FORMAT)
+    # go back from the date we are processing the number of days we want to average to get the start date
+    start_date = (end_date - (DAYS_TO_AVERAGE) * datetime.timedelta(days=1))
+
+    return end_date, start_date
+
 def fetch_multi_day_avg(var, new_dates):
     '''
     Pull data for new dates and take an average over the number of days specified in the DAYS_TO_AVERAGE variable
@@ -479,11 +495,112 @@ def initialize_ee():
     auth = ee.ServiceAccountCredentials(GEE_SERVICE_ACCOUNT, _CREDENTIAL_FILE)
     ee.Initialize(auth)
 
-def updateResourceWatch():
+def create_headers():
+    '''
+    Create headers to perform authorized actions on API
+
+    '''
+    return {
+        'Content-Type': "application/json",
+        'Authorization': "{}".format(os.getenv('apiToken')),
+    }
+
+def pull_layers_from_API(dataset_id):
+    '''
+    Pull dictionary of current layers from API
+    INPUT   dataset_id: Resource Watch API dataset ID (string)
+    RETURN  layer_dict: dictionary of layers (dictionary of strings)
+    '''
+    # generate url to access layer configs for this dataset in back office
+    rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer'.format(dataset_id)
+    # request data
+    r = requests.get(rw_api_url)
+    # convert response into json and make dictionary of layers
+    layer_dict = json.loads(r.content.decode('utf-8'))['data']
+    return layer_dict
+
+def update_layer(var, layer, end_date, start_date):
+    '''
+    Update layers in Resource Watch back office.
+    INPUT   var: variable for which we are updating layers (string)
+            layer: layer that will be updated (string)
+            end_date: end date of days we will average, in the format of the DATE_FORMAT variable (datetime)
+            start_date: start date of days we will average, in the format of the DATE_FORMAT variable (datetime)
+    '''
+    # convert end_date to string and get name of asset using the end_date
+    asset = getAssetName(var, end_date.strftime(DATE_FORMAT))
+
+    # get previous date being used from
+    old_date = getDate_GEE(layer['attributes']['layerConfig']['assetId'])
+    # get old start and end dates for time period that we are averaging over
+    old_end_date, old_start_date = getDateRange(old_date)    
+    # convert old datetimes to string
+    old_end_date_text = old_end_date.strftime("%B %d, %Y")
+    old_start_date_text = old_start_date.strftime("%B %d, %Y")
+    # generate text for old date range
+    old_date_text = old_start_date_text + ' - ' + old_end_date_text
+
+    # convert new datetimes to string
+    end_date_text = end_date.strftime("%B %d, %Y")
+    start_date_text = start_date.strftime("%B %d, %Y")
+    # generate text for new date range
+    new_date_text = start_date_text + ' - ' + end_date_text
+
+    # replace date in layer's title with new date range
+    layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
+
+    # replace the asset id in the layer def with new asset id
+    layer['attributes']['layerConfig']['assetId'] = asset
+
+    # replace the asset id in the interaction config with new asset id
+    old_asset = getAssetName(var, old_date)
+    layer['attributes']['interactionConfig']['config']['url'] = layer['attributes']['interactionConfig']['config']['url'].replace(old_asset,asset)
+    layer['attributes']['interactionConfig']['pulseConfig']['url'] = layer['attributes']['interactionConfig']['pulseConfig']['url'].replace(old_asset,asset)
+
+    # send patch to API to replace layers
+    # generate url to patch layer
+    rw_api_url_layer = "https://api.resourcewatch.org/v1/dataset/{dataset_id}/layer/{layer_id}".format(
+        dataset_id=layer['attributes']['dataset'], layer_id=layer['id'])
+    # create payload with new title and layer configuration
+    payload = {
+        'application': ['rw'],
+        'layerConfig': layer['attributes']['layerConfig'],
+        'name': layer['attributes']['name'],
+        'interactionConfig': layer['attributes']['interactionConfig']
+    }
+    # patch API with updates
+    r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
+    # check response
+    # if we get a 200, the layers have been replaced
+    # if we get a 504 (gateway timeout) - the layers are still being replaced, but it worked
+    if r.ok or r.status_code==504:
+        logging.info('Layer replaced: {}'.format(layer['id']))
+    else:
+        logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
+
+def updateResourceWatch(new_dates):
     '''
     This function should update Resource Watch to reflect the new data.
     This may include updating the 'last update date', flushing the tile cache, and updating any dates on layers
     '''
+    # sort new dates oldest to newest
+    new_dates.sort()
+    # get the most recent date (last in the list) 
+    new_date = new_dates[-1]
+
+    # Update the dates on layer legends
+    logging.info('Updating Resource Watch Layers')
+    for var, ds_id in DATASET_IDS.items():
+        logging.info('Updating {}'.format(var))
+        # pull dictionary of current layers from API
+        layer_dict = pull_layers_from_API(ds_id)
+        # go through each layer, pull the definition and update
+        for layer in layer_dict:
+            # get start and end dates for time period that we are averaging over
+            end_date, start_date = getDateRange(new_date)
+            # replace layer asset and title date with new
+            update_layer(var, layer, end_date, start_date)
+
     for var_num in range(len(VARS)):
         # get variable we are updating layers for
         var = VARS[var_num]
@@ -500,7 +617,6 @@ def updateResourceWatch():
             layer_ids = getLayerIDs(DATASET_IDS[var])
             for layer_id in layer_ids:
                 flushTileCache(layer_id)
-    # Update the dates on layer legends - TO BE ADDED IN FUTURE
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
@@ -538,6 +654,6 @@ def main():
         logging.info('SUCCESS for {var}'.format(var=var))
 
     # Update Resource Watch
-    updateResourceWatch()
+    updateResourceWatch(new_dates)
 
     logging.info('SUCCESS')
