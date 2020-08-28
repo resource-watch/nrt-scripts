@@ -14,14 +14,13 @@ import json
 SOURCE_URL = 'COPERNICUS/S5P/OFFL/L3_{var}'
 
 # list variables (as named in GEE) that we want to pull
-# VARS = ['NO2', 'CO', 'AER_AI', 'O3']
-VARS = ['O3']
+VARS = ['NO2', 'CO', 'AER_AI', 'O3']
 
 # define band to use for each compound
 BAND_BY_COMPOUND = {
-    # 'NO2': 'tropospheric_NO2_column_number_density',
-    # 'CO': 'CO_column_number_density',
-    # 'AER_AI': 'absorbing_aerosol_index',
+    'NO2': 'tropospheric_NO2_column_number_density',
+    'CO': 'CO_column_number_density',
+    'AER_AI': 'absorbing_aerosol_index',
     'O3': 'O3_column_number_density',
 }
 
@@ -62,9 +61,9 @@ DATE_FORMAT = '%Y-%m-%d'
 # Please change these IDs OR comment out the getLayerIDs(DATASET_ID) function in the script below
 # Failing to do so will overwrite the last update date on different datasets on Resource Watch
 DATASET_IDS = {
-    # 'NO2': 'b75d8398-34f2-447d-832d-ea570451995a',
-    # 'CO': 'f84ce519-8128-4a24-b637-89711b9e4713',
-    # 'AER_AI': '793e4cc9-c060-4b7f-a4a2-0b1fbbe71b69',
+    'NO2': 'b75d8398-34f2-447d-832d-ea570451995a',
+    'CO': 'f84ce519-8128-4a24-b637-89711b9e4713',
+    'AER_AI': '793e4cc9-c060-4b7f-a4a2-0b1fbbe71b69',
     'O3': 'ada81921-28ff-4fbb-b971-7aa1f3ccdb22'
 }
 
