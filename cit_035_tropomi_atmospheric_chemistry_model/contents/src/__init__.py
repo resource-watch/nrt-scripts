@@ -583,23 +583,25 @@ def updateResourceWatch(new_dates):
     This function should update Resource Watch to reflect the new data.
     This may include updating the 'last update date', flushing the tile cache, and updating any dates on layers
     '''
-    # sort new dates oldest to newest
-    new_dates.sort()
-    # get the most recent date (last in the list) 
-    new_date = new_dates[-1]
+    # if data for new dates were downloaded
+    if new_dates:
+        # sort new dates oldest to newest
+        new_dates.sort()
+        # get the most recent date (last in the list) 
+        new_date = new_dates[-1]
 
-    # Update the dates on layer legends
-    logging.info('Updating Resource Watch Layers')
-    for var, ds_id in DATASET_IDS.items():
-        logging.info('Updating {}'.format(var))
-        # pull dictionary of current layers from API
-        layer_dict = pull_layers_from_API(ds_id)
-        # go through each layer, pull the definition and update
-        for layer in layer_dict:
-            # get start and end dates for time period that we are averaging over
-            end_date, start_date = getDateRange(new_date)
-            # replace layer asset and title date with new
-            update_layer(var, layer, end_date, start_date)
+        # Update the dates on layer legends
+        logging.info('Updating Resource Watch Layers')
+        for var, ds_id in DATASET_IDS.items():
+            logging.info('Updating {}'.format(var))
+            # pull dictionary of current layers from API
+            layer_dict = pull_layers_from_API(ds_id)
+            # go through each layer, pull the definition and update
+            for layer in layer_dict:
+                # get start and end dates for time period that we are averaging over
+                end_date, start_date = getDateRange(new_date)
+                # replace layer asset and title date with new
+                update_layer(var, layer, end_date, start_date)
 
     for var_num in range(len(VARS)):
         # get variable we are updating layers for
