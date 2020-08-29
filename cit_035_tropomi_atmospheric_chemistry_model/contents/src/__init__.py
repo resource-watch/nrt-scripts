@@ -577,10 +577,13 @@ def update_layer(var, layer, end_date, start_date):
     else:
         logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
 
-def updateResourceWatch(new_dates):
+def updateResourceWatch(new_dates, var, dataset):
     '''
     This function should update Resource Watch to reflect the new data.
     This may include updating the 'last update date', flushing the tile cache, and updating any dates on layers
+    INPUT   new_dates: list of dates added to GEE, in the format of the DATE_FORMAT variable (list of strings)
+            var: variable (as named in GEE) that we want to update (string)
+            dataset: Resource Watch API dataset ID (string) 
     '''
     # if data for new dates were downloaded
     if new_dates:
@@ -591,33 +594,29 @@ def updateResourceWatch(new_dates):
 
         # Update the dates on layer legends
         logging.info('Updating Resource Watch Layers')
-        for var, ds_id in DATASET_IDS.items():
-            logging.info('Updating {}'.format(var))
-            # pull dictionary of current layers from API
-            layer_dict = pull_layers_from_API(ds_id)
-            # go through each layer, pull the definition and update
-            for layer in layer_dict:
-                # get start and end dates for time period that we are averaging over
-                end_date, start_date = getDateRange(new_date)
-                # replace layer asset and title date with new
-                update_layer(var, layer, end_date, start_date)
+        logging.info('Updating {}'.format(var))
+        # pull dictionary of current layers from API
+        layer_dict = pull_layers_from_API(dataset)
+        # go through each layer, pull the definition and update
+        for layer in layer_dict:
+            # get start and end dates for time period that we are averaging over
+            end_date, start_date = getDateRange(new_date)
+            # replace layer asset and title date with new
+            update_layer(var, layer, end_date, start_date)
 
-    for var_num in range(len(VARS)):
-        # get variable we are updating layers for
-        var = VARS[var_num]
-        # Get most recent date in GEE
-        most_recent_date = get_most_recent_date(getCollectionName(var))
-        # Get the current 'last update date' from the dataset on Resource Watch
-        current_date = getLastUpdate(DATASET_IDS[var])
-        # If the most recent date from the GEE collection does not match the 'last update date' on the RW API, update it
-        if current_date != most_recent_date:
-            logging.info('Updating last update date and flushing cache.')
-            # Update dataset's last update date on Resource Watch
-            lastUpdateDate(DATASET_IDS[var], most_recent_date)
-            # get layer ids and flush tile cache for each
-            layer_ids = getLayerIDs(DATASET_IDS[var])
-            for layer_id in layer_ids:
-                flushTileCache(layer_id)
+    # Get most recent date in GEE
+    most_recent_date = get_most_recent_date(getCollectionName(var))
+    # Get the current 'last update date' from the dataset on Resource Watch
+    current_date = getLastUpdate(dataset)
+    # If the most recent date from the GEE collection does not match the 'last update date' on the RW API, update it
+    if current_date != most_recent_date:
+        logging.info('Updating last update date and flushing cache.')
+        # Update dataset's last update date on Resource Watch
+        lastUpdateDate(dataset, most_recent_date)
+        # get layer ids and flush tile cache for each
+        layer_ids = getLayerIDs(dataset)
+        for layer_id in layer_ids:
+            flushTileCache(layer_id)
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
@@ -632,9 +631,7 @@ def main():
         clearCollectionMultiVar()
 
     # Process data, one variable at a time
-    for i in range(len(VARS)):
-        # get variable name
-        var = VARS[i]
+    for var, ds_id in DATASET_IDS.items():
         logging.info('STARTING {var}'.format(var=var))
 
         # Check if collection exists, create it if it does not
@@ -654,7 +651,7 @@ def main():
         deleteExcessAssets(var, existing_dates+new_dates, MAX_ASSETS)
         logging.info('SUCCESS for {var}'.format(var=var))
 
-    # Update Resource Watch
-    updateResourceWatch(new_dates)
+        # Update Resource Watch
+        updateResourceWatch(new_dates, var, ds_id)
 
     logging.info('SUCCESS')
