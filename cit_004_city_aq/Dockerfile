@@ -11,7 +11,7 @@ RUN pip install requests==2.22.0
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 
 # set name
-ARG NAME=xxx_xxx
+ARG NAME=cit_004_city_aq
 ENV NAME ${NAME}
 
 # copy the application folder inside the container
