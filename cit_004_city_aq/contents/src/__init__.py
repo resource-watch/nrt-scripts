@@ -17,7 +17,7 @@ CARTO_USER = os.getenv('CARTO_USER')
 CARTO_KEY = os.getenv('CARTO_KEY')
 
 # name of table in Carto where we will upload the data
-CARTO_TABLE = 'xxx_xxx_devseed_air_quality'
+CARTO_TABLE = 'cit_004_city_aq'
 
 # column names and types for data table
 # column names should be lowercase
@@ -55,7 +55,7 @@ STATION_URL = 'http://gmao-aq-staging-1504401194.us-east-1.elb.amazonaws.com/api
 # Important! Before testing this script:
 # Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
 # Failing to do so will overwrite the last update date on a different dataset on Resource Watch
-DATASET_ID = ''
+DATASET_ID = 'f5599d62-7f3d-41c7-b3fd-9f8e08ee7b2a'
 
 '''
 FUNCTIONS FOR ALL DATASETS
