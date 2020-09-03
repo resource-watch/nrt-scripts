@@ -26,6 +26,9 @@ CARTO_SCHEMA = OrderedDict([
     ("the_geom", "geometry"),
     ("uid", "text"),
     ("name", "text"),
+    ("city", "text"),
+    ("location", "text"),
+    ("created", "timestamp"),
     ("date", "timestamp"),
     ("o3", "numeric"),
     ("no2", "numeric"),
@@ -196,16 +199,30 @@ def processNewData(src_url, existing_ids):
                     geom = stn_data.get("geometry")
                     # add geojson geometry to the list of data from this row
                     row.append(geom)
+                # if we are fetching data for unique id column
+                elif field == 'uid':
+                    # add already generated unique id to the list of data from this row
+                    row.append(uid)
                 # if we are fetching data for station name
                 elif field == 'name':
                     # get station name from the dictionary
                     name = stn_data.get("properties").get("name")
                     # add text to the list of data from this row
                     row.append(name)
-                # if we are fetching data for unique id column
-                elif field == 'uid':
-                    # add already generated unique id to the list of data from this row
-                    row.append(uid)
+                    # get city name from the station name
+                    city = name.split('_')[0]
+                    # add text to the list of data from this row
+                    row.append(city)
+                    # get station name from the station name
+                    location = name.split('_')[1]
+                    # add text to the list of data from this row
+                    row.append(location)
+                # if we are fetching data for date of forecast creation column
+                elif field == 'created':
+                    # turn already generated date into a datetime
+                    date = datetime.datetime.strptime(obs['created'], DATETIME_FORMAT)
+                    # add date to the list of data from this row
+                    row.append(date)
                 # if we are fetching data for date column
                 elif field == 'date':
                     # turn already generated date into a datetime
