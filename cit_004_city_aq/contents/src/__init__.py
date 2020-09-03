@@ -214,9 +214,9 @@ def processNewData(src_url, existing_ids):
                     # add text to the list of data from this row
                     row.append(city)
                     # get station name from the station name
-                    station = name.split('_')[1]
+                    location = name.split('_')[1]
                     # add text to the list of data from this row
-                    row.append(station)
+                    row.append(location)
                 # if we are fetching data for date of forecast creation column
                 elif field == 'created':
                     # turn already generated date into a datetime
