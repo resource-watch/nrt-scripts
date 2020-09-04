@@ -5,7 +5,9 @@ import logging
 import sys
 import urllib
 import datetime
+import fiona
 from collections import OrderedDict
+from shapely import geometry
 import cartosql
 import cartoframes
 from zipfile import ZipFile
@@ -183,7 +185,29 @@ def fetch_data():
 #     logging.info('load in the polygon shapefile')
     # load in the polygon shapefile
     shapefile = glob.glob(os.path.join(tmpfile_unzipped, '*.shp'))[0]
-#     logging.info(shapefile)
+    logging.info("Finding column names from shapefile using fiona")
+    keys = []
+    with fiona.open(shapefile, 'r') as shp:
+        for obs in shp:
+            for key, value in obs.items():
+                if key == 'properties':
+                    for k, v in obs['properties'].items():
+                        keys.append(k)
+                elif key == 'geometry':
+                    keys.append(key)
+            break
+    logging.info("Reading shapefile using fiona")
+    rows = []
+    with fiona.open(shapefile, 'r') as shp:
+        for obs in shp:
+            row = []
+            for field in keys:
+                if field == 'geometry':
+                    row.append(obs[field])
+                else:
+                    row.append(obs['properties'][field])
+        rows.append(row)
+    logging.info("length of rows = ", len(rows))
     logging.info('gpd.read_file(shapefile)')
     gdf = gpd.read_file(shapefile)
     logging.info('Find the columns where each value is null')
