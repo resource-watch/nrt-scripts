@@ -181,7 +181,7 @@ def processNewData(src_url, existing_ids):
         # get the station number from 'station' feature
         stn = obs['station']
         # get the forecast creation date
-        created = datetime.datetime.strptime(obs['created'], DATETIME_FORMAT)
+        created = obs['created']
         # generate unique id by using the date and station number
         uid = genUID(created, dt, stn)
         # if the id doesn't already exist in Carto table or 
@@ -227,6 +227,8 @@ def processNewData(src_url, existing_ids):
                     row.append(location)
                 # if we are fetching data for date of forecast creation column
                 elif field == 'created':
+                    # turn already generated date into a datetime
+                    date = datetime.datetime.strptime(created, DATETIME_FORMAT)
                     # add date to the list of data from this row
                     row.append(created)
                 # if we are fetching data for date column
