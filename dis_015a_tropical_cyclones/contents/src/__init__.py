@@ -207,7 +207,7 @@ def fetch_data():
                 else:
                     row.append(obs['properties'][field])
         rows.append(row)
-    logging.info("length of rows = ", len(rows))
+    print("length of rows = ", len(rows))
     logging.info('gpd.read_file(shapefile)')
     gdf = gpd.read_file(shapefile)
     logging.info('Find the columns where each value is null')
