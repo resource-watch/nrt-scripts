@@ -209,7 +209,7 @@ def processNewData(src_url, existing_ids):
                     name = stn_data.get("properties").get("name")
                     # add text to the list of data from this row
                     row.append(name)
-                elif field == 'name':
+                elif field == 'city':
                     # get city name from the station name
                     city = stn_data.get("properties").get("name").split('_')[0]
                     # add text to the list of data from this row
