@@ -208,13 +208,15 @@ def processNewData(src_url, existing_ids):
                     # get station name from the dictionary
                     name = stn_data.get("properties").get("name")
                     # add text to the list of data from this row
-                    row.append(name)
+                    row.append(city)
+                elif field == 'name':
                     # get city name from the station name
-                    city = name.split('_')[0]
+                    city = stn_data.get("properties").get("name").split('_')[0]
                     # add text to the list of data from this row
                     row.append(city)
+                elif field == 'location':
                     # get station name from the station name
-                    location = name.split('_')[1]
+                    location = stn_data.get("properties").get("name").split('_')[1]
                     # add text to the list of data from this row
                     row.append(location)
                 # if we are fetching data for date of forecast creation column
