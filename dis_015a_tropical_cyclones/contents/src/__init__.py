@@ -197,19 +197,33 @@ def fetch_data():
                     keys.append(key)
             break
     logging.info("Reading shapefile using fiona")
-    rows = []
+    rows_2 = []
     with fiona.open(shapefile, 'r') as shp:
         for obs in shp:
-            row = []
+            row_2 = []
             for field in keys:
                 if field == 'geometry':
-                    row.append(obs[field])
+                    for key in obs[field]:
+                        if key == 'coordinates':
+                            geom = LineString(obs[field][key])
+                            row_2.append(geom)
                 else:
-                    row.append(obs['properties'][field])
-        rows.append(row)
-    print("length of rows = ", len(rows))
+                    row_2.append(obs['properties'][field])
+            
+            rows_2.append(row_2)
+    logging.info('df_3 = pd.DataFrame(rows_2)')
+    df_3 = pd.DataFrame(rows_2)
+    logging.info('df_3.columns = keys')
+    df_3.columns = keys
+    logging.info('GeoDataFrame(df_3, crs="EPSG:4326", geometry=df_3.geometry)')
+    gdf = GeoDataFrame(df_3, crs="EPSG:4326", geometry=df_3.geometry)
+    logging.info('gdf.geometry.buffer(0.0001)')
+    gdf['geometry'] = gdf.geometry.buffer(0.0001)
+    logging.info('convert_geometry(gdf['geometry'])')
+    gdf['geometry'] = convert_geometry(gdf['geometry'])
+    
     logging.info('gpd.read_file(shapefile)')
-    gdf = gpd.read_file(shapefile)
+    # gdf = gpd.read_file(shapefile)
     logging.info('Find the columns where each value is null')
     # Find the columns where each value is null
     empty_cols = [col for col in gdf.columns if gdf[col].isnull().all()]
