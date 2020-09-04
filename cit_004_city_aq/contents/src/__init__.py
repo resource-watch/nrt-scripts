@@ -140,18 +140,23 @@ The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
 
-def genUID(dt, stn):
+def genUID(created, dt, stn):
     '''Generate unique id using date and station number
-    INPUT   dt: date for which we want to generate id (string)
+    INPUT   created: date when forecast was generated (string)
+            dt: date for current data row (string)
             stn: station number (integer)
     RETURN unique id for row (string)
     '''
+    # split the date on '-' to create separate pieces
+    created_pieces = created.split('-')
+    # join the pieces to have date with format YYMMDDHH(2020-07-04T12:00:00.000Z > 20200704T12)
+    mod_created = created_pieces[0] + created_pieces[1] + created_pieces[2].split(':')[0]
     # split the date on '-' to create separate pieces
     dt_pieces = dt.split('-')
     # join the pieces to have date with format YYMMDDHH(2020-07-04T12:00:00.000Z > 20200704T12)
     mod_dt = dt_pieces[0] + dt_pieces[1] + dt_pieces[2].split(':')[0]
     # joint the formatted date with station number to generate the unique id
-    return '{}_{}'.format(mod_dt, stn)
+    return '{}_{}_{}'.format(mod_created, mod_dt, stn)
 
 def processNewData(src_url, existing_ids):
     '''
@@ -176,7 +181,7 @@ def processNewData(src_url, existing_ids):
         # get the station number from 'station' feature
         stn = obs['station']
         # generate unique id by using the date and station number
-        uid = genUID(dt, stn)
+        uid = genUID(created, dt, stn)
         # if the id doesn't already exist in Carto table or 
         # isn't added to the list for sending to Carto yet 
         if uid not in existing_ids + new_ids:
