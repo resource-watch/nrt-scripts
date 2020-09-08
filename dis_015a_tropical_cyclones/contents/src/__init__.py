@@ -215,11 +215,11 @@ def fetch_data():
     df_3 = pd.DataFrame(rows_2)
     logging.info('df_3.columns = keys')
     df_3.columns = keys
-    logging.info('GeoDataFrame(df_3, crs="EPSG:4326", geometry=df_3.geometry)')
+    logging.info('GeoDataFrame')
     gdf = GeoDataFrame(df_3, crs="EPSG:4326", geometry=df_3.geometry)
     logging.info('gdf.geometry.buffer(0.0001)')
     gdf['geometry'] = gdf.geometry.buffer(0.0001)
-    logging.info('convert_geometry(gdf['geometry'])')
+    logging.info('convert_geometry')
     gdf['geometry'] = convert_geometry(gdf['geometry'])
     
     logging.info('gpd.read_file(shapefile)')
