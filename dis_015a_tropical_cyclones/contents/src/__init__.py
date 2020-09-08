@@ -13,6 +13,7 @@ import cartosql
 import cartoframes
 from zipfile import ZipFile
 import requests
+import pandas as pd
 import geopandas as gpd
 import glob
 
@@ -217,7 +218,7 @@ def fetch_data():
     logging.info('df_3.columns = keys')
     df_3.columns = keys
     logging.info('GeoDataFrame')
-    gdf = GeoDataFrame(df_3, crs="EPSG:4326", geometry=df_3.geometry)
+    gdf = gpd.GeoDataFrame(df_3, crs="EPSG:4326", geometry=df_3.geometry)
     logging.info('gdf.geometry.buffer(0.0001)')
     gdf['geometry'] = gdf.geometry.buffer(0.0001)
     logging.info('convert_geometry')
