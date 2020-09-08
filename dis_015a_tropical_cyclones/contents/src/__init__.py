@@ -8,6 +8,7 @@ import datetime
 import fiona
 from collections import OrderedDict
 from shapely import geometry
+from shapely.geometry import LineString
 import cartosql
 import cartoframes
 from zipfile import ZipFile
