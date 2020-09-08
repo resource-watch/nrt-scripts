@@ -30,7 +30,7 @@ GS_FOLDER = EE_COLLECTION[1:]
 CLEAR_COLLECTION_FIRST = False
 
 # how many assets can be stored in the GEE collection before the oldest ones are deleted?
-MAX_ASSETS = 16
+MAX_ASSETS = 1
 
 # format of date used in both source and GEE
 DATE_FORMAT = '%Y%m%d'
