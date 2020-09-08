@@ -199,7 +199,11 @@ def fetch_data():
     logging.info("Reading shapefile using fiona")
     rows_2 = []
     with fiona.open(shapefile, 'r') as shp:
+        idx = 0
         for obs in shp:
+            idx+=1
+            if idx == 100:
+                break
             row_2 = []
             for field in keys:
                 if field == 'geometry':
