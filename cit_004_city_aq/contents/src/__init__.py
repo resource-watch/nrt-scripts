@@ -187,6 +187,10 @@ def processNewData(src_url, existing_ids):
         # if the id doesn't already exist in Carto table or 
         # isn't added to the list for sending to Carto yet 
         if uid not in existing_ids + new_ids:
+            # create an empty list to store unique ids of new data we will be sending to Carto table
+            new_ids = []
+            # create an empty list to store each row of new data
+            new_rows = []
             # append the id to the list for sending to Carto 
             new_ids.append(uid)
             # create an empty list to store data from this row
@@ -197,8 +201,12 @@ def processNewData(src_url, existing_ids):
                 stn_url = STATION_URL.format(station = stn)
                 # get data from station url
                 stn_r = requests.get(stn_url)
-                # pull data from request response json
-                stn_data = stn_r.json()
+                try:
+                    # pull data from request response json
+                    stn_data = stn_r.json()
+                except:
+                    print('Station Error')
+                    print(stn_data)
                 # if we are fetching data for geometry column
                 if field == 'the_geom':
                     # construct geojson geometry
@@ -244,14 +252,14 @@ def processNewData(src_url, existing_ids):
 
             # add the list of values from this row to the list of new data
             new_rows.append(row)
-    # find the length (number of rows) of new_data 
-    new_count = len(new_rows)
-    # check if new data is available
-    if new_count:
-        logging.info('Pushing {} new rows'.format(new_count))
-        # insert new data into the carto table
-        cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(),
-                             new_rows, user=CARTO_USER, key=CARTO_KEY)
+        # find the length (number of rows) of new_data 
+        new_count = len(new_rows)
+        # check if new data is available
+        if new_count:
+            logging.info('Pushing {} new rows'.format(new_count))
+            # insert new data into the carto table
+            cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(),
+                                 new_rows, user=CARTO_USER, key=CARTO_KEY)
     return new_ids
 
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
