@@ -32,8 +32,10 @@ CARTO_TABLE = 'dis_015a_hurricane_tracks'
 TIME_FIELD = 'ISO_TIME'
 
 # url for cyclone track data
+# url_a = 'https://www.ncei.noaa.gov/data/international-best-track-archive-for-climate-stewardship-ibtracs/'
+# url_b = 'v04r00/access/shapefile/IBTrACS.since1980.list.v04r00.lines.zip'
 url_a = 'https://www.ncei.noaa.gov/data/international-best-track-archive-for-climate-stewardship-ibtracs/'
-url_b = 'v04r00/access/shapefile/IBTrACS.since1980.list.v04r00.lines.zip'
+url_b = 'v04r00/access/shapefile/IBTrACS.last3years.list.v04r00.lines.zip'
 SOURCE_URL = url_a + url_b
 
 # maximum number of attempts that will be made to download the data
@@ -185,49 +187,49 @@ def fetch_data():
 #     logging.info('load in the polygon shapefile')
     # load in the polygon shapefile
     shapefile = glob.glob(os.path.join(tmpfile_unzipped, '*.shp'))[0]
-    logging.info("Finding column names from shapefile using fiona")
-    keys = []
-    with fiona.open(shapefile, 'r') as shp:
-        for obs in shp:
-            for key, value in obs.items():
-                if key == 'properties':
-                    for k, v in obs['properties'].items():
-                        keys.append(k)
-                elif key == 'geometry':
-                    keys.append(key)
-            break
-    logging.info("Reading shapefile using fiona")
-    rows_2 = []
-    with fiona.open(shapefile, 'r') as shp:
-        idx = 0
-        for obs in shp:
-            idx+=1
-            if idx == 100:
-                break
-            row_2 = []
-            for field in keys:
-                if field == 'geometry':
-                    for key in obs[field]:
-                        if key == 'coordinates':
-                            geom = LineString(obs[field][key])
-                            row_2.append(geom)
-                else:
-                    row_2.append(obs['properties'][field])
+    # logging.info("Finding column names from shapefile using fiona")
+    # keys = []
+    # with fiona.open(shapefile, 'r') as shp:
+    #     for obs in shp:
+    #         for key, value in obs.items():
+    #             if key == 'properties':
+    #                 for k, v in obs['properties'].items():
+    #                     keys.append(k)
+    #             elif key == 'geometry':
+    #                 keys.append(key)
+    #         break
+    # logging.info("Reading shapefile using fiona")
+    # rows_2 = []
+    # with fiona.open(shapefile, 'r') as shp:
+    #     idx = 0
+    #     for obs in shp:
+    #         idx+=1
+    #         if idx == 100:
+    #             break
+    #         row_2 = []
+    #         for field in keys:
+    #             if field == 'geometry':
+    #                 for key in obs[field]:
+    #                     if key == 'coordinates':
+    #                         geom = LineString(obs[field][key])
+    #                         row_2.append(geom)
+    #             else:
+    #                 row_2.append(obs['properties'][field])
             
-            rows_2.append(row_2)
-    logging.info('df_3 = pd.DataFrame(rows_2)')
-    df_3 = pd.DataFrame(rows_2)
-    logging.info('df_3.columns = keys')
-    df_3.columns = keys
-    logging.info('GeoDataFrame')
-    gdf = gpd.GeoDataFrame(df_3, crs="EPSG:4326", geometry=df_3.geometry)
-    logging.info('gdf.geometry.buffer(0.0001)')
-    gdf['geometry'] = gdf.geometry.buffer(0.0001)
-    logging.info('convert_geometry')
-    gdf['geometry'] = convert_geometry(gdf['geometry'])
+    #         rows_2.append(row_2)
+    # logging.info('df_3 = pd.DataFrame(rows_2)')
+    # df_3 = pd.DataFrame(rows_2)
+    # logging.info('df_3.columns = keys')
+    # df_3.columns = keys
+    # logging.info('GeoDataFrame')
+    # gdf = gpd.GeoDataFrame(df_3, crs="EPSG:4326", geometry=df_3.geometry)
+    # logging.info('gdf.geometry.buffer(0.0001)')
+    # gdf['geometry'] = gdf.geometry.buffer(0.0001)
+    # logging.info('convert_geometry')
+    # gdf['geometry'] = convert_geometry(gdf['geometry'])
     
     logging.info('gpd.read_file(shapefile)')
-    # gdf = gpd.read_file(shapefile)
+    gdf = gpd.read_file(shapefile)
     logging.info('Find the columns where each value is null')
     # Find the columns where each value is null
     empty_cols = [col for col in gdf.columns if gdf[col].isnull().all()]
@@ -276,30 +278,30 @@ def processData():
             tries = tries + 1
             if tries == MAX_TRIES:
                 logging.error("Error fetching data, and max tries reached. See source for last data update.")
-    # if we suceessfully collected data from the url
-    if success == True:
-        # generate the schema for the table that will be uploaded to Carto
-        # column names and types for data table, column names should be lowercase
-        # column types should be one of the following: geometry, text, numeric, timestamp
-        carto_schema = create_carto_schema(gdf)
-        # check if the table doesn't already exist in Carto
-        if not cartosql.tableExists(CARTO_TABLE, user=CARTO_USER, key=CARTO_KEY):
-            logging.info('Table {} does not exist'.format(CARTO_TABLE))
-            # if the table does not exist, create it with columns based on the schema input
-            cartosql.createTable(CARTO_TABLE, carto_schema)
-            # Send dataframe to Carto
-            logging.info('Writing to Carto')
-            cc = cartoframes.CartoContext(base_url="https://{user}.carto.com/".format(user=CARTO_USER),
-                                          api_key=CARTO_KEY)
-            cc.write(gdf, CARTO_TABLE, overwrite=True, privacy='link')
-        else:
-            # if the table already exists, delete all the rows
-            cartosql.deleteRows(CARTO_TABLE, 'cartodb_id IS NOT NULL', user=CARTO_USER, key=CARTO_KEY)
-            # Send the processed dataframe to Carto
-            logging.info('Writing to Carto')
-            cc = cartoframes.CartoContext(base_url="https://{user}.carto.com/".format(user=CARTO_USER),
-                                          api_key=CARTO_KEY)
-            cc.write(gdf, CARTO_TABLE, overwrite=True, privacy='link')
+    # # if we suceessfully collected data from the url
+    # if success == True:
+    #     # generate the schema for the table that will be uploaded to Carto
+    #     # column names and types for data table, column names should be lowercase
+    #     # column types should be one of the following: geometry, text, numeric, timestamp
+    #     carto_schema = create_carto_schema(gdf)
+    #     # check if the table doesn't already exist in Carto
+    #     if not cartosql.tableExists(CARTO_TABLE, user=CARTO_USER, key=CARTO_KEY):
+    #         logging.info('Table {} does not exist'.format(CARTO_TABLE))
+    #         # if the table does not exist, create it with columns based on the schema input
+    #         cartosql.createTable(CARTO_TABLE, carto_schema)
+    #         # Send dataframe to Carto
+    #         logging.info('Writing to Carto')
+    #         cc = cartoframes.CartoContext(base_url="https://{user}.carto.com/".format(user=CARTO_USER),
+    #                                       api_key=CARTO_KEY)
+    #         cc.write(gdf, CARTO_TABLE, overwrite=True, privacy='link')
+    #     else:
+    #         # if the table already exists, delete all the rows
+    #         cartosql.deleteRows(CARTO_TABLE, 'cartodb_id IS NOT NULL', user=CARTO_USER, key=CARTO_KEY)
+    #         # Send the processed dataframe to Carto
+    #         logging.info('Writing to Carto')
+    #         cc = cartoframes.CartoContext(base_url="https://{user}.carto.com/".format(user=CARTO_USER),
+    #                                       api_key=CARTO_KEY)
+    #         cc.write(gdf, CARTO_TABLE, overwrite=True, privacy='link')
 
 def get_most_recent_date(table):
     '''
@@ -337,7 +339,7 @@ def main():
     processData()
 
     # Update Resource Watch
-    updateResourceWatch()
+    # updateResourceWatch()
 
     logging.info('SUCCESS')
 
