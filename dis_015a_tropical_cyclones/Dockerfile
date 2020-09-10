@@ -16,7 +16,7 @@ RUN pip install pandas==0.25.3 numpy==1.18.1
 RUN pip install geopandas==0.8.0 \
 	glob2==0.7 \
     requests==2.22.0 fiona==1.8.13
-RUN pip install carto==1.8.4 cartoframes==1.0.4
+RUN pip install -U carto cartoframes==1.0.4
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql 
 
 # Copy the application folder inside the container
