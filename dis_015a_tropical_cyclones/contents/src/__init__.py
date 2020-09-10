@@ -147,7 +147,7 @@ def create_carto_schema(gdf):
     for col in list(gdf):
         # if the column type is float64 or int64, assign the column type as numeric
         if (gdf[col].dtypes  == 'float64')| (gdf[col].dtypes  == 'int64'):
-            list_cols.append((col, 'numeric'))
+            list_cols.append((col.lower(), 'numeric'))
         # if the column type is geometry, assign the column type as geometry
         elif col  == 'geometry':
             list_cols.append(('the_geom', 'geometry'))
@@ -155,7 +155,7 @@ def create_carto_schema(gdf):
             list_cols.append(('iso_time', 'timestamp'))
         # for all other columns assign them as text
         else:
-            list_cols.append((col, 'text'))
+            list_cols.append((col.lower(), 'text'))
     # create an ordered dictionary using the list
     output = OrderedDict(list_cols)
     
@@ -316,13 +316,20 @@ def processData():
         new_rows = gdf_new.shape[0]
         # if we have new data to upload
         if new_rows != 0:
+            cartoframes.auth.Credentials(username=CARTO_USER, api_key=CARTO_KEY, 
+                    base_url="https://{user}.carto.com/".format(user=CARTO_USER))
+            cartoframes.to_carto(gdf_new, CARTO_TABLE, if_exists='append')
+            
             # create a list of new data
             new_data = gdf_new.values.tolist()
             # insert new data into the carto table
-            cartosql.blockInsertRows(CARTO_TABLE, carto_schema.keys(), carto_schema.values(), new_data, user=CARTO_USER, key=CARTO_KEY)
+            # cartosql.blockInsertRows(CARTO_TABLE, carto_schema.keys(), carto_schema.values(), new_data, user=CARTO_USER, key=CARTO_KEY)
         else:
             logging.info('Table already upto date')
 
+            # cc = cartoframes.CartoContext(base_url="https://{user}.carto.com/".format(user=CARTO_USER),
+            #                               api_key=CARTO_KEY)
+            # cc.write(df, CARTO_TABLE, overwrite=True, privacy='link')
         return(existing_ids, new_rows)
 
 def deleteExcessRows(table, max_rows, time_field):
