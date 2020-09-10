@@ -316,9 +316,10 @@ def processData():
         new_rows = gdf_new.shape[0]
         # if we have new data to upload
         if new_rows != 0:
-            cartoframes.auth.Credentials(username=CARTO_USER, api_key=CARTO_KEY, 
+            
+            creds = cartoframes.auth.Credentials(username=CARTO_USER, api_key=CARTO_KEY, 
                     base_url="https://{user}.carto.com/".format(user=CARTO_USER))
-            creds = Credentials(username=CARTO_USER, api_key=CARTO_KEY)
+
             cartoframes.to_carto(gdf_new, CARTO_TABLE, credentials=creds, if_exists='append')
             
             # create a list of new data
