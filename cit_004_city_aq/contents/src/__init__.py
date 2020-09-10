@@ -40,7 +40,7 @@ CARTO_SCHEMA = OrderedDict([
 UID_FIELD = 'uid'
 
 # column that stores datetime information
-TIME_FIELD = 'date'
+TIME_FIELD = 'created'
 
 # format of dates in source and Carto table
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
@@ -158,6 +158,22 @@ def genUID(created, dt, stn):
     # joint the formatted date with station number to generate the unique id
     return '{}_{}_{}'.format(mod_created, mod_dt, stn)
 
+def getOldestForecast(existing_ids):
+    '''
+    get the oldest forecast start date from the list of existing IDs in the Carto table
+    INPUT   existing_ids: list of unique IDs that we already have in our Carto table (list of strings)
+    RETURN  oldest_forecast_dt: date of oldest forecast creation date in Carto table (datetime)
+    '''
+    # sort list of existing IDs so that are in order of oldest forecast to newest
+    existing_ids.sort()
+    # get the first (oldest) forecast ID
+    oldest_id = existing_ids[0]  
+    # get the string of the forecast creation date
+    oldest_forecast = oldest_id.split('_')[0]
+    # convert forecast date string to datetime
+    oldest_forecast_dt = datetime.datetime.strptime(oldest_forecast, '%Y%m%dT%H')
+    return oldest_forecast_dt
+
 def processNewData(src_url, existing_ids):
     '''
     Fetch, process and upload new data
@@ -176,21 +192,25 @@ def processNewData(src_url, existing_ids):
 
     # loop until no new observations
     for obs in data:
+        # get the forecast creation date
+        created = obs['created']
+        # if there are existing IDs in the table, make sure the obs isn't older than the oldest
+        if existing_ids:
+            # get the oldest forecast creation date in the current Carto table:
+            oldest_forecast_dt = getOldestForecast(existing_ids)
+            # if the forecast creation date of the current observation is older than 
+            # the oldest in the table, skip this observation
+            if datetime.datetime.strptime(created, DATETIME_FORMAT) < oldest_forecast_dt:
+                continue
         # get the date from date feature 
         dt = obs['date']
         # get the station number from 'station' feature
         stn = obs['station']
-        # get the forecast creation date
-        created = obs['created']
         # generate unique id by using the date and station number
         uid = genUID(created, dt, stn)
         # if the id doesn't already exist in Carto table or 
         # isn't added to the list for sending to Carto yet 
         if uid not in existing_ids + new_ids:
-            # create an empty list to store unique ids of new data we will be sending to Carto table
-            new_ids = []
-            # create an empty list to store each row of new data
-            new_rows = []
             # append the id to the list for sending to Carto 
             new_ids.append(uid)
             # create an empty list to store data from this row
@@ -205,8 +225,8 @@ def processNewData(src_url, existing_ids):
                     # pull data from request response json
                     stn_data = stn_r.json()
                 except:
-                    print('Station Error')
-                    print(stn_data)
+                    logging.error('Station Error')
+                    logging.error(stn_data)
                 # if we are fetching data for geometry column
                 if field == 'the_geom':
                     # construct geojson geometry
@@ -252,14 +272,14 @@ def processNewData(src_url, existing_ids):
 
             # add the list of values from this row to the list of new data
             new_rows.append(row)
-        # find the length (number of rows) of new_data 
-        new_count = len(new_rows)
-        # check if new data is available
-        if new_count:
-            logging.info('Pushing {} new rows'.format(new_count))
-            # insert new data into the carto table
-            cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(),
-                                 new_rows, user=CARTO_USER, key=CARTO_KEY)
+    # find the length (number of rows) of new_data 
+    new_count = len(new_rows)
+    # check if new data is available
+    if new_count:
+        logging.info('Pushing {} new rows'.format(new_count))
+        # insert new data into the carto table
+        cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(),
+            new_rows, user=CARTO_USER, key=CARTO_KEY)
     return new_ids
 
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
