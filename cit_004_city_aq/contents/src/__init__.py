@@ -431,11 +431,11 @@ def update_layer(layer, new_creation_date, new_date):
 
 def getLatestForecastDates(ids):
     '''
-    This function should update Resource Watch to reflect the new data.
-    This may include updating the 'last update date' and updating any dates on layers
-    INPUT   ids: IDs from Carto table (list of strings)
-    RETURN  : new IDs added to Carto table (list)
-
+    This function will find the set of most recent dates given a list of uids for this dataset
+    First date will be the forecast creation date, and the following dates are the dates
+    of the forecast.
+    INPUT   ids: UIDs from Carto table (list of strings)
+    RETURN  new_dates: new dates associated with most recent forecast (list of datetimes)
     '''
     # get the newest forecast creation date in the current Carto table:
     newest_forecast_dt = getForecastCreationDT(ids, old_or_new='newest')
@@ -460,6 +460,7 @@ def updateResourceWatch(new_ids):
 
         logging.info('Updating Resource Watch Layers')
         for var, ds_id in DATASET_IDS.items():
+            # Update the dates on layer legends
             logging.info('Updating {}'.format(var))
             # pull dictionary of current layers from API
             layer_dict = pull_layers_from_API(ds_id)
@@ -473,8 +474,6 @@ def updateResourceWatch(new_ids):
                 update_layer(layer, new_creation_date, new_date)
             # Update dataset's last update date on Resource Watch
             lastUpdateDate(ds_id, new_creation_date)
-
-    # Update the dates on layer legends - TO BE ADDED IN FUTURE
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
