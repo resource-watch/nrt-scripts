@@ -5,6 +5,7 @@ from collections import OrderedDict
 import datetime
 import cartosql
 import requests
+import json
 
 # do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = False
@@ -56,9 +57,11 @@ STATION_URL = 'http://gmao-aq-staging-1504401194.us-east-1.elb.amazonaws.com/api
 
 # Resource Watch dataset API ID
 # Important! Before testing this script:
-# Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
+# Please change these IDs OR comment out the getLayerIDs(DATASET_ID) function in the script below
 # Failing to do so will overwrite the last update date on a different dataset on Resource Watch
-DATASET_ID = 'f5599d62-7f3d-41c7-b3fd-9f8e08ee7b2a'
+DATASET_IDS = {
+    'O3':'f5599d62-7f3d-41c7-b3fd-9f8e08ee7b2a',
+}
 
 '''
 FUNCTIONS FOR ALL DATASETS
@@ -158,21 +161,26 @@ def genUID(created, dt, stn):
     # joint the formatted date with station number to generate the unique id
     return '{}_{}_{}'.format(mod_created, mod_dt, stn)
 
-def getOldestForecast(existing_ids):
+def getForecastCreationDT(existing_ids, old_or_new):
     '''
     get the oldest forecast start date from the list of existing IDs in the Carto table
     INPUT   existing_ids: list of unique IDs that we already have in our Carto table (list of strings)
+            old_or_new: do you want the 'oldest' or 'newest' forecast creation date (string)
     RETURN  oldest_forecast_dt: date of oldest forecast creation date in Carto table (datetime)
     '''
     # sort list of existing IDs so that are in order of oldest forecast to newest
     existing_ids.sort()
-    # get the first (oldest) forecast ID
-    oldest_id = existing_ids[0]  
+    if old_or_new=='oldest':
+        # get the first (oldest) forecast ID
+        carto_id = existing_ids[0]  
+    if old_or_new=='newest':
+        # get the last (newest) forecast ID
+        carto_id = existing_ids[-1]  
     # get the string of the forecast creation date
-    oldest_forecast = oldest_id.split('_')[0]
+    forecast_creation = carto_id.split('_')[0]
     # convert forecast date string to datetime
-    oldest_forecast_dt = datetime.datetime.strptime(oldest_forecast, '%Y%m%dT%H')
-    return oldest_forecast_dt
+    forecast_creation_dt = datetime.datetime.strptime(forecast_creation, '%Y%m%dT%H')
+    return forecast_creation_dt
 
 def processNewData(src_url, existing_ids):
     '''
@@ -197,7 +205,7 @@ def processNewData(src_url, existing_ids):
         # if there are existing IDs in the table, make sure the obs isn't older than the oldest
         if existing_ids:
             # get the oldest forecast creation date in the current Carto table:
-            oldest_forecast_dt = getOldestForecast(existing_ids)
+            oldest_forecast_dt = getForecastCreationDT(existing_ids, old_or_new='oldest')
             # if the forecast creation date of the current observation is older than 
             # the oldest in the table, skip this observation
             if datetime.datetime.strptime(created, DATETIME_FORMAT) < oldest_forecast_dt:
@@ -345,19 +353,127 @@ def get_most_recent_date(table):
 
     return most_recent_date
 
-def updateResourceWatch(num_new):
+def create_headers():
+    '''
+    Create headers to perform authorized actions on API
+
+    '''
+    return {
+        'Content-Type': "application/json",
+        'Authorization': "{}".format(os.getenv('apiToken')),
+    }
+
+def pull_layers_from_API(dataset_id):
+    '''
+    Pull dictionary of current layers from API
+    INPUT   dataset_id: Resource Watch API dataset ID (string)
+    RETURN  layer_dict: dictionary of layers (dictionary of strings)
+    '''
+    # generate url to access layer configs for this dataset in back office
+    rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer'.format(dataset_id)
+    # request data
+    r = requests.get(rw_api_url)
+    # convert response into json and make dictionary of layers
+    layer_dict = json.loads(r.content.decode('utf-8'))['data']
+    return layer_dict
+
+def update_layer(layer, new_creation_date, new_date):
+    '''
+    Update layers in Resource Watch back office.
+    INPUT   layer: layer that will be updated (string)
+            new_creation_date: creation date of forecast (datetime)
+            new_date: date of forecast to be shown in this layer (datetime)
+    '''
+    # get SQL from layer
+    sql = layer['attributes']['layerConfig']['body']['layers'][0]['options']['sql']
+    # get previous creation date being used from sql
+    old_creation_date = sql.split('created')[1].split()[1][1:-1]
+    # get previous date being used from sql
+    old_date = sql.split('date')[4].split()[0][1:-1]
+
+    #update sql with new dates
+    sql = sql.replace(old_creation_date, datetime.datetime.strftime(new_creation_date, DATETIME_FORMAT))
+    sql = sql.replace(old_date, datetime.datetime.strftime(new_date, DATETIME_FORMAT))
+    
+    # change to layer name text of date
+    old_date_dt = datetime.datetime.strptime(old_date, DATETIME_FORMAT)
+    old_date_text = datetime.datetime.strftime(old_date_dt, "%B %-d, %Y")
+
+    # get text for new date
+    new_date_text = datetime.datetime.strftime(new_date, "%B %-d, %Y")
+
+    # replace date in layer's title with new date
+    layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
+
+    # replace the sql in the layer def with new sql
+    layer['attributes']['layerConfig']['body']['layers'][0]['options']['sql'] = sql
+
+    # send patch to API to replace layers
+    # generate url to patch layer
+    rw_api_url_layer = "https://api.resourcewatch.org/v1/dataset/{dataset_id}/layer/{layer_id}".format(
+        dataset_id=layer['attributes']['dataset'], layer_id=layer['id'])
+    # create payload with new title and layer configuration
+    payload = {
+        'application': ['rw'],
+        'layerConfig': layer['attributes']['layerConfig'],
+        'name': layer['attributes']['name'],
+        'interactionConfig': layer['attributes']['interactionConfig']
+    }
+    # patch API with updates
+    r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
+    # check response
+    # if we get a 200, the layers have been replaced
+    # if we get a 504 (gateway timeout) - the layers are still being replaced, but it worked
+    if r.ok or r.status_code==504:
+        logging.info('Layer replaced: {}'.format(layer['id']))
+    else:
+        logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
+
+def getLatestForecastDates(ids):
+    '''
+    This function will find the set of most recent dates given a list of uids for this dataset
+    First date will be the forecast creation date, and the following dates are the dates
+    of the forecast.
+    INPUT   ids: UIDs from Carto table (list of strings)
+    RETURN  new_dates: new dates associated with most recent forecast (list of datetimes)
+    '''
+    # get the newest forecast creation date in the current Carto table:
+    newest_forecast_dt = getForecastCreationDT(ids, old_or_new='newest')
+    #create a list of the dates available for this creation date
+    new_dates = []
+    for i in range(0,6):
+        new_dates.append(newest_forecast_dt+datetime.timedelta(days=i))
+    return new_dates
+
+def updateResourceWatch(new_ids):
     '''
     This function should update Resource Watch to reflect the new data.
     This may include updating the 'last update date' and updating any dates on layers
-    INPUT   num_new: number of new rows in Carto table (integer)
+    INPUT   new_ids: new IDs added to Carto table (list)
     '''
     # If there are new entries in the Carto table
-    if num_new>0:
-        # Update dataset's last update date on Resource Watch
-        most_recent_date = get_most_recent_date(CARTO_TABLE)
-        lastUpdateDate(DATASET_ID, most_recent_date)
+    if len(new_ids)>0:
+        # get a list of the newest dates
+        new_dates = getLatestForecastDates(new_ids)
+        # get the creation date for the forecast
+        new_creation_date = new_dates[0]
 
-    # Update the dates on layer legends - TO BE ADDED IN FUTURE
+        logging.info('Updating Resource Watch Layers')
+        for var, ds_id in DATASET_IDS.items():
+            # Update the dates on layer legends
+            logging.info('Updating {}'.format(var))
+            # pull dictionary of current layers from API
+            layer_dict = pull_layers_from_API(ds_id)
+            # go through each layer, pull the definition and update
+            for layer in layer_dict:
+                # check which point on the timeline this is
+                order = layer['attributes']['layerConfig']['order']
+                # get the new date that should be used for this layer
+                new_date = new_dates[order+1]
+                # replace layer sql and title with new dates
+                update_layer(layer, new_creation_date, new_date)
+            # Update dataset's last update date on Resource Watch
+            lastUpdateDate(ds_id, new_creation_date)
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
@@ -380,14 +496,12 @@ def main():
 
     # Fetch, process, and upload new data
     new_ids = processNewData(SOURCE_URL, existing_ids)
-    # find the length of new data that were uploaded to Carto
-    num_new = len(new_ids)
 
     # Delete data to get back to MAX_ROWS
     logging.info('Deleting excess rows')
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD)
 
     # Update Resource Watch
-    updateResourceWatch(num_new)
+    updateResourceWatch(new_ids)
 
     logging.info('SUCCESS')
