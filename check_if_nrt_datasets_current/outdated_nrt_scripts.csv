@@ -1,4 +1,5 @@
 WRI ID,Public Title,Date Added to Sheet,Last Check,Known Reason?,Website
-dis.015a.nrt,Tropical Cyclones,8/13/2020,8/13/2020,need to figure out problem with script halt on server,
-bio.007.nrt,WDPA,9/1/2020,9/1/2020,data didn't seem to be available last time the script ran but it is available now so hopefully will update with September run,
-soc.016.nrt,Conflict and Protest Events,9/3/2020,9/3/2020,ran successfully but no new data--need to check that source is still updating,
+cli.040.nrt,Sea Level,9/14/2020,9/14/2020,Sources seems like it may not be updating anymore - last update was 7/13/2020 for April 2020,
+dis.015a.nrt,Tropical Cyclones,9/14/2020,9/14/2020,need to figure out problem with script halt on server,
+bio.007.nrt,WDPA,9/14/2020,9/14/2020,data didn't seem to be available last time the script ran but it is available now so hopefully will update with September run,
+soc.016.nrt,Conflict and Protest Events,9/14/2020,9/14/2020,ran successfully but no new data--need to check that source is still updating,
