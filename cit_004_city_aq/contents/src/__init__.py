@@ -60,7 +60,9 @@ STATION_URL = 'http://gmao-aq-staging-1504401194.us-east-1.elb.amazonaws.com/api
 # Please change these IDs OR comment out the getLayerIDs(DATASET_ID) function in the script below
 # Failing to do so will overwrite the last update date on a different dataset on Resource Watch
 DATASET_IDS = {
-    'O3':'f5599d62-7f3d-41c7-b3fd-9f8e08ee7b2a',
+    'PM2.5':'f5599d62-7f3d-41c7-b3fd-9f8e08ee7b2a',
+    'NO2': '8ee6a93b-ab7a-41a8-95f5-3d684626d9ea',
+    'O3': '403726e5-6852-49f4-9dce-b82b599b09fc'
 }
 
 '''
@@ -330,29 +332,6 @@ def deleteExcessRows(table, max_rows, time_field, max_age=''):
 
     return(num_dropped)
 
-def get_most_recent_date(table):
-    '''
-    Find the most recent date of data in the specified Carto table
-    INPUT   table: name of table in Carto we want to find the most recent date for (string)
-    RETURN  most_recent_date: most recent date of data in the Carto table, found in the TIME_FIELD column of the table (datetime object)
-    '''
-    # get dates in TIME_FIELD column
-    r = cartosql.getFields(TIME_FIELD, table, f='csv', post=True, user=CARTO_USER, key=CARTO_KEY)
-    # turn the response into a list of dates
-    dates = r.text.split('\r\n')[1:-1]
-    # sort the dates from oldest to newest
-    dates.sort()
-    # turn the last (newest) date into a datetime object
-    most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
-    # get current datetime
-    now = datetime.datetime.utcnow()
-    # if most_recent_date is newer than current datetime
-    if most_recent_date > now:
-        # change most_recent_date to current datetime
-        most_recent_date = now
-
-    return most_recent_date
-
 def create_headers():
     '''
     Create headers to perform authorized actions on API
@@ -392,8 +371,8 @@ def update_layer(layer, new_creation_date, new_date):
     old_date = sql.split('date')[4].split()[0][1:-1]
 
     #update sql with new dates
-    sql = sql.replace(old_creation_date, datetime.datetime.strftime(new_creation_date, DATETIME_FORMAT))
     sql = sql.replace(old_date, datetime.datetime.strftime(new_date, DATETIME_FORMAT))
+    sql = sql.replace(old_creation_date, datetime.datetime.strftime(new_creation_date, DATETIME_FORMAT))
     
     # change to layer name text of date
     old_date_dt = datetime.datetime.strptime(old_date, DATETIME_FORMAT)
