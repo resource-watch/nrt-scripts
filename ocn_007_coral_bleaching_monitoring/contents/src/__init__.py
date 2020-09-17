@@ -538,6 +538,25 @@ def scale_geotiff(tif, scaledtif=None, scale_factor=None, nodata=None, gdal_type
     
     return scaledtif 
 
+def assign_nodata(inp_tif):
+    '''
+    Assign Nodata value to geotifs
+    INPUT   inp_tif: file name of tif to translate (string)
+    RETURN  trs_tif2: file name of generated geotiff (string)
+    '''
+
+    # generate a name to save the tif file we will translate the input file into
+    trs_tif = inp_tif + '_scaled1.tif'
+    # assign the no data value of 251
+    cmd = ['gdal_translate','-q', '-a_nodata', '251', inp_tif, trs_tif]
+    subprocess.run(cmd, shell=False)
+    # assign the no data value of 5
+    trs_tif2 = inp_tif + '_scaled.tif'
+    cmd = ['gdal_translate','-q', '-a_nodata', '-5', trs_tif, trs_tif2]
+    subprocess.run(cmd, shell=False)
+
+    return trs_tif2
+
 def processNewData(existing_dates):
     '''
     fetch, process, upload, and clean new data
@@ -571,12 +590,19 @@ def processNewData(existing_dates):
                     # scale the geotifs and add them to the list
                     finaltifs.append(scale_geotiff(tif))
             else:
-                # if no scaling is required, store as is
-                finaltifs = val['tifs']
+                # if no scaling is required
+                finaltifs = []
+                for tif in val['tifs']:
+                    # assign a nodata value, this step is done to fix band 1 
+                    # band 1 has a no data value which alternates between -5 and 251
+                    # it is probably a consequence of sloppy interpretation of numeric types somewhere within gdal scripts. 
+                    # when read as an unsigned 8bit integer, -5 becomes 251, so they ultimately represent the same thing
+                    finaltifs.append(assign_nodata(tif))
             # add the scaled tif file names as a new key to the parent dictionary
             val['finaltifs'] = finaltifs
             # add the tif file names after scaling operation to the alltifs list
             alltifs.extend(finaltifs)
+
 
         logging.info('Merging masked, single-band GeoTIFFs into single, multiband GeoTIFF.')
         # generate a name to save the tif file that will be produced by merging all the individual tifs   
@@ -593,7 +619,7 @@ def processNewData(existing_dates):
         # Upload new file (tif) to GEE
         eeUtil.uploadAssets([merged_tif], asset, GS_FOLDER, dates=datestamp, timeout=3000)
 
-        return [(asset)]
+        return asset
     else:
         logging.info('Data already up to date')
         # if no new assets, return empty list
