@@ -11,7 +11,7 @@ This dataset is provided by the source in a number of separate NetCDF files. The
 
 To process this data for display on Resource Watch, each NetCDF file was downloaded, and the relevant subdatasets were extracted to individual, single-band GeoTIFFs. These GeoTIFF files were then merged into a single multi-band GeoTIFF, where each band corresponds to one variable. The merged GeoTIFF was then uploaded to Google Earth Engine.
 
-Please see the [Python script](https://github.com/resource-watch/data-pre-processing/blob/master/ocn_007_coral_bleaching_monitoring/ocn_007_coral_bleaching_monitoring_processing.py) for more details on this processing.
+Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/ocn_007_debug/ocn_007_coral_bleaching_monitoring/contents/src/__init__.py) for more details on this processing.
 
 **Schedule**
 
