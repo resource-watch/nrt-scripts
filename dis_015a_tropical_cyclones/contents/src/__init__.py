@@ -169,7 +169,7 @@ def processData():
         # Check if table exists, create it if it does not
         logging.info('Load the existing table as a geodataframe.')
         # Load the existing table as a geodataframe
-        gdf_exist = read_carto('dis_015a_hurricane_tracks_test3', credentials=creds)
+        gdf_exist = read_carto(CARTO_TABLE, credentials=creds)
         # create a list from the unique id column in geodataframe
         existing_ids = list(gdf_exist['uid'])
         # create a new geodataframe with unique ids that are not already in our Carto table
