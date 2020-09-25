@@ -5,15 +5,11 @@ import logging
 import sys
 import urllib
 import datetime
-import fiona
-from collections import OrderedDict
-from shapely import geometry
-from shapely.geometry import LineString
-import cartosql
 import cartoframes
+from cartoframes import read_carto
+import cartosql
 from zipfile import ZipFile
 import requests
-import pandas as pd
 import geopandas as gpd
 import glob
 
@@ -26,7 +22,7 @@ CARTO_USER = os.getenv('CARTO_USER')
 CARTO_KEY = os.getenv('CARTO_KEY')
 
 # name of table in Carto where we will upload the data
-CARTO_TABLE = 'dis_015a_hurricane_tracks_test'
+CARTO_TABLE = 'dis_015a_hurricane_tracks'
 
 # column of table that can be used as a unique ID (UID)
 UID_FIELD = 'uid'
@@ -51,7 +47,7 @@ MAX_TRIES = 5
 # Important! Before testing this script:
 # Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
 # Failing to do so will overwrite the last update date on a different dataset on Resource Watch
-DATASET_ID = 'b82eab85-0fee-4212-8a7e-ca0b28a16a2f'
+# DATASET_ID = 'b82eab85-0fee-4212-8a7e-ca0b28a16a2f'
 
 '''
 FUNCTIONS FOR ALL DATASETS
@@ -87,130 +83,11 @@ def lastUpdateDate(dataset, date):
         logging.error('[lastUpdated]: '+str(e))
 
 '''
-FUNCTIONS FOR CARTO DATASETS
-
-The functions below must go in every near real-time script for a Carto dataset.
-Their format should not need to be changed.
-'''
-
-def checkCreateTable(table, schema, id_field, time_field=''):
-    '''
-    Create the table if it does not exist, and pull list of IDs already in the table if it does
-    INPUT   table: Carto table to check or create (string)
-            schema: dictionary of column names and types, used if we are creating the table for the first time (dictionary)
-            id_field: name of column that we want to use as a unique ID for this table; this will be used to compare the
-                    source data to the our table each time we run the script so that we only have to pull data we
-                    haven't previously uploaded (string)
-            time_field:  optional, name of column that will store datetime information (string)
-    RETURN  list of existing IDs in the table, pulled from the id_field column (list of strings)
-    '''
-    # check it the table already exists in Carto
-    if cartosql.tableExists(table, user=CARTO_USER, key=CARTO_KEY):
-        # if the table does exist, get a list of all the values in the id_field column
-        logging.info('Fetching existing IDs')
-        r = cartosql.getFields(id_field, table, f='csv', post=True, user=CARTO_USER, key=CARTO_KEY)
-        # turn the response into a list of strings, removing the first and last entries (header and an empty space at end)
-        return r.text.split('\r\n')[1:-1]
-    else:
-        # if the table does not exist, create it with columns based on the schema input
-        logging.info('Table {} does not exist, creating'.format(table))
-        cartosql.createTable(table, schema, user=CARTO_USER, key=CARTO_KEY)
-        # if a unique ID field is specified, set it as a unique index in the Carto table; when you upload data, Carto
-        # will ensure no two rows have the same entry in this column and return an error if you try to upload a row with
-        # a duplicate unique ID
-        if id_field:
-            cartosql.createIndex(table, id_field, unique=True, user=CARTO_USER, key=CARTO_KEY)
-        # if a time_field is specified, set it as an index in the Carto table; this is not a unique index
-        if time_field:
-            cartosql.createIndex(table, time_field, user=CARTO_USER, key=CARTO_KEY)
-        # return an empty list because there are no IDs in the new table yet
-        return []
-
-'''
 FUNCTIONS FOR THIS DATASET
 
 The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
-
-def create_carto_schema(gdf):
-    '''
-    Function to create a dictionary of column names and data types 
-    in order to the upload the data to Carto
-    INPUT   gdf: geodataframe for tropical cyclone data (dataframe)
-    RETURN  ouput: an ordered dictionary (dictionary of strings)
-    '''
-    # create an empty list to store column names
-    list_cols = []
-    # column names and types for data table
-    # column types should be one of the following: geometry, text, numeric, timestamp
-    for col in list(gdf):
-        # if the column type is float64 or int64, assign the column type as numeric
-        if (gdf[col].dtypes  == 'float64')| (gdf[col].dtypes  == 'int64'):
-            list_cols.append((col.lower(), 'numeric'))
-        # if the column type is geometry, assign the column type as geometry
-        elif col  == 'geometry':
-            list_cols.append(('the_geom', 'geometry'))
-        elif col == 'ISO_TIME':
-            list_cols.append(('iso_time', 'timestamp'))
-        # for all other columns assign them as text
-        else:
-            list_cols.append((col.lower(), 'text'))
-    # create an ordered dictionary using the list
-    output = OrderedDict(list_cols)
-    
-    return output
-
-def match_carto(gdf):
-    '''
-    Function to format geomteries to be correctly interpreted by Carto
-    INPUT   gdf: geodataframe for tropical cyclone track data (dataframe)
-    RETURN  gdf: geodataframe with formatted geometries (dataframe)
-    '''
-    # create a list from the geometry column
-    geoms = list(gdf['geometry'])
-    
-    # create an empty list to store the formatted geometries
-    val_geoms = []
-    
-    # loop through each geometries to reformat them
-    for item in geoms:
-        # create an empty dictionary to store each formatted geometries
-        new_dict = {}
-        # loop through each item in the dictionary
-        for key, value in item.items():
-            # if we are processing coordinates
-            if key == 'coordinates':
-                # convert list of tuples to list of lists
-                res = [list(ele) for val in value for ele in val]
-                # add additional dimensions to the list to match Carto
-                # add the formatted list to the dictionary
-                new_dict['coordinates'] = [[res]]
-            else:
-                # change type of geometry from Polygon to MultiPolygon
-                new_dict['type'] = 'MultiPolygon'
-        # add the correctly formatted geometry to the list of formatted geometries        
-        val_geoms.append(new_dict)
-        
-    # update the values in the geometry column of the dataframe with formatted values    
-    gdf['geometry'] = val_geoms
-    
-    return gdf
-
-def convert_geometry(geometries):
-    '''
-    Function to convert shapely geometries to geojsons
-    INPUT   geometries: shapely geometries (list of shapely geometries)
-    RETURN  output: geojsons (list of geojsons)
-    '''
-    # create an empty list to store converted geojsons
-    output = []
-    # loop through each geometries and convert them to geojson
-    for geom in geometries:
-        # add converted geojsons to a list
-        output.append(geom.__geo_interface__)
-
-    return output
 
 def gen_uid(row):
     '''
@@ -248,28 +125,11 @@ def fetch_data():
     shapefile = glob.glob(os.path.join(tmpfile_unzipped, '*.shp'))[0]
     logging.info('gpd.read_file(shapefile)')
     gdf = gpd.read_file(shapefile)
-    logging.info('Find the columns where each value is null')
-    # # Find the columns where each value is null
-    # empty_cols = [col for col in gdf.columns if gdf[col].isnull().all()]
-    # logging.info('Drop these columns from the dataframe')
-    # # Drop these columns from the dataframe
-    # gdf.drop(empty_cols, axis=1, inplace=True)
     logging.info('generate unique id')
     # generate unique id and the values to a new column in the geodataframe
     gdf['uid'] = gdf.apply(gen_uid, axis=1)
-    logging.info('there were invalid geometries (self intersection) which was preventing')        
-	# there were invalid geometries (self intersection) which was preventing
-    # them to be correctly interpreted by Carto. So, the lines are buffered
-    # by a very small distance to fix the issue (lines are converted to polygons)
-    gdf['geometry'] = gdf.geometry.buffer(0.0001)
-    logging.info('convert the geometries from shapely to geojson')
-    # convert the geometries from shapely to geojson
-    gdf['geometry'] = convert_geometry(gdf['geometry'])
-    logging.info('format geomteries to be correctly interpreted by Carto')
-    # format geomteries to be correctly interpreted by Carto
-    formt_gdf = match_carto(gdf)
     
-    return formt_gdf
+    return gdf
 
 #    except Exception as e:
 #        logging.info(e)
@@ -303,35 +163,28 @@ def processData():
                 logging.error("Error fetching data, and max tries reached. See source for last data update.")
     # if we suceessfully collected data from the url
     if success == True:
-        # generate the schema for the table that will be uploaded to Carto
-        # column names and types for data table, column names should be lowercase
-        # column types should be one of the following: geometry, text, numeric, timestamp
-        carto_schema = create_carto_schema(gdf)
+        # generate credentials to access the table
+        creds = cartoframes.auth.Credentials(username=CARTO_USER, api_key=CARTO_KEY, 
+        base_url="https://{user}.carto.com/".format(user=CARTO_USER))
         # Check if table exists, create it if it does not
-        logging.info('Checking if table exists and getting existing IDs.')
-        existing_ids = checkCreateTable(CARTO_TABLE, carto_schema, UID_FIELD)
+        logging.info('Load the existing table as a geodataframe.')
+        # Load the existing table as a geodataframe
+        gdf_exist = read_carto('dis_015a_hurricane_tracks_test3', credentials=creds)
+        # create a list from the unique id column in geodataframe
+        existing_ids = list(gdf_exist['uid'])
         # create a new geodataframe with unique ids that are not already in our Carto table
         gdf_new = gdf[~gdf['uid'].isin(existing_ids)]
         # count the number of new rows to add to the Carto table
         new_rows = gdf_new.shape[0]
         # if we have new data to upload
         if new_rows != 0:
-            
-            creds = cartoframes.auth.Credentials(username=CARTO_USER, api_key=CARTO_KEY, 
-                    base_url="https://{user}.carto.com/".format(user=CARTO_USER))
-
+            logging.info('Sending new data to the Carto table')
+            # send new rows to the Carto table
             cartoframes.to_carto(gdf_new, CARTO_TABLE, credentials=creds, if_exists='append')
-            
-            # create a list of new data
-            new_data = gdf_new.values.tolist()
-            # insert new data into the carto table
-            # cartosql.blockInsertRows(CARTO_TABLE, carto_schema.keys(), carto_schema.values(), new_data, user=CARTO_USER, key=CARTO_KEY)
+            logging.info('Successfully sent new data to the Carto table')
         else:
             logging.info('Table already upto date')
-
-            # cc = cartoframes.CartoContext(base_url="https://{user}.carto.com/".format(user=CARTO_USER),
-            #                               api_key=CARTO_KEY)
-            # cc.write(df, CARTO_TABLE, overwrite=True, privacy='link')
+            
         return(existing_ids, new_rows)
 
 def deleteExcessRows(table, max_rows, time_field):
@@ -377,14 +230,14 @@ def get_most_recent_date(table):
 
     return most_recent_date
 
-def updateResourceWatch():
-    '''
-    This function should update Resource Watch to reflect the new data.
-    This may include updating the 'last update date' and updating any dates on layers
-    '''
-    # Update dataset's last update date on Resource Watch
-    most_recent_date = get_most_recent_date(CARTO_TABLE)
-    lastUpdateDate(DATASET_ID, most_recent_date)
+# def updateResourceWatch():
+#     '''
+#     This function should update Resource Watch to reflect the new data.
+#     This may include updating the 'last update date' and updating any dates on layers
+#     '''
+#     # Update dataset's last update date on Resource Watch
+#     most_recent_date = get_most_recent_date(CARTO_TABLE)
+#     lastUpdateDate(DATASET_ID, most_recent_date)
 
     # Update the dates on layer legends - TO BE ADDED IN FUTURE
 
@@ -397,7 +250,7 @@ def main():
     logging.info('Previous rows: {},  New rows: {}'.format(len(existing_ids), num_new))
 
     # Delete data to get back to MAX_ROWS
-    num_deleted = deleteExcessRows(CARTO_TABLE, MAX_ROWS, TIME_FIELD)
+    deleteExcessRows(CARTO_TABLE, MAX_ROWS, TIME_FIELD)
 
     # Update Resource Watch
     # updateResourceWatch()
