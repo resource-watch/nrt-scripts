@@ -109,7 +109,7 @@ def fetch_data():
     '''
     # create a filename for the shapefile that will be downloaded
     tmpfile = '{}.zip'.format(os.path.join(DATA_DIR,'dis_015a_hurricane_tracks-shp'))
-    logging.info('Fetching shapefile')
+    logging.info('Get data from source url')
 
     try:
         # pull data from url and save to tmpfile
