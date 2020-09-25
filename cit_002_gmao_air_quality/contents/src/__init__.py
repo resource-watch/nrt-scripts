@@ -768,7 +768,7 @@ def pull_layers_from_API(dataset_id):
     RETURN  layer_dict: dictionary of layers (dictionary of strings)
     '''
     # generate url to access layer configs for this dataset in back office
-    rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer'.format(dataset_id)
+    rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer?page[size]=100'.format(dataset_id)
     # request data
     r = requests.get(rw_api_url)
     # convert response into json and make dictionary of layers
