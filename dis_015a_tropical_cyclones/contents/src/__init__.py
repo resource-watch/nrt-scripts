@@ -135,6 +135,29 @@ def fetch_data():
 #        logging.info(e)
 #        logging.info("Error fetching data")
 
+def get_existing_ids(table, id_field):
+    '''
+    Create the table if it does not exist, and pull list of IDs already in the table if it does
+    INPUT   table: Carto table to check or create (string)
+            schema: dictionary of column names and types, used if we are creating the table for the first time (dictionary)
+            id_field: name of column that we want to use as a unique ID for this table; this will be used to compare the
+                    source data to the our table each time we run the script so that we only have to pull data we
+                    haven't previously uploaded (string)
+    RETURN  list of existing IDs in the table, pulled from the id_field column (list of strings)
+    '''
+    # check it the table already exists in Carto
+    if cartosql.tableExists(table, user=CARTO_USER, key=CARTO_KEY):
+        # if the table does exist, get a list of all the values in the id_field column
+        logging.info('Fetching existing IDs')
+        r = cartosql.getFields(id_field, table, f='csv', post=True, user=CARTO_USER, key=CARTO_KEY)
+        # turn the response into a list of strings, removing the first and last entries (header and an empty space at end)
+        return r.text.split('\r\n')[1:-1]
+    else:
+        # if the table does not exist, create it with columns based on the schema input
+        logging.info('Table {} does not exist, creating'.format(table))
+        # return an empty list because there are no IDs in the new table yet
+        return []
+    
 def processData():
     '''
     Function to download data and upload it to Carto.
@@ -168,10 +191,11 @@ def processData():
         base_url="https://{user}.carto.com/".format(user=CARTO_USER))
         # Check if table exists, create it if it does not
         logging.info('Load the existing table as a geodataframe.')
-        # Load the existing table as a geodataframe
-        gdf_exist = read_carto(CARTO_TABLE, credentials=creds)
-        # create a list from the unique id column in geodataframe
-        existing_ids = list(gdf_exist['uid'])
+        # # Load the existing table as a geodataframe
+        # gdf_exist = read_carto(CARTO_TABLE, credentials=creds)
+        # # create a list from the unique id column in geodataframe
+        # existing_ids = list(gdf_exist['uid'])
+        existing_ids = get_existing_ids(CARTO_TABLE, UID_FIELD)
         # create a new geodataframe with unique ids that are not already in our Carto table
         gdf_new = gdf[~gdf['uid'].isin(existing_ids)]
         # count the number of new rows to add to the Carto table
