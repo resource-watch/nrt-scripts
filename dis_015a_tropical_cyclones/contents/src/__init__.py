@@ -6,7 +6,6 @@ import sys
 import urllib
 import datetime
 import cartoframes
-from cartoframes import read_carto
 import cartosql
 from zipfile import ZipFile
 import requests
@@ -33,9 +32,11 @@ TIME_FIELD = 'iso_time'
 # how many rows can be stored in the Carto table before the oldest ones are deleted?
 MAX_ROWS = 1000000
 
-# url for cyclone track data
+# url for cyclone track data since 1980; we used it only the first time we created the table
 # url_a = 'https://www.ncei.noaa.gov/data/international-best-track-archive-for-climate-stewardship-ibtracs/'
 # url_b = 'v04r00/access/shapefile/IBTrACS.since1980.list.v04r00.lines.zip'
+
+# url for cyclone track data for latest 3 years
 url_a = 'https://www.ncei.noaa.gov/data/international-best-track-archive-for-climate-stewardship-ibtracs/'
 url_b = 'v04r00/access/shapefile/IBTrACS.last3years.list.v04r00.lines.zip'
 SOURCE_URL = url_a + url_b
@@ -110,36 +111,33 @@ def fetch_data():
     tmpfile = '{}.zip'.format(os.path.join(DATA_DIR,'dis_015a_hurricane_tracks-shp'))
     logging.info('Fetching shapefile')
 
-#    try:
-#     logging.info('pull data from url and save to tmpfile')
-    # pull data from url and save to tmpfile
-    urllib.request.urlretrieve(SOURCE_URL, tmpfile)
-#     logging.info('unzip source data')
-    # unzip source data
-    tmpfile_unzipped = tmpfile.split('.')[0]
-    zip_ref = ZipFile(tmpfile, 'r')
-    zip_ref.extractall(tmpfile_unzipped)
-    zip_ref.close()
-#     logging.info('load in the polygon shapefile')
-    # load in the polygon shapefile
-    shapefile = glob.glob(os.path.join(tmpfile_unzipped, '*.shp'))[0]
-    logging.info('gpd.read_file(shapefile)')
-    gdf = gpd.read_file(shapefile)
-    logging.info('generate unique id')
-    # generate unique id and the values to a new column in the geodataframe
-    gdf['uid'] = gdf.apply(gen_uid, axis=1)
-    
-    return gdf
+    try:
+        # pull data from url and save to tmpfile
+        urllib.request.urlretrieve(SOURCE_URL, tmpfile)
+        # unzip source data
+        tmpfile_unzipped = tmpfile.split('.')[0]
+        zip_ref = ZipFile(tmpfile, 'r')
+        zip_ref.extractall(tmpfile_unzipped)
+        zip_ref.close()
+        logging.info('load in the shapefile')
+        # load in the polygon shapefile
+        shapefile = glob.glob(os.path.join(tmpfile_unzipped, '*.shp'))[0]
+        logging.info('read the shapefile')
+        gdf = gpd.read_file(shapefile)
+        logging.info('generate unique id')
+        # generate unique id and the values to a new column in the geodataframe
+        gdf['uid'] = gdf.apply(gen_uid, axis=1)
+        
+        return gdf
 
-#    except Exception as e:
-#        logging.info(e)
-#        logging.info("Error fetching data")
+    except Exception as e:
+        logging.info(e)
+        logging.info("Error fetching data")
 
 def get_existing_ids(table, id_field):
     '''
-    Create the table if it does not exist, and pull list of IDs already in the table if it does
+    Check if the table exist, and pull list of IDs already in the table if it does
     INPUT   table: Carto table to check or create (string)
-            schema: dictionary of column names and types, used if we are creating the table for the first time (dictionary)
             id_field: name of column that we want to use as a unique ID for this table; this will be used to compare the
                     source data to the our table each time we run the script so that we only have to pull data we
                     haven't previously uploaded (string)
@@ -189,12 +187,8 @@ def processData():
         # generate credentials to access the table
         creds = cartoframes.auth.Credentials(username=CARTO_USER, api_key=CARTO_KEY, 
         base_url="https://{user}.carto.com/".format(user=CARTO_USER))
-        # Check if table exists, create it if it does not
-        logging.info('Load the existing table as a geodataframe.')
-        # # Load the existing table as a geodataframe
-        # gdf_exist = read_carto(CARTO_TABLE, credentials=creds)
-        # # create a list from the unique id column in geodataframe
-        # existing_ids = list(gdf_exist['uid'])
+        logging.info('Load the existing table as a geodataframe')
+        # Check if table exists, and get existing ids
         existing_ids = get_existing_ids(CARTO_TABLE, UID_FIELD)
         # create a new geodataframe with unique ids that are not already in our Carto table
         gdf_new = gdf[~gdf['uid'].isin(existing_ids)]
@@ -205,9 +199,9 @@ def processData():
             logging.info('Sending new data to the Carto table')
             # send new rows to the Carto table
             cartoframes.to_carto(gdf_new, CARTO_TABLE, credentials=creds, if_exists='append')
-            logging.info('Successfully sent new data to the Carto table')
+            logging.info('Successfully sent new data to the Carto table!')
         else:
-            logging.info('Table already upto date')
+            logging.info('Table already upto date!')
             
         return(existing_ids, new_rows)
 
