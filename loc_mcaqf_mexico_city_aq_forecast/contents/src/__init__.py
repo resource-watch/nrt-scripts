@@ -423,7 +423,7 @@ def processNewData(existing_dates):
         new_assets = [getAssetName(tif) for tif in tifs]
         # Upload new files (tifs) to GEE
         eeUtil.uploadAssets(tifs, new_assets, GS_FOLDER, datestamps)
-new_assets
+
         # Delete local files
         logging.info('Cleaning local files')
         for tif in tifs:
