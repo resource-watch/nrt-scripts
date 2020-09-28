@@ -1,9 +1,11 @@
 ## GMAO AQ Forcast Dataset Near Real-time Script
 This file describes the near real-time script that retrieves and processes the [GMAO AQ Forcast dataset]()for display on Resource Watch as the following datasets:
 
--[Air Quality: Mexico City Ozone (O₃) Forecast](https://resourcewatch.org/data/explore/00d6bae1-e105-4165-8230-ee73a8128538)
+* [Air Quality: Nitrogen Dioxide (NO₂) Station Forecasts](https://resourcewatch.org/data/explore/)
+* [Air Quality: Fine Particulate Matter (PM2.5) Station Forecasts](https://resourcewatch.org/data/explore/)
+* [Air Quality: Ozone (O₃) Station Forecasts](https://resourcewatch.org/data/explore/)
 
-This dataset was provided by the source as a JSON file. A unique ID for each air quality forecast was created using forecast date and station number. This was stored in a new column called 'uid'. The JSON was transformed into a table and the resulting table was then uploaded to Carto. 
+This dataset was provided by the source as a JSON file. A unique ID for each air quality forecast was created using forecast date, creation date, and station number. This was stored in a new column called 'uid'. The JSON was transformed into a table and the resulting table was then uploaded to Carto. 
 
 Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/cit_004_city_aq/contents/src/__init__.py) for more details on this processing.
 
