@@ -289,13 +289,13 @@ def getNewDates(existing_dates):
     # start with today's date
     date = datetime.date.today()
     for i in range(int(MAX_DATES/NUM_TIMESTEPS+2)):
-        # go back one day at a time
-        date -= datetime.timedelta(days=1)
         # generate a string from the date
         datestr = date.strftime(DATE_FORMAT)
         # if the date string is not the list of dates we already have, add it to the list of new dates to try and fetch
         if datestr not in existing_dates:
             new_dates.append(datestr)
+        # go back one day at a time
+        date -= datetime.timedelta(days=1)
     return new_dates
 
 def convert(files):
