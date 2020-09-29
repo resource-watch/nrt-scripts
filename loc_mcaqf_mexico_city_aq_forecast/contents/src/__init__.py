@@ -424,7 +424,7 @@ def processNewData(existing_dates):
             # Get a list of the names we want to use for the assets once we upload the files to GEE
             new_assets = [getAssetName(tif) for tif in tifs]
             # Upload new files (tifs) to GEE
-            eeUtil.uploadAssets(tifs, new_assets, GS_FOLDER, datestamps)
+            eeUtil.uploadAssets(tifs, new_assets, GS_FOLDER, datestamps, timeout=900)
             # add uploaded assets to final list of assets uploaded
             new_assets_all_var += new_assets
             # Delete local files
