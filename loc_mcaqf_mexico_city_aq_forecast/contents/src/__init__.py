@@ -378,9 +378,9 @@ def fetch(dates, var):
     # go through each input date
     for date in dates:
         # get the url to download the file from the source for the given date/compound
-        s3_filename = getSourceFilename(date, compound)
+        s3_filename = getSourceFilename(date, var)
         # get the filename we want to save the file under locally
-        f = getFilename(date, compound)
+        f = getFilename(date, var)
         logging.debug('Fetching {}'.format(s3_filename))
         try:
             # try to download the data
