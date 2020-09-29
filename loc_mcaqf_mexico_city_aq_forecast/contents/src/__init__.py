@@ -366,32 +366,32 @@ def aws_download(s3_filename, local_file):
         logging.error("aws_download - credentials not available.")
         return False
 
-def fetch(dates):
+def fetch(dates, var):
     '''
     Fetch files by datestamp
     INPUT   dates: list of dates we want to try to fetch, in the format YYYYMMDD (list of strings)
+            var: variable to fetch files for (string)
     RETURN  files: list of file names for netcdfs that have been downloaded (list of strings)
     '''
     # make an empty list to store names of the files we downloaded
     files = []
     # go through each input date
     for date in dates:
-        for compound in DATASET_IDS.keys():
-            # get the url to download the file from the source for the given date/compound
-            s3_filename = getSourceFilename(date, compound)
-            # get the filename we want to save the file under locally
-            f = getFilename(date, compound)
-            logging.debug('Fetching {}'.format(s3_filename))
-            try:
-                # try to download the data
-                aws_download(s3_filename, f)
-                # if successful, add the file to the list of files we have downloaded
-                files.append(f)
-            except Exception as e:
-                # if unsuccessful, log that the file was not downloaded
-                # (could be because we are attempting to download a file that is not available yet)
-                logging.info('Could not fetch {}'.format(s3_filename))
-                logging.info(e)
+        # get the url to download the file from the source for the given date/compound
+        s3_filename = getSourceFilename(date, compound)
+        # get the filename we want to save the file under locally
+        f = getFilename(date, compound)
+        logging.debug('Fetching {}'.format(s3_filename))
+        try:
+            # try to download the data
+            aws_download(s3_filename, f)
+            # if successful, add the file to the list of files we have downloaded
+            files.append(f)
+        except Exception as e:
+            # if unsuccessful, log that the file was not downloaded
+            # (could be because we are attempting to download a file that is not available yet)
+            logging.info('Could not fetch {}'.format(s3_filename))
+            logging.info(e)
     return files
 
 
@@ -399,39 +399,42 @@ def processNewData(existing_dates):
     '''
     fetch, process, upload, and clean new data
     INPUT   existing_dates: list of dates we already have in GEE, in the format of the DATE_FORMAT variable (list of strings)
-    RETURN  assets: list of file names for netcdfs that have been downloaded (list of strings)
+    RETURN  new_assets_all_var: list of file names for netcdfs that have been downloaded (list of strings)
     '''
     # Get list of new dates we want to try to fetch data for
     new_dates = getNewDates(existing_dates)
+    # create a list to store all the new assets in
+    new_assets_all_var = []
+    for var in DATASET_IDS.keys():
+        # Fetch new files
+        logging.info('Fetching files')
+        files = fetch(new_dates, var)
+    
+        # If we have successfully been able to fetch new data files
+        if files:
+            # Convert new files from netcdf to tif files
+            logging.info('Converting files to tifs')
+            tifs = convert(files)
+    
+            logging.info('Uploading files')
+            # Get a list of the dates we have to upload from the tif file names
+            dates = [getDate(tif) for tif in tifs]
+            # Get a list of datetimes from these dates for each of the dates we are uploading
+            datestamps = [datetime.datetime.strptime(date.split('_')[0], DATE_FORMAT)+timedelta(hours=int(date.split('_')[1])) for date in dates]
+            # Get a list of the names we want to use for the assets once we upload the files to GEE
+            new_assets = [getAssetName(tif) for tif in tifs]
+            # Upload new files (tifs) to GEE
+            eeUtil.uploadAssets(tifs, new_assets, GS_FOLDER, datestamps)
+            # add uploaded assets to final list of assets uploaded
+            new_assets_all_var += new_assets
+            # Delete local files
+            logging.info('Cleaning local files')
+            for tif in tifs:
+                os.remove(tif)
+            for f in files:
+                os.remove(f)
 
-    # Fetch new files
-    logging.info('Fetching files')
-    files = fetch(new_dates)
-
-    # If we have successfully been able to fetch new data files
-    if files:
-        # Convert new files from netcdf to tif files
-        logging.info('Converting files to tifs')
-        tifs = convert(files)
-
-        logging.info('Uploading files')
-        # Get a list of the dates we have to upload from the tif file names
-        dates = [getDate(tif) for tif in tifs]
-        # Get a list of datetimes from these dates for each of the dates we are uploading
-        datestamps = [datetime.datetime.strptime(date.split('_')[0], DATE_FORMAT)+timedelta(hours=int(date.split('_')[1])) for date in dates]
-        # Get a list of the names we want to use for the assets once we upload the files to GEE
-        new_assets = [getAssetName(tif) for tif in tifs]
-        # Upload new files (tifs) to GEE
-        eeUtil.uploadAssets(tifs, new_assets, GS_FOLDER, datestamps)
-
-        # Delete local files
-        logging.info('Cleaning local files')
-        for tif in tifs:
-            os.remove(tif)
-        for f in files:
-            os.remove(f)
-
-        return new_assets
+        return new_assets_all_var
     return []
 
 def checkCreateCollection(vars):
