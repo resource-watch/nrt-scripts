@@ -435,9 +435,7 @@ def processNewData(existing_dates):
                     os.remove(tif)
                 for f in files:
                     os.remove(f)
-
-        return new_assets_all_var
-    return []
+    return new_assets_all_var
 
 def checkCreateCollection(vars):
     '''
