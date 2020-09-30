@@ -346,11 +346,11 @@ def main():
     '''
     # make dictionary associating GEE assets with RW dataset IDs
     GEE_DATASETS = {
-        # 'HYCOM/sea_temp_salinity': 'e6c0dd9e-3dde-4296-91d8-87ac26ed038f',
-        # 'HYCOM/sea_water_velocity': 'e050ee5c-0dfa-491d-862c-2274e8597793',
-        # 'NASA_USDA/HSL/SMAP_soil_moisture': 'e7b9efb2-3836-45ae-8b6a-f8391c7bcd2f',
-        # 'UCSB-CHG/CHIRPS/PENTAD': '55cb7e8d-a978-4184-b347-4ba64cd88ad2',
-        # 'JAXA/GPM_L3/GSMaP/v6/operational': '1e8919fc-c1a8-4814-b819-31cdad17651e',
+        'HYCOM/sea_temp_salinity': 'e6c0dd9e-3dde-4296-91d8-87ac26ed038f',
+        'HYCOM/sea_water_velocity': 'e050ee5c-0dfa-491d-862c-2274e8597793',
+        'NASA_USDA/HSL/SMAP_soil_moisture': 'e7b9efb2-3836-45ae-8b6a-f8391c7bcd2f',
+        'UCSB-CHG/CHIRPS/PENTAD': '55cb7e8d-a978-4184-b347-4ba64cd88ad2',
+        'JAXA/GPM_L3/GSMaP/v6/operational': '1e8919fc-c1a8-4814-b819-31cdad17651e',
         'MODIS/006/MCD64A1': '4d3d6f25-6e66-426f-be9b-32777b4755cc'
     }
     # Check if datasets have been updated
