@@ -7,6 +7,7 @@ import logging
 import ee
 import time
 import requests
+import json
 
 def getLastUpdate(dataset):
     '''
@@ -124,6 +125,202 @@ def lastUpdateDate(dataset, date):
     except Exception as e:
         logging.error('[lastUpdated]: '+str(e))
 
+def create_headers():
+    '''
+    Create headers to perform authorized actions on API
+
+    '''
+    return {
+        'Content-Type': "application/json",
+        'Authorization': "{}".format(os.getenv('apiToken')),
+    }
+
+def pull_layers_from_API(dataset_id):
+    '''
+    Pull dictionary of current layers from API
+    INPUT   dataset_id: Resource Watch API dataset ID (string)
+    RETURN  layer_dict: dictionary of layers (dictionary of strings)
+    '''
+    # generate url to access layer configs for this dataset in back office
+    rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer'.format(dataset_id)
+    # request data
+    r = requests.get(rw_api_url)
+    # convert response into json and make dictionary of layers
+    layer_dict = json.loads(r.content.decode('utf-8'))['data']
+    return layer_dict
+
+def get_date_sal_vel(title, new_date):
+    '''
+    Get current date from layer title and construct new date from most recent date
+    INPUT   title: current layer titile (string)
+            new_date: latest date of data to be shown in this layer (datetime)
+    RETURN  old_date_text: current date being used in the title (string)
+            new_date_text: new date to be show in the title (string)
+    '''
+    # get current date being used from title by accesing the first three elements
+    # and store them into a list
+    old_date = title.split()[0:3]
+    # join each time variable to construct text of current date
+    old_date_text = ' '.join(old_date)
+    # get text for new date
+    new_date_text = datetime.datetime.strftime(new_date, "%B %d, %Y")
+    return old_date_text, new_date_text
+
+def get_date_ssm(title, new_date):
+    '''
+    Get current date from layer title and construct new date from most recent date
+    INPUT   title: current layer titile (string)
+            new_date: latest date of data to be shown in this layer (datetime)
+    RETURN  old_date_text: current date being used in the title (string)
+            new_date_text: new date to be show in the title (string)
+    '''
+    # get current date being used from title by accesing the first eight elements
+    # and store them into a list
+    old_date = title.split()[0:7]
+    # join each time variable to construct text of current date
+    old_date_text = ' '.join(old_date)
+    # get text for new date
+    new_date_end = datetime.datetime.strftime(new_date, "%B %d, %Y")
+    # get most recent starting date by going back 3 days
+    new_date_start = (new_date - datetime.timedelta(days=2))
+    # convert new start date to string
+    new_date_start = datetime.datetime.strftime(new_date_start, "%B %d, %Y")
+    # construct new date range by joining new start date and new end date
+    new_date_text = new_date_start + ' - ' + new_date_end
+
+    return old_date_text, new_date_text
+
+def get_date_ppt(title, new_date):
+    '''
+    Get current date from layer title and construct new date from most recent date
+    INPUT   title: current layer titile (string)
+            new_date: latest date of data to be shown in this layer (datetime)
+    RETURN  old_date_text: current date being used in the title (string)
+            new_date_text: new date to be show in the title (string)
+    '''
+    # get current date being used from title by accesing the first eight elements
+    # and store them into a list
+    old_date = title.split()[0:7]
+    # join each time variable to construct text of current date
+    old_date_text = ' '.join(old_date)
+
+    # get text for new date
+    new_date_end = datetime.datetime.strftime(new_date, "%B %d, %Y")
+    # get most recent starting date
+    new_date_start = (new_date - datetime.timedelta(days=4))
+    new_date_start = datetime.datetime.strftime(new_date_start, "%B %d, %Y")
+    # construct new date range by joining new start date and new end date
+    new_date_text = new_date_start + ' - ' + new_date_end
+
+    return old_date_text, new_date_text
+
+def get_date_hppt(title, new_date):
+    '''
+    Get current date from layer title and construct new date from most recent date
+    INPUT   title: current layer titile (string)
+            new_date: latest date of data to be shown in this layer (datetime)
+    RETURN  old_date_text: current date being used in the title (string)
+            new_date_text: new date to be show in the title (string)
+    '''
+    # get current end date being used from title by string manupulation
+    old_date_text = title.split(' UTC')[0]
+
+    # get text for new date
+    new_date_end = datetime.datetime.strftime(new_date, "%H%M")
+    # get most recent starting date
+    new_date_start = (new_date - datetime.timedelta(hours=1))
+    new_date_start = datetime.datetime.strftime(new_date_start, "%B %d, %Y, %H%M")
+    # construct new date range by joining new start date and new end date
+    new_date_text = new_date_start + '-' + new_date_end
+
+    return old_date_text, new_date_text
+
+def get_date_burn(title, new_date):
+    '''
+    Get current date from layer title and construct new date from most recent date
+    INPUT   title: current layer titile (string)
+            new_date: latest date of data to be shown in this layer (datetime)
+    RETURN  old_date_text: current date being used in the title (string)
+            new_date_text: new date to be show in the title (string)
+    '''
+    # get current date being used from title by string manupulation
+    old_date_text = title.split(' Burned')[0]
+    # get text for new date
+    new_date_text = datetime.datetime.strftime(new_date, "%B %Y")
+
+    return old_date_text, new_date_text
+
+def get_date_global_7d(title, new_date):
+    '''
+    Get current date from layer title and construct new date from most recent date
+    INPUT   title: current layer titile (string)
+            new_date: latest date of data to be shown in this layer (datetime)
+    RETURN  old_date_text: current date being used in the title (string)
+            new_date_text: new date to be show in the title (string)
+    '''
+    # get current end date being used from title by string manupulation
+    old_date = title.split()[0:7]
+    # join each time variable to construct text of current date
+    old_date_text = ' '.join(old_date)
+
+    # latest data is for one day ago, so subtracting a day
+    new_date_end = (new_date - datetime.timedelta(days=1))
+    # get text for new date
+    new_date_end = datetime.datetime.strftime(new_date_end, "%B %d, %Y")
+    # get most recent starting date, 8 day ago
+    new_date_start = (new_date - datetime.timedelta(days=7))
+    new_date_start = datetime.datetime.strftime(new_date_start, "%B %d, %Y")
+    # construct new date range by joining new start date and new end date
+    new_date_text = new_date_start + ' - ' + new_date_end
+
+    return old_date_text, new_date_text
+
+def update_layer(collection_name, layer, new_date):
+    '''
+    Update layers in Resource Watch back office.
+    INPUT   collection_name: name of asset/table to be updated (string)
+            layer: layer that will be updated (string)
+            new_date: date of asset to be shown in this layer (datetime)
+    '''
+    # get current layer titile
+    cur_title = layer['attributes']['name']
+    
+    # Get current date range from layer title and construct new date range from most recent date
+    if collection_name == 'HYCOM/sea_temp_salinity' or collection_name == 'HYCOM/sea_water_velocity':
+        old_date_text, new_date_text = get_date_sal_vel(cur_title, new_date)
+    elif collection_name == 'NASA_USDA/HSL/SMAP_soil_moisture':
+        old_date_text, new_date_text = get_date_ssm(cur_title, new_date)
+    elif collection_name == 'UCSB-CHG/CHIRPS/PENTAD':
+        old_date_text, new_date_text = get_date_ppt(cur_title, new_date)
+    elif collection_name == 'JAXA/GPM_L3/GSMaP/v6/operational':
+        old_date_text, new_date_text = get_date_hppt(cur_title, new_date)
+    elif collection_name == 'MODIS/006/MCD64A1':
+        old_date_text, new_date_text = get_date_burn(cur_title, new_date)
+    elif collection_name == 'vnp14imgtdl_nrt_global_7d':
+        old_date_text, new_date_text = get_date_global_7d(cur_title, new_date)
+
+    # replace date in layer's title with new date
+    layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
+
+    # send patch to API to replace layers
+    # generate url to patch layer
+    rw_api_url_layer = "https://api.resourcewatch.org/v1/dataset/{dataset_id}/layer/{layer_id}".format(
+        dataset_id=layer['attributes']['dataset'], layer_id=layer['id'])
+    # create payload with new title and layer configuration
+    payload = {
+        'application': ['rw'],
+        'name': layer['attributes']['name']
+    }
+    # patch API with updates
+    r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
+    # check response
+    # if we get a 200, the layers have been replaced
+    # if we get a 504 (gateway timeout) - the layers are still being replaced, but it worked
+    if r.ok or r.status_code==504:
+        logging.info('Layer replaced: {}'.format(layer['id']))
+    else:
+        logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
+        
 def initialize_ee():
     '''
     Initialize ee module
@@ -149,11 +346,11 @@ def main():
     '''
     # make dictionary associating GEE assets with RW dataset IDs
     GEE_DATASETS = {
-        'HYCOM/GLBu0_08/sea_temp_salinity': 'e6c0dd9e-3dde-4296-91d8-87ac26ed038f',
-        'HYCOM/GLBu0_08/sea_water_velocity': 'e050ee5c-0dfa-491d-862c-2274e8597793',
-        'NASA_USDA/HSL/SMAP_soil_moisture': 'e7b9efb2-3836-45ae-8b6a-f8391c7bcd2f',
-        'UCSB-CHG/CHIRPS/PENTAD': '55cb7e8d-a978-4184-b347-4ba64cd88ad2',
-        'JAXA/GPM_L3/GSMaP/v6/operational': '1e8919fc-c1a8-4814-b819-31cdad17651e',
+        # 'HYCOM/sea_temp_salinity': 'e6c0dd9e-3dde-4296-91d8-87ac26ed038f',
+        # 'HYCOM/sea_water_velocity': 'e050ee5c-0dfa-491d-862c-2274e8597793',
+        # 'NASA_USDA/HSL/SMAP_soil_moisture': 'e7b9efb2-3836-45ae-8b6a-f8391c7bcd2f',
+        # 'UCSB-CHG/CHIRPS/PENTAD': '55cb7e8d-a978-4184-b347-4ba64cd88ad2',
+        # 'JAXA/GPM_L3/GSMaP/v6/operational': '1e8919fc-c1a8-4814-b819-31cdad17651e',
         'MODIS/006/MCD64A1': '4d3d6f25-6e66-426f-be9b-32777b4755cc'
     }
     # Check if datasets have been updated
@@ -167,6 +364,14 @@ def main():
         most_recent_date_unix = most_recent_asset.get('system:time_end').getInfo()/1000
         # convert to datetime
         most_recent_date = datetime.datetime.fromtimestamp(most_recent_date_unix)
+        # Update the dates on layer legends
+        logging.info('Updating {}'.format(collection_name))
+        # pull dictionary of current layers from API
+        layer_dict = pull_layers_from_API(dataset_id)
+        # go through each layer, pull the definition and update
+        for layer in layer_dict:
+            # replace layer title with new dates
+            update_layer(collection_name, layer, most_recent_date)
         # if our timestamp is not correct, update it
         if current_date!=most_recent_date:
             logging.info('Updating ' + collection_name)
@@ -176,6 +381,7 @@ def main():
             layer_ids = getLayerIDs(dataset_id)
             for layer_id in layer_ids:
                 flushTileCache(layer_id)
+                
     logging.info('Success for GEE Catalog data sets')
 
 
@@ -265,8 +471,10 @@ def main():
     url = "https://{account}.carto.com/api/v1/synchronizations/?api_key={API_key}".format(
         account=os.getenv('CARTO_USER'), API_key=os.getenv('CARTO_KEY'))
     r = requests.get(url)
-    json = r.json()
-    sync = json['synchronizations']
+    # the variable name here is changed from json to json_data to stop interference
+    # of json in the function pull_layers_from_API
+    json_data = r.json()
+    sync = json_data['synchronizations']
 
     # go through each of the dataset on RW from this account
     for table_name, id in RWNRT_DATASETS.items():
@@ -284,6 +492,14 @@ def main():
         TIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
         # generate a datetime for the last synchronization of this table
         last_update_time = datetime.datetime.strptime(last_sync, TIME_FORMAT)
+        # Update the dates on layer legends
+        logging.info('Updating {}'.format(table_name))
+        # pull dictionary of current layers from API
+        layer_dict = pull_layers_from_API(id)
+        # go through each layer, pull the definition and update
+        for layer in layer_dict:
+            # replace layer title with new dates
+            update_layer(table_name, layer, last_update_time)
         # update the last update date on RW, if needed
         if current_date!=last_update_time:
             logging.info('Updating ' + table_name)
