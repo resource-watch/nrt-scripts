@@ -478,7 +478,6 @@ def updateResourceWatch():
         layer_ids = getLayerIDs(DATASET_ID)
         for layer_id in layer_ids:
             flushTileCache(layer_id)
-    # Update the dates on layer legends - TO BE ADDED IN FUTURE
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
