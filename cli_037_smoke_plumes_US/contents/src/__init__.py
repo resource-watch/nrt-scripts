@@ -10,6 +10,7 @@ from collections import OrderedDict
 import cartosql
 import zipfile
 import requests
+import json
 
 # do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = False
@@ -418,6 +419,110 @@ def get_most_recent_date(table):
 
     return most_recent_date
 
+def create_headers():
+    '''
+    Create headers to perform authorized actions on API
+
+    '''
+    return {
+        'Content-Type': "application/json",
+        'Authorization': "{}".format(os.getenv('apiToken')),
+    }
+
+def pull_layers_from_API(dataset_id):
+    '''
+    Pull dictionary of current layers from API
+    INPUT   dataset_id: Resource Watch API dataset ID (string)
+    RETURN  layer_dict: dictionary of layers (dictionary of strings)
+    '''
+    # generate url to access layer configs for this dataset in back office
+    rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer?page[size]=100'.format(dataset_id)
+    # request data
+    r = requests.get(rw_api_url)
+    # convert response into json and make dictionary of layers
+    layer_dict = json.loads(r.content.decode('utf-8'))['data']
+    return layer_dict
+
+def get_date_7d(title, new_date):
+    '''
+    Get current date from layer title and construct new date from most recent date
+    INPUT   title: current layer titile (string)
+            new_date: latest date of data to be shown in this layer (datetime)
+    RETURN  old_date_text: current date being used in the title (string)
+            new_date_text: new date to be show in the title (string)
+    '''
+    # get current end date being used from title by string manupulation
+    old_date_text = title.split(' Smoke')[0]
+    # latest data is for one day ago, so subtracting a day
+    new_date_end = (new_date - datetime.timedelta(days=1))
+    # get text for new date
+    new_date_end = datetime.datetime.strftime(new_date_end, "%B %d, %Y")
+    # get most recent starting date, 8 day ago
+    new_date_start = (new_date - datetime.timedelta(days=7))
+    new_date_start = datetime.datetime.strftime(new_date_start, "%B %d, %Y")
+    # construct new date range by joining new start date and new end date
+    new_date_text = new_date_start + ' - ' + new_date_end
+
+    return old_date_text, new_date_text
+
+def get_date_1d(title, new_date):
+    '''
+    Get current date from layer title and construct new date from most recent date
+    INPUT   title: current layer titile (string)
+            new_date: latest date of data to be shown in this layer (datetime)
+    RETURN  old_date_text: current date being used in the title (string)
+            new_date_text: new date to be show in the title (string)
+    '''
+    # get current end date being used from title by string manupulation
+    old_date_text = title.split(' Smoke')[0]
+    # latest data is for one day ago, so subtracting a day
+    new_date = (new_date - datetime.timedelta(days=1))
+    # get text for new date
+    new_date_text = datetime.datetime.strftime(new_date, "%B %d, %Y")
+
+    return old_date_text, new_date_text
+
+def update_layer(layer, new_date):
+    '''
+    Update layers in Resource Watch back office.
+    INPUT   layer: layer that will be updated (string)
+            new_date: date of asset to be shown in this layer (datetime)
+    '''
+    # get current layer titile
+    cur_title = layer['attributes']['name']
+    
+    # get layer description
+    lyr_dscrptn = layer['attributes']['description']
+    
+    # if we are processing the layer that shows smoke plumes for laterst 7 days
+    if lyr_dscrptn.endswith('latest 7 days.'):
+        old_date_text, new_date_text = get_date_7d(cur_title, new_date)
+    # if we are processing the layer that shows smoke plumes for previous day
+    else:
+        old_date_text, new_date_text = get_date_1d(cur_title, new_date)
+
+    # replace date in layer's title with new date
+    layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
+
+    # send patch to API to replace layers
+    # generate url to patch layer
+    rw_api_url_layer = "https://api.resourcewatch.org/v1/dataset/{dataset_id}/layer/{layer_id}".format(
+        dataset_id=layer['attributes']['dataset'], layer_id=layer['id'])
+    # create payload with new title and layer configuration
+    payload = {
+        'application': ['rw'],
+        'name': layer['attributes']['name']
+    }
+    # patch API with updates
+    r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
+    # check response
+    # if we get a 200, the layers have been replaced
+    # if we get a 504 (gateway timeout) - the layers are still being replaced, but it worked
+    if r.ok or r.status_code==504:
+        logging.info('Layer replaced: {}'.format(layer['id']))
+    else:
+        logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
+        
 def updateResourceWatch(num_new):
     '''
     This function should update Resource Watch to reflect the new data.
@@ -428,9 +533,17 @@ def updateResourceWatch(num_new):
     if num_new>0:
         # Update dataset's last update date on Resource Watch
         most_recent_date = get_most_recent_date(CARTO_TABLE)
+        
+        # Update the dates on layer legends
+        logging.info('Updating {}'.format(CARTO_TABLE))
+        # pull dictionary of current layers from API
+        layer_dict = pull_layers_from_API(DATASET_ID)
+        # go through each layer, pull the definition and update
+        for layer in layer_dict:
+            # replace layer title with new dates
+            update_layer(layer, most_recent_date)
+         
         lastUpdateDate(DATASET_ID, most_recent_date)
-
-    # Update the dates on layer legends - TO BE ADDED IN FUTURE
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
