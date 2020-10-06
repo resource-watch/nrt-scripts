@@ -166,6 +166,7 @@ def flushTileCache_future(layer_id):
     requests.delete function to clear the layer cache.
     If the cache is not cleared, when you view the dataset on Resource Watch, old and new tiles will be mixed together.
     INPUT   layer_id: Resource Watch API layer ID (string)
+    RETURN keyword arguments for requests.delete function to update layer
     """
     # generate the API url for this layer's cache
     apiUrl = 'http://api.resourcewatch.org/v1/layer/{}/expire-cache'.format(layer_id)
@@ -531,6 +532,7 @@ def update_layer(var, layer, most_recent_date):
     INPUT   var: variable for which we are updating layers (string)
             layer: layer that will be updated (string)
             most_recent_date: most recent date in GEE collection (datetime)
+    RETURN keyword arguments for requests.patch function to update layer
     '''
     # check which point on the timeline this is
     order = layer['attributes']['layerConfig']['order']
@@ -573,15 +575,6 @@ def update_layer(var, layer, most_recent_date):
         'name': layer['attributes']['name'],
         'interactionConfig': layer['attributes']['interactionConfig']
     }
-    # patch API with updates
-    #r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
-    # check response
-    # if we get a 200, the layers have been replaced
-    # if we get a 504 (gateway timeout) - the layers are still being replaced, but it worked
-    # if r.ok or r.status_code==504:
-    #     logging.info('Layer replaced: {}'.format(layer['id']))
-    # else:
-    #     logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
     return {'url': rw_api_url_layer, 'data': json.dumps(payload), 'headers': create_headers()}
 def get_most_recent_date(var):
     '''
