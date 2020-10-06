@@ -15,6 +15,7 @@ from netCDF4 import Dataset
 import numpy as np
 import copy
 import json
+from multiprocessing.dummy import Pool
 
 # set up boto3 client with AWS credentials
 S3 = boto3.client('s3', aws_access_key_id=os.getenv('S3_ACCESS_KEY'), aws_secret_access_key=os.getenv('S3_SECRET_KEY'))
@@ -158,12 +159,14 @@ def getLayerIDs(dataset):
             layerIDs.append(layer['id'])
     return layerIDs
 
-def flushTileCache(layer_id):
+def flushTileCache_future(layer_id):
     """
     Given the API ID for a GEE layer on Resource Watch,
-    this function will clear the layer cache.
+    this function will generate the inputs for the 
+    requests.delete function to clear the layer cache.
     If the cache is not cleared, when you view the dataset on Resource Watch, old and new tiles will be mixed together.
     INPUT   layer_id: Resource Watch API layer ID (string)
+    RETURN keyword arguments for requests.delete function to update layer
     """
     # generate the API url for this layer's cache
     apiUrl = 'http://api.resourcewatch.org/v1/layer/{}/expire-cache'.format(layer_id)
@@ -173,35 +176,9 @@ def flushTileCache(layer_id):
     'Authorization': os.getenv('apiToken')
     }
 
-    # clear the cache for the layer
-    # sometimetimes this fails, so we will try multiple times, if it does
+    # generate request.delete arguments to clear cache for this layer
+    return {'url': apiUrl, 'headers': headers}
 
-    # specify that we are on the first try
-    try_num=1
-    tries = 4
-    while try_num<tries:
-        try:
-            # try to delete the cache
-            r = requests.delete(url = apiUrl, headers = headers, timeout=1000)
-            # if we get a 200, the cache has been deleted
-            # if we get a 504 (gateway timeout) - the tiles are still being deleted, but it worked
-            if r.ok or r.status_code==504:
-                logging.info('[Cache tiles deleted] for {}: status code {}'.format(layer_id, r.status_code))
-                return r.status_code
-            # if we don't get a 200 or 504:
-            else:
-                # if we are not on our last try, wait 60 seconds and try to clear the cache again
-                if try_num < (tries-1):
-                    logging.info('Cache failed to flush: status code {}'.format(r.status_code))
-                    time.sleep(60)
-                    logging.info('Trying again.')
-                # if we are on our last try, log that the cache flush failed
-                else:
-                    logging.error('Cache failed to flush: status code {}'.format(r.status_code))
-                    logging.error('Aborting.')
-            try_num += 1
-        except Exception as e:
-            logging.error('Failed: {}'.format(e))
 '''
 FUNCTIONS FOR THIS DATASET
 
@@ -555,6 +532,7 @@ def update_layer(var, layer, most_recent_date):
     INPUT   var: variable for which we are updating layers (string)
             layer: layer that will be updated (string)
             most_recent_date: most recent date in GEE collection (datetime)
+    RETURN keyword arguments for requests.patch function to update layer
     '''
     # check which point on the timeline this is
     order = layer['attributes']['layerConfig']['order']
@@ -597,16 +575,7 @@ def update_layer(var, layer, most_recent_date):
         'name': layer['attributes']['name'],
         'interactionConfig': layer['attributes']['interactionConfig']
     }
-    # patch API with updates
-    r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
-    # check response
-    # if we get a 200, the layers have been replaced
-    # if we get a 504 (gateway timeout) - the layers are still being replaced, but it worked
-    if r.ok or r.status_code==504:
-        logging.info('Layer replaced: {}'.format(layer['id']))
-    else:
-        logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
-
+    return {'url': rw_api_url_layer, 'data': json.dumps(payload), 'headers': create_headers()}
 def get_most_recent_date(var):
     '''
     Get most recent data it
@@ -638,18 +607,34 @@ def updateResourceWatch():
         if current_date != most_recent_date:
             # Update the dates on layer legends - TO BE ADDED IN FUTURE
             layer_dict = pull_layers_from_API(ds_id)
+            # create a pool of processes
+            pool = Pool()
+            # create an empty list to store layer update calls
+            futures = []                
             # go through each layer, pull the definition and update
             for layer in layer_dict:
                 # replace layer asset and title date with new
-                update_layer(var,  layer, most_recent_date)
+                kwds = update_layer(var,  layer, most_recent_date)
+                futures.append(pool.apply_async(requests.patch, kwds=kwds))
+            # execute requests
+            for future in futures:
+                future.get()
 
             logging.info('Updating last update date and flushing cache.')
+            # create a pool of processes
+            pool = Pool()
+            # create an empty list to store layer update calls
+            futures = [] 
             # Update dataset's last update date on Resource Watch
             lastUpdateDate(ds_id, most_recent_date)
             # get layer ids and flush tile cache for each
             layer_ids = getLayerIDs(ds_id)
             for layer_id in layer_ids:
-                flushTileCache(layer_id)
+                kwds = flushTileCache_future(layer_id)
+                futures.append(pool.apply_async(requests.delete, kwds=kwds))
+            # execute requests
+            for future in futures:
+                future.get()
  
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
