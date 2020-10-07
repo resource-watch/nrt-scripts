@@ -9,6 +9,7 @@ from xmljson import parker as xml2json
 from dateutil import parser
 import requests
 import datetime
+import json
 
 # do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = False
@@ -307,6 +308,73 @@ def get_most_recent_date(table):
     most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
     return most_recent_date
 
+def create_headers():
+    '''
+    Create headers to perform authorized actions on API
+
+    '''
+    return {
+        'Content-Type': "application/json",
+        'Authorization': "{}".format(os.getenv('apiToken')),
+    }
+
+def pull_layers_from_API(dataset_id):
+    '''
+    Pull dictionary of current layers from API
+    INPUT   dataset_id: Resource Watch API dataset ID (string)
+    RETURN  layer_dict: dictionary of layers (dictionary of strings)
+    '''
+    # generate url to access layer configs for this dataset in back office
+    rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer?page[size]=100'.format(dataset_id)
+    # request data
+    r = requests.get(rw_api_url)
+    # convert response into json and make dictionary of layers
+    layer_dict = json.loads(r.content.decode('utf-8'))['data']
+    return layer_dict
+
+def update_layer(layer):
+    '''
+    Update layers in Resource Watch back office.
+    INPUT   layer: layer that will be updated (string)
+    '''
+    # get current layer titile
+    cur_title = layer['attributes']['name']
+    
+    # get current date being used from title by string manupulation
+    old_date_text = cur_title.split(' Volcanic')[0]
+
+    # get current date
+    current_date = datetime.datetime.now()    
+    # get text for new date end which will be the current date
+    new_date_end = current_date.strftime("%B %d, %Y")
+    # get most recent starting date, 30 day ago
+    new_date_start = (current_date - datetime.timedelta(days=29))
+    new_date_start = datetime.datetime.strftime(new_date_start, "%B %d, %Y")
+    # construct new date range by joining new start date and new end date
+    new_date_text = new_date_start + ' - ' + new_date_end
+    
+    # replace date in layer's title with new date
+    layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
+
+    # send patch to API to replace layers
+    # generate url to patch layer
+    rw_api_url_layer = "https://api.resourcewatch.org/v1/dataset/{dataset_id}/layer/{layer_id}".format(
+        dataset_id=layer['attributes']['dataset'], layer_id=layer['id'])
+    # create payload with new title and layer configuration
+    payload = {
+        'application': ['rw'],
+        'name': layer['attributes']['name']
+    }
+    # patch API with updates
+    r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
+    # check response
+    # if we get a 200, the layers have been replaced
+    # if we get a 504 (gateway timeout) - the layers are still being replaced, but it worked
+    if r.ok or r.status_code==504:
+        logging.info('Layer replaced: {}'.format(layer['id']))
+    else:
+        logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
+        
 def updateResourceWatch(num_new):
     '''
     This function should update Resource Watch to reflect the new data.
@@ -317,9 +385,15 @@ def updateResourceWatch(num_new):
     if num_new>0:
         # Update dataset's last update date on Resource Watch
         most_recent_date = get_most_recent_date(CARTO_TABLE)
+        # Update the dates on layer legends
+        logging.info('Updating {}'.format(CARTO_TABLE))
+        # pull dictionary of current layers from API
+        layer_dict = pull_layers_from_API(DATASET_ID)
+        # go through each layer, pull the definition and update
+        for layer in layer_dict:
+            # replace layer title with new dates
+            update_layer(layer)
         lastUpdateDate(DATASET_ID, most_recent_date)
-
-    # Update the dates on layer legends - TO BE ADDED IN FUTURE
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
