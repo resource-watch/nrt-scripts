@@ -382,21 +382,23 @@ def get_date_7d(title, new_date):
 
     return old_date_text, new_date_text
 
-def update_layer(layer, new_date):
+def update_layer(layer):
     '''
     Update layers in Resource Watch back office.
     INPUT   layer: layer that will be updated (string)
-            new_date: date of asset to be shown in this layer (datetime)
     '''
     # get current layer titile
     cur_title = layer['attributes']['name']
     
+    # get new date end which will be the current date
+    current_date = datetime.datetime.now()    
+    
     # if we are processing the layer that shows earthquake for latest 7 days
     if cur_title.endswith('All Earthquakes (Magnitude)'):
-        old_date_text, new_date_text = get_date_7d(cur_title, new_date)
+        old_date_text, new_date_text = get_date_7d(cur_title, current_date)
     # if we are processing the layer that shows earthquake for latest 30 days
     else:
-        old_date_text, new_date_text = get_date_30d(cur_title, new_date)
+        old_date_text, new_date_text = get_date_30d(cur_title, current_date)
 
     # replace date in layer's title with new date
     layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
@@ -437,7 +439,7 @@ def updateResourceWatch(num_new):
         # go through each layer, pull the definition and update
         for layer in layer_dict:
             # replace layer title with new dates
-            update_layer(layer, most_recent_date)
+            update_layer(layer)
             
         lastUpdateDate(DATASET_ID, most_recent_date)
 
