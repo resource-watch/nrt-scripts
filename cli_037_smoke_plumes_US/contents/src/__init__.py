@@ -482,11 +482,10 @@ def get_date_1d(title, new_date):
 
     return old_date_text, new_date_text
 
-def update_layer(layer, new_date):
+def update_layer(layer):
     '''
     Update layers in Resource Watch back office.
     INPUT   layer: layer that will be updated (string)
-            new_date: date of asset to be shown in this layer (datetime)
     '''
     # get current layer titile
     cur_title = layer['attributes']['name']
@@ -494,12 +493,15 @@ def update_layer(layer, new_date):
     # get layer description
     lyr_dscrptn = layer['attributes']['description']
     
+    # get new date end which will be the current date
+    current_date = datetime.datetime.now()  
+    
     # if we are processing the layer that shows smoke plumes for laterst 7 days
     if lyr_dscrptn.endswith('latest 7 days.'):
-        old_date_text, new_date_text = get_date_7d(cur_title, new_date)
+        old_date_text, new_date_text = get_date_7d(cur_title, current_date)
     # if we are processing the layer that shows smoke plumes for previous day
     else:
-        old_date_text, new_date_text = get_date_1d(cur_title, new_date)
+        old_date_text, new_date_text = get_date_1d(cur_title, current_date)
 
     # replace date in layer's title with new date
     layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
@@ -533,7 +535,6 @@ def updateResourceWatch(num_new):
     if num_new>0:
         # Update dataset's last update date on Resource Watch
         most_recent_date = get_most_recent_date(CARTO_TABLE)
-        
         # Update the dates on layer legends
         logging.info('Updating {}'.format(CARTO_TABLE))
         # pull dictionary of current layers from API
@@ -541,7 +542,7 @@ def updateResourceWatch(num_new):
         # go through each layer, pull the definition and update
         for layer in layer_dict:
             # replace layer title with new dates
-            update_layer(layer, most_recent_date)
+            update_layer(layer)
          
         lastUpdateDate(DATASET_ID, most_recent_date)
 
