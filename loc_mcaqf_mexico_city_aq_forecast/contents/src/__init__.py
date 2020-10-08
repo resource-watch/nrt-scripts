@@ -498,9 +498,9 @@ def deleteExcessAssets(dates, max_dates):
                 logging.info('Deleting {} from S3'.format(getSourceFilename(date, compound)))
                 S3.delete_object(Bucket=S3_BUCKET, Key=getSourceFilename(date, compound))
                 # delete assets for every timestep
+                logging.info('Deleting old assets from GEE')
                 for date_ix in range(NUM_TIMESTEPS):
                     asset = getAssetName(getFilename(date, compound).split('.')[0]+'_' +str(date_ix).zfill(2))
-                    logging.info('Deleting {} from GEE'.format(asset))
                     eeUtil.removeAsset(asset)
 
 def create_headers():
@@ -610,13 +610,15 @@ def updateResourceWatch():
             # create a pool of processes
             pool = Pool()
             # create an empty list to store layer update calls
-            results = []                
+            futures = []                
             # go through each layer, pull the definition and update
             for layer in layer_dict:
                 # replace layer asset and title date with new
                 kwds = update_layer(var,  layer, most_recent_date)
-                result = pool.apply_async(requests.patch, kwds=kwds)
-                results.append(result)
+                futures.append(pool.apply_async(requests.patch, kwds=kwds))
+            # execute requests
+            for future in futures:
+                future.get()
 
             logging.info('Updating last update date and flushing cache.')
             # create a pool of processes
@@ -629,8 +631,10 @@ def updateResourceWatch():
             layer_ids = getLayerIDs(ds_id)
             for layer_id in layer_ids:
                 kwds = flushTileCache_future(layer_id)
-                result = pool.apply_async(requests.delete, kwds=kwds)
-                results.append(result)
+                futures.append(pool.apply_async(requests.delete, kwds=kwds))
+            # execute requests
+            for future in futures:
+                future.get()
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
