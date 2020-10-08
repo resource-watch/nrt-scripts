@@ -20,7 +20,7 @@ RUN apt-get install -y \
 
 RUN pip install python-dateutil==2.8.0
 RUN pip install oauth2client==4.1.3
-RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
+RUN pip install -e git+https://github.com/resource-watch/eeUtil/tree/fix/upgrade_version_gee#egg=eeUtil
 RUN pip install python-dateutil==2.8.1
 RUN pip install LMIPy
 

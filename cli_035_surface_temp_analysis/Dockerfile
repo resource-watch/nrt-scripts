@@ -19,7 +19,7 @@ RUN apt-get install -y \
   && apt-get clean
 
 RUN pip install oauth2client==4.1.3
-RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
+RUN pip install -e git+https://github.com/resource-watch/eeUtil/tree/fix/upgrade_version_gee#egg=eeUtil
 RUN pip install numpy==1.18.1 #Install this ahead of rasterio for appropriate applications
 RUN pip install --upgrade pip && pip install \
     requests==2.22.0 \
