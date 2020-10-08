@@ -610,13 +610,15 @@ def updateResourceWatch():
             # create a pool of processes
             pool = Pool()
             # create an empty list to store layer update calls
-            results = []                
+            futures = []                
             # go through each layer, pull the definition and update
             for layer in layer_dict:
                 # replace layer asset and title date with new
                 kwds = update_layer(var,  layer, most_recent_date)
-                result = pool.apply_async(requests.patch, kwds=kwds)
-                results.append(result)
+                futures.append(pool.apply_async(requests.patch, kwds=kwds))
+            # execute requests
+            for future in futures:
+                future.get()
 
             logging.info('Updating last update date and flushing cache.')
             # create a pool of processes
@@ -629,8 +631,10 @@ def updateResourceWatch():
             layer_ids = getLayerIDs(ds_id)
             for layer_id in layer_ids:
                 kwds = flushTileCache_future(layer_id)
-                result = pool.apply_async(requests.delete, kwds=kwds)
-                results.append(result)
+                futures.append(pool.apply_async(requests.delete, kwds=kwds))
+            # execute requests
+            for future in futures:
+                future.get()
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
