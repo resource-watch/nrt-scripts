@@ -498,9 +498,9 @@ def deleteExcessAssets(dates, max_dates):
                 logging.info('Deleting {} from S3'.format(getSourceFilename(date, compound)))
                 S3.delete_object(Bucket=S3_BUCKET, Key=getSourceFilename(date, compound))
                 # delete assets for every timestep
+                logging.info('Deleting old assets from GEE')
                 for date_ix in range(NUM_TIMESTEPS):
                     asset = getAssetName(getFilename(date, compound).split('.')[0]+'_' +str(date_ix).zfill(2))
-                    logging.info('Deleting {} from GEE'.format(asset))
                     eeUtil.removeAsset(asset)
 
 def create_headers():
