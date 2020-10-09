@@ -247,6 +247,30 @@ def processData(url, existing_ids):
     
     return(num_new)
 
+def create_headers():
+    '''
+    Create headers to perform authorized actions on API
+
+    '''
+    return {
+        'Content-Type': "application/json",
+        'Authorization': "{}".format(os.getenv('apiToken')),
+    }
+
+def pull_layers_from_API(dataset_id):
+    '''
+    Pull dictionary of current layers from API
+    INPUT   dataset_id: Resource Watch API dataset ID (string)
+    RETURN  layer_dict: dictionary of layers (dictionary of strings)
+    '''
+    # generate url to access layer configs for this dataset in back office
+    rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer?page[size]=100'.format(dataset_id)
+    # request data
+    r = requests.get(rw_api_url)
+    # convert response into json and make dictionary of layers
+    layer_dict = json.loads(r.content.decode('utf-8'))['data']
+    return layer_dict
+
 def get_date_1y(title, new_date):
     '''
     Get current date from layer title and construct new date from most recent date
