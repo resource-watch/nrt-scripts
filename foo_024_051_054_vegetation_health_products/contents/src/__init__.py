@@ -13,6 +13,7 @@ from collections import defaultdict
 import requests
 import time
 import ee
+import json 
 
 # url for vegetation health products data
 SOURCE_URL = 'ftp://ftp.star.nesdis.noaa.gov/pub/corp/scsb/wguo/data/Blended_VH_4km/VH/{target_file}'
@@ -470,6 +471,131 @@ def get_most_recent_date(collection):
     most_recent_date = datetime.datetime.strptime(datestr, '%G0%V%u')
     return most_recent_date
 
+def create_headers():
+    '''
+    Create headers to perform authorized actions on API
+
+    '''
+    return {
+        'Content-Type': "application/json",
+        'Authorization': "{}".format(os.getenv('apiToken')),
+    }
+
+def pull_layers_from_API(dataset_id):
+    '''
+    Pull dictionary of current layers from API
+    INPUT   dataset_id: Resource Watch API dataset ID (string)
+    RETURN  layer_dict: dictionary of layers (dictionary of strings)
+    '''
+    # generate url to access layer configs for this dataset in back office
+    rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer?page[size]=100'.format(dataset_id)
+    # request data
+    r = requests.get(rw_api_url)
+    # convert response into json and make dictionary of layers
+    layer_dict = json.loads(r.content.decode('utf-8'))['data']
+    return layer_dict
+
+def get_date_7d(title, new_date):
+    '''
+    Get current date from layer title and construct new date from most recent date
+    INPUT   title: current layer titile (string)
+            new_date: latest date of data to be shown in this layer (datetime)
+    RETURN  old_date_text: current date being used in the title (string)
+            new_date_text: new date to be show in the title (string)
+    '''
+    # get current end date being used from title by string manupulation
+    old_date_text = title.split(' Vegetation')[0]
+    # get text for new date
+    new_date_end = datetime.datetime.strftime(new_date, "%B %d, %Y")
+    # get most recent starting date, 7 days ago
+    new_date_start = (new_date - datetime.timedelta(days=6))
+    new_date_start = datetime.datetime.strftime(new_date_start, "%B %d, %Y")
+    # construct new date range by joining new start date and new end date
+    new_date_text = new_date_start + ' - ' + new_date_end
+
+    return old_date_text, new_date_text
+
+def get_date(title, new_date):
+    '''
+    Get current date from layer title and construct new date from most recent date
+    INPUT   title: current layer titile (string)
+            new_date: latest date of data to be shown in this layer (datetime)
+    RETURN  old_date_text: current date being used in the title (string)
+            new_date_text: new date to be show in the title (string)
+    '''
+    # get current end date being used from title by string manupulation
+    old_date_text = title.split(' Vegetation')[0]
+    # get text for new date
+    new_date_text = datetime.datetime.strftime(new_date, "%B %d, %Y")
+
+    return old_date_text, new_date_text
+
+def update_layer(layer, new_date):
+    '''
+    Update layers in Resource Watch back office.
+    INPUT   layer: layer that will be updated (string)
+            new_date: date of asset to be shown in this layer (datetime)
+    '''
+    # get current layer titile
+    cur_title = layer['attributes']['name']
+    
+    # if we are processing the layer that shows most recent Vegetation Condition Index
+    if cur_title.endswith('(NDVI anomalies)'):
+        old_date_text, new_date_text = get_date(cur_title, new_date)
+    # if we are processing the layer that shows Vegetation Condition Index for last 7 days
+    else:
+        old_date_text, new_date_text = get_date_7d(cur_title, new_date)
+
+    # replace date in layer's title with new date
+    layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
+
+    # send patch to API to replace layers
+    # generate url to patch layer
+    rw_api_url_layer = "https://api.resourcewatch.org/v1/dataset/{dataset_id}/layer/{layer_id}".format(
+        dataset_id=layer['attributes']['dataset'], layer_id=layer['id'])
+    # create payload with new title and layer configuration
+    payload = {
+        'application': ['rw'],
+        'name': layer['attributes']['name']
+    }
+    # patch API with updates
+    r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
+    # check response
+    # if we get a 200, the layers have been replaced
+    # if we get a 504 (gateway timeout) - the layers are still being replaced, but it worked
+    if r.ok or r.status_code==504:
+        logging.info('Layer replaced: {}'.format(layer['id']))
+    else:
+        logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
+        
+def updateResourceWatch():
+    '''
+    This function should update Resource Watch to reflect the new data.
+    This may include updating the 'last update date', flushing the tile cache, and updating any dates on layers
+    '''
+    for collection, id in DATASET_IDS.items():
+        # Get most recent date in GEE
+        most_recent_date = get_most_recent_date(collection)
+        # Get the current 'last update date' from the dataset on Resource Watch
+        current_date = getLastUpdate(id)
+        # Update the dates on layer legends
+        logging.info('Updating {}'.format(collection))
+        # pull dictionary of current layers from API
+        layer_dict = pull_layers_from_API(id)
+        # go through each layer, pull the definition and update
+        for layer in layer_dict:
+            # replace layer title with new dates
+            update_layer(layer, most_recent_date)
+        # If the most recent date from the GEE collection does not match the 'last update date' on the RW API, update it
+        if current_date != most_recent_date:
+            logging.info('Updating last update date and flushing cache.')
+            # Update dataset's last update date on Resource Watch
+            lastUpdateDate(id, most_recent_date)
+            # get layer ids and flush tile cache for each
+            layer_ids = getLayerIDs(id)
+            for layer_id in layer_ids:
+                flushTileCache(layer_id)
+
 def initialize_ee():
     '''
     Initialize ee module
@@ -482,27 +608,6 @@ def initialize_ee():
         f.write(GEE_JSON)
     auth = ee.ServiceAccountCredentials(GEE_SERVICE_ACCOUNT, _CREDENTIAL_FILE)
     ee.Initialize(auth)
-
-def updateResourceWatch():
-    '''
-    This function should update Resource Watch to reflect the new data.
-    This may include updating the 'last update date', flushing the tile cache, and updating any dates on layers
-    '''
-    for collection, id in DATASET_IDS.items():
-        # Get most recent date in GEE
-        most_recent_date = get_most_recent_date(collection)
-        # Get the current 'last update date' from the dataset on Resource Watch
-        current_date = getLastUpdate(id)
-        # If the most recent date from the GEE collection does not match the 'last update date' on the RW API, update it
-        if current_date != most_recent_date:
-            logging.info('Updating last update date and flushing cache.')
-            # Update dataset's last update date on Resource Watch
-            lastUpdateDate(id, most_recent_date)
-            # get layer ids and flush tile cache for each
-            layer_ids = getLayerIDs(id)
-            for layer_id in layer_ids:
-                flushTileCache(layer_id)
-    # Update the dates on layer legends - TO BE ADDED IN FUTURE
 
 def main():
     '''Ingest new data into EE and delete old data'''
