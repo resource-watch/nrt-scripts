@@ -10,6 +10,7 @@ import requests
 import time
 import urllib
 import urllib.request
+import json
 
 # url for NOAA wave height data
 SOURCE_URL = 'ftp://ftpprd.ncep.noaa.gov/pub/data/nccf/com/wave/prod/multi_1.{date}/'
@@ -480,6 +481,89 @@ def get_most_recent_date(collection):
 
     return most_recent_date
 
+def create_headers():
+    '''
+    Create headers to perform authorized actions on API
+
+    '''
+    return {
+        'Content-Type': "application/json",
+        'Authorization': "{}".format(os.getenv('apiToken')),
+    }
+
+def pull_layers_from_API(dataset_id):
+    '''
+    Pull dictionary of current layers from API
+    INPUT   dataset_id: Resource Watch API dataset ID (string)
+    RETURN  layer_dict: dictionary of layers (dictionary of strings)
+    '''
+    # generate url to access layer configs for this dataset in back office
+    rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer?page[size]=100'.format(dataset_id)
+    # request data
+    r = requests.get(rw_api_url)
+    # convert response into json and make dictionary of layers
+    layer_dict = json.loads(r.content.decode('utf-8'))['data']
+    return layer_dict
+
+def update_layer(layer, new_date):
+    '''
+    Update layers in Resource Watch back office.
+    INPUT   layer: layer that will be updated (string)
+            new_date: date of asset to be shown in this layer (datetime)
+    '''
+    # get current layer titile
+    cur_title = layer['attributes']['name']
+    # get layer description
+    lyr_dscrptn = layer['attributes']['description']
+    
+    # get current date being used from title by string manupulation
+    old_date_text = cur_title.split(' Significant')[0]
+
+    # if we are processing the layer that shows current wave height
+    if lyr_dscrptn.endswith('at time of most recent update.'):
+        # get text for new date which is just the date of last update
+        new_date_text = datetime.datetime.strftime(new_date, "%B %d, %Y, %H%M") + ' UTC'
+    # if we are processing the layer that shows 12th forecast
+    elif lyr_dscrptn.endswith('12 hours from time of most recent update.'):
+        # get most recent date, 12 hours ahead of current time
+        new_date_end = (new_date + datetime.timedelta(hours=12))
+        # convert datetime to string and append UTC at the end of the date
+        new_date_text = datetime.datetime.strftime(new_date_end, "%B %d, %Y, %H%M") + ' UTC'
+    # if we are processing the layer that shows 24th forecast
+    elif lyr_dscrptn.endswith('24 hours from time of most recent update.'):
+        # get most recent date, 24 hours ahead of current time
+        new_date_end = (new_date + datetime.timedelta(hours=24))
+        # convert datetime to string and append UTC at the end of the date
+        new_date_text = datetime.datetime.strftime(new_date_end, "%B %d, %Y, %H%M") + ' UTC'
+    # if we are processing the layer that shows 48th forecast
+    elif lyr_dscrptn.endswith('48 hours from time of most recent update.'):
+        # get most recent date, 48 hours ahead of current time
+        new_date_end = (new_date + datetime.timedelta(hours=48))
+        # convert datetime to string and append UTC at the end of the date
+        new_date_text = datetime.datetime.strftime(new_date_end, "%B %d, %Y, %H%M") + ' UTC'
+
+    # replace date in layer's title with new date
+    layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
+
+    # send patch to API to replace layers
+    # generate url to patch layer
+    rw_api_url_layer = "https://api.resourcewatch.org/v1/dataset/{dataset_id}/layer/{layer_id}".format(
+        dataset_id=layer['attributes']['dataset'], layer_id=layer['id'])
+    # create payload with new title and layer configuration
+    payload = {
+        'application': ['rw'],
+        'name': layer['attributes']['name']
+    }
+    # patch API with updates
+    r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
+    # check response
+    # if we get a 200, the layers have been replaced
+    # if we get a 504 (gateway timeout) - the layers are still being replaced, but it worked
+    if r.ok or r.status_code==504:
+        logging.info('Layer replaced: {}'.format(layer['id']))
+    else:
+        logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
+        
 def updateResourceWatch():
     '''
     This function should update Resource Watch to reflect the new data.
@@ -489,6 +573,14 @@ def updateResourceWatch():
     most_recent_date = get_most_recent_date(EE_COLLECTION)
     # Get the current 'last update date' from the dataset on Resource Watch
     current_date = getLastUpdate(DATASET_ID)
+    # Update the dates on layer legends
+    logging.info('Updating {}'.format(EE_COLLECTION))
+    # pull dictionary of current layers from API
+    layer_dict = pull_layers_from_API(DATASET_ID)
+    # go through each layer, pull the definition and update
+    for layer in layer_dict:
+        # replace layer title with new dates
+        update_layer(layer, most_recent_date)
     # If the most recent date from the GEE collection does not match the 'last update date' on the RW API, update it
     if current_date != most_recent_date:
         logging.info('Updating last update date and flushing cache.')
@@ -498,7 +590,6 @@ def updateResourceWatch():
         layer_ids = getLayerIDs(DATASET_ID)
         for layer_id in layer_ids:
             flushTileCache(layer_id)
-    # Update the dates on layer legends - TO BE ADDED IN FUTURE
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
