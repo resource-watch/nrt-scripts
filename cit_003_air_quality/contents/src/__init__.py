@@ -6,6 +6,8 @@ import cartosql
 import datetime
 import hashlib
 import requests
+import time 
+import json
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
@@ -16,6 +18,9 @@ DATA_URL = 'https://api.openaq.org/v1/measurements?limit=10000&include_fields=at
 # always check first 10 pages
 MIN_PAGES = 10
 MAX_PAGES = 100
+
+# how long to wait before trying to get data again incase of failure
+WAIT_TIME = 30
 
 # asserting table structure rather than reading from input
 PARAMS = ('pm25', 'pm10', 'so2', 'no2', 'o3', 'co', 'bc')
@@ -206,6 +211,74 @@ def get_most_recent_date(param):
         most_recent_date = now
     return most_recent_date
 
+def create_headers():
+    '''
+    Create headers to perform authorized actions on API
+
+    '''
+    return {
+        'Content-Type': "application/json",
+        'Authorization': "{}".format(os.getenv('apiToken')),
+    }
+
+def pull_layers_from_API(dataset_id):
+    '''
+    Pull dictionary of current layers from API
+    INPUT   dataset_id: Resource Watch API dataset ID (string)
+    RETURN  layer_dict: dictionary of layers (dictionary of strings)
+    '''
+    # generate url to access layer configs for this dataset in back office
+    rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer?page[size]=100'.format(dataset_id)
+    # request data
+    r = requests.get(rw_api_url)
+    # convert response into json and make dictionary of layers
+    layer_dict = json.loads(r.content.decode('utf-8'))['data']
+    return layer_dict
+
+def update_layer(layer):
+    '''
+    Update layers in Resource Watch back office.
+    INPUT   layer: layer that will be updated (string)
+    '''
+    # get current layer titile
+    cur_title = layer['attributes']['name']
+    
+    # get current date being used from title by string manupulation
+    old_date_text = cur_title.split(' Average')[0]
+
+    # get current date in utc
+    current_date = datetime.datetime.utcnow()
+    # get text for new date end which will be the current date
+    new_date_end = current_date.strftime("%B %d, %Y, %H%M")
+    # get most recent starting date, 24 hours ago
+    new_date_start = (current_date - datetime.timedelta(hours=24))
+    new_date_start = datetime.datetime.strftime(new_date_start, "%B %d, %Y, %H%M")
+    # construct new date range by joining new start date and new end date
+    new_date_text = new_date_start + ' UTC' + ' - ' + new_date_end + ' UTC'
+
+
+    # replace date in layer's title with new date
+    layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
+
+    # send patch to API to replace layers
+    # generate url to patch layer
+    rw_api_url_layer = "https://api.resourcewatch.org/v1/dataset/{dataset_id}/layer/{layer_id}".format(
+        dataset_id=layer['attributes']['dataset'], layer_id=layer['id'])
+    # create payload with new title and layer configuration
+    payload = {
+        'application': ['rw'],
+        'name': layer['attributes']['name']
+    }
+    # patch API with updates
+    r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
+    # check response
+    # if we get a 200, the layers have been replaced
+    # if we get a 504 (gateway timeout) - the layers are still being replaced, but it worked
+    if r.ok or r.status_code==504:
+        logging.info('Layer replaced: {}'.format(layer['id']))
+    else:
+        logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
+        
 def main():
     logging.info('BEGIN')
 
@@ -298,5 +371,13 @@ def main():
         dataset = DATASET_ID[param]
         most_recent_date = get_most_recent_date(param)
         lastUpdateDate(dataset, most_recent_date)
+        # Update the dates on layer legends
+        logging.info('Updating {}'.format(param))
+        # pull dictionary of current layers from API
+        layer_dict = pull_layers_from_API(dataset)
+        # go through each layer, pull the definition and update
+        for layer in layer_dict:
+            # replace layer title with new dates
+            update_layer(layer)
 
     logging.info('SUCCESS')
