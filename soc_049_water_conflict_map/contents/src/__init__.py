@@ -178,7 +178,7 @@ def processData(url):
     # get the data from source as a list of strings, with each string holding one line from the source data file
     res_rows = tryRetrieveData(url)
     # create a dataframe from the rows
-    data = pd.DataFrame([[x.get_text() for x in row.find_all('td')] for row in res_rows], columns = ['date', 'headline', 'conflict_type', 'region', 'description','source', 'latitude', 'longitude', 'start_year', 'end_year'])
+    data = pd.DataFrame([[x.get_text() for x in row.find_all('td')] for row in res_rows], columns = ['date', 'headline', 'conflict_type', 'region', 'description','sources', 'latitude', 'longitude', 'start_year', 'end_year'])
     # remove duplicated rows
     data.drop_duplicates(subset=['date', 'conflict_type', 'region', 'description','sources', 'latitude', 'longitude', 'start_year', 'end_year'], inplace = True, keep='last')
     # create a 'uid' column to store the index of rows as unique ids
