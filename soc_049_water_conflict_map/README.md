@@ -3,7 +3,7 @@ This file describes the near real-time script that retrieves and processes the [
 
 The source provided the data as a txt file.
 
-The 'start' and 'end' columns were renamed to be 'start_year' and 'end_year' since 'end' is a reserved word in PostgreSQL. The start and end year of the conflicts were converted to datetime objects and stored in two new columns 'start_dt' and 'end_dt'. The resulting table was uploaded to Carto.
+The 'start' and 'end' columns were renamed to be 'start_year' and 'end_year' since 'end' is a reserved word in PostgreSQL. The start and end year of the conflicts were converted to datetime objects and stored in two new columns 'start_dt' and 'end_dt'. The 'source' column was renamed to be 'sources'. The resulting table was uploaded to Carto.
 
 Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/soc_049_water_conflict_map/contents/src/__init__.py) for more details on this processing.
 
