@@ -264,6 +264,6 @@ def main():
     logging.info('Previous rows: {},  New rows: {}'.format(len(existing_ids), num_new))
 
     # Update Resource Watch
-    #updateResourceWatch(num_new)
+    updateResourceWatch(num_new)
 
     logging.info("SUCCESS")
