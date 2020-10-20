@@ -11,12 +11,12 @@ RUN apt-get install -y cron
 
 # install application libraries
 RUN pip install --upgrade pip
-    python-dateutil==2.6.1 \
+RUN pip install python-dateutil==2.6.1 \
     pytz==2017.3 \
     bs4==0.0.1 \
     urllib3==1.25.10 \
     carto==1.11.1 \
-    request==2.23.0 
+    requests==2.23.0
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 
 # Copy the application folder inside the container

@@ -137,12 +137,12 @@ The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
 def tryRetrieveData(url, timeout=300):
-    ''' 
+    '''
     Download data from the source
     INPUT   url: source url to download data (string)
-            timeout: how many seconds we will wait to get the data from url (integer) 
+            timeout: how many seconds we will wait to get the data from url (integer)
     RETURN  res_rows: list of lines in the source data file (list of strings)
-    '''  
+    '''
     # set the start time as the current time so that we can time how long it takes to pull the data (returns the number of seconds passed since epoch)
     start = time.time()
     # elapsed time is initialized with zero
@@ -179,7 +179,7 @@ def processData(url):
     res_rows = tryRetrieveData(url)
     # create a dataframe from the rows
     data = pd.DataFrame([[x.get_text() for x in row.find_all('td')] for row in res_rows], columns = ['date', 'headline', 'conflict_type', 'region', 'description','source', 'latitude', 'longitude', 'start_year', 'end_year'])
-    # remove duplicated rows 
+    # remove duplicated rows
     data.drop_duplicates(subset=['date', 'conflict_type', 'region', 'description','sources', 'latitude', 'longitude', 'start_year', 'end_year'], inplace = True, keep='last')
     # create a 'uid' column to store the index of rows as unique ids
     data['uid'] = data.index
@@ -189,7 +189,7 @@ def processData(url):
     data['end_dt'] = [datetime.datetime(int(x), 1, 1) if int(x) > 1 else None for x in data.end_year]
     # create 'the_geom' column to store the geometry of the data points
     data['the_geom'] = [{'type': 'Point','coordinates': [x, y]} for (x, y) in zip(data['longitude'], data['latitude'])]
-    # reorder the columns in the dataframe 
+    # reorder the columns in the dataframe
     data = data[CARTO_SCHEMA.keys()]
     # if there is data available to process
     if len(data):
@@ -209,7 +209,7 @@ def get_most_recent_date(table):
     '''
     # get dates in TIME_FIELD column
     r = cartosql.getFields(TIME_FIELD, table, f='csv', post=True, user=CARTO_USER, key=CARTO_KEY)
-    # turn the response into a list of dates 
+    # turn the response into a list of dates
     dates = r.text.split('\r\n')[1:-1]
     # sort the dates from oldest to newest
     dates.sort()
@@ -238,7 +238,7 @@ def main():
     # Check if table exists, create it if it does not
     logging.info('Checking if table exists and getting existing IDs.')
     existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, TIME_FIELD)
-    
+
     # Change privacy of table on Carto
     #set up carto authentication using local variables for username (CARTO_WRI_RW_USER) and API key (CARTO_WRI_RW_KEY)
     auth_client = APIKeyAuthClient(api_key=CARTO_KEY, base_url="https://{user}.carto.com/".format(user=CARTO_USER))
@@ -249,7 +249,7 @@ def main():
     dataset = dataset_manager.get(CARTO_TABLE)
     dataset.privacy = 'LINK'
     dataset.save()
-     
+
     # clear the table before starting, if specified
     if CLEAR_TABLE_FIRST:
         logging.info("clearing table")
