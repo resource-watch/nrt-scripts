@@ -239,17 +239,6 @@ def main():
     logging.info('Checking if table exists and getting existing IDs.')
     existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, TIME_FIELD)
 
-    # Change privacy of table on Carto
-    #set up carto authentication using local variables for username (CARTO_WRI_RW_USER) and API key (CARTO_WRI_RW_KEY)
-    auth_client = APIKeyAuthClient(api_key=CARTO_KEY, base_url="https://{user}.carto.com/".format(user=CARTO_USER))
-    #set up dataset manager with authentication
-    dataset_manager = DatasetManager(auth_client)
-
-    # set dataset privacy
-    dataset = dataset_manager.get(CARTO_TABLE)
-    dataset.privacy = 'LINK'
-    dataset.save()
-
     # clear the table before starting, if specified
     if CLEAR_TABLE_FIRST:
         logging.info("clearing table")
