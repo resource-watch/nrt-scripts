@@ -310,7 +310,7 @@ def update_layer(layer, new_date):
     '''
     Update layers in Resource Watch back office.
     INPUT   layer: layer that will be updated (string)
-            new_date: date of asset to be shown in this layer (datetime)
+            new_date: date of latest data to be shown in this layer (datetime)
     '''
     # get current layer titile
     cur_title = layer['attributes']['name']
