@@ -6,6 +6,7 @@ import datetime
 import cartosql
 import requests
 import json
+import time
 
 # do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = False
@@ -31,10 +32,14 @@ CARTO_SCHEMA = OrderedDict([
     ("location", "text"),
     ("created", "timestamp"),
     ("date", "timestamp"),
-    ("o3", "numeric"),
-    ("no2", "numeric"),
-    ("pm25_gcc", "numeric"),
-    ("pm25_gocart", "numeric"),
+    ("o3_ugm3", "numeric"),
+    ("no2_ugm3", "numeric"),
+    ("pm25_gcc_ugm3", "numeric"),
+    ("pm25_gocart_ugm3", "numeric"),
+    ("o3_ppm", "numeric"),
+    ("no2_ppm", "numeric"),
+    ("o3_ppb", "numeric"),
+    ("no2_ppb", "numeric"),
 ])
 
 # column of table that can be used as a unique ID (UID)
@@ -184,6 +189,14 @@ def getForecastCreationDT(existing_ids, old_or_new):
     forecast_creation_dt = datetime.datetime.strptime(forecast_creation, '%Y%m%dT%H')
     return forecast_creation_dt
 
+def getConversion_ugm3_ppb(gas):
+    if gas =='no2':
+        s = 1.88
+    elif gas =='o3':
+        s = 1.96
+    return s
+
+
 def processNewData(src_url, existing_ids):
     '''
     Fetch, process and upload new data
@@ -191,8 +204,15 @@ def processNewData(src_url, existing_ids):
             existing_ids: list of unique IDs that we already have in our Carto table (list of strings)
     RETURN  new_ids: list of unique ids of new data sent to Carto table (list of strings)
     '''
-    # get data from source url
-    r = requests.get(src_url)
+    tries = 0
+    while tries < 3:
+        # get data from source url
+        r = requests.get(src_url)
+        if r.ok:
+            break
+        else:
+            time.sleep(100)
+            tries += 1
     # create an empty list to store unique ids of new data we will be sending to Carto table
     new_ids = []
     # create an empty list to store each row of new data
@@ -277,8 +297,16 @@ def processNewData(src_url, existing_ids):
                     row.append(date)
                 # remaining fields to process are the different air quality variables
                 else:
-                    # add data for remaining fields to the list of data from this row
-                    row.append(obs['gas'].get(field))
+                    unit = field.rsplit('_', 1)[1]
+                    gas = field.rsplit('_', 1)[0]
+                    conc = obs['gas'].get(gas)
+                    if unit == 'ugm3':
+                        row.append(conc)
+                    if unit == 'ppm':
+                        row.append(conc/getConversion_ugm3_ppb(gas)/1000)
+                    if unit == 'ppb':
+                        row.append(conc/getConversion_ugm3_ppb(gas))
+
 
             # add the list of values from this row to the list of new data
             new_rows.append(row)
