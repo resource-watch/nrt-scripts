@@ -153,9 +153,13 @@ def tryRetrieveData(url, timeout=300):
         # measures the elapsed time since start
         elapsed = time.time() - start
         try:
+        # try to open the url using urllib.request module
             with urllib.request.urlopen(url) as f:
+                # use BeautifulSoup to read the content as a nested data structure
                 soup = BeautifulSoup(f)
+                # extract all the conflict data within the "table" tag
                 tableconf = soup.find( "table", {"id":"conflict"} )
+                # extract each row of data as a list of strings using the 'tr' tag
                 res_rows = tableconf.find_all('tr')[1:]
                 return(res_rows)
         except:
@@ -170,29 +174,33 @@ def tryRetrieveData(url, timeout=300):
 def processData(url):
     '''
     Fetch, process and upload new data
-    INPUT   url: url where you can find the download link for the source data (string)
+    INPUT   url: url where you can find the source data (string)
     RETURN  num_new: number of rows of data sent to Carto table (integer)
     '''
-    # initialize variable to store number of new rows sent to Carto
+    # initialize a variable to store number of new rows sent to Carto
     num_new = 0
-    # get the data from source as a list of strings, with each string holding one line from the source data file
+    # get the data from source as a list of strings, with each string holding one row from the source table
     res_rows = tryRetrieveData(url)
-    # create a dataframe from the rows
+    # loop through each row of data, get values for each column based on the tag 'td' 
+    # create a dataframe from the rows, name each column in the dataframe based on the list 'columns'
     data = pd.DataFrame([[x.get_text() for x in row.find_all('td')] for row in res_rows], columns = ['date', 'headline', 'conflict_type', 'region', 'description','sources', 'latitude', 'longitude', 'start_year', 'end_year'])
-    # remove duplicated rows
+    # remove duplicated rows based on the columns listed in the list 'subset'
     data.drop_duplicates(subset=['date', 'conflict_type', 'region', 'description','sources', 'latitude', 'longitude', 'start_year', 'end_year'], inplace = True, keep='last')
     # create a 'uid' column to store the index of rows as unique ids
     data['uid'] = data.index
     # convert the start years to datetime objects and store them in a new column 'start_dt'
+    # python datetime module only support positive years (1 AD<=year<=9999 AD)
+    # some records in this dataset took place before 1 AD. Those dates will be stored as None
     data['start_dt'] = [datetime.datetime(int(x), 1, 1) if int(x) > 1 else None for x in data.start_year]
     # convert the end years to datetime objects and store them in a new column 'end_dt'
     data['end_dt'] = [datetime.datetime(int(x), 1, 1) if int(x) > 1 else None for x in data.end_year]
     # create 'the_geom' column to store the geometry of the data points
     data['the_geom'] = [{'type': 'Point','coordinates': [x, y]} for (x, y) in zip(data['longitude'], data['latitude'])]
-    # reorder the columns in the dataframe
+    # reorder the columns in the dataframe based on the keys from the dictionary "CARTO_SCHEMA"
     data = data[CARTO_SCHEMA.keys()]
     # if there is data available to process
     if len(data):
+        # find the length of the data
         num_new = len(data)
         # create a list of new data
         data = data.values.tolist()
