@@ -19,7 +19,7 @@ CARTO_USER = os.getenv('CARTO_USER')
 CARTO_KEY = os.getenv('CARTO_KEY')
 
 # name of table in Carto where we will upload the data
-CARTO_TABLE = 'soc_049_water_conflict_map'
+CARTO_TABLE = 'soc_049_wat_conflicts_nrt'
 
 # column of table that can be used as a unique ID (UID)
 UID_FIELD = 'uid'
@@ -180,7 +180,7 @@ def processData(url):
     num_new = 0
     # get the data from source as a list of strings, with each string holding one row from the source table
     res_rows = tryRetrieveData(url)
-    # loop through each row of data, get values for each column based on the tag 'td' 
+    # loop through each row of data, get values for each column based on the tag 'td'
     # create a dataframe from the rows, name each column in the dataframe based on the list 'columns'
     data = pd.DataFrame([[x.get_text() for x in row.find_all('td')] for row in res_rows], columns = ['date', 'headline', 'conflict_type', 'region', 'description','sources', 'latitude', 'longitude', 'start_year', 'end_year'])
     # remove duplicated rows based on the columns listed in the list 'subset'
@@ -255,12 +255,12 @@ def update_layer(layer, new_date):
     '''
     # get current layer titile
     cur_title = layer['attributes']['name']
-    
+
     # get current date being used from title by string manupulation
     old_date_text = cur_title.split('- ')[1].split(')')[0]
     # get text for new date end
     new_date_text = new_date.strftime("%Y")
-    
+
     # replace date in layer's title with new date
     layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
 
@@ -282,7 +282,7 @@ def update_layer(layer, new_date):
         logging.info('Layer replaced: {}'.format(layer['id']))
     else:
         logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
-        
+
 def updateResourceWatch(num_new):
     '''
     This function should update Resource Watch to reflect the new data.
