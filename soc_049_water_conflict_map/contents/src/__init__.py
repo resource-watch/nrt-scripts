@@ -6,11 +6,10 @@ from collections import OrderedDict
 import cartosql
 import urllib
 import pandas as pd
-from carto.datasets import DatasetManager
-from carto.auth import APIKeyAuthClient
 import datetime
 import requests
 from bs4 import BeautifulSoup
+import json
 
 # do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = True
@@ -225,6 +224,65 @@ def get_most_recent_date(table):
     most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
     return most_recent_date
 
+def create_headers():
+    '''
+    Create headers to perform authorized actions on API
+    '''
+    return {
+        'Content-Type': "application/json",
+        'Authorization': "{}".format(os.getenv('apiToken')),
+    }
+
+def pull_layers_from_API(dataset_id):
+    '''
+    Pull dictionary of current layers from API
+    INPUT   dataset_id: Resource Watch API dataset ID (string)
+    RETURN  layer_dict: dictionary of layers (dictionary of strings)
+    '''
+    # generate url to access layer configs for this dataset in back office
+    rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer?page[size]=100'.format(dataset_id)
+    # request data
+    r = requests.get(rw_api_url)
+    # convert response into json and make dictionary of layers
+    layer_dict = json.loads(r.content.decode('utf-8'))['data']
+    return layer_dict
+
+def update_layer(layer, new_date):
+    '''
+    Update layers in Resource Watch back office.
+    INPUT   layer: layer that will be updated (string)
+            new_date: date of latest data to be shown in this layer (datetime)
+    '''
+    # get current layer titile
+    cur_title = layer['attributes']['name']
+    
+    # get current date being used from title by string manupulation
+    old_date_text = cur_title.split('- ')[1].split(')')[0]
+    # get text for new date end
+    new_date_text = new_date.strftime("%Y")
+    
+    # replace date in layer's title with new date
+    layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
+
+    # send patch to API to replace layers
+    # generate url to patch layer
+    rw_api_url_layer = "https://api.resourcewatch.org/v1/dataset/{dataset_id}/layer/{layer_id}".format(
+        dataset_id=layer['attributes']['dataset'], layer_id=layer['id'])
+    # create payload with new title and layer configuration
+    payload = {
+        'application': ['rw'],
+        'name': layer['attributes']['name']
+    }
+    # patch API with updates
+    r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
+    # check response
+    # if we get a 200, the layers have been replaced
+    # if we get a 504 (gateway timeout) - the layers are still being replaced, but it worked
+    if r.ok or r.status_code==504:
+        logging.info('Layer replaced: {}'.format(layer['id']))
+    else:
+        logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
+        
 def updateResourceWatch(num_new):
     '''
     This function should update Resource Watch to reflect the new data.
@@ -237,7 +295,14 @@ def updateResourceWatch(num_new):
         most_recent_date = get_most_recent_date(CARTO_TABLE)
         lastUpdateDate(DATASET_ID, most_recent_date)
 
-    # Update the dates on layer legends - TO BE ADDED IN FUTURE
+        # Update the dates on layer legends
+        logging.info('Updating {}'.format(CARTO_TABLE))
+        # pull dictionary of current layers from API
+        layer_dict = pull_layers_from_API(DATASET_ID)
+        # go through each layer, pull the definition and update
+        for layer in layer_dict:
+            # replace layer title with most recent date
+            update_layer(layer, most_recent_date)
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
