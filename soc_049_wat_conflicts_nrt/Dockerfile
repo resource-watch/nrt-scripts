@@ -16,7 +16,8 @@ RUN pip install python-dateutil==2.6.1 \
     bs4==0.0.1 \
     urllib3==1.25.10 \
     carto==1.11.1 \
-    requests==2.23.0
+    requests==2.23.0 \
+    pandas==0.25.3
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 
 # Copy the application folder inside the container
