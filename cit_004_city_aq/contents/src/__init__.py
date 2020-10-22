@@ -211,6 +211,7 @@ def processNewData(src_url, existing_ids):
     '''
     tries = 0
     while tries < 3:
+        logging.info('Attempting to fetch forecast data: try {}'.format(tries))
         # get data from source url
         r = requests.get(src_url)
         if r.ok:
@@ -218,6 +219,9 @@ def processNewData(src_url, existing_ids):
         else:
             time.sleep(100)
             tries += 1
+    if tries==3:
+        logging.error('Could not fetch forecase data')
+   
     # create an empty list to store unique ids of new data we will be sending to Carto table
     new_ids = []
     # create an empty list to store each row of new data
@@ -246,16 +250,26 @@ def processNewData(src_url, existing_ids):
         # if the id doesn't already exist in Carto table or 
         # isn't added to the list for sending to Carto yet 
         if uid not in existing_ids + new_ids:
+            # generate url to get details of the station being processed
+            stn_url = STATION_URL.format(station = stn)
+            tries = 0
+            while tries < 3:
+                # get data from station url
+                stn_r = requests.get(stn_url)
+                if r.ok:
+                    break
+                else:
+                    logging.error('Could not fetch station data for uid: {}, trying again'.format(uid))
+                    time.sleep(100)
+                    tries += 1
+            if tries==3:
+                logging.error('Could not fetch station data for uid: {}, aborting'.format(uid))
             # append the id to the list for sending to Carto 
             new_ids.append(uid)
             # create an empty list to store data from this row
             row = []
             # go through each column in the Carto table
             for field in CARTO_SCHEMA.keys():
-                # generate url to get details of the station being processed
-                stn_url = STATION_URL.format(station = stn)
-                # get data from station url
-                stn_r = requests.get(stn_url)
                 try:
                     # pull data from request response json
                     stn_data = stn_r.json()
