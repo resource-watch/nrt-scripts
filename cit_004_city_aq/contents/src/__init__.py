@@ -190,6 +190,11 @@ def getForecastCreationDT(existing_ids, old_or_new):
     return forecast_creation_dt
 
 def getConversion_ugm3_ppb(gas):
+    '''
+    Get conversion factor for an input gas - 1 ppb = _____ µg/m3
+    INPUT   gas: gas we need conversion factor for (string)
+    RETURN  s: µg/m3 that 1 ppb of this gas is equal to (float)
+    '''
     if gas =='no2':
         s = 1.88
     elif gas =='o3':
@@ -297,16 +302,22 @@ def processNewData(src_url, existing_ids):
                     row.append(date)
                 # remaining fields to process are the different air quality variables
                 else:
+                    # get unit for column we are processing
                     unit = field.rsplit('_', 1)[1]
+                    # get gas for column we are processing
                     gas = field.rsplit('_', 1)[0]
+                    # get concentratiion
                     conc = obs['gas'].get(gas)
+                    # the API returns data in units of µg/m3, so no conversion is necessary for this column
+                    # add the data to the row
                     if unit == 'ugm3':
                         row.append(conc)
+                    # if we are processing a ppm column, convert units from µg/m3 and add the data to the row
                     if unit == 'ppm':
                         row.append(conc/getConversion_ugm3_ppb(gas)/1000)
+                    # if we are processing a ppb column, convert units from µg/m3 and add the data to the row
                     if unit == 'ppb':
                         row.append(conc/getConversion_ugm3_ppb(gas))
-
 
             # add the list of values from this row to the list of new data
             new_rows.append(row)
