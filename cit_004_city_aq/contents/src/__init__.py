@@ -7,6 +7,7 @@ import cartosql
 import requests
 import json
 import time
+import pandas as pd
 
 # do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = False
@@ -20,6 +21,8 @@ CARTO_KEY = os.getenv('CARTO_KEY')
 
 # name of table in Carto where we will upload the data
 CARTO_TABLE = 'cit_004_city_aq'
+# name of table in Carto where we will upload the calculated metrics
+METRICS_CARTO_TABLE = 'cit_004_city_aq_metrics'
 
 # column names and types for data table
 # column names should be lowercase
@@ -41,6 +44,23 @@ CARTO_SCHEMA = OrderedDict([
     ("o3_ppb", "numeric"),
     ("no2_ppb", "numeric"),
 ])
+
+# column names and types for table of calculated metrics
+METRICS_CARTO_SCHEMA = OrderedDict([('city', 'text'),
+             ('created', 'timestamp'),
+             ('date', 'timestamp'),
+             ('location', 'text'),
+             ('name', 'text'),
+             ('the_geom', 'geometry'),
+             ('no2_ppb_max1houravg', 'numeric'),
+             ('no2_ppm_max1houravg', 'numeric'),
+             ('no2_ugm3_max1houravg', 'numeric'),
+             ('pm25_gcc_ugm3_24houravg', 'numeric'),
+             ('pm25_gocart_ugm3_24houravg', 'numeric'),
+             ('o3_ppb_max8houravg', 'numeric'),
+             ('o3_ppm_max8houravg', 'numeric'),
+             ('o3_ugm3_max8houravg', 'numeric'),
+             ('uid', 'text')])
 
 # column of table that can be used as a unique ID (UID)
 UID_FIELD = 'uid'
@@ -220,7 +240,7 @@ def processNewData(src_url, existing_ids):
             time.sleep(100)
             tries += 1
     if tries==3:
-        logging.error('Could not fetch forecase data')
+        logging.error('Could not fetch forecast data')
    
     # create an empty list to store unique ids of new data we will be sending to Carto table
     new_ids = []
@@ -328,11 +348,16 @@ def processNewData(src_url, existing_ids):
                         row.append(conc)
                     # if we are processing a ppm column, convert units from µg/m3 and add the data to the row
                     if unit == 'ppm':
-                        row.append(conc/getConversion_ugm3_ppb(gas)/1000)
+                        if conc:
+                            row.append(conc/getConversion_ugm3_ppb(gas)/1000)
+                        else:
+                            row.append(None)
                     # if we are processing a ppb column, convert units from µg/m3 and add the data to the row
                     if unit == 'ppb':
-                        row.append(conc/getConversion_ugm3_ppb(gas))
-
+                        if conc:
+                            row.append(conc/getConversion_ugm3_ppb(gas))
+                        else:
+                            row.append(None)
             # add the list of values from this row to the list of new data
             new_rows.append(row)
     # find the length (number of rows) of new_data 
@@ -388,7 +413,6 @@ def deleteExcessRows(table, max_rows, time_field, max_age=''):
 def create_headers():
     '''
     Create headers to perform authorized actions on API
-
     '''
     return {
         'Content-Type': "application/json",
@@ -421,7 +445,7 @@ def update_layer(layer, new_creation_date, new_date):
     # get previous creation date being used from sql
     old_creation_date = sql.split('created')[1].split()[1][1:-1]
     # get previous date being used from sql
-    old_date = sql.split('date')[4].split()[0][1:-1]
+    old_date = sql.split('date')[2].split()[0][1:-1]
 
     #update sql with new dates
     sql = sql.replace(old_date, datetime.datetime.strftime(new_date, DATETIME_FORMAT))
@@ -477,6 +501,69 @@ def getLatestForecastDates(ids):
         new_dates.append(newest_forecast_dt+datetime.timedelta(days=i))
     return new_dates
 
+def processMetrics(new_ids):
+    '''
+    Process air quality metrics for each of the compounds
+    PM2.5: daily average
+    O3: maximum daily 8-hour average
+    NO2: maximum daily 1-hour average
+
+    INPUT   new_ids: UIDs for new data added to unprocessed data table
+
+    '''
+    # If there are new entries in the Carto table
+    if len(new_ids)>0:
+        # get a list of the newest dates
+        new_dates = getLatestForecastDates(new_ids)
+        
+        # delete the old rows in the carto table
+        cartosql.deleteRows(METRICS_CARTO_TABLE, 'cartodb_id IS NOT NULL', user=CARTO_USER, key=CARTO_KEY)
+
+        #should we not process the last date?
+        for date in new_dates[1:]:
+            # define a sql statement to pull in the 24 hours of data for the current date
+            sql = "SELECT *,  ST_AsGeoJSON(the_geom) AS the_geom from {table} where created = date '{creation_date}' AND date >= date '{date}' - interval '12 hours' AND date < date '{date}' + interval '12 hours'".format(table=CARTO_TABLE, creation_date=new_dates[0], date=date)
+            # request the data from the Carto table
+            r = cartosql.get(sql, user=CARTO_USER, key=CARTO_KEY)
+            # turn the response into a dataframe
+            df = pd.DataFrame.from_records(r.json()['rows'])
+            # Calculate daily metrics for each variable
+            # define the groupings to use when calculating metrics
+            grouping = ['name', 'city', 'location', 'the_geom', 'the_geom_webmercator']
+            # Calculate NO2 metric - maximum 1-hour average (for all units)
+            df['no2_ppb_max1houravg'] = df.groupby(grouping)['no2_ppb'].transform(lambda x: x.max())
+            df['no2_ppm_max1houravg'] = df.groupby(grouping)['no2_ppm'].transform(lambda x: x.max())
+            df['no2_ugm3_max1houravg'] = df.groupby(grouping)['no2_ugm3'].transform(lambda x: x.max())
+
+            # Calculate PM2.5 metric - daily average
+            df['pm25_gcc_ugm3_24houravg'] = df.groupby(grouping)['pm25_gcc_ugm3'].transform(lambda x: x.mean())
+            df['pm25_gocart_ugm3_24houravg'] = df.groupby(grouping)['pm25_gocart_ugm3'].transform(lambda x: x.mean())
+
+            # Calculate O3 metric - maximum daily 8-hour average (for all units)
+            df['o3_ppb_max8houravg'] = df.iloc[::-1].groupby(grouping)['o3_ppb'].transform(lambda x: x.rolling(8, 1).mean().max())
+            df['o3_ppm_max8houravg'] = df.iloc[::-1].groupby(grouping)['o3_ppm'].transform(lambda x: x.rolling(8, 1).mean().max())
+            df['o3_ugm3_max8houravg'] = df.iloc[::-1].groupby(grouping)['o3_ugm3'].transform(lambda x: x.rolling(8, 1).mean().max())
+            
+            # replace date column with the general date this metric was calculated for
+            # (instead of the individual mesurement times)
+            df['date'] = datetime.datetime.strftime(date, DATETIME_FORMAT)
+            # drop non-metric columns, as well as columns that correspond to indivdual 
+            # measurements instead of the daily metric ('cartodb_id', 'uid')
+            df = df.drop(['cartodb_id', 'uid', 'the_geom_webmercator', 'no2_ppb', 'no2_ppm', 'no2_ugm3', 'o3_ppb', 'o3_ppm', 'o3_ugm3', 'pm25_gcc_ugm3', 'pm25_gocart_ugm3'], axis=1)
+            # drop duplicate rows to get only one summary metric for each station
+            df = df.drop_duplicates()
+
+            # generate unique id by using the date and station number
+            df['uid'] = df.apply(lambda row: genUID(row['created'], row['date'], row['name']), axis=1)
+            
+            # convert geometry column from string to json
+            df['the_geom'] = df.apply(lambda row: json.loads(row['the_geom']), axis=1)
+
+            # upload data to carto
+            cartosql.insertRows(METRICS_CARTO_TABLE, METRICS_CARTO_SCHEMA.keys(), METRICS_CARTO_SCHEMA.values(), df.values.tolist(), user=CARTO_USER, key=CARTO_KEY)
+
+
+
 def updateResourceWatch(new_ids):
     '''
     This function should update Resource Watch to reflect the new data.
@@ -528,6 +615,12 @@ def main():
 
     # Fetch, process, and upload new data
     new_ids = processNewData(SOURCE_URL, existing_ids)
+
+    # Check if metrics table exists, create it if it does not
+    checkCreateTable(METRICS_CARTO_TABLE, METRICS_CARTO_SCHEMA, UID_FIELD)
+
+    # Calculate air quality metrics
+    processMetrics(new_ids)
 
     # Delete data to get back to MAX_ROWS
     logging.info('Deleting excess rows')
