@@ -538,9 +538,9 @@ def processMetrics(new_ids):
             df['pm25_gocart_ugm3_24houravg'] = df.groupby(grouping)['pm25_gocart_ugm3'].transform(lambda x: x.mean())
 
             # Calculate O3 metric - maximum daily 8-hour average (for all units)
-            df['o3_ppb_max8houravg'] = df.iloc[::-1].groupby(grouping)['o3_ppb'].transform(lambda x: x.rolling(8, 1).mean().max())
-            df['o3_ppm_max8houravg'] = df.iloc[::-1].groupby(grouping)['o3_ppm'].transform(lambda x: x.rolling(8, 1).mean().max())
-            df['o3_ugm3_max8houravg'] = df.iloc[::-1].groupby(grouping)['o3_ugm3'].transform(lambda x: x.rolling(8, 1).mean().max())
+            df['o3_ppb_max8houravg'] = df.iloc[::-1].groupby(grouping)['o3_ppb'].transform(lambda x: x.rolling(8, min_periods=8).mean().max())
+            df['o3_ppm_max8houravg'] = df.iloc[::-1].groupby(grouping)['o3_ppm'].transform(lambda x: x.rolling(8, min_periods=8).mean().max())
+            df['o3_ugm3_max8houravg'] = df.iloc[::-1].groupby(grouping)['o3_ugm3'].transform(lambda x: x.rolling(8, min_periods=8).mean().max())
             
             # replace date column with the general date this metric was calculated for
             # (instead of the individual mesurement times)
