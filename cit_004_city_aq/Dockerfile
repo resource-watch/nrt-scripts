@@ -9,6 +9,7 @@ RUN apk add git
 # install application libraries
 RUN pip install requests==2.22.0
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
+RUN pip install pandas==0.24.2
 
 # set name
 ARG NAME=cit_004_city_aq

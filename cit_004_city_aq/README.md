@@ -7,6 +7,11 @@ This file describes the near real-time script that retrieves and processes the [
 
 This dataset was provided by the source as a JSON file. A unique ID for each air quality forecast was created using forecast date, creation date, and station number. This was stored in a new column called 'uid'. The JSON was transformed into a table and the resulting table was then uploaded to Carto. 
 
+Another table was created to store air quality metrics, calculated from the raw data. The following metrics were calculated for each compound:
+* NO₂: maximum daily 1-hour average
+* PM2.5: daily average
+* O₃: maximum daily 8-hour average
+
 Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/cit_004_city_aq/contents/src/__init__.py) for more details on this processing.
 
 **Schedule**

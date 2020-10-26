@@ -237,7 +237,7 @@ def processNewData(src_url, existing_ids):
         if r.ok:
             break
         else:
-            time.sleep(100)
+            time.sleep(300)
             tries += 1
     if tries==3:
         logging.error('Could not fetch forecast data')
@@ -509,7 +509,6 @@ def processMetrics(new_ids):
     NO2: maximum daily 1-hour average
 
     INPUT   new_ids: UIDs for new data added to unprocessed data table
-
     '''
     # If there are new entries in the Carto table
     if len(new_ids)>0:
@@ -519,7 +518,6 @@ def processMetrics(new_ids):
         # delete the old rows in the carto table
         cartosql.deleteRows(METRICS_CARTO_TABLE, 'cartodb_id IS NOT NULL', user=CARTO_USER, key=CARTO_KEY)
 
-        #should we not process the last date?
         for date in new_dates[1:]:
             # define a sql statement to pull in the 24 hours of data for the current date
             sql = "SELECT *,  ST_AsGeoJSON(the_geom) AS the_geom from {table} where created = date '{creation_date}' AND date >= date '{date}' - interval '12 hours' AND date < date '{date}' + interval '12 hours'".format(table=CARTO_TABLE, creation_date=new_dates[0], date=date)
