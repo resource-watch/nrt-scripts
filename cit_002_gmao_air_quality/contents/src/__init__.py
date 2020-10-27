@@ -458,7 +458,6 @@ def fetch(new_dates, unformatted_source_url, period):
                     logging.info('try {}'.format(tries))
             if tries==3:
                 logging.error('Unable to retrieve data from {}'.format(url))
-                logging.info(e)
                 exit()
 
         # populate dictionary of file names along with the date for which they were downloaded
