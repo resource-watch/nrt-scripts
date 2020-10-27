@@ -20,7 +20,7 @@ RUN apt-get install -y \
 
 RUN pip install --upgrade pip && pip install numpy==1.18.1
 RUN pip install rasterio==1.1.2
-RUN pip install -e git+https://github.com/resource-watch/eeUtil/tree/fix/upgrade_version_gee#egg=eeUtil
+RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
 RUN pip install oauth2client==4.1.3
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 
