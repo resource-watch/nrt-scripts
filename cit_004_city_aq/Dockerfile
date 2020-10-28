@@ -1,10 +1,9 @@
-FROM python:3.6-alpine
+FROM python:3.7
 MAINTAINER Taufiq Rashid <taufiq.rashid@wri.org>
 #Note this script was originally developed by Taufiq Rashid <taufiq.rashid@wri.org>
 
 # install core libraries
-RUN apk update
-RUN apk add git
+RUN apt-get update
 
 # install application libraries
 RUN pip install requests==2.22.0
@@ -21,7 +20,7 @@ WORKDIR /opt/$NAME/
 COPY contents .
 VOLUME ./data
 
-RUN adduser -D $NAME
+RUN useradd $NAME
 RUN chown $NAME:$NAME .
 USER $NAME
 
