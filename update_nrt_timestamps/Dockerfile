@@ -6,6 +6,7 @@ MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
 RUN apt-get update && pip install -U pip
 
 # install application libraries
+RUN pip install oauth2client==3.0.0
 RUN pip install earthengine-api==0.1.234
 
 # set name
