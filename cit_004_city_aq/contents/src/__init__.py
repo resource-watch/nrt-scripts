@@ -557,6 +557,9 @@ def processMetrics(new_ids):
             # convert geometry column from string to json
             df['the_geom'] = df.apply(lambda row: json.loads(row['the_geom']), axis=1)
 
+            # replace nan with none
+            df = df.where(pd.notnull(df), None)
+
             # upload data to carto
             cartosql.insertRows(METRICS_CARTO_TABLE, METRICS_CARTO_SCHEMA.keys(), METRICS_CARTO_SCHEMA.values(), df.values.tolist(), user=CARTO_USER, key=CARTO_KEY)
 

@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #Change the NAME variable with the name of your script
-NAME=ocn_007_coral_bleaching_monitoring
+NAME=ocn_007_coral_bleaching
 LOG=${LOG:-udp://localhost}
 
 docker build -t $NAME --build-arg NAME=$NAME .
