@@ -240,11 +240,11 @@ def update_layer(layer):
     Update layers in Resource Watch back office.
     INPUT   layer: layer that will be updated (string)
     '''
-    # get current layer titile
-    cur_title = layer['attributes']['name']
+    # get current layer description
+    lyr_description = layer['attributes']['description']
     
-    # get current date being used from title by string manupulation
-    old_date_text = cur_title.split(' Average')[0]
+    # get current date being used from description by string manupulation
+    old_date_text =lyr_description.split('between ')[1].split('.')[0]
 
     # get current date in utc
     current_date = datetime.datetime.utcnow()
@@ -254,20 +254,19 @@ def update_layer(layer):
     new_date_start = (current_date - datetime.timedelta(hours=24))
     new_date_start = datetime.datetime.strftime(new_date_start, "%B %d, %Y, %H%M")
     # construct new date range by joining new start date and new end date
-    new_date_text = new_date_start + ' UTC' + ' - ' + new_date_end + ' UTC'
+    new_date_text = new_date_start + ' UTC' + ' and ' + new_date_end + ' UTC'
 
-
-    # replace date in layer's title with new date
-    layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
+    # replace date in layer's description with new date
+    layer['attributes']['description'] = layer['attributes']['description'].replace(old_date_text, new_date_text)
 
     # send patch to API to replace layers
     # generate url to patch layer
     rw_api_url_layer = "https://api.resourcewatch.org/v1/dataset/{dataset_id}/layer/{layer_id}".format(
         dataset_id=layer['attributes']['dataset'], layer_id=layer['id'])
-    # create payload with new title and layer configuration
+    # create payload with new description and layer configuration
     payload = {
         'application': ['rw'],
-        'name': layer['attributes']['name']
+        'description': layer['attributes']['description']
     }
     # patch API with updates
     r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
@@ -371,13 +370,13 @@ def main():
         dataset = DATASET_ID[param]
         most_recent_date = get_most_recent_date(param)
         lastUpdateDate(dataset, most_recent_date)
-        # Update the dates on layer legends
+        # Update the dates on layer description
         logging.info('Updating {}'.format(param))
         # pull dictionary of current layers from API
         layer_dict = pull_layers_from_API(dataset)
         # go through each layer, pull the definition and update
         for layer in layer_dict:
-            # replace layer title with new dates
+            # replace layer description with new dates
             update_layer(layer)
 
     logging.info('SUCCESS')
