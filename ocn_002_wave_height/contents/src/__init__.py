@@ -520,23 +520,23 @@ def update_layer(layer, new_date):
     old_date_text = cur_title.split(' Significant')[0]
 
     # if we are processing the layer that shows current wave height
-    if lyr_dscrptn.endswith('at time of most recent update.'):
+    if lyr_dscrptn.endswith("This layer represents the modeled height at the time of the dataset's most recent update."):
         # get text for new date which is just the date of last update
         new_date_text = datetime.datetime.strftime(new_date, "%B %d, %Y, %H%M") + ' UTC'
     # if we are processing the layer that shows 12th forecast
-    elif lyr_dscrptn.endswith('12 hours from time of most recent update.'):
+    elif lyr_dscrptn.endswith("This layer represents the forecasted height 12 hours past the time of the dataset's most recent update."):
         # get most recent date, 12 hours ahead of current time
         new_date_end = (new_date + datetime.timedelta(hours=12))
         # convert datetime to string and append UTC at the end of the date
         new_date_text = datetime.datetime.strftime(new_date_end, "%B %d, %Y, %H%M") + ' UTC'
     # if we are processing the layer that shows 24th forecast
-    elif lyr_dscrptn.endswith('24 hours from time of most recent update.'):
+    elif lyr_dscrptn.endswith("This layer represents the forecasted height 24 hours past the time of the dataset's most recent update."):
         # get most recent date, 24 hours ahead of current time
         new_date_end = (new_date + datetime.timedelta(hours=24))
         # convert datetime to string and append UTC at the end of the date
         new_date_text = datetime.datetime.strftime(new_date_end, "%B %d, %Y, %H%M") + ' UTC'
     # if we are processing the layer that shows 48th forecast
-    elif lyr_dscrptn.endswith('48 hours from time of most recent update.'):
+    elif lyr_dscrptn.endswith("This layer represents the forecasted height 48 hours past the time of the dataset's most recent update."):
         # get most recent date, 48 hours ahead of current time
         new_date_end = (new_date + datetime.timedelta(hours=48))
         # convert datetime to string and append UTC at the end of the date
