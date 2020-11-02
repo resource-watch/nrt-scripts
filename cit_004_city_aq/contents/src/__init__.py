@@ -623,7 +623,7 @@ def main():
     checkCreateTable(METRICS_CARTO_TABLE, METRICS_CARTO_SCHEMA, UID_FIELD)
 
     # Calculate air quality metrics
-    processMetrics(new_ids)
+    existing_metrics_ids = processMetrics(new_ids)
 
     # Delete data to get back to MAX_ROWS
     logging.info('Deleting excess rows')
