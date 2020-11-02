@@ -249,6 +249,7 @@ def processNewData(src_url, existing_ids):
     # pull data from request response json
     data = r.json()
 
+    logging.info('Processing New Data')
     # loop until no new observations
     for obs in data:
         # get the forecast creation date
@@ -348,13 +349,13 @@ def processNewData(src_url, existing_ids):
                         row.append(conc)
                     # if we are processing a ppm column, convert units from µg/m3 and add the data to the row
                     if unit == 'ppm':
-                        if conc:
+                        if conc is not None:
                             row.append(conc/getConversion_ugm3_ppb(gas)/1000)
                         else:
                             row.append(None)
                     # if we are processing a ppb column, convert units from µg/m3 and add the data to the row
                     if unit == 'ppb':
-                        if conc:
+                        if conc is not None:
                             row.append(conc/getConversion_ugm3_ppb(gas))
                         else:
                             row.append(None)
@@ -510,6 +511,7 @@ def processMetrics(new_ids):
 
     INPUT   new_ids: UIDs for new data added to unprocessed data table
     '''
+    logging.info('Processing Air Quality Metrics')
     # If there are new entries in the Carto table
     if len(new_ids)>0:
         # get a list of the newest dates
