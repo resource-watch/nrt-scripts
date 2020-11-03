@@ -591,7 +591,7 @@ def processNewData(var, all_files, files_by_date, period, assets_to_delete):
         for asset in assets:
             logging.info(os.path.split(asset)[1])
         # Upload new files (tifs) to GEE
-        eeUtil.uploadAssets(tifs, assets, GS_FOLDER, datestamps, timeout=3000)
+        eeUtil.uploadAssets(tifs, assets, GS_FOLDER, datestamps)
         return assets
     #if no new assets, return empty list
     else:
