@@ -249,7 +249,7 @@ def processNewData(src_url, existing_ids):
     # pull data from request response json
     data = r.json()
 
-    logging.info('Processing New Data')
+    logging.info('Processing new data')
     # loop until no new observations
     for obs in data:
         # get the forecast creation date
@@ -365,6 +365,7 @@ def processNewData(src_url, existing_ids):
     new_count = len(new_rows)
     # check if new data is available
     if new_count:
+        logging.info('Sending new data to Carto')
         logging.info('Pushing {} new rows'.format(new_count))
         # insert new data into the carto table
         cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(),
