@@ -2,7 +2,6 @@ import os
 import sys
 import datetime
 import logging
-import eeUtil
 import requests
 import ee
 import re
@@ -28,7 +27,7 @@ DATE_FORMAT = '%Y%m%d'
 # Important! Before testing this script:
 # Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
 # Failing to do so will overwrite the last update date on a different dataset on Resource Watch
-DATASET_ID = 'fb5edc45-b105-4b13-a6c3-5f3e314a4086'
+DATASET_ID = '2598ccc8-f6b3-4ffc-b8f1-13129e9da90c'
 
 '''
 FUNCTIONS FOR ALL DATASETS
@@ -196,7 +195,7 @@ def getAssetName(date):
     INPUT   date: date 
     RETURN  GEE asset name for the final processed image (string)
     '''
-    return '/'.join([EE_COLLECTION, 'for_003_nrt_glad_deforestation_alerts_{}'.format(date.strftime(DATE_FORMAT))])
+    return '/'.join([EE_COLLECTION, 'for_003_nrt_glad_deforestation_alerts_{}'.format(date)])
                          
 def getDate(image):
     '''
@@ -204,8 +203,7 @@ def getDate(image):
     INPUT   image: the asset id of image that ends in a date of the format YYYYMMDD (string)
     RETURN  date (string)
     '''
-    date_update = ee.data.getInfo(image)['startTime']
-    return datetime.datetime.strptime(date_update, '%Y-%m-%dT%H:%M:%SZ').strftime(DATE_FORMAT)
+    return image[-8:]
 
 def getNewDates(exclude_dates):
     '''
@@ -268,8 +266,8 @@ def mosaic(files):
             # and we are only interested in the alerts 
             # we create a mask of all the cells whose values are greater than 0
             mask_alerts = mosaicked.gt(0)
-            # mask the mosaicked image
-            mosaicked = mosaicked.mask(mask_alerts)
+            # mask the mosaicked image and rename the band to be 'b1'
+            mosaicked = mosaicked.mask(mask_alerts).select([band], ['b1'])
             # add the masked mosaicked image to the list of processed images 
             image_mosaicked.append(ee.Image(mosaicked))
             
@@ -281,7 +279,7 @@ def processNewData(existing_dates):
     '''
     fetch, process, upload, and clean new data
     INPUT   existing_dates: list of dates we already have in GEE, in the format of the DATE_FORMAT variable (list of strings)
-    RETURN  assets: list of file names for netcdfs that have been downloaded (list of strings)
+    RETURN  asset_pro: the id of the new GEE asset that has been created (string)
     '''
     # Get list of new dates we want to try to fetch data for
     new_dates = getNewDates(existing_dates)
@@ -292,7 +290,7 @@ def processNewData(existing_dates):
 
     # If we have successfully been able to fetch new data files
     if files:
-        # Convert new files from netcdf to tif files
+        # Convert images of different regions into one single image and composite 7 days of data 
         logging.info('Converting files')
         # Mosaic the images for each new date 
         images = mosaic(files)
@@ -316,10 +314,10 @@ def processNewData(existing_dates):
         state = 'RUNNING'
         # set a start time to track the time it takes to upload the image
         start = time.time()
-        # wait for task to complete, but quit if it takes more than 18000 seconds
-        while state == 'RUNNING' and (time.time() - start) < 18000:
-            # wait for a minute before checking the state
-            time.sleep(600)
+        # wait for task to complete, but quit if it takes more than 36000 seconds
+        while state == 'RUNNING' and (time.time() - start) < 36000:
+            # wait for 20 minutes before checking the state
+            time.sleep(1200)
             # check the status of the upload
             status = task.status()['state']
             logging.info('Current Status: ' + status +', run time (min): ' + str((time.time() - start)/60))
@@ -366,7 +364,7 @@ def deleteExcessAssets(dates, max_assets):
     if len(dates) > max_assets:
         # go through each date, starting with the oldest, and delete until we only have the max number of assets left
         for date in dates[:-max_assets]:
-            eeUtil.removeAsset(getAssetName(date))
+            ee.data.deleteAsset(getAssetName(date))
 
 def get_most_recent_date(collection):
     '''
@@ -475,19 +473,32 @@ def updateResourceWatch():
         layer_ids = getLayerIDs(DATASET_ID)
         for layer_id in layer_ids:
             flushTileCache(layer_id)
+            
+def initialize_ee():
+    '''
+    Initialize ee module
+    '''
+    # get GEE credentials from env file
+    GEE_JSON = os.environ.get("GEE_JSON")
+    _CREDENTIAL_FILE = 'credentials.json'
+    GEE_SERVICE_ACCOUNT = os.environ.get("GEE_SERVICE_ACCOUNT")
+    with open(_CREDENTIAL_FILE, 'w') as f:
+        f.write(GEE_JSON)
+    auth = ee.ServiceAccountCredentials(GEE_SERVICE_ACCOUNT, _CREDENTIAL_FILE)
+    ee.Initialize(auth)
+
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
 
-    # initialize ee and eeUtil modules for uploading to Google Earth Engine
-    auth = ee.ServiceAccountCredentials(os.getenv('GEE_SERVICE_ACCOUNT'), os.getenv('GOOGLE_APPLICATION_CREDENTIALS'))
-    ee.Initialize(auth)
+    # initialize ee modules for uploading to Google Earth Engine
+    initialize_ee()
 
     # Clear the GEE collection, if specified above
     if CLEAR_COLLECTION_FIRST:
-        if eeUtil.exists(EE_COLLECTION):
-            eeUtil.removeAsset(EE_COLLECTION, recursive=True)
+        if ee.data.getInfo(EE_COLLECTION) != None:
+            ee.data.deleteAsset(EE_COLLECTION)
 
     # Check if collection exists, create it if it does not
     # If it exists return the list of assets currently in the collection
@@ -496,15 +507,15 @@ def main():
     existing_dates = [getDate(a) for a in existing_assets]
 
     # Fetch, process, and upload the new data
-    new_assets = processNewData(existing_dates)
-    # Get the dates of the new data we have added
-    new_dates = [getDate(a) for a in new_assets]
+    new_asset = processNewData(existing_dates)
+    # Get the date of the new data we have added
+    new_date = getDate(new_asset)
 
-    print('Previous assets: {}, new: {}, max: {}'.format(
-        existing_dates[0], new_dates[0], MAX_ASSETS))
+    print('Previous asset: {}, new: {}, max: {}'.format(
+        existing_dates[0], new_date, MAX_ASSETS))
 
     # Delete excess assets
-    deleteExcessAssets(existing_dates+new_dates, MAX_ASSETS)
+    deleteExcessAssets(existing_dates + [new_date], MAX_ASSETS)
 
     # Update Resource Watch
     updateResourceWatch()

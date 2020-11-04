@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #Change the NAME variable with the name of your script
-NAME=for_012_fire_risk
+NAME=for_003
 LOG=${LOG:-udp://localhost}
 
 docker build -t $NAME --build-arg NAME=$NAME .
@@ -12,6 +12,3 @@ docker run \
     --env-file .env \
     --rm $NAME \
     python main.py
-
-
-  #  /bin/bash
