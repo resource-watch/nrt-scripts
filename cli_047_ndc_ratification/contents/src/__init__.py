@@ -7,19 +7,6 @@ import cartosql
 import requests
 import pandas as pd
 
-'''
-----------------------------------------------------Important Note--------------------------------------------------------
-# The indicator id for this dataset changes somewhat regularly, which breaks this script. If no data has been returned for
-# the current ID, you will have to go to the source to find the new id.
-# 1. Go to Climate Watch Data Explorer: https://www.climatewatchdata.org/data-explorer
-# 2. Click to the 'NDC Content' data tab
-# 3. Under the 'Indicators' drop down, select 'Status of Ratification'
-# 4. At this point, in the url, you should see the parameter id indicated after 'ndc-content-indicators=' - copy this id
-#    into the indicator_id variable, below.
-----------------------------------------------------Important Note--------------------------------------------------------
-'''
-indicator_id = 21766
-
 # do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = False
 
@@ -47,7 +34,10 @@ CARTO_SCHEMA = OrderedDict([
 ])
 
 # url for NDC data
-SOURCE_URL = 'https://www.climatewatchdata.org/api/v1/data/ndc_content?indicator_ids[]=%s&page={page}'%indicator_id
+SOURCE_URL = 'https://www.climatewatchdata.org/api/v1/data/ndc_content?indicator_ids[]={indicator_id}&page={page}'
+
+# url for NDC indicator ids 
+ID_URL = 'https://www.climatewatchdata.org/api/v1/data/ndc_content/indicators'
 
 # Resource Watch dataset API ID
 # Important! Before testing this script:
@@ -134,6 +124,22 @@ FUNCTIONS FOR THIS DATASET
 The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
+def findIndicatorId(url, indicator):
+    '''
+    Fetch the correct id of the ndc indicator
+    INPUT   url: url where you can find the info of different ndc indicators (string)
+            indicator: name of ndc indicator (string)
+    RETURN  indicator_id: id of the ndc indicator (number)
+    '''
+    # generate the url and pull data for this page 
+    r = requests.get(url)
+    # pull data from request response json
+    raw_data = r.json()['data']
+    # find the info of the indicator
+    indicator_info = [x for x in raw_data if x['name'] == indicator]
+    # find the corresponding id of the indicator 
+    indicator_id = indicator_info[0]['id']
+    return indicator_id
 
 def processNewData(url):
     '''
@@ -143,8 +149,10 @@ def processNewData(url):
     '''
     # specify the starting page of source url we want to pull
     page = 1
+    # fetch the id of the indicator 'Status of ratification'
+    indicator_id = findIndicatorId(ID_URL, 'Status of ratification')
     # generate the url and pull data for this page 
-    r = requests.get(url.format(page=page))
+    r = requests.get(url.format(indicator_id=indicator_id, page=page))
     # pull data from request response json
     raw_data = r.json()['data']
     # if data is available from source url 
