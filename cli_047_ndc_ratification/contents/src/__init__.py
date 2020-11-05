@@ -131,14 +131,15 @@ def findIndicatorId(url, indicator):
             indicator: name of ndc indicator (string)
     RETURN  indicator_id: id of the ndc indicator (number)
     '''
-    # generate the url and pull data for this page 
+    # pull the metadata of ndc indicators from the link 
     r = requests.get(url)
     # pull data from request response json
     raw_data = r.json()['data']
-    # find the info of the indicator
+    # find the info of the indicator of interest 
     indicator_info = [x for x in raw_data if x['name'] == indicator]
     # find the corresponding id of the indicator 
     indicator_id = indicator_info[0]['id']
+    
     return indicator_id
 
 def processNewData(url):
