@@ -195,7 +195,7 @@ def getAssetName(date):
     INPUT   date: date 
     RETURN  GEE asset name for the final processed image (string)
     '''
-    return '/'.join([EE_COLLECTION, 'for_003_nrt_glad_deforestation_alerts_{}'.format(date)])
+    return '/'.join([EE_COLLECTION, 'for_003_nrt_glad_deforestation_alerts_{}'.format(date.strftime(DATE_FORMAT))])
                          
 def getDate(image):
     '''
@@ -213,11 +213,10 @@ def getNewDates(exclude_dates):
     '''
     # create empty list to store dates we want to fetch
     new_dates = []
-    # start with today's date
-    date = datetime.date.today()
+    # start with yesterday since today's data may not be availabele yet 
+    date = datetime.date.today() - datetime.timedelta(days=1)
     # if the current date string is not in the list of dates we already have
     # add the latest 7 dates to the list of new dates to try and fetch 
-    # if anything is in the collection, check back until last uploaded date
     if date.strftime(DATE_FORMAT) not in exclude_dates:
         for i in range(7):
              # generate a string from the date
@@ -244,6 +243,7 @@ def fetch(new_dates):
         search = '.*{mm}_{dd}_.*'.format(mm = date[-4:-2], dd = date[-2:])
         # each new date will be a key while the list of corresponding asset ids will be the value 
         files[date] = list((filter(re.compile(search).match, file_list)))
+        logging.info('Finding {} files for data of {}'.format(len(files[date]), date))
         
     return files
         
@@ -299,7 +299,7 @@ def processNewData(existing_dates):
         # the extent of the data we want to export 
         bounds = ee.Geometry.Rectangle([-179.999, -90, 180, 90], 'EPSG:4326', False)
         # create an asset id for the composite image
-        asset_pro = getAssetName(datetime.date.today())
+        asset_pro = getAssetName(datetime.date.today()-datetime.timedelta(days=1))
         # create a task to export the processed image to an asset in the corresponding GEE image collection 
         task = ee.batch.Export.image.toAsset(image=composite,  
                                      description='export mosaicked image to asset',
@@ -308,14 +308,15 @@ def processNewData(existing_dates):
                                      scale=30,
                                      maxPixels=1e12,
                                      assetId=asset_pro)
+        logging.info('Creating asset {}'.format(asset_pro))
         # start the task to export the mosaicked image to an asset
         task.start()
         # set the state to 'RUNNING' because we have started the task
         state = 'RUNNING'
         # set a start time to track the time it takes to upload the image
         start = time.time()
-        # wait for task to complete, but quit if it takes more than 36000 seconds
-        while state == 'RUNNING' and (time.time() - start) < 36000:
+        # wait for task to complete, but quit if it takes more than 43200 seconds
+        while state == 'RUNNING' and (time.time() - start) < 43200:
             # wait for 20 minutes before checking the state
             time.sleep(1200)
             # check the status of the upload
@@ -364,7 +365,7 @@ def deleteExcessAssets(dates, max_assets):
     if len(dates) > max_assets:
         # go through each date, starting with the oldest, and delete until we only have the max number of assets left
         for date in dates[:-max_assets]:
-            ee.data.deleteAsset(getAssetName(date))
+            ee.data.deleteAsset(getAssetName(datetime.datetime.strptime(date, DATE_FORMAT)))
 
 def get_most_recent_date(collection):
     '''
@@ -512,7 +513,7 @@ def main():
     new_date = getDate(new_asset)
 
     print('Previous asset: {}, new: {}, max: {}'.format(
-        existing_dates[0], new_date, MAX_ASSETS))
+        len(existing_dates), new_date, MAX_ASSETS))
 
     # Delete excess assets
     deleteExcessAssets(existing_dates + [new_date], MAX_ASSETS)
