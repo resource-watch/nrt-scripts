@@ -9,7 +9,7 @@ import time
 import json
 
 # name of image collection in GEE where we will upload the final data
-EE_COLLECTION = 'projects/resource-watch-gee/for_003_nrt_glad_deforestation_alerts'
+EE_COLLECTION = 'projects/resource-watch-gee/for_003_nrt_rw1_glad_deforestation_alerts'
 
 # name of the image collection in GEE where the original data is stored  
 EE_COLLECTION_ORI = 'projects/glad/alert/UpdResult'
@@ -27,7 +27,7 @@ DATE_FORMAT = '%Y%m%d'
 # Important! Before testing this script:
 # Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
 # Failing to do so will overwrite the last update date on a different dataset on Resource Watch
-DATASET_ID = '2598ccc8-f6b3-4ffc-b8f1-13129e9da90c'
+DATASET_ID = '6ec78a52-3fb2-478f-a02b-abafa5328244'
 
 '''
 FUNCTIONS FOR ALL DATASETS
@@ -195,7 +195,7 @@ def getAssetName(date):
     INPUT   date: date 
     RETURN  GEE asset name for the final processed image (string)
     '''
-    return '/'.join([EE_COLLECTION, 'for_003_nrt_glad_deforestation_alerts_{}'.format(date.strftime(DATE_FORMAT))])
+    return '/'.join([EE_COLLECTION, 'for_003_nrt_rw1_glad_deforestation_alerts_{}'.format(date.strftime(DATE_FORMAT))])
                          
 def getDate(image):
     '''
