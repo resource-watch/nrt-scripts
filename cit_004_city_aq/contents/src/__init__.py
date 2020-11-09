@@ -271,7 +271,6 @@ def processNewData(src_url, existing_ids):
         # if the id doesn't already exist in Carto table or 
         # isn't added to the list for sending to Carto yet 
         if uid not in existing_ids + new_ids:
-            logging.info(f'Processing {uid}')
             # generate url to get details of the station being processed
             stn_url = STATION_URL.format(station = stn)
             tries = 0
@@ -279,7 +278,6 @@ def processNewData(src_url, existing_ids):
                 # get data from station url
                 stn_r = requests.get(stn_url)
                 if r.ok:
-                    logging.info('received station info')
                     break
                 else:
                     logging.error('Could not fetch station data for uid: {}, trying again'.format(uid))
