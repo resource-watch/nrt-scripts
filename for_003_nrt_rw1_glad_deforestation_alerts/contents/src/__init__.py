@@ -431,10 +431,7 @@ def update_layer(layer, new_date):
 
     # replace dates in layer's title with new dates
     layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
-    # fetch the layer configuration 
-    appConfig = layer.attributes['layerConfig']
-    # replace the asset id of the data visualized in the layer 
-    appConfig['assetId'] = getAssetName(new_date)
+
 
     # send patch to API to replace layers
     # generate url to patch layer
@@ -443,10 +440,7 @@ def update_layer(layer, new_date):
     # create payload with new title and layer configuration
     payload = {
         'application': ['rw'],
-        'name': layer['attributes']['name'],
-        'layerConfig': {
-            **appConfig
-            }
+        'name': layer['attributes']['name']
     }
     # patch API with updates
     r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
