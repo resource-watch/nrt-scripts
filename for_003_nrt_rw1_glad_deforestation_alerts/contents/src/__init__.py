@@ -86,6 +86,7 @@ def lastUpdateDate(dataset, date):
         return 0
     except Exception as e:
         logging.error('[lastUpdated]: '+str(e))
+        
 '''
 FUNCTIONS FOR RASTER DATASETS
 
@@ -106,14 +107,17 @@ def getLastUpdate(dataset):
     r = requests.get(apiUrl)
     # find the 'last update date'
     lastUpdateString=r.json()['data']['attributes']['dataLastUpdated']
-    # split this date into two pieces at the seconds decimal so that the datetime module can read it:
-    # ex: '2020-03-11T00:00:00.000Z' will become '2020-03-11T00:00:00' (nofrag) and '000Z' (frag)
-    nofrag, frag = lastUpdateString.split('.')
-    # generate a datetime object
-    nofrag_dt = datetime.datetime.strptime(nofrag, "%Y-%m-%dT%H:%M:%S")
-    # add back the microseconds to the datetime
-    lastUpdateDT = nofrag_dt.replace(microsecond=int(frag[:-1])*1000)
-    return lastUpdateDT
+    if lastUpdateString == None:
+        return None 
+    else:
+        # split this date into two pieces at the seconds decimal so that the datetime module can read it:
+        # ex: '2020-03-11T00:00:00.000Z' will become '2020-03-11T00:00:00' (nofrag) and '000Z' (frag)
+        nofrag, frag = lastUpdateString.split('.')
+        # generate a datetime object
+        nofrag_dt = datetime.datetime.strptime(nofrag, "%Y-%m-%dT%H:%M:%S")
+        # add back the microseconds to the datetime
+        lastUpdateDT = nofrag_dt.replace(microsecond=int(frag[:-1])*1000)
+        return lastUpdateDT
 
 def getLayerIDs(dataset):
     '''
@@ -192,7 +196,7 @@ They should all be checked because their format likely will need to be changed.
 def getAssetName(date):
     '''
     create asset name for the mosaicked images 
-    INPUT   date: date 
+    INPUT   date: date (datetime)
     RETURN  GEE asset name for the final processed image (string)
     '''
     return '/'.join([EE_COLLECTION, 'for_003_nrt_rw1_glad_deforestation_alerts_{}'.format(date.strftime(DATE_FORMAT))])
@@ -416,18 +420,21 @@ def update_layer(layer, new_date):
     # get current layer titile
     cur_title = layer['attributes']['name']
 
-    # get current end date being used from title by string manupulation
-    old_date = cur_title.split()[0:3]
-    # join each time variable to construct text of current date
-    old_date_text = ' '.join(old_date)
+    # isolate the part of the layer title that indicates time period of the data 
+    old_date_text = cur_title.replace(' GLAD Deforestation Alerts', '')
 
-    # latest data is for one day ago, so subtracting a day
-    new_date_end = (new_date - datetime.timedelta(days=1))
-    # get text for new date
-    new_date_text = datetime.datetime.strftime(new_date_end, "%B %d, %Y")
+    # the first day of data is 6 days before the most recent date
+    new_date_start = (new_date - datetime.timedelta(days=6))
+    # get text for the new dates 
+    new_date_text = '{}-{}'.format(datetime.datetime.strftime(new_date_start, "%B %d, %Y"),
+                                   datetime.datetime.strftime(new_date, "%B %d, %Y"))
 
-    # replace date in layer's title with new date
+    # replace dates in layer's title with new dates
     layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
+    # fetch the layer configuration 
+    appConfig = layer.attributes['layerConfig']
+    # replace the asset id of the data visualized in the layer 
+    appConfig['assetId'] = getAssetName(new_date)
 
     # send patch to API to replace layers
     # generate url to patch layer
@@ -436,7 +443,10 @@ def update_layer(layer, new_date):
     # create payload with new title and layer configuration
     payload = {
         'application': ['rw'],
-        'name': layer['attributes']['name']
+        'name': layer['attributes']['name'],
+        'layerConfig': {
+            **appConfig
+            }
     }
     # patch API with updates
     r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
