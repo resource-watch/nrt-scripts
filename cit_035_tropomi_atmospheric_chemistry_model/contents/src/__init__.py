@@ -331,7 +331,7 @@ def fetch_multi_day_avg(var, new_dates):
                 most_recent_image = ee.Image(sorted.first())
                 average = average.copyProperties(most_recent_image, ['system:time_start'])
                 # add the averaged image to the list of processed images
-                averages.append(average)
+                averages.append(ee.Image(average))
                 logging.info('Successfully retrieved {}'.format(new_date))
             else:
                 logging.info('No data available for {}'.format(new_date))
@@ -374,7 +374,7 @@ def processNewData(var, existing_dates):
         for i in range(len(dates)):
             logging.info('Uploading ' + assets[i])
             # export the averaged image to a new asset in GEE
-            task = ee.batch.Export.image.toAsset(ee.Image(images[i]),
+            task = ee.batch.Export.image.toAsset(images[i],
                                                  assetId=assets[i],
                                                  region=geometry, scale=scale, maxPixels=1e13)
             task.start()
