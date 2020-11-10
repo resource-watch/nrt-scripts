@@ -369,7 +369,7 @@ def processNewData(var, existing_dates):
         # change the resolution from km to m
         scale = RESOLUTION*1000
         # create the geometry bounds for the image we want to upload
-        geometry = [[[-lon, lat], [lon, lat], [lon, -lat], [-lon, -lat], [-lon, lat]]]
+        geometry = ee.Geometry.Rectangle([-lon, -lat, lon, lat], 'EPSG:4326', False)
         # upload each image
         for i in range(len(dates)):
             logging.info('Uploading ' + assets[i])
