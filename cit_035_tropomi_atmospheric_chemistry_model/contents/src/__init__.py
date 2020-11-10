@@ -374,7 +374,7 @@ def processNewData(var, existing_dates):
         for i in range(len(dates)):
             logging.info('Uploading ' + assets[i])
             # export the averaged image to a new asset in GEE
-            task = ee.batch.Export.image.toAsset(images[i],
+            task = ee.batch.Export.image.toAsset(ee.Image(images[i]),
                                                  assetId=assets[i],
                                                  region=geometry, scale=scale, maxPixels=1e13)
             task.start()
