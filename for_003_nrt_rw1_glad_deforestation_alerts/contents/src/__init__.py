@@ -220,15 +220,14 @@ def getNewDates(exclude_dates):
     # start with yesterday since today's data may not be availabele yet 
     date = datetime.date.today() - datetime.timedelta(days=1)
     # if the current date string is not in the list of dates we already have
-    # add the latest 7 dates to the list of new dates to try and fetch 
+    # add the date to the list of new dates to try and fetch 
     if date.strftime(DATE_FORMAT) not in exclude_dates:
-        for i in range(7):
-             # generate a string from the date
-            datestr = date.strftime(DATE_FORMAT)
-            # add to list of new dates
-            new_dates.append(datestr)
-            # go back one day at a time
-            date -= datetime.timedelta(days=1)
+        # generate a string from the date
+        datestr = date.strftime(DATE_FORMAT)
+        # add to list of new dates
+        new_dates.append(datestr)
+    else:
+        logging.info('latest data already available in RW')
     return new_dates
 
 def fetch(new_dates):
@@ -294,18 +293,16 @@ def processNewData(existing_dates):
 
     # If we have successfully been able to fetch new data files
     if files:
-        # Convert images of different regions into one single image and composite 7 days of data 
+        # convert images of different regions into one single image 
         logging.info('Converting files')
-        # Mosaic the images for each new date 
+        # mosaic the images for each new date 
         images = mosaic(files)
-        # Composite the images of the past 7 days by getting the maximum value at each pixel 
-        composite = ee.ImageCollection(images).max()
         # the extent of the data we want to export 
         bounds = ee.Geometry.Rectangle([-179.999, -90, 180, 90], 'EPSG:4326', False)
         # create an asset id for the composite image
         asset_pro = getAssetName(datetime.date.today()-datetime.timedelta(days=1))
         # create a task to export the processed image to an asset in the corresponding GEE image collection 
-        task = ee.batch.Export.image.toAsset(image=composite,  
+        task = ee.batch.Export.image.toAsset(image=images[0],  
                                      description='export mosaicked image to asset',
                                      region=bounds,
                                      pyramidingPolicy= {'b1': 'SAMPLE'},
@@ -423,15 +420,11 @@ def update_layer(layer, new_date):
     # isolate the part of the layer title that indicates time period of the data 
     old_date_text = cur_title.replace(' GLAD Deforestation Alerts', '')
 
-    # the first day of data is 6 days before the most recent date
-    new_date_start = (new_date - datetime.timedelta(days=6))
     # get text for the new dates 
-    new_date_text = '{}-{}'.format(datetime.datetime.strftime(new_date_start, "%B %d, %Y"),
-                                   datetime.datetime.strftime(new_date, "%B %d, %Y"))
+    new_date_text = datetime.datetime.strftime(new_date, "%B %d, %Y")
 
     # replace dates in layer's title with new dates
     layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
-
 
     # send patch to API to replace layers
     # generate url to patch layer
@@ -457,11 +450,11 @@ def updateResourceWatch():
     This function should update Resource Watch to reflect the new data.
     This may include updating the 'last update date', flushing the tile cache, and updating any dates on layers
     '''
-    # Get the most recent date from the data in the GEE collection
+    # get the most recent date from the data in the GEE collection
     most_recent_date = get_most_recent_date(EE_COLLECTION)
-    # Get the current 'last update date' from the dataset on Resource Watch
+    # get the current 'last update date' from the dataset on Resource Watch
     current_date = getLastUpdate(DATASET_ID)
-    # Update the dates on layer legends
+    # update the dates on layer legends
     logging.info('Updating {}'.format(EE_COLLECTION))
     # pull dictionary of current layers from API
     layer_dict = pull_layers_from_API(DATASET_ID)
@@ -472,7 +465,7 @@ def updateResourceWatch():
     # If the most recent date from the GEE collection does not match the 'last update date' on the RW API, update it
     if current_date != most_recent_date:
         logging.info('Updating last update date and flushing cache.')
-        # Update dataset's last update date on Resource Watch
+        # update dataset's last update date on Resource Watch
         lastUpdateDate(DATASET_ID, most_recent_date)
         # get layer ids and flush tile cache for each
         layer_ids = getLayerIDs(DATASET_ID)
