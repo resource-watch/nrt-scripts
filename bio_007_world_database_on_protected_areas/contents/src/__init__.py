@@ -47,7 +47,6 @@ CARTO_SCHEMA = OrderedDict([
     ("rep_m_area", "numeric"),
     ("rep_area", "numeric"),
     ("mang_plan", "text"),
-    ("is_green_list", "text"),
     ("own_type", "text"),
     ("country_name", "text"),
     ("iso3", "text"),
@@ -204,8 +203,8 @@ def fetch_ids(existing_ids_int):
     # pull current csv containing WDPA IDs
     # note: IDs are pulled from this csv and not the API because querying the API is very slow, so it is much faster
     # to get a list of all the IDS from this csv
-    filename_csv = 'WDPA_{mo}{yr}-csv'.format(mo=datetime.datetime.today().strftime("%b"), yr=datetime.datetime.today().year)
-    url_csv = 'http://d1gam3xoknrgr2.cloudfront.net/current/{}.zip'.format(filename_csv)
+    filename_csv = 'WDPA_WDOECM_wdpa_csv'
+    url_csv = f'http://d1gam3xoknrgr2.cloudfront.net/current/{filename_csv}.zip'
     urllib.request.urlretrieve(url_csv, DATA_DIR + '/' + filename_csv + '.zip')
 
     # unzip file containing csv
