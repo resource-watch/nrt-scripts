@@ -3,7 +3,7 @@ This file describes the near real-time script that retrieves and processes the [
 
 The source provided the data as an image collection on Google Earth Engine. Each day of data were split into five images of different regions.
 
-For each day, data of five different regions are mosaicked to create a global dataset. The maximum composite of the latest seven days of data was computed for display on Resource Watch.
+For each day, data of five different regions are mosaicked to create a global dataset for display on Resource Watch.
 
 Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/for_003_nrt_glad_deforestation_alerts/contents/src/__init__.py) for more details on this processing.
 
