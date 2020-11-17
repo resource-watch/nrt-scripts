@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #Change the NAME variable with the name of your script
-NAME=for_003_nrt_rw1
+NAME=for_003_nrt_rw1_glad
 LOG=${LOG:-udp://localhost}
 
 docker build -t $NAME --build-arg NAME=$NAME .
