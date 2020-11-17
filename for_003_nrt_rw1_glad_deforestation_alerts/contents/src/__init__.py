@@ -421,7 +421,8 @@ def update_layer(layer, new_date):
     old_date_text = cur_title.replace(' GLAD Deforestation Alerts', '')
 
     # get text for the new dates 
-    new_date_text = datetime.datetime.strftime(new_date, "%B %d, %Y")
+    new_date_text = '{}-{}'.format(datetime.datetime.strftime(datetime.datetime(new_date.year,1,1), "%B %d, %Y"),
+                                   datetime.datetime.strftime(new_date, "%B %d, %Y"))
 
     # replace dates in layer's title with new dates
     layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
