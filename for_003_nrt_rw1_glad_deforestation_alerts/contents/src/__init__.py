@@ -18,7 +18,7 @@ EE_COLLECTION_ORI = 'projects/glad/alert/UpdResult'
 CLEAR_COLLECTION_FIRST = False
 
 # how many assets can be stored in the GEE collection before the oldest ones are deleted?
-MAX_ASSETS = 1
+MAX_ASSETS = 2
 
 # format of date (used in both the source data files and GEE)
 DATE_FORMAT = '%Y%m%d'
@@ -37,31 +37,6 @@ Their format should not need to be changed.
 '''
 
 def lastUpdateDate(dataset, date):
-    '''
-    Given a Resource Watch dataset's API ID and a datetime,
-    this function will update the dataset's 'last update date' on the API with the given datetime
-    INPUT   dataset: Resource Watch API dataset ID (string)
-            date: date to set as the 'last update date' for the input dataset (datetime)
-    '''
-    # generate the API url for this dataset
-    apiUrl = 'http://api.resourcewatch.org/v1/dataset/{0}'.format(dataset)
-    # create headers to send with the request to update the 'last update date'
-    headers = {
-    'Content-Type': 'application/json',
-    'Authorization': os.getenv('apiToken')
-    }
-    # create the json data to send in the request
-    body = {
-        "dataLastUpdated": date.isoformat() # date should be a string in the format 'YYYY-MM-DDTHH:MM:SS'
-    }
-    # send the request
-    try:
-        r = requests.patch(url = apiUrl, json = body, headers = headers)
-        logging.info('[lastUpdated]: SUCCESS, '+ date.isoformat() +' status code '+str(r.status_code))
-        return 0
-    except Exception as e:
-        logging.error('[lastUpdated]: '+str(e))
-
     '''
     Given a Resource Watch dataset's API ID and a datetime,
     this function will update the dataset's 'last update date' on the API with the given datetime
