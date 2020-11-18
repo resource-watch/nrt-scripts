@@ -31,9 +31,10 @@ DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 CARTO_SCHEMA = OrderedDict([
         ('date', 'timestamp'),
         ('average', 'numeric'),
-        ('interpolated', 'numeric'),
-        ('season_adjusted_trend', 'numeric'),
-        ('num_days', 'numeric')
+        ('season_adjusted_average', 'numeric'),
+        ('num_days', 'numeric'),
+        ('st_dev', 'numeric'),
+        ('uncertainty', 'numeric')
     ])
 
 # url for source data
@@ -123,7 +124,7 @@ def fetch_data():
     # download the data from source url
     loc = wget.download(SOURCE_URL, DATA_DIR) 
     # specify column names for the dataframe
-    column_names = ['year','month','date','average','interpolated','season_adjusted_trend','num_days']   
+    column_names = ['year','month','date','average','season_adjusted_average','num_days', 'st_dev', 'uncertainty']   
     # create a pandas dataframe using the retrieved text file
     # use whitespace to separate columns; ignore comments, name columns using column_names list
     df = pd.read_csv(loc, delim_whitespace=True, comment='#', header=None, names=column_names)
