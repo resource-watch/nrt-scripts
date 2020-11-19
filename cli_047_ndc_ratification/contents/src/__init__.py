@@ -197,7 +197,7 @@ def processNewData(url):
         # go to the next page and check for data
         page += 1
         # generate the url and pull data for this page 
-        r = requests.get(url.format(page=page))
+        r = requests.get(url.format(indicator_id=indicator_id, page=page))
         # pull data from request response json
         raw_data = r.json()['data']
 
