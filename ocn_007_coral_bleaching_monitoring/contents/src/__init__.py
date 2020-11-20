@@ -62,9 +62,9 @@ DATA_DICT['bleaching_alert_area_7d'] = {
         'sds': [
             'bleaching_alert_area',
         ],
+        'original_nodata': 251,
         'missing_data': [
-            -5,
-            251,
+            -32768,
         ],
         'pyramiding_policy': 'MEAN',
     }
@@ -73,6 +73,7 @@ DATA_DICT['hotspots'] = {
         'sds': [
             'hotspot',
         ],
+        'original_nodata': -32768,
         'missing_data': [
             -32768,
         ],
@@ -84,6 +85,7 @@ DATA_DICT['degree_heating_week'] = {
         'sds': [
             'degree_heating_week',
         ],
+        'original_nodata': -32768,
         'missing_data': [
             -32768,
         ],
@@ -95,6 +97,7 @@ DATA_DICT['sea_surface_temperature_anomaly'] = {
         'sds': [
             'sea_surface_temperature_anomaly',
         ],
+        'original_nodata': -32768,
         'missing_data': [
             -32768,
         ],
@@ -106,6 +109,7 @@ DATA_DICT['sea_surface_temperature'] = {
         'sds': [
             'analysed_sst',
         ],
+        'original_nodata': -32768,
         'missing_data': [
             -32768,
         ],
@@ -117,6 +121,7 @@ DATA_DICT['sea_surface_temperature_trend_7d'] = {
         'sds': [
             'trend',
         ],
+        'original_nodata': -32768,
         'missing_data': [
             -32768,
         ],
@@ -574,42 +579,58 @@ def processNewData(existing_dates):
         logging.info('Fetching files')        
         fetch()
         # convert netcdfs to tifs and store the tif filenames to a new key in the parent dictionary
-        logging.info('Extracting relevant GeoTIFFs from source NetCDFs')
+        logging.info('Extracting relevant GeoTIFFs from source NetCDFs, and modifying nodata values in the resulting GeoTIFFs where appropriate')
+
+        merge_list = []
+        global_nodata = -32768
+        # windows-necessary variable
+        # calc_path = os.path.abspath(os.path.join(os.getenv('GDAL_DIR'),'gdal_calc.py'))
+
         for key, val in DATA_DICT.items():
-            val['tifs'] = convert_netcdf(val['raw_data_file'], val['sds'])
+            nc = val['raw_data_file'] # originally raw_data_file
+            sds = val['sds'][0]
+            local_nodata = val['original_nodata']
 
-        # create an empty list to store the tifs after scaling operation
-        alltifs = []
-        # loop through each item in the dictionary
-        for key, val in DATA_DICT.items():
-            # if there is a key for scale factor and if the scale factor is not 1
-            if 'scale_factor' in val and float(val['scale_factor'] != 1.0):
-                # create an empty list to store the scaled tifs
-                finaltifs = []
-                for tif in val['tifs']:
-                    # scale the geotifs and add them to the list
-                    finaltifs.append(scale_geotiff(tif))
-            else:
-                # if no scaling is required
-                finaltifs = []
-                for tif in val['tifs']:
-                    # assign a nodata value, this step is done to fix band 1 
-                    # band 1 has a no data value which alternates between -5 and 251
-                    # it is probably a consequence of sloppy interpretation of numeric types somewhere within gdal scripts. 
-                    # when read as an unsigned 8bit integer, -5 becomes 251, so they ultimately represent the same thing
-                    finaltifs.append(assign_nodata(tif))
-            # add the scaled tif file names as a new key to the parent dictionary
-            val['finaltifs'] = finaltifs
-            # add the tif file names after scaling operation to the alltifs list
-            alltifs.extend(finaltifs)
+            # should be of the format 'NETCDF:"filename.nc":variable'
+            sds_path = f'NETCDF:"{nc}":{sds}'
+            # generate a name to save the tif file we will translate the netcdf file's subdataset into
+            sds_tif = '{}_{}.tif'.format(os.path.splitext(nc)[0], sds_path.split(':')[-1])
+    
+            cmd = f'gdal_translate -q -a_srs EPSG:4326 -a_nodata {local_nodata} -ot Float32 -unscale {sds_path} {sds_tif} '
+            completed_process = subprocess.run(cmd, shell=False)
+            logger.debug(str(completed_process))
 
+            if local_nodata != global_nodata:
+                sds_tif_edited = sds_tif.split('.tif')[0]+'_edited.tif'
+                # windows style:
+                # cmd = f'"{sys.executable}" "{calc_path}" -A {sds_tif} --outfile={sds_tif_edited} --NoDataValue=-32768 --calc="(A!=251)*A+(A==251)*-32768"'
+                cmd = f'gdal_calc.py -A {sds_tif} --outfile={sds_tif_edited} --NoDataValue=-32768 --calc="(A!=251)*A+(A==251)*-32768"'
+                completed_process = subprocess.run(cmd, shell=False)
+                logger.debug(str(completed_process))
+                sds_tif = sds_tif_edited
 
-        logging.info('Merging masked, single-band GeoTIFFs into single, multiband GeoTIFF.')
+            val['tifs'] = [sds_tif]
+            merge_list.append(sds_tif)
+
+        merge_list_str = ' '.join(merge_list)
+        # windows-necessary variable
+        # merge_path = os.path.abspath(os.path.join(os.getenv('GDAL_DIR'),'gdal_merge.py'))
+        merged_vrt = 'merged.vrt'
+
+        logging.info('Merging masked, single-band GeoTIFFs into single, multiband VRT')
+
+        cmd = f'gdalbuildvrt -separate {merged_vrt} {merge_list_str}'
+        completed_process = subprocess.run(cmd, shell=False)
+        logger.debug(completed_process)
+
+        logging.info('Converting multiband VRT into multiband GeoTIFF')
+
         # generate a name to save the tif file that will be produced by merging all the individual tifs   
         merged_tif = getFilename(available_date) 
-        # merge all tifs into a single tif by adding each tif as separate bands
-        merge_cmd = ['gdal_merge.py', '-ot', 'float32', '-separate'] + alltifs + ['-o', merged_tif]
-        subprocess.call(merge_cmd)
+
+        cmd = f'gdal_translate -of GTiff {merged_vrt} {processed_data_file}'
+        completed_process = subprocess.run(cmd, shell=False)
+        logger.info(completed_process)
 
         logging.info('Uploading files')
         # Generate a name we want to use for the asset once we upload the file to GEE
