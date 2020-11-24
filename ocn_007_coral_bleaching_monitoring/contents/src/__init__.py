@@ -596,22 +596,25 @@ def processNewData(existing_dates):
             # generate a name to save the tif file we will translate the netcdf file's subdataset into
             sds_tif = '{}_{}.tif'.format(os.path.splitext(nc)[0], sds_path.split(':')[-1])
     
-            cmd = f'gdal_translate -q -a_srs EPSG:4326 -a_nodata {local_nodata} -ot Float32 -unscale {sds_path} {sds_tif} '
+            #cmd = f'gdal_translate -q -a_srs EPSG:4326 -a_nodata {local_nodata} -ot Float32 -unscale {sds_path} {sds_tif} '
+            cmd = ['gdal_translate','-q', '-a_srs', 'EPSG:4326', '-a_nodata' , str(local_nodata), '-ot', 'Float32', '-unscale', sds_path, sds_tif]
             completed_process = subprocess.run(cmd, shell=False)
-            logger.debug(str(completed_process))
+            logging.debug(str(completed_process))
 
             if local_nodata != global_nodata:
                 sds_tif_edited = sds_tif.split('.tif')[0]+'_edited.tif'
                 # windows style:
                 # cmd = f'"{sys.executable}" "{calc_path}" -A {sds_tif} --outfile={sds_tif_edited} --NoDataValue=-32768 --calc="(A!=251)*A+(A==251)*-32768"'
-                cmd = f'gdal_calc.py -A {sds_tif} --outfile={sds_tif_edited} --NoDataValue=-32768 --calc="(A!=251)*A+(A==251)*-32768"'
+                #cmd = f'gdal_calc.py -A {sds_tif} --outfile={sds_tif_edited} --NoDataValue=-32768 --calc="(A!=251)*A+(A==251)*-32768"'
+                cmd = ['gdal_calc.py', '-A', sds_tif, '--outfile', sds_tif_edited, '--NoDataValue' , str(-32768), '--calc', "(A!=251)*A+(A==251)*-32768"]
                 completed_process = subprocess.run(cmd, shell=False)
-                logger.debug(str(completed_process))
+                logging.debug(str(completed_process))
                 sds_tif = sds_tif_edited
 
             val['tifs'] = [sds_tif]
             merge_list.append(sds_tif)
 
+        logging.info(os.listdir(DATA_DIR))
         merge_list_str = ' '.join(merge_list)
         # windows-necessary variable
         # merge_path = os.path.abspath(os.path.join(os.getenv('GDAL_DIR'),'gdal_merge.py'))
@@ -619,18 +622,22 @@ def processNewData(existing_dates):
 
         logging.info('Merging masked, single-band GeoTIFFs into single, multiband VRT')
 
-        cmd = f'gdalbuildvrt -separate {merged_vrt} {merge_list_str}'
+        #cmd = f'gdalbuildvrt -separate {merged_vrt} {merge_list_str}'
+        logging.info(merge_list_str)
+        cmd = ['gdalbuildvrt', '-separate', merged_vrt]
+        cmd.extend(merge_list)
         completed_process = subprocess.run(cmd, shell=False)
-        logger.debug(completed_process)
+        logging.debug(completed_process)
 
         logging.info('Converting multiband VRT into multiband GeoTIFF')
 
         # generate a name to save the tif file that will be produced by merging all the individual tifs   
         merged_tif = getFilename(available_date) 
 
-        cmd = f'gdal_translate -of GTiff {merged_vrt} {processed_data_file}'
+        #cmd = f'gdal_translate -of GTiff {merged_vrt} {merged_tif}'
+        cmd = ['gdal_translate', '-of', 'GTiff', merged_vrt, merged_tif]
         completed_process = subprocess.run(cmd, shell=False)
-        logger.info(completed_process)
+        logging.info(completed_process)
 
         logging.info('Uploading files')
         # Generate a name we want to use for the asset once we upload the file to GEE
