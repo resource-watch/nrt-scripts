@@ -215,14 +215,14 @@ def fetch(new_dates):
     file_list = [image['id'] for image in ee.data.getList({'id': EE_COLLECTION_ORI})]
     # make an empty dictionary to store asset ids for each new date 
     files = {}
-    # go through each input date
-    for date in new_dates:
-        # create a regular expression to search with in the list of available asset ids
-        search = '.*{mm}_{dd}_.*'.format(mm = date[-4:-2], dd = date[-2:])
-        # each new date will be a key while the list of corresponding asset ids will be the value 
-        files[date] = list((filter(re.compile(search).match, file_list)))
-        logging.info('Finding {} files for data of {}'.format(len(files[date]), date))
-        
+    if new_dates:
+        # go through each input date
+        for date in new_dates:
+            # create a regular expression to search with in the list of available asset ids
+            search = '.*{mm}_{dd}_.*'.format(mm = date[-4:-2], dd = date[-2:])
+            # each new date will be a key while the list of corresponding asset ids will be the value 
+            files[date] = list((filter(re.compile(search).match, file_list)))
+            logging.info('Finding {} files for data of {}'.format(len(files[date]), date))   
     return files
         
 def mosaic(files):
@@ -402,6 +402,9 @@ def update_layer(layer, new_date):
     # replace dates in layer's title with new dates
     layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
 
+    # replace the asset id in the layer def with new asset id
+    layer['attributes']['layerConfig']['assetId'] = getAssetName(new_date)
+
     # send patch to API to replace layers
     # generate url to patch layer
     rw_api_url_layer = "https://api.resourcewatch.org/v1/dataset/{dataset_id}/layer/{layer_id}".format(
@@ -409,7 +412,8 @@ def update_layer(layer, new_date):
     # create payload with new title and layer configuration
     payload = {
         'application': ['rw'],
-        'name': layer['attributes']['name']
+        'name': layer['attributes']['name'],
+        'layerConfig': layer['attributes']['layerConfig']
     }
     # patch API with updates
     r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
