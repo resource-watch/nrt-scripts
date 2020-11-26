@@ -576,6 +576,7 @@ def update_layer(var, layer, most_recent_date):
         'interactionConfig': layer['attributes']['interactionConfig']
     }
     return {'url': rw_api_url_layer, 'data': json.dumps(payload), 'headers': create_headers()}
+
 def get_most_recent_date(var):
     '''
     Get most recent data it
@@ -592,15 +593,28 @@ def get_most_recent_date(var):
     most_recent_date = datetime.datetime.strptime(existing_dates[-1], DATE_FORMAT)
     return most_recent_date
 
-def updateResourceWatch():
+def get_most_recent_date_from_list(new_dates):
+    '''
+    Get most recent data it
+    INPUT   new_dates: list of new dates (list of strings)
+    RETURN  most_recent_date: most recent date in GEE collections (datetime)
+    '''
+    # sort these dates oldest to newest
+    new_dates.sort()
+    # get the most recent date (last in the list) and turn it into a datetime
+    most_recent_date = datetime.datetime.strptime(new_dates[-1], DATE_FORMAT)
+    return most_recent_date
+
+def updateResourceWatch(new_dates):
     '''
     This function should update Resource Watch to reflect the new data.
     This may include updating the 'last update date', flushing the tile cache, and updating any dates on layers
+    INPUT   new_dates: list of new dates (list of strings)
     '''
     for var, ds_id in DATASET_IDS.items():
         logging.info('Updating {}'.format(var))
         # Get the most recent date from the data in the GEE collection
-        most_recent_date = get_most_recent_date(var)
+        most_recent_date = get_most_recent_date_from_list(new_dates)
         # Get the current 'last update date' from the dataset on Resource Watch
         current_date = getLastUpdate(ds_id)
         # If the most recent date from the GEE collection does not match the 'last update date' on the RW API, update it
@@ -669,6 +683,7 @@ def main():
     deleteExcessAssets(existing_dates+new_dates, MAX_DATES)
 
     # Update Resource Watch
-    updateResourceWatch()
+    if len(new_dates):
+        updateResourceWatch(new_dates)
 
     logging.info('SUCCESS')
