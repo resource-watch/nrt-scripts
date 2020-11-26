@@ -402,7 +402,7 @@ def processNewData(existing_dates):
             new_assets = [getAssetName(tif) for tif in tifs]
             try:
                 # Upload new files (tifs) to GEE
-                eeUtil.uploadAssets(tifs, new_assets, GS_FOLDER, datestamps)
+                eeUtil.uploadAssets(tifs, new_assets, GS_FOLDER, datestamps, timeout=600)
             except:
                 # add uploaded assets to final list of assets uploaded
                 new_assets_all_var += new_assets
