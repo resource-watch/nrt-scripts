@@ -13,7 +13,7 @@ import urllib.request
 import gdal
 import numpy as np
 from collections import OrderedDict 
-
+import json 
 
 '''
 ************************************ Useful Info About Source Data **********************************************************
@@ -685,7 +685,7 @@ def deleteExcessAssets(dates, max_assets):
 
 def get_most_recent_date(collection):
     '''
-    Get most recent data we have assets for
+    Get most recent date we have assets for
     INPUT   collection: GEE collection to check dates for (string)
     RETURN  most_recent_date: most recent date in GEE collection (datetime)
     '''
@@ -700,6 +700,79 @@ def get_most_recent_date(collection):
 
     return most_recent_date
 
+def pull_layers_from_API(dataset_id):
+    '''
+    Pull dictionary of current layers from API
+    INPUT   dataset_id: Resource Watch API dataset ID (string)
+    RETURN  layer_dict: dictionary of layers (dictionary of strings)
+    '''
+    # generate url to access layer configs for this dataset in back office
+    rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer?page[size]=100'.format(dataset_id)
+    # request data
+    r = requests.get(rw_api_url)
+    # convert response into json and make dictionary of layers
+    layer_dict = json.loads(r.content.decode('utf-8'))['data']
+    return layer_dict
+
+def create_headers():
+    '''
+    Create headers to perform authorized actions on API
+
+    '''
+    return {
+        'Content-Type': "application/json",
+        'Authorization': "{}".format(os.getenv('apiToken')),
+    }
+
+def update_layer(layer, new_date):
+    '''
+    Update layers in Resource Watch back office.
+    INPUT  layer: layer that will be updated (string)
+           new_date: date of asset to be shown in this layer (datetime)
+    '''
+    
+    # get previous date being used from
+    old_date = datetime.datetime.strptime(getDate(layer['attributes']['layerConfig']['assetId']), DATE_FORMAT)
+    # convert old datetimes to string
+    old_date_text = old_date.strftime("%B %d, %Y")
+
+    # convert new datetimes to string
+    new_date_text = new_date.strftime("%B %d, %Y")
+
+    # replace date in layer's title with new date range
+    layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
+
+    # store the current asset id used in the layer 
+    old_asset = layer['attributes']['layerConfig']['assetId']
+    # find the asset id of the latest image 
+    new_asset = getAssetName(new_date.strftime(DATE_FORMAT))[1:]
+    # replace the asset id in the layer def with new asset id
+    layer['attributes']['layerConfig']['assetId'] = new_asset
+
+    # replace the asset id in the interaction config with new asset id
+    layer['attributes']['interactionConfig']['config']['url'] = layer['attributes']['interactionConfig']['config']['url'].replace(old_asset,new_asset)
+
+    # send patch to API to replace layers
+    # generate url to patch layer
+    rw_api_url_layer = "https://api.resourcewatch.org/v1/dataset/{dataset_id}/layer/{layer_id}".format(
+        dataset_id=layer['attributes']['dataset'], layer_id=layer['id'])
+    # create payload with new title and layer configuration
+    payload = {
+        'application': ['rw'],
+        'layerConfig': layer['attributes']['layerConfig'],
+        'name': layer['attributes']['name'],
+        'interactionConfig': layer['attributes']['interactionConfig']
+    }
+    # patch API with updates
+    r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
+    # check response
+    # if we get a 200, the layers have been replaced
+    # if we get a 504 (gateway timeout) - the layers are still being replaced, but it worked
+    if r.ok or r.status_code==504:
+        logging.info('Layer replaced: {}'.format(layer['id']))
+    else:
+        logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
+
 def updateResourceWatch():
     '''
     This function should update Resource Watch to reflect the new data.
@@ -709,6 +782,14 @@ def updateResourceWatch():
     most_recent_date = get_most_recent_date(EE_COLLECTION)
     # Get the current 'last update date' from the dataset on Resource Watch
     current_date = getLastUpdate(DATASET_ID)
+    
+    # pull dictionary of current layers from API
+    layer_dict = pull_layers_from_API(DATASET_ID)
+    # go through each layer, pull the definition and update
+    for layer in layer_dict:
+        # update layer name, asset id, and interaction configuration 
+        update_layer(layer, most_recent_date)
+        
     # If the most recent date from the GEE collection does not match the 'last update date' on the RW API, update it
     if current_date != most_recent_date:
         logging.info('Updating last update date and flushing cache.')
@@ -718,7 +799,9 @@ def updateResourceWatch():
         layer_ids = getLayerIDs(DATASET_ID)
         for layer_id in layer_ids:
             flushTileCache(layer_id)
-    # Update the dates on layer legends - TO BE ADDED IN FUTURE
+            
+    
+    
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
