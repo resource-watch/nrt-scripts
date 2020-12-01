@@ -685,7 +685,7 @@ def deleteExcessAssets(dates, max_assets):
 
 def get_most_recent_date(collection):
     '''
-    Get most recent data we have assets for
+    Get most recent date we have assets for
     INPUT   collection: GEE collection to check dates for (string)
     RETURN  most_recent_date: most recent date in GEE collection (datetime)
     '''
@@ -714,40 +714,43 @@ def pull_layers_from_API(dataset_id):
     layer_dict = json.loads(r.content.decode('utf-8'))['data']
     return layer_dict
 
-def update_layer(layer):
+def create_headers():
+    '''
+    Create headers to perform authorized actions on API
+
+    '''
+    return {
+        'Content-Type': "application/json",
+        'Authorization': "{}".format(os.getenv('apiToken')),
+    }
+
+def update_layer(layer, new_date):
     '''
     Update layers in Resource Watch back office.
     INPUT  layer: layer that will be updated (string)
+           new_date: date of asset to be shown in this layer (datetime)
     '''
-    # convert end_date to string and get name of asset using the end_date
-    asset = getAssetName(var, end_date.strftime(DATE_FORMAT))
-
+    
     # get previous date being used from
-    old_date = getDate_GEE(layer['attributes']['layerConfig']['assetId'])
-    # get old start and end dates for time period that we are averaging over
-    old_end_date, old_start_date = getDateRange(old_date)    
+    old_date = datetime.datetime.strptime(getDate(layer['attributes']['layerConfig']['assetId']), DATE_FORMAT)
     # convert old datetimes to string
-    old_end_date_text = old_end_date.strftime("%B %d, %Y")
-    old_start_date_text = old_start_date.strftime("%B %d, %Y")
-    # generate text for old date range
-    old_date_text = old_start_date_text + ' - ' + old_end_date_text
+    old_date_text = old_date.strftime("%B %d, %Y")
 
     # convert new datetimes to string
-    end_date_text = end_date.strftime("%B %d, %Y")
-    start_date_text = start_date.strftime("%B %d, %Y")
-    # generate text for new date range
-    new_date_text = start_date_text + ' - ' + end_date_text
+    new_date_text = new_date.strftime("%B %d, %Y")
 
     # replace date in layer's title with new date range
     layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
 
+    # store the current asset id used in the layer 
+    old_asset = layer['attributes']['layerConfig']['assetId']
+    # find the asset id of the latest image 
+    new_asset = getAssetName(new_date.strftime(DATE_FORMAT))[1:]
     # replace the asset id in the layer def with new asset id
-    layer['attributes']['layerConfig']['assetId'] = asset
+    layer['attributes']['layerConfig']['assetId'] = new_asset
 
     # replace the asset id in the interaction config with new asset id
-    old_asset = getAssetName(var, old_date)
-    layer['attributes']['interactionConfig']['config']['url'] = layer['attributes']['interactionConfig']['config']['url'].replace(old_asset,asset)
-    layer['attributes']['interactionConfig']['pulseConfig']['url'] = layer['attributes']['interactionConfig']['pulseConfig']['url'].replace(old_asset,asset)
+    layer['attributes']['interactionConfig']['config']['url'] = layer['attributes']['interactionConfig']['config']['url'].replace(old_asset,new_asset)
 
     # send patch to API to replace layers
     # generate url to patch layer
@@ -784,10 +787,8 @@ def updateResourceWatch():
     layer_dict = pull_layers_from_API(DATASET_ID)
     # go through each layer, pull the definition and update
     for layer in layer_dict:
-        # get start and end dates for time period that we are averaging over
-        end_date, start_date = getDateRange(new_date)
-        # replace layer asset and title date with new
-        update_layer(var, layer, end_date, start_date)
+        # update layer name, asset id, and interaction configuration 
+        update_layer(layer, most_recent_date)
         
     # If the most recent date from the GEE collection does not match the 'last update date' on the RW API, update it
     if current_date != most_recent_date:
