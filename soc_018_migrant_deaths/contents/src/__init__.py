@@ -177,7 +177,7 @@ def processData(src_url, existing_ids):
     # Retrieve and process new data; continue until the current year is 
     # older than the oldest year allowed in the table, set by the MAX_AGE variable
     while year > MAX_AGE.year and num_new:
-        logging.info("Fetching data for {}".format(year))
+        logging.info("Fetching data for {} from {}".format(year, src_url.format(year=year)))
         # generate the url and pull data for the selected year
         res = requests.get(src_url.format(year=year))
         # read the contents of the url as a csv file
@@ -190,6 +190,9 @@ def processData(src_url, existing_ids):
         idx = {}
         # loop through each column
         for v, k in enumerate(headers):
+            # log the column names
+            logging.info('column:{}'.format(k))
+
             # replace spaces in column names with underscores
             # if the column is for the region name (for which the column name regularly alternates),
             # add both possible names for the column, pointing to the same column index number
@@ -198,6 +201,8 @@ def processData(src_url, existing_ids):
                     idx[name.replace(' ', '_')] = v
             else:
                 idx[k.replace(' ', '_')] = v
+                logging.info('updated column name:{}'.format(k.replace(' ', '_')))
+        logging.info(idx.keys())
         # create an empty list to store each row of new data
         new_rows = []
         # iterate over each line in the reader object
