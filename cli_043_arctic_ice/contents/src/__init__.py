@@ -179,7 +179,7 @@ def fetchDataFileName(url):
     # loop through each link to find the link for arctic sea ice minimum data
     for item in links:
         # if one of the links available to download is a text file & contains the word 'Arctic_data'
-        if item['href'].endswith(".txt") and 'Arctic_data' in item['href']:
+        if item['href'].endswith(".csv") and '_extent' in item['href']:
             if already_found:
                 logging.warning("There are multiple links which match criteria, passing most recent")
             # get the link   
@@ -195,11 +195,10 @@ def fetchDataFileName(url):
 
     return(https_link)
 
-def tryRetrieveData(url, resource_location, timeout=300, encoding='utf-8'):
+def tryRetrieveData(resource_location, timeout=300, encoding='utf-8'):
     ''' 
     Download data from the source
-    INPUT   url: source url to download data (string)
-            resource_location: link for source data (string)
+    INPUT   resource_location: link for source data (string)
             timeout: how many seconds we will wait to get the data from url (integer) 
             encoding: encoding of the url content (string)
     RETURN  res_rows: list of lines in the source data file (list of strings)
@@ -214,7 +213,7 @@ def tryRetrieveData(url, resource_location, timeout=300, encoding='utf-8'):
         # measures the elapsed time since start
         elapsed = time.time() - start
         try:
-            with requests.get(resource_location, auth=HTTPBasicAuth(EARTHDATA_USER, EARTHDATA_KEY), stream=True) as f:
+            with requests.get('https://climate.nasa.gov' + resource_location, stream=True) as f:
                 # split the lines at line boundaries and get the original string from the encoded string
                 res_rows = f.content.decode(encoding).splitlines()
                 return(res_rows)
@@ -261,7 +260,7 @@ def processData(url, existing_ids, date_format='%Y-%m-%d %H:%M:%S'):
     # Get the link from source url for which we want to download data
     resource_location = fetchDataFileName(url)
     # get the data from source as a list of strings, with each string holding one line from the source data file
-    res_rows = tryRetrieveData(url, resource_location)
+    res_rows = tryRetrieveData(resource_location)
     # create an empty dictionary to store new data (data that's not already in our Carto table)
     new_data = {}
     # go through each line of content retrieved from source
@@ -269,7 +268,7 @@ def processData(url, existing_ids, date_format='%Y-%m-%d %H:%M:%S'):
         # get dates, extent, area by processing lines that come after the header (header line start with "year")
         if not (row.startswith("year")):
             # split line by space to get each columns as separate elements
-            row = row.split()
+            row = row.split(',')
             logging.debug("Processing row: {}".format(row))
             # get area by accessing the last column 
             # convert the unit from million sq-km to sq-km, round to 3 significant figure
