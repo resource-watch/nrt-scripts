@@ -46,21 +46,21 @@ CARTO_SCHEMA = OrderedDict([
 ])
 
 # column names and types for table of calculated metrics
-METRICS_CARTO_SCHEMA = OrderedDict([('city', 'text'),
-             ('created', 'timestamp'),
-             ('date', 'timestamp'),
-             ('location', 'text'),
-             ('name', 'text'),
-             ('the_geom', 'geometry'),
-             ('no2_ppb_max1houravg', 'numeric'),
-             ('no2_ppm_max1houravg', 'numeric'),
-             ('no2_ugm3_max1houravg', 'numeric'),
-             ('pm25_gcc_ugm3_24houravg', 'numeric'),
-             ('pm25_gocart_ugm3_24houravg', 'numeric'),
-             ('o3_ppb_max8houravg', 'numeric'),
-             ('o3_ppm_max8houravg', 'numeric'),
-             ('o3_ugm3_max8houravg', 'numeric'),
-             ('uid', 'text')])
+METRICS_CARTO_SCHEMA = OrderedDict([('the_geom', 'geometry'),
+            ('name', 'text'),
+            ('city', 'text'),
+            ('location', 'text'),
+            ('created', 'timestamp'),
+            ('date', 'timestamp'),
+            ('no2_ppb_max1houravg', 'numeric'),
+            ('no2_ppm_max1houravg', 'numeric'),
+            ('no2_ugm3_max1houravg', 'numeric'),
+            ('pm25_gcc_ugm3_24houravg', 'numeric'),
+            ('pm25_gocart_ugm3_24houravg', 'numeric'),
+            ('o3_ppb_max8houravg', 'numeric'),
+            ('o3_ppm_max8houravg', 'numeric'),
+            ('o3_ugm3_max8houravg', 'numeric'),
+            ('uid', 'text')])
 
 # column of table that can be used as a unique ID (UID)
 UID_FIELD = 'uid'
@@ -75,10 +75,10 @@ DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 MAXROWS = 10000000
 
 # url for devseed air quality data
-SOURCE_URL = 'http://gmao-aq-staging-1504401194.us-east-1.elb.amazonaws.com/api/forecast/'
+SOURCE_URL = 'http://gmao-aq-prod-1707436367.us-east-1.elb.amazonaws.com/api/forecast/'
 
 # url to get info about specific station
-STATION_URL = 'http://gmao-aq-staging-1504401194.us-east-1.elb.amazonaws.com/api/station/{station}/'
+STATION_URL = 'http://gmao-aq-prod-1707436367.us-east-1.elb.amazonaws.com/api/station/{station}/'
 
 # Resource Watch dataset API ID
 # Important! Before testing this script:
