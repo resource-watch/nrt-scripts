@@ -278,7 +278,6 @@ def processNewData(src_url, existing_ids):
                 # get data from station url
                 stn_r = requests.get(stn_url)
                 if r.ok:
-                    print(f'retrieved station {stn}')
                     break
                 else:
                     logging.error('Could not fetch station data for uid: {}, trying again'.format(uid))
