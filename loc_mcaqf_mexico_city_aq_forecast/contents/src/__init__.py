@@ -400,18 +400,22 @@ def processNewData(existing_dates):
             datestamps = [datetime.datetime.strptime(date.split('_')[0], DATE_FORMAT)+timedelta(hours=int(date.split('_')[1])) for date in dates]
             # Get a list of the names we want to use for the assets once we upload the files to GEE
             new_assets = [getAssetName(tif) for tif in tifs]
+            # try uploading the data; even if there is an error, add the new assets
+            # it is common for the upload to time out, producing an error, but the
+            # data still uploads correctly
             try:
                 # Upload new files (tifs) to GEE
                 eeUtil.uploadAssets(tifs, new_assets, GS_FOLDER, datestamps, timeout=600)
             except:
-                # add uploaded assets to final list of assets uploaded
-                new_assets_all_var += new_assets
-                # Delete local files
-                logging.info('Cleaning local files')
-                for tif in tifs:
-                    os.remove(tif)
-                for f in files:
-                    os.remove(f)
+                pass
+            # add uploaded assets to final list of assets uploaded
+            new_assets_all_var += new_assets
+            # Delete local files
+            logging.info('Cleaning local files')
+            for tif in tifs:
+                os.remove(tif)
+            for f in files:
+                os.remove(f)
     return new_assets_all_var
 
 def checkCreateCollection(vars):
