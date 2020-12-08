@@ -9,6 +9,8 @@ RUN apt-get update
 RUN pip install requests==2.22.0
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 RUN pip install pandas==0.25.3
+RUN pip install shapely==1.7.1
+RUN pip install cartoframes==1.1.0
 
 # set name
 ARG NAME=cit_004_city_aq
