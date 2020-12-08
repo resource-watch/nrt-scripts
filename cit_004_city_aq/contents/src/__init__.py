@@ -237,7 +237,6 @@ def processStnData(stn_data):
     '''
     process new station data and send to Carto table
     INPUT   stn_data: station data from API (json)
-    RETURN  
     '''
     # create an empty list to store data from this row
     row = []
