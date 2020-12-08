@@ -8,6 +8,8 @@ import requests
 import json
 import time
 import pandas as pd
+import cartoframes
+from shapely.geometry import mapping
 
 # do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = False
@@ -18,9 +20,13 @@ DATA_DIR = 'data'
 # Carto username and API key for account where we will store the data
 CARTO_USER = os.getenv('CARTO_USER')
 CARTO_KEY = os.getenv('CARTO_KEY')
+# set up cartoframes auth
+AUTH=cartoframes.auth.Credentials(username=CARTO_USER, api_key=CARTO_KEY)
 
 # name of table in Carto where we will upload the data
 CARTO_TABLE = 'cit_004_city_aq'
+# name of table in Carto where we will upload the station data
+STATION_CARTO_TABLE = 'cit_004_city_aq_stations'
 # name of table in Carto where we will upload the calculated metrics
 METRICS_CARTO_TABLE = 'cit_004_city_aq_metrics'
 
@@ -31,8 +37,6 @@ CARTO_SCHEMA = OrderedDict([
     ("the_geom", "geometry"),
     ("uid", "text"),
     ("name", "text"),
-    ("city", "text"),
-    ("location", "text"),
     ("created", "timestamp"),
     ("date", "timestamp"),
     ("o3_ugm3", "numeric"),
@@ -45,11 +49,16 @@ CARTO_SCHEMA = OrderedDict([
     ("no2_ppb", "numeric"),
 ])
 
+# column names and types for table of stations
+STATION_CARTO_SCHEMA = OrderedDict([
+    ("the_geom", "geometry"),
+    ("id", "numeric"),
+    ("name", "text")
+])
+
 # column names and types for table of calculated metrics
 METRICS_CARTO_SCHEMA = OrderedDict([('the_geom', 'geometry'),
             ('name', 'text'),
-            ('city', 'text'),
-            ('location', 'text'),
             ('created', 'timestamp'),
             ('date', 'timestamp'),
             ('no2_ppb_max1houravg', 'numeric'),
@@ -64,6 +73,9 @@ METRICS_CARTO_SCHEMA = OrderedDict([('the_geom', 'geometry'),
 
 # column of table that can be used as a unique ID (UID)
 UID_FIELD = 'uid'
+
+# column of stations table that can be used as a unique ID (UID)
+STATION_UID_FIELD = 'id'
 
 # column that stores datetime information
 TIME_FIELD = 'created'
@@ -221,12 +233,40 @@ def getConversion_ugm3_ppb(gas):
         s = 1.96
     return s
 
+def processStnData(stn_data):
+    '''
+    process new station data and send to Carto table
+    INPUT   stn_data: station data from API (json)
+    '''
+    # create an empty list to store data from this row
+    row = []
+    # go through each column in the Carto table
+    for field in STATION_CARTO_SCHEMA.keys():
+        # if we are fetching data for geometry column
+        if field == 'the_geom':
+            # get geojson geometry
+            data = stn_data.get("geometry")
+            # add geojson geometry to the list of data from this row
+            row.append(data)
+        elif field=='id':
+            # get id
+            data = stn_data.get("id")
+            # add to the list of data from this row
+            row.append(data)
+        elif field=='name':
+            # get station name
+            name = stn_data.get("properties")['name']
+            # add to the list of data from this row
+            row.append(name)
+    cartosql.insertRows(STATION_CARTO_TABLE, STATION_CARTO_SCHEMA.keys(), STATION_CARTO_SCHEMA.values(), [row], user=CARTO_USER, key=CARTO_KEY)
 
-def processNewData(src_url, existing_ids):
+
+def processNewData(src_url, existing_ids, existing_stations):
     '''
     Fetch, process and upload new data
     INPUT   src_url: url where you can find the source data (string)
             existing_ids: list of unique IDs that we already have in our Carto table (list of strings)
+            existing_stations: list of station IDs that we already have in our Carto table (list of strings)
     RETURN  new_ids: list of unique ids of new data sent to Carto table (list of strings)
     '''
     tries = 0
@@ -248,6 +288,9 @@ def processNewData(src_url, existing_ids):
     new_rows = []
     # pull data from request response json
     data = r.json()
+
+    # get most updated list of station information
+    station_df = cartoframes.read_carto('cit_004_city_aq_stations', credentials=auth)
 
     logging.info('Processing new data')
     # loop until no new observations
@@ -271,36 +314,42 @@ def processNewData(src_url, existing_ids):
         # if the id doesn't already exist in Carto table or 
         # isn't added to the list for sending to Carto yet 
         if uid not in existing_ids + new_ids:
-            # generate url to get details of the station being processed
-            stn_url = STATION_URL.format(station = stn)
-            tries = 0
-            while tries < 3:
-                # get data from station url
-                stn_r = requests.get(stn_url)
-                if r.ok:
-                    break
-                else:
-                    logging.error('Could not fetch station data for uid: {}, trying again'.format(uid))
-                    time.sleep(100)
-                    tries += 1
-            if tries==3:
-                logging.error('Could not fetch station data for uid: {}, aborting'.format(uid))
+            # if we don't already have the station information for this station, add it to the table
+            if str(stn) not in existing_stations:
+                # generate url to get details of the station being processed
+                stn_url = STATION_URL.format(station = stn)
+                tries = 0
+                while tries < 3:
+                    # get data from station url
+                    stn_r = requests.get(stn_url)
+                    if r.ok:
+                        # pull data from request response json
+                        stn_data = stn_r.json()
+                        # process station data and send to Carto
+                        processStnData(stn_data)
+                        # add station to list of existing stations
+                        existing_stations.append(str(stn_data['id']))
+                        # get most updated list of station information
+                        station_df = cartoframes.read_carto('cit_004_city_aq_stations', credentials=auth)
+                        break
+                    else:
+                        logging.error('Could not fetch station data for uid: {}, trying again'.format(uid))
+                        time.sleep(100)
+                        tries += 1
+                if tries==3:
+                    logging.error('Could not fetch station data for uid: {}, aborting'.format(uid))
             # append the id to the list for sending to Carto 
             new_ids.append(uid)
             # create an empty list to store data from this row
             row = []
+            # get station data from Carto table
+            station_row = station_df[station_df['id']==str(stn)].iloc[0]
             # go through each column in the Carto table
             for field in CARTO_SCHEMA.keys():
-                try:
-                    # pull data from request response json
-                    stn_data = stn_r.json()
-                except:
-                    logging.error('Station Error')
-                    logging.error(stn_data)
                 # if we are fetching data for geometry column
                 if field == 'the_geom':
                     # construct geojson geometry
-                    geom = stn_data.get("geometry")
+                    geom = mapping(station_row['the_geom'])
                     # add geojson geometry to the list of data from this row
                     row.append(geom)
                 # if we are fetching data for unique id column
@@ -310,19 +359,9 @@ def processNewData(src_url, existing_ids):
                 # if we are fetching data for station name
                 elif field == 'name':
                     # get station name from the dictionary
-                    name = stn_data.get("properties").get("name")
+                    name = station_row["name"]
                     # add text to the list of data from this row
                     row.append(name)
-                elif field == 'city':
-                    # get city name from the station name
-                    city = stn_data.get("properties").get("name").split('_')[0]
-                    # add text to the list of data from this row
-                    row.append(city)
-                elif field == 'location':
-                    # get station name from the station name
-                    location = stn_data.get("properties").get("name").split('_')[1]
-                    # add text to the list of data from this row
-                    row.append(location)
                 # if we are fetching data for date of forecast creation column
                 elif field == 'created':
                     # turn already generated date into a datetime
@@ -530,7 +569,7 @@ def processMetrics(new_ids):
             df = pd.DataFrame.from_records(r.json()['rows'])
             # Calculate daily metrics for each variable
             # define the groupings to use when calculating metrics
-            grouping = ['name', 'city', 'location', 'the_geom', 'the_geom_webmercator']
+            grouping = ['name', 'the_geom', 'the_geom_webmercator']
             # Calculate NO2 metric - maximum 1-hour average (for all units)
             df['no2_ppb_max1houravg'] = df.groupby(grouping)['no2_ppb'].transform(lambda x: x.max())
             df['no2_ppm_max1houravg'] = df.groupby(grouping)['no2_ppm'].transform(lambda x: x.max())
@@ -616,9 +655,10 @@ def main():
     # Check if table exists, create it if it does not
     logging.info('Checking if table exists and getting existing IDs.')
     existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, TIME_FIELD)
+    existing_stations = checkCreateTable(STATION_CARTO_TABLE, STATION_CARTO_SCHEMA, STATION_UID_FIELD)
 
     # Fetch, process, and upload new data
-    new_ids = processNewData(SOURCE_URL, existing_ids)
+    new_ids = processNewData(SOURCE_URL, existing_ids, existing_stations)
 
     # Check if metrics table exists, create it if it does not
     checkCreateTable(METRICS_CARTO_TABLE, METRICS_CARTO_SCHEMA, UID_FIELD)
