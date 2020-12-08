@@ -681,7 +681,8 @@ def main():
 
     # Delete excess assets and files from S3
     deleteExcessAssets(existing_dates+new_dates, MAX_DATES)
-
+    logging.info(new_assets)
+    logging.info(new_dates)
     # Update Resource Watch
     if len(new_dates):
         updateResourceWatch(new_dates)
