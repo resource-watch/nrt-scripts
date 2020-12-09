@@ -330,7 +330,7 @@ def processNewData(src_url, existing_ids, existing_stations):
                         # add station to list of existing stations
                         existing_stations.append(str(stn_data['id']))
                         # get most updated list of station information
-                        station_df = cartoframes.read_carto('cit_004_city_aq_stations', credentials=auth)
+                        station_df = cartoframes.read_carto('cit_004_city_aq_stations', credentials=AUTH)
                         break
                     else:
                         logging.error('Could not fetch station data for uid: {}, trying again'.format(uid))
