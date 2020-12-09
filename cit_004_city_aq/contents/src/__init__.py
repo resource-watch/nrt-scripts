@@ -290,7 +290,7 @@ def processNewData(src_url, existing_ids, existing_stations):
     data = r.json()
 
     # get most updated list of station information
-    station_df = cartoframes.read_carto('cit_004_city_aq_stations', credentials=auth)
+    station_df = cartoframes.read_carto('cit_004_city_aq_stations', credentials=AUTH)
 
     logging.info('Processing new data')
     # loop until no new observations
