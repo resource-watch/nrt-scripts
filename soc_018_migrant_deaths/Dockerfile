@@ -1,4 +1,4 @@
-FROM python:3.6-alpine
+FROM python:3.6
 MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
 #Note this script was originally developed by Nathan Suberi <nathan.suberi@wri.org>
 
@@ -6,12 +6,13 @@ ARG NAME=soc_018
 ENV NAME ${NAME}
 
 # install core libraries
-RUN apk update
-RUN apk add git
+RUN apt-get update
 
 # install application libraries
 RUN pip install --upgrade pip && pip install requests==2.22.0
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
+RUN pip install pandas==0.25.3 \
+    wget==3.2 
 
 # Copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data
@@ -19,8 +20,8 @@ WORKDIR /opt/$NAME/
 COPY contents/ .
 
 # Set user for container security
-RUN addgroup -S $NAME && adduser -S -G $NAME $NAME
-RUN chown $NAME:$NAME /opt/$NAME
+RUN useradd $NAME
+RUN chown -R $NAME:$NAME .
 USER $NAME
 
 # Launch script
