@@ -180,6 +180,7 @@ def processData(src_url, existing_ids):
         logging.info("Fetching data for {} from {}".format(year, src_url.format(year=year)))
         # generate the url and pull data for the selected year
         res = requests.get(src_url.format(year=year))
+        logging.info(res.content())
         # read the contents of the url as a csv file
         # return a reader object which will iterate over lines in the given csvfile
         csv_reader = csv.reader(res.iter_lines(decode_unicode=True))
