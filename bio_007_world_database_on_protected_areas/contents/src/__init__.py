@@ -386,7 +386,10 @@ def processData(existing_ids):
 
                 # push new data rows to Carto
                 logging.info('Adding {} new records.'.format(num_new))
-                cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), new_data, user=CARTO_USER, key=CARTO_KEY)
+                # Carto does not accept Nans for numeric columns; convert them to None 
+                for row in new_data: 
+                    row = [None if x is np.nan else x for x in row]
+                    cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), [row], user=CARTO_USER, key=CARTO_KEY)
 
                 # start with empty lists again to process the next batch of data
                 new_data = []
