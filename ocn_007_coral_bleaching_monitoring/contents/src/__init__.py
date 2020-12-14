@@ -250,6 +250,7 @@ def flushTileCache(layer_id):
     """
     # generate the API url for this layer's cache
     apiUrl = 'http://api.resourcewatch.org/v1/layer/{}/expire-cache'.format(layer_id)
+
     # create headers to send with the request to clear the cache
     headers = {
     'Content-Type': 'application/json',
@@ -265,6 +266,8 @@ def flushTileCache(layer_id):
     while try_num<tries:
         try:
             # try to delete the cache
+            logging.info(headers)
+            logging.info(apiUrl)
             r = requests.delete(url = apiUrl, headers = headers, timeout=1000)
             # if we get a 200, the cache has been deleted
             # if we get a 504 (gateway timeout) - the tiles are still being deleted, but it worked
