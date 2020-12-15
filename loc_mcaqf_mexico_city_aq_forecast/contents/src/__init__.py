@@ -177,7 +177,7 @@ def flushTileCache_future(layer_id):
     }
 
     # generate request.delete arguments to clear cache for this layer
-    return {'url': apiUrl, 'headers': headers, 'timeout':60}
+    return {'url': apiUrl, 'headers': headers}
 
 '''
 FUNCTIONS FOR THIS DATASET
@@ -652,7 +652,10 @@ def updateResourceWatch(new_dates):
                 futures.append(pool.apply_async(requests.delete, kwds=kwds))
             # execute requests
             for future in futures:
-                future.get()
+                try:
+                    future.get(timeout=60)
+                except TimeoutError:
+                    logging.info("We lacked patience and got a multiprocessing.TimeoutError")
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
