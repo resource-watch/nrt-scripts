@@ -177,7 +177,7 @@ def flushTileCache_future(layer_id):
     }
 
     # generate request.delete arguments to clear cache for this layer
-    return {'url': apiUrl, 'headers': headers}
+    return {'url': apiUrl, 'headers': headers, 'timeout':60}
 
 '''
 FUNCTIONS FOR THIS DATASET
