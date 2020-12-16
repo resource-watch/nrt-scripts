@@ -15,7 +15,7 @@ from netCDF4 import Dataset
 import numpy as np
 import copy
 import json
-from multiprocessing.dummy import Pool
+from multiprocessing import Pool, TimeoutError
 
 # set up boto3 client with AWS credentials
 S3 = boto3.client('s3', aws_access_key_id=os.getenv('S3_ACCESS_KEY'), aws_secret_access_key=os.getenv('S3_SECRET_KEY'))
@@ -653,7 +653,7 @@ def updateResourceWatch(new_dates):
             # execute requests
             for future in futures:
                 try:
-                    future.get(timeout=60)
+                    future.get(timeout=20)
                 except TimeoutError:
                     logging.info("We lacked patience and got a multiprocessing.TimeoutError")
 
