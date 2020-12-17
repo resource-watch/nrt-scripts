@@ -1,3 +1,6 @@
+import dotenv
+#insert the location of your .env file here:
+dotenv.load_dotenv('/home/eduardo/Documents/RW_github/cred/.env')
 import webbrowser, sys, bs4
 import pandas as pd
 from datetime import date, timedelta, datetime
@@ -32,8 +35,8 @@ CARTO_USER = os.getenv('CARTO_USER')
 CARTO_KEY = os.getenv('CARTO_KEY')
 # asserting table structure rather than reading from input
 # We will create two tables in this script, due to the different dissagregation levels.
-CARTO_NODES_TABLE = 'loc_mx_ene_nodes_'
-CARTO_LOAD_TABLE = 'loc_mx_ene_load_zones'
+CARTO_NODES_TABLE = 'loc_mx_ene_nodes'
+CARTO_LOAD_ZONES_TABLE = 'loc_mx_ene_load_zones'
 
 # column names and types for data table
 # column names should be lowercase
@@ -46,12 +49,12 @@ CARTO_NODES_SCHEMA = OrderedDict([
        ('system','text'),
        ('control_center','text'),
        ('load_zone','text'),
-       ('inegi state code'),
+       ('state_code', 'text'),
        ('state','text'),
-       ('inegi municipality code'),
+       ('municipality_code','text'),
        ('municipality','text'),
-       ('latitude','numeric'),
-       ('longitude','numeric')
+       ('longitude','numeric'),
+       ('latitude','numeric')
     ])
 
 CARTO_LOAD_ZONES_SCHEMA = OrderedDict([
@@ -63,8 +66,8 @@ CARTO_LOAD_ZONES_SCHEMA = OrderedDict([
        ('state','text'),
        ('municipality_code','text'),
        ('municipality','text'),
-       ('latitude','numeric'),
-       ('longitude','numeric')
+       ('longitude','numeric'),
+       ('latitude','numeric')
     ])
 
 UID_FIELD = 'uid'
@@ -147,13 +150,11 @@ def checkCreateTable(table, schema, id_field, time_field=''):
         # return an empty list because there are no IDs in the new table yet
         return []
 
-
 '''
 FUNCTIONS FOR THIS DATASET
 The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
-    
 #This function fetches the coordinates for municipalities from the INEGI API.
 def inegi_localidad(df): 
     links=[]
@@ -169,7 +170,7 @@ def inegi_localidad(df):
         except Exception as exc:
             print('There was a problem: %s' % (exc))
     response_frame = pd.json_normalize(frames)
-    response_frame = response_table.normalize(response_frame)
+    response_frame = flat_table.normalize(response_frame)
     response_frame = response_frame[['datos.longitud','datos.latitud','datos.cve_agem','datos.cve_agee']]
     response_frame['datos.longitud'] = response_frame['datos.longitud'].astype('float64')
     response_frame['datos.latitud'] = response_frame['datos.latitud'].astype('float64')
@@ -223,11 +224,12 @@ def download_nodes():
     merged_d3 = pd.merge(d3, inegi_localidad(d3), how = 'left', left_on = ['CLAVE DE ENTIDAD FEDERATIVA (INEGI)', 'CLAVE DE MUNICIPIO (INEGI)'], right_on = ['datos.cve_agee','datos.cve_agem'])
     merged_nodes = merged_d3[['CLAVE','NOMBRE','SISTEMA','CENTRO DE CONTROL REGIONAL','ZONA DE CARGA', 'CLAVE DE ENTIDAD FEDERATIVA (INEGI)','ENTIDAD FEDERATIVA (INEGI)','CLAVE DE MUNICIPIO (INEGI)','MUNICIPIO (INEGI)','datos.longitud','datos.latitud']]
     merged_nodes = merged_nodes.reset_index(drop=True)
-    merged_nodes.columns = ['NODE_ID','NAME','SYSTEM','REGIONAL_CONTROL_CENTER','LOAD_ZONE','STATE_CODE', 'STATE', 'MUNICIPALITY_CODE','MUNICIPALITY', 'LONGITUDE','LATITUDE']
+    merged_nodes.columns = ['NODE_ID','NODE_NAME','SYSTEM','CONTROL_CENTER','LOAD_ZONE','STATE_CODE', 'STATE', 'MUNICIPALITY_CODE','MUNICIPALITY', 'LONGITUDE','LATITUDE']
     merged_nodes.columns= merged_nodes.columns.str.strip().str.lower()
     
     return merged_nodes
 
+#This function download the load zones from cenace's api, then merge the file with inegi coordinates
 def load_zone_download():
     ficheros=[file for file in os.listdir(os.getcwd()) if file.endswith('.xlsx')]
     d3=pd.DataFrame()
@@ -245,7 +247,7 @@ def load_zone_download():
     merged_zones = merged_zones.reset_index(drop=True)
     merged_zones.columns = ['SYSTEM','LOAD_ZONE','STATE_CODE', 'STATE', 'MUNICIPALITY_CODE','MUNICIPALITY', 'LONGITUDE','LATITUDE']
     merged_zones['LOAD_ZONE'] = merged_zones['LOAD_ZONE'].replace('-','')
-    #merged_zones = merged_zones.replace(to_replace="\s\s*",value = '',regex=True)
+    merged_zones = merged_zones.replace(to_replace="\s\s*",value = '',regex=True)
     merged_zones.columns= merged_zones.columns.str.strip().str.lower()
     
     return merged_zones
@@ -264,17 +266,16 @@ def get_nodes_zones(table,param_column):
     lis_param.sort()
     
     return lis_param
-
 def upload_data(df,param_column,existing_ids,CARTO_TABLE,CARTO_SCHEMA):
     #Check if fetched entries are already in the carto table, and if so removes them.
     df = df[~df[param_column].isin(get_nodes_zones(CARTO_TABLE, param_column))]
     # create a 'uid' column to store the index of rows as unique ids
-    #WARNING: NEED TO CHECK IF THIS IS THE CORRECT WAY TO GENERATE UIDs
     df = df.reset_index(drop=True)
-    df['uid'] = df.index + existing_ids
+    df['uid'] = df.index + max(existing_ids, default=0)
     # create 'the_geom' column to store the geometry of the data points
-    df['the_geom'] = [{'type': 'Point','coordinates': [x, y]} for (x, y) in zip(df['datos.longitud'], df['datos.latitud'])]
-    df.columns= df.columns.str.strip().str.lower()
+    df['the_geom'] = [{'type': 'Point','coordinates': [x, y]} for (x, y) in zip(df['longitude'], df['latitude'])]
+    #Turn empty spaces and other characters to null
+    df = df.where(pd.notnull(df), None)
     # reorder the columns in the dataframe based on the keys from the dictionary "CARTO_SCHEMA"
     df = df[CARTO_SCHEMA.keys()]
     if len(df):
@@ -290,18 +291,22 @@ def upload_data(df,param_column,existing_ids,CARTO_TABLE,CARTO_SCHEMA):
 def main():
       
     # Check if table exists, create it if it does not
-    logging.info('Checking if table exists and getting existing IDs.')
+    logging.info('Checking if nodes table exists and getting existing IDs.')
     nodes_existing_ids = checkCreateTable(CARTO_NODES_TABLE, CARTO_NODES_SCHEMA, UID_FIELD, TIME_FIELD)
     # Fetch, process, and upload new data
+    logging.info('Fetching nodes!')
     new_nodes = download_nodes()
-    #WARNING ON existing_ids arg
+    #Updating nodes table
+    logging.info('Upload nodes!')
     num_new = upload_data(new_nodes,NODE_FIELD, nodes_existing_ids,CARTO_NODES_TABLE, CARTO_NODES_SCHEMA)
     logging.info('Previous rows: {},  New rows: {}'.format(len(nodes_existing_ids), num_new))
+    
     #Repeating process for load zones table
-    logging.info('Checking if table exists and getting existing IDs.')
-    zones_existing_ids = checkCreateTable(CARTO_LOAD_TABLE, CARTO_LOAD_ZONES_SCHEMA, UID_FIELD, TIME_FIELD)
-    # Fetch, process, and upload new data
-    new_zones = load_zone_download()
-    #WARNING ON existing_ids arg
-    num_new = upload_data(new_zones,LOAD_FIELD, zones_existing_ids, CARTO_LOAD_TABLE, CARTO_LOAD_ZONES_SCHEMA)
-    logging.info('Previous rows: {},  New rows: {}'.format(len(zones_existing_ids), num_new))
+    logging.info('Checking if load zones table exists and getting existing IDs.')
+    load_zones_existing_ids = checkCreateTable(CARTO_LOAD_ZONES_TABLE, CARTO_LOAD_ZONES_SCHEMA, UID_FIELD, TIME_FIELD)
+    #Fetch, process, and upload new data
+    new_zones = load_zone_download()    
+    #Updating nodes table
+    logging.info('Upload load zones!')
+    num_new = upload_data(new_zones,LOAD_FIELD, load_zones_existing_ids, CARTO_LOAD_ZONES_TABLE, CARTO_LOAD_ZONES_SCHEMA)
+    logging.info('Previous rows: {},  New rows: {}'.format(len(load_zones_existing_ids), num_new))
