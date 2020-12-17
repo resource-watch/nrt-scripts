@@ -1,7 +1,4 @@
-import dotenv
-#insert the location of your .env file here:
-dotenv.load_dotenv('/home/eduardo/Documents/RW_github/cred/.env')
-import webbrowser, sys, bs4
+import sys, bs4
 import requests
 import pandas as pd
 from datetime import date, timedelta, datetime
@@ -13,9 +10,6 @@ from filecmp import cmp
 from os import listdir
 from os.path import isfile, join
 import urllib
-from multiprocessing import Pool
-import tqdm
-from functools import reduce
 import cartoframes
 import logging
 from collections import OrderedDict
