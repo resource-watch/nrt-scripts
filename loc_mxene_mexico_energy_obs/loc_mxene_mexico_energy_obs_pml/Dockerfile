@@ -16,7 +16,7 @@ RUN pip install --upgrade pip && pip install \
     numpy==1.19.4 \
     pandas==1.1.4 \
     cartoframes==1.1.0 \
-    bs4==4.9.3 \
+    bs4==0.0.1 \
 
 # Copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data

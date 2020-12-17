@@ -1,7 +1,4 @@
-import dotenv
-#insert the location of your .env file here:
-dotenv.load_dotenv('/home/eduardo/Documents/RW_github/cred/.env')
-import webbrowser, sys, bs4
+import sys, bs4
 import pandas as pd
 from datetime import date, timedelta, datetime
 import numpy as np
