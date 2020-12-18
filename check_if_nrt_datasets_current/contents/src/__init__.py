@@ -124,6 +124,8 @@ def main():
             allowed_time = datetime.timedelta(days=30)
         elif 'for.003' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=10)
+        elif 'soc.049' in r['data']['attributes']['name']:
+            allowed_time = datetime.timedelta(days=548)
 
         '''check if the time since last update surpasses the time we allow for this type of data set'''
         # if the dataset is out-of-date
