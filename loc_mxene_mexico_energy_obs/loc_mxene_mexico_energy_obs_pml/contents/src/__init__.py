@@ -215,7 +215,7 @@ def fetcher_nodes():
     #dinicio = date(2020,12,16) ##Use this function the first time to update the table
     #dfin = date.today() ###to current date
     dinicio = (get_most_recent_date(CARTO_NODES_PML_TABLE) +timedelta(days=1)).date()
-    dfin =  dinicio + timedelta(days=3)
+    dfin =  dinicio + timedelta(days=6)
     while dinicio <= dfin:
         daux = dinicio+timedelta(days=6)
         if (daux < dfin) & (dinicio < dfin):
@@ -360,7 +360,7 @@ def fetcher_load():
     #dinicio = date(2020,12,16)###Use this function to update the table for the first time
     #dfin = date.today()####
     dinicio = (get_most_recent_date(CARTO_LOAD_PML_TABLE) +timedelta(days=1)).date()
-    dfin =  dinicio + timedelta(days=3)
+    dfin =  dinicio + timedelta(days=6)
     while dinicio <= dfin:
         daux = dinicio+timedelta(days=6)
         if (daux < dfin) & (dinicio < dfin):
