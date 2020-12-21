@@ -268,7 +268,7 @@ def upload_data(df,param_column,existing_ids,CARTO_TABLE,CARTO_SCHEMA):
     df = df[~df[param_column].isin(get_nodes_zones(CARTO_TABLE, param_column))]
     # create a 'uid' column to store the index of rows as unique ids
     df = df.reset_index(drop=True)
-    df['uid'] = df.index + max(existing_ids, default=0)
+    df['uid'] = df.index + (int(max(existing_ids,default=0))+1)
     # create 'the_geom' column to store the geometry of the data points
     df['the_geom'] = [{'type': 'Point','coordinates': [x, y]} for (x, y) in zip(df['longitude'], df['latitude'])]
     #Turn empty spaces and other characters to null
@@ -282,7 +282,8 @@ def upload_data(df,param_column,existing_ids,CARTO_TABLE,CARTO_SCHEMA):
         data = df.values.tolist()
         # insert new data into the carto table
         cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), data, user=CARTO_USER, key=CARTO_KEY)
-
+    else: num_new = 0
+    
     return(num_new)
 
 def main():

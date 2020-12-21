@@ -70,6 +70,8 @@ CARTO_LOAD_PML_SCHEMA = OrderedDict([
        ('longitude','numeric'),
        ('latitude','numeric')
     ])
+# how many rows can be stored in the Carto table before the oldest ones are deleted?
+MAX_ROWS = 1000000
 
 UID_FIELD = 'uid'
 TIME_FIELD = 'entry_date'
@@ -171,7 +173,7 @@ def get_most_recent_date(table):
     # sort the dates from oldest to newest
     dates.sort()
     # turn the last (newest) date into a datetime object
-    most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d')
+    most_recent_date = datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
     return most_recent_date
 
 #This function builds the url's to make the requests to cenace's api.
@@ -210,9 +212,11 @@ def fetcher_nodes():
     db_ene = pd.DataFrame(columns = ['FECHA','ID_NODO','H1','H2','H3','H4','H5','H6','H7','H8','H9','H10','H11','H12','H13','H14','H15','H16','H17','H18','H19','H20','H21','H22','H23','H24'])
     db_per = pd.DataFrame(columns = ['FECHA','ID_NODO','H1','H2','H3','H4','H5','H6','H7','H8','H9','H10','H11','H12','H13','H14','H15','H16','H17','H18','H19','H20','H21','H22','H23','H24'])
     db_cng = pd.DataFrame(columns = ['FECHA','ID_NODO','H1','H2','H3','H4','H5','H6','H7','H8','H9','H10','H11','H12','H13','H14','H15','H16','H17','H18','H19','H20','H21','H22','H23','H24'])
-    dinicio = date(2020,12,5)
-    dfin = date.today()
-    while dinicio <= dfin:#date.today()
+    #dinicio = date(2020,12,16) ##Use this function the first time to update the table
+    #dfin = date.today() ###to current date
+    dinicio = (get_most_recent_date(CARTO_NODES_PML_TABLE) +timedelta(days=1)).date()
+    dfin =  dinicio + timedelta(days=3)
+    while dinicio <= dfin:
         daux = dinicio+timedelta(days=6)
         if (daux < dfin) & (dinicio < dfin):
             print('Downloading information for dates {} - {} \n'.format(dinicio,daux))
@@ -353,9 +357,11 @@ def fetcher_load():
     auth=cartoframes.auth.Credentials(username=CARTO_USER, api_key=CARTO_KEY)
     df = cartoframes.read_carto('loc_mx_ene_load_zones', credentials=auth)
     db_ca=pd.DataFrame(columns = ['FECHA','SISTEMA','ZONA_CARGA','H1','H2','H3','H4','H5','H6','H7','H8','H9','H10','H11','H12','H13','H14','H15','H16','H17','H18','H19','H20','H21','H22','H23','H24'])
-    dinicio = date(2020,12,1)
-    dfin = date.today()
-    while dinicio <= dfin:#date.today()
+    #dinicio = date(2020,12,16)###Use this function to update the table for the first time
+    #dfin = date.today()####
+    dinicio = (get_most_recent_date(CARTO_LOAD_PML_TABLE) +timedelta(days=1)).date()
+    dfin =  dinicio + timedelta(days=3)
+    while dinicio <= dfin:
         daux = dinicio+timedelta(days=6)
         if (daux < dfin) & (dinicio < dfin):
             print('Downloading information for dates {} - {} \n'.format(dinicio,daux))
@@ -426,7 +432,7 @@ def upload_data(df,existing_ids,CARTO_TABLE,CARTO_SCHEMA):
     df.drop(['cartodb_id', 'uid', 'the_geom'], axis=1, inplace=True, errors='ignore')
     # create a 'uid' column to store the index of rows as unique ids
     df = df.reset_index(drop=True)
-    df['uid'] = df.index + max(existing_ids, default=0)    
+    df['uid'] = df.index + (int(max(existing_ids,default=0))+1)    
     # create 'the_geom' column to store the geometry of the data points
     df['the_geom'] = [{'type': 'Point','coordinates': [x, y]} for (x, y) in zip(df['longitude'], df['latitude'])]
     #Turn empty spaces and other characters to null
@@ -441,7 +447,34 @@ def upload_data(df,existing_ids,CARTO_TABLE,CARTO_SCHEMA):
         # insert new data into the carto table
         cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), data, user=CARTO_USER, key=CARTO_KEY)
 
-    return(num_new)
+    return num_new
+
+def deleteExcessRows(table, max_rows, time_field):
+    ''' 
+    Delete rows to bring count down to max_rows
+    INPUT   table: name of table in Carto from which we will delete excess rows (string)
+            max_rows: maximum rows that can be stored in the Carto table (integer)
+            time_field: column that stores datetime information (string) 
+    RETURN  num_dropped: number of rows that have been dropped from the table (integer)
+    ''' 
+    # initialize number of rows that will be dropped as 0
+    num_dropped = 0
+    # get cartodb_ids from carto table sorted by date (new->old)
+    r = cartosql.getFields('cartodb_id', table, order='{} desc'.format(time_field),
+                           f='csv', user=CARTO_USER, key=CARTO_KEY)
+    # turn response into a list of strings of the ids
+    ids = r.text.split('\r\n')[1:-1]
+
+    # if number of rows is greater than max_rows, delete excess rows
+    if len(ids) > max_rows:
+        r = cartosql.deleteRowsByIDs(table, ids[max_rows:], CARTO_USER, CARTO_KEY)
+        # get the number of rows that have been dropped from the table
+        num_dropped += r.json()['total_rows']
+    if num_dropped:
+        logging.info('Dropped {} old rows from {}'.format(num_dropped, table))
+
+    return(num_dropped)
+
 
 def main():
     # Check if table exists, create it if it does not
@@ -454,6 +487,9 @@ def main():
     logging.info('Uploading pml info!')
     num_new = upload_data(new_nodes_pml, nodes_pml_existing_ids,CARTO_NODES_PML_TABLE, CARTO_NODES_PML_SCHEMA)
     logging.info('Previous rows: {},  New rows: {}'.format(len(nodes_pml_existing_ids), num_new))
+     # Delete data to get back to MAX_ROWS
+    logging.info('Delete Nodes pml excess Rows!')
+    num_deleted = deleteExcessRows(CARTO_NODES_PML_TABLE, MAX_ROWS, TIME_FIELD)
     ##################################
     #Repeating process for load zones#
     ##################################
@@ -467,3 +503,7 @@ def main():
     logging.info('Uploading zones pml info!')
     num_new = upload_data(new_zones_pml, zones_pml_existing_ids,CARTO_LOAD_PML_TABLE, CARTO_LOAD_PML_SCHEMA)
     logging.info('Previous rows: {},  New rows: {}'.format(len(zones_pml_existing_ids), num_new))
+    # Delete data to get back to MAX_ROWS
+    logging.info('Delete load pml excess Rows!')
+    num_deleted = deleteExcessRows(CARTO_LOAD_PML_TABLE, MAX_ROWS, TIME_FIELD)
+    logging.info("SUCCESS")
