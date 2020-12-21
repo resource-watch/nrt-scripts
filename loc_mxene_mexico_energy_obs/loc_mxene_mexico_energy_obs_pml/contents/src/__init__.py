@@ -432,7 +432,7 @@ def upload_data(df,existing_ids,CARTO_TABLE,CARTO_SCHEMA):
     df.drop(['cartodb_id', 'uid', 'the_geom'], axis=1, inplace=True, errors='ignore')
     # create a 'uid' column to store the index of rows as unique ids
     df = df.reset_index(drop=True)
-    df['uid'] = df.index + max([int(i) for i in existing_ids])+1   
+    df['uid'] = df.index + max([int(i) for i in existing_ids],default = 0)+1   
     # create 'the_geom' column to store the geometry of the data points
     df['the_geom'] = [{'type': 'Point','coordinates': [x, y]} for (x, y) in zip(df['longitude'], df['latitude'])]
     #Turn empty spaces and other characters to null
