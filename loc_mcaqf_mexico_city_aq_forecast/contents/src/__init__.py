@@ -653,9 +653,9 @@ def updateResourceWatch(new_dates):
             # execute requests
             for future in futures:
                 try:
-                    future.get(timeout=20)
+                    future.get(timeout=1)
                 except TimeoutError:
-                    logging.info("We lacked patience and got a multiprocessing.TimeoutError")
+                    pass
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
