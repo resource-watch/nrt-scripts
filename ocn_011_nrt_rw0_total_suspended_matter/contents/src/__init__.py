@@ -14,16 +14,25 @@ import gdal
 import numpy as np
 from collections import OrderedDict 
 import json 
+import ftplib
 
-data_dict = OrderedDict()
-data_dict['tsm_month'] = {
-        # basic path: ftp://ftp.hermes.acri.fr/GLOB/olcib/month/2020/11/01/L3m_20201101-20201130__GLOB_4_AV-OLB_TSM_MO_00.nc
-        # splitting into two pieces for login-required ftp
-        # dir template items: username, password, year (YYYY), month (mm),  first day of month (YYYYmmdd), last day of month (YYYYmmdd)
-        'url_template': 'ftp://{}:{}@ftp.hermes.acri.fr/GLOB/olcib/month/{}/{}/01/L3m_{}-{}__GLOB_4_AV-OLB_TSM_MO_00.nc',
+DATA_DICT = OrderedDict()
+DATA_DICT['tsm_month'] = {
         'sds': [
             'TSM_mean',
         ],
+        'interval': 'month',
+        'original_nodata': -999,
+        'missing_data': [
+            -999,
+        ],
+        'pyramiding_policy': 'MEAN',
+    }
+DATA_DICT['tsm_8_days'] = {
+        'sds': [
+            'TSM_mean',
+        ],
+        'interval':'8-day',
         'original_nodata': -999,
         'missing_data': [
             -999,
@@ -32,31 +41,43 @@ data_dict['tsm_month'] = {
     }
 
 # filename format for GEE
-FILENAME = 'ocn_011_total_suspended_matter_{date}'
+FILENAME = 'ocn_011_total_suspended_matter_{var}_{date}'
+
+os.environ['PROJ_LIB'] = 'C:\\Users\\yujing.wu\\Anaconda3\\pkgs\\proj-6.2.1-h9f7ef89_0\\Library\\share\\proj'
 
 # name of data directory in Docker container
 DATA_DIR = os.path.join(os.getcwd(),'data')
 
 # name of collection in GEE where we will upload the final data
-EE_COLLECTION = '/projects/resource-watch-gee/ocn_007_coral_bleaching_monitoring'
+COLLECTION = '/projects/resource-watch-gee/ocn_011_nrt_total_suspended_matter'
+
+# generate generic string that can be formatted to name each product's GEE collection
+EE_COLLECTION_GEN = COLLECTION + '/{var}'
 
 # name of folder to store data in Google Cloud Storage
-GS_FOLDER = EE_COLLECTION[1:]
+GS_FOLDER = COLLECTION[1:]
 
 # do you want to delete everything currently in the GEE collection when you run this script?
 CLEAR_COLLECTION_FIRST = False
 
 # how many assets can be stored in the GEE collection before the oldest ones are deleted?
-MAX_ASSETS = 16
+MAX_ASSETS = 3
 
 # format of date used in both source and GEE
 DATE_FORMAT = '%Y%m%d'
+
+# url from which the data is downloaded 
+SOURCE_URL = 'ftp://{}:{}@ftp.hermes.acri.fr{}'
+
+# username and password for the ftp service to download data 
+ftp_username = os.environ.get('GLOBCOLOUR_USERNAME')
+ftp_password = os.environ.get('GLOBCOLOUR_PASSWORD')
 
 # Resource Watch dataset API ID
 # Important! Before testing this script:
 # Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
 # Failing to do so will overwrite the last update date on a different dataset on Resource Watch
-DATASET_ID = '574f0b71-8363-4e3a-978f-2b1ce58c1c33'
+DATASET_ID = '6ad0f556-20fd-4ddf-a5cc-bf93c003a463'
 
 '''
 FUNCTIONS FOR ALL DATASETS
@@ -197,21 +218,22 @@ FUNCTIONS FOR THIS DATASET
 The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
-def getFilename(date):
-     '''
-     generate filename to save final merged file as 
-     INPUT   date: date in the format of the DATE_FORMAT variable (string)
-     RETURN  file name to save merged tif file (string)
-     '''
-     return (os.path.join(DATA_DIR, FILENAME.format(date=date)) + '_merged.tif' )
+def getCollectionName(var):
+    '''
+    get GEE collection name
+    INPUT   var: variable to be used in asset name (string)
+    RETURN  GEE collection name for input date (string)
+    '''
+    return EE_COLLECTION_GEN.format(var=var)
 
-def getAssetName(date):
+def getAssetName(date, product):
      '''
      get asset name
      INPUT   date: date in the format of the DATE_FORMAT variable (string)
-     RETURN  GEE asset name for input date (string)
+             product: the product of which the data is (string)
+     RETURN  GEE asset name for input date (string) and product (string)
      '''
-     return os.path.join(EE_COLLECTION, FILENAME.format(date=date))
+     return '/'.join([getCollectionName(product), FILENAME.format(var=product, date=date)])
 
 def getDate(filename):
      '''
@@ -225,379 +247,145 @@ def getDate(filename):
 
 def find_latest_date():
     '''
-    Fetch the latest date for which coral bleach monitoring data is available
-    RETURN  latest_available_date: latest date available for download from source website (string)
-    '''   
-    # get one of the source url from DATA_DICT and split it to get the parent directory where 
-    # inidividual folder for each year is present
-    url = DATA_DICT.get('sea_surface_temperature_trend_7d')['url_template'].split('{')[0]
-    # try to open and fetch data from the url
-    try:
-        # open the url
-        response = urllib.request.urlopen(url)
-        # read the opened url
-        content = response.read()
-        # use string manipulation to get all the available links in source url
-        links = [url + line.split()[-1] for line in content.decode().splitlines()]
-        # split the folder names on '/' and get the last elements after each split to retrieve years
-        # also get the last element from the collection of years to get the latest year
-        latest_year = ([s.split('/')[-1] for s in links])[-1]
-        # generate a sub url to fetch data from the latest year folder
-        sub_url = url + latest_year + '/'
-        # open the sub url
-        response = urllib.request.urlopen(sub_url)
-        # read the opened sub url
-        content = response.read()
-        # use string manipulation to get all the available links in sub url 
-        sub_link = [sub_url + line.split()[-1] for line in content.decode().splitlines()]
-        # use string manipulation to separate out the dates from the links
-        available_dates = ([s.split('.nc')[0].split('_')[-1] for s in sub_link])
-        # last element in available_dates list is the latest date for which 'sea_surface_temperature_trend_7d' 
-        # data is available; we also want to make sure other data sources also have data for this date
-
-        # set success to False initially
-        success = False
-        # initialize tries count as 0
-        tries = 0
-        # start with latest date and then go backwards if data is not available for every source    
-        idx = -1
-        max_tries = 5
-        # try to get the data from the url for max_tries 
-        while tries < max_tries and success == False:
-            logging.info('Checking availibility of data in every sources, try number = {}'.format(tries))
-            try:
-              # pull data from source url for every item in the global dictionary
-              url_check = [urllib.request.urlopen(val['url_template'].format(latest_year, available_dates[idx])) 
-                            for key, val in DATA_DICT.items()]
-              # if data is available in every source for the date in the iteration, set it as latest available date  
-              latest_available_date = available_dates[idx]
-              # set success as True after retrieving the data to break out of this loop
-              success = True
-            # if unsuccessful, log error and try again for an older date  
-            except Exception as inst:
-              logging.info(inst)
-              logging.info("Error fetching data, trying again for an older date")
-              # increase the count of tries
-              tries = tries + 1
-              # change index to use one step older date in next iteration
-              idx = idx - 1
-              # if we reach maximum try, break out 
-              if tries == max_tries:
-                logging.error("Error fetching data, and max tries reached. See source for last data update.")
-        # if we suceessfully collected data from the url
-        if success == True:
-            # construct complete urls for the latest available date and add it as a new key in the parent dictionary 
-            for key, val in DATA_DICT.items():
-                val['url'] = val['url_template'].format(latest_year, latest_available_date)
-            
-            return latest_available_date
-
-    except Exception as e:
-      # if unsuccessful, log that no data were found from the source url
-      logging.debug('No data found from url {})'.format(url))
-      logging.debug(e)
-      return ()
-
-
-def fetch():
+    Fetch the latest date for which coral bleach monitoring data is available        
+    '''
+    ftp = ftplib.FTP('ftp.hermes.acri.fr')
+    ftp.login(ftp_username, ftp_password)
+    
+    for product, val in DATA_DICT.items():
+        date = ''
+        ftp.cwd('/GLOB/olcib/{}'.format(val['interval']))
+        for i in range(3):
+            list_dates = list(ftp.nlst())
+            list_dates.sort()
+            date = ''.join([date, list_dates[-1]])
+            ftp.cwd(list_dates[-1])
+        val['latest date'] = date 
+        file = [x for x in list(ftp.nlst()) if ('L3m' in x and '.nc' in x and 'GLOB_4_AV-OLB_TSM' in x)][0]
+        val['url'] = SOURCE_URL.format(ftp_username,ftp_password,'/'.join([ftp.pwd(), file]))
+        ftp.cwd('/')
+        
+def fetch(product):
      '''
      Fetch latest netcdef files by using the url from the global dictionary
+     INPUT   product: the product of which to fetch data (string)
      '''
      logging.info('Downloading raw data')
      # go through each item in the parent dictionary
-     for key, val in DATA_DICT.items():
-        # get the url from the key 'url'
-        url = val['url']
-        # create a path under which to save the downloaded file
-        raw_data_file = os.path.join(DATA_DIR,os.path.basename(url))
-        try:
-            # try to download the data
-            urllib.request.urlretrieve(url, raw_data_file)
-            # if successful, add the file to a new key in the parent dictionary
-            val['raw_data_file'] = raw_data_file
-            logging.debug('('+key+')'+'Raw data file path: ' + raw_data_file)
-        except Exception as e:
-            # if unsuccessful, log an error that the file was not downloaded
-            logging.error('Unable to retrieve data from {}'.format(url))
-            logging.debug(e)
+     url = DATA_DICT[product]['url']
+     # create a path under which to save the downloaded file
+     raw_data_file = os.path.join(DATA_DIR,os.path.basename(url))
+     try:
+         # try to download the data
+         urllib.request.urlretrieve(url, raw_data_file)
+         # if successful, add the file to a new key in the parent dictionary
+         DATA_DICT[product]['raw_data_file'] = raw_data_file
+     except Exception as e:
+         # if unsuccessful, log an error that the file was not downloaded
+         logging.error('Unable to retrieve data from {}'.format(url))
+         logging.debug(e)
 
-def convert_netcdf(nc, subdatasets):
-    '''
-    Convert netcdf files to geotifs
-    INPUT   nc: file name of netcdf to convert (string)
-            subdatasets: subdataset names to extract to individual geotiffs (list of strings)
-    RETURN  tifs: file names of generated geotiffs (list of strings)
-    '''
-    # create an empty list to store the names of the tifs we generate from this netcdf file
-    tifs = []
-    # go through each variables to process in this netcdf file
-    for sds in subdatasets:
-        # extract subdataset by name
-        # should be of the format 'NETCDF:"filename.nc":variable'
-        sds_path = f'NETCDF:"{nc}":{sds}'
-        # generate a name to save the tif file we will translate the netcdf file's subdataset into
-        sds_tif = '{}_{}.tif'.format(os.path.splitext(nc)[0], sds_path.split(':')[-1])
-        # translate the netcdf file's subdataset into a tif
-        cmd = ['gdal_translate','-q', '-a_srs', 'EPSG:4326', sds_path, sds_tif]
-        completed_process = subprocess.run(cmd, shell=False)
-        logging.debug(str(completed_process))
-        if completed_process.returncode!=0:
-            raise Exception('NetCDF conversion using gdal_translate failed! Command: '+str(cmd))
-        # add the new subdataset tif files to the list of tifs generated from this netcdf file
-        tifs.append(sds_tif)
-    return tifs
-
-def scale_geotiff(tif, scaledtif=None, scale_factor=None, nodata=None, gdal_type=gdal.GDT_Float32):
-    '''
-    Apply scale factor to geotiff, writing the result to a new geotiff file. 
-    Raster values and linked metadata are changed; all other metadata are preserved.
-    This function's complexity comes from metadata preservation, and is written with an eye
-    towards typical NetCDF metadata contents and structure. If these elements are not relevant,
-    then gdal_edit.py or gdal_calc.py may be a simpler solution.
-    INPUT   tif: file name of single-band geotiff to be scaled (string)
-            scaledtif: file name of output raster; if None, input file name is appended (string)
-            scale_factor: scale factor to be applied; if None, value is drawn from metadata (numeric)
-            nodata: value to indicate no data in output raster; if None, original value is used (numeric)
-            gdal_type: GDAL numeric type of the output raster (gdalconst(int))
-    RETURN scaledtif: filename of scaled output raster (string)
-    '''
-    # open the tif file using gdal
-    geotiff = gdal.Open(tif, gdal.gdalconst.GA_ReadOnly)
-    # verify that the geotiff has exactly one band
-    assert (geotiff.RasterCount == 1)
-    # Read the raster band as separate variable
-    band = geotiff.GetRasterBand(1)
-    
-    # read in raster band as a numpy array
-    raster = np.array(band.ReadAsArray())    
-    
-    # retrieve nodata/fill from band metadata
-    # identify nodata entries in raster
-    nodata_mask = (raster == band.GetNoDataValue())
-    
-    # retrieve scale factor from band metadata
-    band_metadata = band.GetMetadata()
-    band_scale_keys = [key for key, val in band_metadata.items() if 'scale' in key.lower()]
-    assert (len(band_scale_keys)<=1)
-    band_fill_keys = [key for key, val in band_metadata.items() if 'fill' in key.lower()]
-    assert (len(band_fill_keys)<=1)
-    assert (float(band_metadata[band_fill_keys[0]])==band.GetNoDataValue())
-    if scale_factor is None:
-        scale_factor = float(band_metadata[band_scale_keys[0]])
-    
-    # apply scale factor to raster
-    logging.debug(f'Applying scale factor of {scale_factor} to raster of GeoTiff {os.path.basename(tif)}')
-    new_raster = raster * scale_factor
-    
-    # apply nodata fill as desired
-    if nodata is None:
-        nodata = band.GetNoDataValue()
-    new_raster[nodata_mask] = nodata
-    
-    # update band metadata
-    new_band_metadata = band_metadata.copy()
-    if len(band_scale_keys) > 0:
-        new_band_metadata[band_scale_keys[0]] = str(1)
-    if len(band_fill_keys) > 0:
-        new_band_metadata[band_fill_keys[0]] = str(nodata)
-    if 'valid_max' in new_band_metadata:
-        new_band_metadata['valid_max'] = str(float(band_metadata['valid_max']) * scale_factor)
-    if 'valid_min' in new_band_metadata:
-        new_band_metadata['valid_min'] = str(float(band_metadata['valid_min']) * scale_factor)
-    
-    # update geotiff metadata
-    ds_metadata = geotiff.GetMetadata()
-    ds_scale_keys = [key for key, val in ds_metadata.items() if 'scale' in key.lower()]
-    assert (len(ds_scale_keys)<=1)
-    metadata_band_prefix = ds_scale_keys[0].split('#')[0]
-    ds_fill_keys = [key for key, val in ds_metadata.items() if 'fill' in key.lower()]
-    assert (len(ds_fill_keys)<=1)
-    ds_valid_min_keys = [key for key, val in ds_metadata.items() if metadata_band_prefix.lower()+'#'+'valid_min' in key.lower()]
-    assert (len(ds_valid_min_keys)<=1)
-    ds_valid_max_keys = [key for key, val in ds_metadata.items() if metadata_band_prefix.lower()+'#'+'valid_max' in key.lower()]
-    assert (len(ds_valid_max_keys)<=1)
-    
-    new_ds_metadata = ds_metadata.copy()
-    if len(ds_scale_keys) > 0:
-        new_ds_metadata[ds_scale_keys[0]] = str(1)
-    if len(ds_fill_keys) > 0:
-        new_ds_metadata[ds_fill_keys[0]] = str(nodata)
-    if len(ds_valid_min_keys) > 0:
-        new_ds_metadata[ds_valid_min_keys[0]] = str(float(ds_metadata[ds_valid_min_keys[0]]) * scale_factor)
-    if len(ds_valid_max_keys) > 0:
-        new_ds_metadata[ds_valid_max_keys[0]] = str(float(ds_metadata[ds_valid_max_keys[0]]) * scale_factor)
-    
-    # create output dataset
-    # get output file name
-    if scaledtif is None:
-        dotindex = tif.rindex('.')
-        scaledtif = tif[:dotindex] + '_scaled' + tif[dotindex:]
-    [cols, rows] = raster.shape
-    driver = gdal.GetDriverByName("GTiff")
-    outds = driver.Create(scaledtif, rows, cols, 1, gdal_type)
-    outds.SetGeoTransform(geotiff.GetGeoTransform())
-    outds.SetProjection(geotiff.GetProjection())
-    outds.GetRasterBand(1).WriteArray(new_raster)
-    outds.GetRasterBand(1).SetMetadata(new_band_metadata)
-    outds.GetRasterBand(1).SetNoDataValue(nodata)
-    outds.SetMetadata(new_ds_metadata)
-    outds.FlushCache()
-    outds = None
-    band = None
-    geotiff = None
-    
-    return scaledtif 
-
-def assign_nodata(inp_tif):
-    '''
-    Assign Nodata value to geotifs
-    INPUT   inp_tif: file name of tif to translate (string)
-    RETURN  trs_tif2: file name of generated geotiff (string)
-    '''
-
-    # generate a name to save the tif file we will translate the input file into
-    trs_tif = inp_tif + '_scaled1.tif'
-    # assign the no data value of 251
-    cmd = ['gdal_translate','-q', '-a_nodata', '251', inp_tif, trs_tif]
-    subprocess.run(cmd, shell=False)
-    # assign the no data value of 5
-    trs_tif2 = inp_tif + '_scaled.tif'
-    cmd = ['gdal_translate','-q', '-a_nodata', '-5', trs_tif, trs_tif2]
-    subprocess.run(cmd, shell=False)
-
-    return trs_tif2
-
-def processNewData(existing_dates):
+def processNewData():
     '''
     fetch, process, upload, and clean new data
     INPUT   existing_dates: list of dates we already have in GEE (list of strings)
     RETURN  asset: file name for asset that have been uploaded to GEE (string)
     '''
-
+    for product, val in DATA_DICT.items():
     # Get latest available date that is availble on the source
-    available_date = find_latest_date()
-    logging.debug('Latest available date: {}'.format(available_date))
+        find_latest_date()
+        if val['latest date'] not in val['existing dates']:
+            # fetch files for the latest date
+            logging.info('Fetching files')   
+            fetch(product)
+            # convert netcdfs to tifs and store the tif filenames to a new key in the parent dictionary
+            logging.info('Extracting relevant GeoTIFFs from source NetCDFs, and modifying nodata values in the resulting GeoTIFFs where appropriate')
 
-    # if we don't have this date and time step already in GEE
-    if available_date not in existing_dates:
-        # fetch files for the latest date
-        logging.info('Fetching files')        
-        fetch()
-        # convert netcdfs to tifs and store the tif filenames to a new key in the parent dictionary
-        logging.info('Extracting relevant GeoTIFFs from source NetCDFs, and modifying nodata values in the resulting GeoTIFFs where appropriate')
-
-        merge_list = []
-        global_nodata = -32768
-        # windows-necessary variable
-        # calc_path = os.path.abspath(os.path.join(os.getenv('GDAL_DIR'),'gdal_calc.py'))
-
-        for key, val in DATA_DICT.items():
             nc = val['raw_data_file'] # originally raw_data_file
             sds = val['sds'][0]
-            local_nodata = val['original_nodata']
 
             # should be of the format 'NETCDF:"filename.nc":variable'
             sds_path = f'NETCDF:"{nc}":{sds}'
             # generate a name to save the tif file we will translate the netcdf file's subdataset into
             sds_tif = '{}_{}.tif'.format(os.path.splitext(nc)[0], sds_path.split(':')[-1])
-    
+
             #cmd = f'gdal_translate -q -a_srs EPSG:4326 -a_nodata {local_nodata} -ot Float32 -unscale {sds_path} {sds_tif} '
-            cmd = ['gdal_translate','-q', '-a_srs', 'EPSG:4326', '-a_nodata' , str(local_nodata), '-ot', 'Float32', '-unscale', sds_path, sds_tif]
+            cmd = ['gdal_translate','-q', '-a_srs', 'EPSG:4326',  sds_path, sds_tif]
             completed_process = subprocess.run(cmd, shell=False)
             logging.debug(str(completed_process))
+            val['tif'] = sds_tif
 
-            if local_nodata != global_nodata:
-                sds_tif_edited = sds_tif.split('.tif')[0]+'_edited.tif'
-                # windows style:
-                # cmd = f'"{sys.executable}" "{calc_path}" -A {sds_tif} --outfile={sds_tif_edited} --NoDataValue=-32768 --calc="(A!=251)*A+(A==251)*-32768"'
-                #cmd = f'gdal_calc.py -A {sds_tif} --outfile={sds_tif_edited} --NoDataValue=-32768 --calc="(A!=251)*A+(A==251)*-32768"'
-                cmd = ['gdal_calc.py', '-A', sds_tif, '--outfile', sds_tif_edited, '--NoDataValue' , str(-32768), '--calc', "(A!=251)*A+(A==251)*-32768"]
-                completed_process = subprocess.run(cmd, shell=False)
-                logging.debug(str(completed_process))
-                sds_tif = sds_tif_edited
+            logging.info('Uploading files')
+            # Generate a name we want to use for the asset once we upload the file to GEE
+            asset = getAssetName(val['latest date'], product)
+            # Upload new file (tif) to GEE
+            eeUtil.uploadAsset(sds_tif, asset, GS_FOLDER, timeout=1000)
+            # store the name of the uploaded asset to the dictionary
+            val['asset'] = asset 
+            
+        else:
+            logging.info('Data already up to date')
+            # if no new assets, assign empty lists to the key 'tif' and 'asset' in the data dictionary
+            val['tif'] = []
+            val['asset'] = []
 
-            val['tifs'] = [sds_tif]
-            merge_list.append(sds_tif)
-
-        logging.info(os.listdir(DATA_DIR))
-        merge_list_str = ' '.join(merge_list)
-        # windows-necessary variable
-        # merge_path = os.path.abspath(os.path.join(os.getenv('GDAL_DIR'),'gdal_merge.py'))
-        merged_vrt = 'merged.vrt'
-
-        logging.info('Merging masked, single-band GeoTIFFs into single, multiband VRT')
-
-        #cmd = f'gdalbuildvrt -separate {merged_vrt} {merge_list_str}'
-        logging.info(merge_list_str)
-        cmd = ['gdalbuildvrt', '-separate', merged_vrt]
-        cmd.extend(merge_list)
-        completed_process = subprocess.run(cmd, shell=False)
-        logging.debug(completed_process)
-
-        logging.info('Converting multiband VRT into multiband GeoTIFF')
-
-        # generate a name to save the tif file that will be produced by merging all the individual tifs   
-        merged_tif = getFilename(available_date) 
-
-        #cmd = f'gdal_translate -of GTiff {merged_vrt} {merged_tif}'
-        cmd = ['gdal_translate', '-of', 'GTiff', merged_vrt, merged_tif]
-        completed_process = subprocess.run(cmd, shell=False)
-        logging.info(completed_process)
-
-        logging.info('Uploading files')
-        # Generate a name we want to use for the asset once we upload the file to GEE
-        asset = [getAssetName(available_date)]
-        # Get a datetime from the date we are uploading
-        datestamp = [datetime.datetime.strptime(available_date, DATE_FORMAT)]
-        # Upload new file (tif) to GEE
-        eeUtil.uploadAssets([merged_tif], asset, GS_FOLDER, dates=datestamp, timeout=3000)
-
-        return asset
-    else:
-        logging.info('Data already up to date')
-        # if no new assets, return empty list
-        return []
-
-def checkCreateCollection(collection):
+def checkCreateCollection():
     '''
-    List assests in collection if it exists, else create new collection
-    INPUT   collection: GEE collection to check or create (string)
-    RETURN  list of assets in collection (list of strings)
+    List assets in collection if it exists, else create new collection
+    INPUT   vars: list variables (as named in netcdf) that we want to check collections for (list of strings)
+    RETURN  existing_dates_by_var: list of dates, in the format of the DATE_FORMAT variable, that exist for each individual variable collection in GEE (list containing list of strings for each variable)
     '''
-    # if collection exists, return list of assets in collection
-    if eeUtil.exists(collection):
-        return eeUtil.ls(collection)
-    # if collection does not exist, create it and return an empty list (because no assets are in the collection)
-    else:
-        logging.info('{} does not exist, creating'.format(collection))
-        eeUtil.createFolder(collection, imageCollection=True, public=True)
-        return []
+    # Check if folder to store GEE collections exists. If not, create it.
+        # we will make one collection per product, all stored in the parent folder for the dataset
+    if not eeUtil.exists(COLLECTION):
+        logging.info('{} does not exist, creating'.format(COLLECTION))
+        eeUtil.createFolder(COLLECTION)
 
-def deleteExcessAssets(dates, max_assets):
+    # loop through each product that we want to pull
+    for product, val in DATA_DICT.items():
+        collection = getCollectionName(product)
+
+        # If the GEE collection for a particular product exists
+        if eeUtil.exists(collection):
+            existing_assets = eeUtil.ls(collection)
+            # get a list of the dates from these existing assets
+            dates = [getDate(a) for a in existing_assets]
+            # append the dates as a list as the value of the key 'existing dates' in the data dictionary
+            val['existing dates'] = dates 
+
+        # If the GEE collection does not exist, add an empty list as the value of the key 'existing dates' in the data dictionary
+        else:
+            # add an empty list as the value of the key 'existing dates'
+            val['existing dates'] = []
+            # create a collection for this product
+            logging.info('{} does not exist, creating'.format(collection))
+            eeUtil.createFolder(collection, True)
+
+def deleteExcessAssets(product, dates, max_assets):
     '''
     Delete oldest assets, if more than specified in max_assets variable
-    INPUT   dates: dates for all the assets currently in the GEE collection; dates should be in the format specified
+    INPUT   product: the product of which the data is (string)
+            dates: dates for all the assets currently in the GEE collection; dates should be in the format specified
                     in DATE_FORMAT variable (list of strings)
             max_assets: maximum number of assets allowed in the collection (int)
     '''
     # sort the list of dates so that the oldest is first
     dates.sort()
-    # if we have more dates of data than allowed,
+    # if we have more dates of data than allowed
     if len(dates) > max_assets:
         # go through each date, starting with the oldest, and delete until we only have the max number of assets left
         for date in dates[:-max_assets]:
-            eeUtil.removeAsset(getAssetName(date))
+            eeUtil.removeAsset(getAssetName(date, product))
 
-def get_most_recent_date(collection):
+def get_most_recent_date():
     '''
     Get most recent date we have assets for
-    INPUT   collection: GEE collection to check dates for (string)
     RETURN  most_recent_date: most recent date in GEE collection (datetime)
     '''
+    # update the 'existing dates' values in the data dictionary
+    checkCreateCollection()
     # get list of assets in collection
-    existing_assets = checkCreateCollection(collection)
-    # get a list of strings of dates in the collection
-    existing_dates = [getDate(a) for a in existing_assets]
+    existing_dates =  [y for [y] in [x['existing dates'] for x in DATA_DICT.values()]]
     # sort these dates oldest to newest
     existing_dates.sort()
     # get the most recent date (last in the list) and turn it into a datetime
@@ -633,24 +421,25 @@ def update_layer(layer, new_date):
     '''
     Update layers in Resource Watch back office.
     INPUT  layer: layer that will be updated (string)
-           new_date: date of asset to be shown in this layer (datetime)
+           new_date: the time period of the data (string)
     '''
-    
     # get previous date being used from
-    old_date = datetime.datetime.strptime(getDate(layer['attributes']['layerConfig']['assetId']), DATE_FORMAT)
-    # convert old datetimes to string
-    old_date_text = old_date.strftime("%B %d, %Y")
+    old_date_text = layer['attributes']['layerConfig']['name'].replace('Total Suspended Matter Concentration (g/m³)', '')
 
     # convert new datetimes to string
-    new_date_text = new_date.strftime("%B %d, %Y")
+    new_date_start = datetime.datetime.strptime(new_date.split('-')[0], DATE_FORMAT)
+    new_date_end = datetime.datetime.strptime(new_date.split('-')[1], DATE_FORMAT)
+    new_date_text = ' - '.join([new_date_start.strftime("%B %d, %Y"), new_date_end.strftime("%B %d, %Y")])
 
     # replace date in layer's title with new date range
     layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
 
     # store the current asset id used in the layer 
     old_asset = layer['attributes']['layerConfig']['assetId']
+
     # find the asset id of the latest image 
-    new_asset = getAssetName(new_date.strftime(DATE_FORMAT))[1:]
+    product = [key for key in list(DATA_DICT.keys()) if key in old_asset][0]
+    new_asset = DATA_DICT[product]['asset']
     # replace the asset id in the layer def with new asset id
     layer['attributes']['layerConfig']['assetId'] = new_asset
 
@@ -684,29 +473,35 @@ def updateResourceWatch():
     This may include updating the 'last update date', flushing the tile cache, and updating any dates on layers
     '''
     # Get the most recent date from the data in the GEE collection
-    most_recent_date = get_most_recent_date(EE_COLLECTION)
+    most_recent_date = get_most_recent_date()
     # Get the current 'last update date' from the dataset on Resource Watch
     current_date = getLastUpdate(DATASET_ID)
-    
-    # pull dictionary of current layers from API
-    layer_dict = pull_layers_from_API(DATASET_ID)
-    # go through each layer, pull the definition and update
-    for layer in layer_dict:
-        # update layer name, asset id, and interaction configuration 
-        update_layer(layer, most_recent_date)
-        
+
     # If the most recent date from the GEE collection does not match the 'last update date' on the RW API, update it
     if current_date != most_recent_date:
         logging.info('Updating last update date and flushing cache.')
         # Update dataset's last update date on Resource Watch
         lastUpdateDate(DATASET_ID, most_recent_date)
-        # get layer ids and flush tile cache for each
+       
+        # pull dictionary of current layers from API
+        layer_dict = pull_layers_from_API(DATASET_ID)
+        
+        for product, val in DATA_DICT.values():
+            if val['asset']:
+                layer_product = {key: value for key, value in layer_dict.items() if product in value['attributes']['layerConfig']['assetId']}
+                layer_date = os.path.basename(val['url'])[4:21]
+                # go through each layer, pull the definition and update
+                for layer in layer_product:
+                    # update layer name, asset id, and interaction configuration 
+                    update_layer(layer, layer_date)
+            
+         # get layer ids and flush tile cache for each
         layer_ids = getLayerIDs(DATASET_ID)
         for layer_id in layer_ids:
             flushTileCache(layer_id)
-            
-    
-    
+    else:
+        logging.info('Data on Resource Watch up to date!')
+        
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
@@ -717,26 +512,23 @@ def main():
 
     # clear the GEE collection, if specified above
     if CLEAR_COLLECTION_FIRST:
-        if eeUtil.exists(EE_COLLECTION):
-            eeUtil.removeAsset(EE_COLLECTION, recursive=True)
+        if eeUtil.exists(COLLECTION):
+            eeUtil.removeAsset(COLLECTION, recursive=True)
 
     # Check if collection exists, create it if it does not
-    # If it exists return the list of assets currently in the collection
-    existing_assets = checkCreateCollection(EE_COLLECTION)
-    # Get a list of the dates of data we already have in the collection
-    existing_dates = [getDate(a) for a in existing_assets]
+    # If it exists add the list of existing dates of each product to the data dictionary
+    checkCreateCollection()
 
     # Fetch, process, and upload the new data
     os.chdir(DATA_DIR)
-    new_asset = processNewData(existing_dates)
+    processNewData()
     # Get the dates of the new data we have added
-    new_dates = [getDate(a) for a in new_asset]
+    for product, val in DATA_DICT.items():
+        logging.info('Previous assets for product {}: {}, new: {}, max: {}'.format(
+            product, len(val['existing dates']), val['asset'], MAX_ASSETS))
 
-    logging.info('Previous assets: {}, new: {}, max: {}'.format(
-          len(existing_dates), len(new_dates), MAX_ASSETS))
-
-    # Delete excess assets
-    deleteExcessAssets(existing_dates+new_dates, MAX_ASSETS)
+        # Delete excess assets
+        deleteExcessAssets(product, val['existing dates'] + [val['latest date']], MAX_ASSETS)
 
     # Update Resource Watch
     updateResourceWatch()
