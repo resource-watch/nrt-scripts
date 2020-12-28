@@ -1,5 +1,5 @@
 ## Total Suspended Matter Dataset Near Real-time Script
-This file describes the near real-time script that retrieves and processes the [the Total Suspended Matter Concentration dataset]](https://www.globcolour.info/CDR_Docs/GlobCOLOUR_PUG.pdf) for [display on Resource Watch](https://resourcewatch.org/data/explore/6ad0f556-20fd-4ddf-a5cc-bf93c003a463).
+This file describes the near real-time script that retrieves and processes the [the Total Suspended Matter Concentration dataset](https://www.globcolour.info/CDR_Docs/GlobCOLOUR_PUG.pdf) for [display on Resource Watch](https://resourcewatch.org/data/explore/6ad0f556-20fd-4ddf-a5cc-bf93c003a463).
 
 The dataset is available as two NetCDF files, one for monthly product and the other for 8-day product. Each NetCDF has a primary data layer and a secondary flags layer. Only the primary data layers are shown on Resource Watch.
 
