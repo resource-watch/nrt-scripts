@@ -43,8 +43,6 @@ DATA_DICT['tsm_8_days'] = {
 # filename format for GEE
 FILENAME = 'ocn_011_total_suspended_matter_{var}_{date}'
 
-os.environ['PROJ_LIB'] = 'C:\\Users\\yujing.wu\\Anaconda3\\pkgs\\proj-6.2.1-h9f7ef89_0\\Library\\share\\proj'
-
 # name of data directory in Docker container
 DATA_DIR = os.path.join(os.getcwd(),'data')
 
