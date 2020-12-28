@@ -17,7 +17,7 @@ RUN pip install GDAL==2.4.2
 RUN apt-get -y install python-gdal
 
 # set name
-ARG NAME=nrt-script
+ARG NAME=ocn_011_total_suspended_matter
 ENV NAME ${NAME}
 
 # copy the application folder inside the container
