@@ -5,7 +5,7 @@ The dataset is available as two NetCDF files, one for monthly product and the ot
 
 To process this data for display on Resource Watch, the NetCDFs were downloaded, and the primary data layer was extracted from each into a single-band GeoTIFF.
 
-Please see the [Python script]({link to Python script on Github}) for more details on this processing.
+Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/ocn_007_debug/ocn_011_nrt_rw0_total_suspended_matter/contents/src/__init__.py) for more details on this processing.
 
 You can view the processed Total Suspended Matter dataset [on Resource Watch](https://resourcewatch.org/data/explore/6ad0f556-20fd-4ddf-a5cc-bf93c003a463).
 
