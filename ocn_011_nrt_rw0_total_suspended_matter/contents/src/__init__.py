@@ -324,7 +324,7 @@ def processNewData():
             val['asset'] = asset 
             
         else:
-            logging.info('Data already up to date')
+            logging.info('Data for {} already up to date'.format(product))
             # if no new assets, assign empty lists to the key 'tif' and 'asset' in the data dictionary
             val['tif'] = []
             val['asset'] = []
@@ -385,7 +385,7 @@ def get_most_recent_date():
     # update the 'existing dates' values in the data dictionary
     checkCreateCollection()
     # get list of assets in collection
-    existing_dates =  [y for [y] in [x['existing dates'] for x in DATA_DICT.values()]]
+    existing_dates =  [y for lst in [x['existing dates'] for x in DATA_DICT.values()] for y in lst]
     # sort these dates oldest to newest
     existing_dates.sort()
     # get the most recent date (last in the list) and turn it into a datetime
@@ -424,12 +424,12 @@ def update_layer(layer, new_date):
            new_date: the time period of the data (string)
     '''
     # get previous date being used from
-    old_date_text = layer['attributes']['layerConfig']['name'].replace('Total Suspended Matter Concentration (g/m³)', '')
+    old_date_text = layer['attributes']['name'].replace(' Total Suspended Matter Concentration (g/m³)', '')
 
     # convert new datetimes to string
     new_date_start = datetime.datetime.strptime(new_date.split('-')[0], DATE_FORMAT)
     new_date_end = datetime.datetime.strptime(new_date.split('-')[1], DATE_FORMAT)
-    new_date_text = ' - '.join([new_date_start.strftime("%B %d, %Y"), new_date_end.strftime("%B %d, %Y")])
+    new_date_text = '-'.join([new_date_start.strftime("%B %d, %Y"), new_date_end.strftime("%B %d, %Y")])
 
     # replace date in layer's title with new date range
     layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
@@ -486,9 +486,9 @@ def updateResourceWatch():
         # pull dictionary of current layers from API
         layer_dict = pull_layers_from_API(DATASET_ID)
         
-        for product, val in DATA_DICT.values():
+        for product, val in DATA_DICT.items():
             if val['asset']:
-                layer_product = {key: value for key, value in layer_dict.items() if product in value['attributes']['layerConfig']['assetId']}
+                layer_product = [x for x in layer_dict if product in x['attributes']['layerConfig']['assetId']]
                 layer_date = os.path.basename(val['url'])[4:21]
                 # go through each layer, pull the definition and update
                 for layer in layer_product:
@@ -530,6 +530,7 @@ def main():
         # Delete excess assets
         deleteExcessAssets(product, val['existing dates'] + [val['latest date']], MAX_ASSETS)
 
+    DATA_DICT['tsm_8_days']['asset'] = 'projects/resource-watch-gee/ocn_011_nrt_total_suspended_matter/tsm_8_days/ocn_011_total_suspended_matter_tsm_8_days_20201218'
     # Update Resource Watch
     updateResourceWatch()
 
