@@ -528,7 +528,6 @@ def main():
         # Delete excess assets
         deleteExcessAssets(product, val['existing dates'] + [val['latest date']], MAX_ASSETS)
 
-    DATA_DICT['tsm_8_days']['asset'] = 'projects/resource-watch-gee/ocn_011_nrt_total_suspended_matter/tsm_8_days/ocn_011_total_suspended_matter_tsm_8_days_20201218'
     # Update Resource Watch
     updateResourceWatch()
 
