@@ -347,22 +347,6 @@ def find_latest_date():
         sub_link = [sub_url + line.split()[-1] for line in content.decode().splitlines()]
         # use string manipulation to separate out the dates from the links
         available_dates = ([s.split('.nc')[0].split('_')[-1] for s in sub_link])
-        # if there are no available dates in this folder 
-        if len(available_dates) == 0:
-            logging.info('No data for {} yet'.format(latest_year))
-            # get the second to last element from the collection of years to get the latest year
-            latest_year = ([s.split('/')[-1] for s in links])[-2]
-             # generate a sub url to fetch data from the latest year folder
-            sub_url = url + latest_year + '/'
-            # open the sub url
-            response = urllib.request.urlopen(sub_url)
-            # read the opened sub url
-            content = response.read()
-            # use string manipulation to get all the available links in sub url 
-            sub_link = [sub_url + line.split()[-1] for line in content.decode().splitlines()]
-            # use string manipulation to separate out the dates from the links
-            available_dates = ([s.split('.nc')[0].split('_')[-1] for s in sub_link])
-
         # last element in available_dates list is the latest date for which 'sea_surface_temperature_trend_7d' 
         # data is available; we also want to make sure other data sources also have data for this date
 
