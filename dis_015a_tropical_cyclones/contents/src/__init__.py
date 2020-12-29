@@ -8,13 +8,18 @@ import datetime
 import cartoframes
 import cartosql
 from zipfile import ZipFile
+import LMIPy as lmi
 import requests
 import geopandas as gpd
 import glob
+import json
 
 
 # name of data directory in Docker container
 DATA_DIR = 'data'
+
+# pull in RW API key for updating and adding new layers
+API_TOKEN = os.getenv('RW_API_KEY')
 
 # Carto username and API key for account where we will store the data
 CARTO_USER = os.getenv('CARTO_USER')
@@ -48,7 +53,7 @@ MAX_TRIES = 5
 # Important! Before testing this script:
 # Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
 # Failing to do so will overwrite the last update date on a different dataset on Resource Watch
-# DATASET_ID = 'b82eab85-0fee-4212-8a7e-ca0b28a16a2f'
+DATASET_ID = 'b82eab85-0fee-4212-8a7e-ca0b28a16a2f'
 
 '''
 FUNCTIONS FOR ALL DATASETS
@@ -248,16 +253,110 @@ def get_most_recent_date(table):
 
     return most_recent_date
 
-# def updateResourceWatch():
-#     '''
-#     This function should update Resource Watch to reflect the new data.
-#     This may include updating the 'last update date' and updating any dates on layers
-#     '''
-#     # Update dataset's last update date on Resource Watch
-#     most_recent_date = get_most_recent_date(CARTO_TABLE)
-#     lastUpdateDate(DATASET_ID, most_recent_date)
+def pull_layers_from_API(dataset_id):
+    '''
+    Pull dictionary of current layers from API
+    INPUT   dataset_id: Resource Watch API dataset ID (string)
+    RETURN  layer_dict: dictionary of layers (dictionary of strings)
+    '''
+    # generate url to access layer configs for this dataset in back office
+    rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer?page[size]=100'.format(dataset_id)
+    # request data
+    r = requests.get(rw_api_url)
+    # convert response into json and make dictionary of layers
+    layer_dict = json.loads(r.content.decode('utf-8'))['data']
+    return layer_dict
 
-    # Update the dates on layer legends - TO BE ADDED IN FUTURE
+def updateResourceWatch():
+    '''
+    This function should update Resource Watch to reflect the new data.
+    This may include updating the 'last update date' and updating any dates on layers
+    '''
+    # Update dataset's last update date on Resource Watch
+    most_recent_date = get_most_recent_date(CARTO_TABLE)
+    lastUpdateDate(DATASET_ID, most_recent_date)
+
+    # Create a new layer once a new year of data is uploaded to Carto 
+    most_recent_year = most_recent_date.year
+    # pull dictionary of current layers from API
+    layer_dict = pull_layers_from_API(DATASET_ID)
+    # extract the years we currently have in the layers 
+    current_years = [layer['attributes']['name'][:4] for layer in layer_dict]
+    # sort the years 
+    current_years.sort()
+    # find the most recent year among the layers 
+    most_recent_ly = current_years[-1]
+    # if the most recent year in the updated Carto table is larger than the most recent year among the layers 
+    if most_recent_year > int(most_recent_ly):
+       # pull the dataset we want to update
+        dataset = lmi.Dataset(DATASET_ID)
+        # pull out its first layer to use as a template to create new layers
+        layer_to_clone = dataset.layers[0]
+
+        # get attributes that might need to change:
+        name = layer_to_clone.attributes['name']
+        description = layer_to_clone.attributes['description']
+        appConfig = layer_to_clone.attributes['layerConfig']
+        sql = appConfig['body']['layers'][0]['options']['sql']
+        order = str(appConfig['order'])
+        timeLineLabel = appConfig['timelineLabel']
+        interactionConfig = layer_to_clone.attributes['interactionConfig']
+
+        # pull out the year from the example layer's name - we will use this to find all instances of the year within our
+        # example layer so that we can replace it with the correct year in the new layers
+        replace_string = name[:4]
+
+        # replace year in example layer with {}
+        name_convention = name.replace(replace_string, '{}')
+        description_convention = description.replace(replace_string, '{}')
+        sql_convention = sql.replace(replace_string, '{}')
+        order_convention = order.replace(replace_string, '{}')
+        timeLineLabel_convention = timeLineLabel.replace(replace_string, '{}')
+        for i, dictionary in enumerate(interactionConfig.get('output')):
+            for key, value in dictionary.items():
+                if value != None:
+                    if replace_string in value:
+                        interactionConfig.get('output')[i][key] = value.replace(replace_string, '{}')
+
+        # generate the layer attributes with the correct year
+        new_layer_name = name_convention.replace('{}', str(most_recent_year))
+        new_description = description_convention.replace('{}', str(most_recent_year))
+        new_sql = sql_convention.replace('{}', str(most_recent_year))
+        new_timeline_label = timeLineLabel_convention.replace('{}', str(most_recent_year))
+        new_order = int(order_convention.replace('{}', str(most_recent_year)))
+
+        # Clone the example layer to make a new layer
+        clone_attributes = {
+            'name': new_layer_name,
+            'description': new_description
+        }
+        new_layer = layer_to_clone.clone(token=API_TOKEN, env='production', layer_params=clone_attributes,
+                                         target_dataset_id=DATASET_ID)
+
+        # Replace layerConfig with new values
+        appConfig = new_layer.attributes['layerConfig']
+        appConfig['body']['layers'][0]['options']['sql'] = new_sql
+        appConfig['order'] = new_order
+        appConfig['timelineLabel'] = new_timeline_label
+        payload = {
+            'layerConfig': {
+                **appConfig
+            }
+        }
+        new_layer = new_layer.update(update_params=payload, token=API_TOKEN)
+
+         # Replace interaction config with new values
+        interactionConfig = new_layer.attributes['interactionConfig']
+        for i, element in enumerate(interactionConfig['output']):
+            if '{}' in element.get('property'):
+                interactionConfig['output'][i]['property'] = interactionConfig['output'][i]['property'].replace(
+                    '{}', str(most_recent_year))
+        payload = {
+            'interactionConfig': {
+                **interactionConfig
+            }
+        }
+        new_layer = new_layer.update(update_params=payload, token=API_TOKEN)
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
