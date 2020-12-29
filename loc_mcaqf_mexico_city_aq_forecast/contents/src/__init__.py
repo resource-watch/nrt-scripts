@@ -636,8 +636,10 @@ def updateResourceWatch(new_dates):
                 futures.append(pool.apply_async(requests.patch, kwds=kwds))
             # execute requests
             for future in futures:
-                future.get()
-
+                try:
+                    future.get(timeout=1)
+                except TimeoutError:
+                    pass
             logging.info('Updating last update date and flushing cache.')
             # create a pool of processes
             pool = Pool()
