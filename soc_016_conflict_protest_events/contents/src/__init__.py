@@ -17,6 +17,10 @@ DATA_DIR = 'data'
 CARTO_USER = os.getenv('CARTO_USER')
 CARTO_KEY = os.getenv('CARTO_KEY')
 
+# API key and username for ACLED 
+ACLED_KEY = os.getenv('ACLED_KEY')
+ACLED_USER = os.getenv('ACLED_USER')
+
 # name of table in Carto where we will upload the data
 CARTO_TABLE = 'soc_016_conflict_protest_events'
 
@@ -63,7 +67,7 @@ CARTO_SCHEMA = OrderedDict([
 MAXROWS = 10000000
 
 # url for armed conflict location & event data
-SOURCE_URL = 'https://api.acleddata.com/acled/read?terms=accept&page={page}'
+SOURCE_URL = 'https://api.acleddata.com/acled/read/?key={key}&email={user}&page={page}'
 
 # minimum pages to process
 MIN_PAGES = 15
@@ -179,7 +183,7 @@ def processNewData(src_url, existing_ids):
             page += 1
             logging.info("Fetching page {}".format(page))
             # generate the url and pull data for this page 
-            r = requests.get(src_url.format(page=page))
+            r = requests.get(src_url.format(key=ACLED_KEY, user=ACLED_USER, page=page))
             # pull data from request response json
             data = r.json()
             # create an empty list to store each row of new data
