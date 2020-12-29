@@ -288,7 +288,8 @@ def processNewData(src_url, existing_ids, existing_stations):
     new_rows = []
     # pull data from request response json
     data = r.json()
-
+    # reverse the order so the list so we start with the newest data
+    data.reverse()
     # get most updated list of station information
     station_df = cartoframes.read_carto('cit_004_city_aq_stations', credentials=AUTH)
 
@@ -400,6 +401,11 @@ def processNewData(src_url, existing_ids, existing_stations):
                             row.append(None)
             # add the list of values from this row to the list of new data
             new_rows.append(row)
+        # once we reach an observation we have already uploaded to Carto
+        # stop processing the old data
+        else:
+            logging.info('All new data processed.')
+            break
     # find the length (number of rows) of new_data 
     new_count = len(new_rows)
     # check if new data is available
