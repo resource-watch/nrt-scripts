@@ -370,7 +370,7 @@ def main():
     deleteExcessRows(CARTO_TABLE, MAX_ROWS, TIME_FIELD)
 
     # Update Resource Watch
-    # updateResourceWatch()
+    updateResourceWatch()
 
     logging.info('SUCCESS')
 
