@@ -1,5 +1,5 @@
 ## Mexico City Air Quality Forecast Dataset Near Real-time Script
-This file describes the near real-time script that retrieves and processes the [Air quality and Meteorological Forecast for Mexico City dataset](http://www.aire.cdmx.gob.mx/pronostico-aire/pronostico-por-contaminante.php) for display on Resource Watch as the following datasets:
+This file describes the near real-time script that retrieves and processes the [Air Quality and Meteorological Forecast for Mexico City dataset](http://www.aire.cdmx.gob.mx/pronostico-aire/pronostico-por-contaminante.php) for display on Resource Watch as the following datasets:
 * [Air Quality: Mexico City Nitrogen Dioxide (NO₂) Forecast](https://resourcewatch.org/data/explore/)
 * [Air Quality: Mexico City Fine Particulate Matter (PM2.5) Forecast](https://resourcewatch.org/data/explore/)
 * [Air Quality: Mexico City Ozone (O₃) Forecast](https://resourcewatch.org/data/explore/)
