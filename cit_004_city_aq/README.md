@@ -1,5 +1,5 @@
 ## GMAO AQ Forcast Dataset Near Real-time Script
-This file describes the near real-time script that retrieves and processes the [GMAO AQ Forcast dataset]()for display on Resource Watch as the following datasets:
+This file describes the near real-time script that retrieves and processes the [GMAO AQ Forcast dataset]() for display on Resource Watch as the following datasets:
 
 * [Air Quality: Nitrogen Dioxide (NO₂) Station Forecasts](https://resourcewatch.org/data/explore/)
 * [Air Quality: Fine Particulate Matter (PM2.5) Station Forecasts](https://resourcewatch.org/data/explore/)
@@ -7,7 +7,7 @@ This file describes the near real-time script that retrieves and processes the [
 
 This dataset was provided by the source as a JSON file. A unique ID for each air quality forecast was created using forecast date, creation date, and station number. This was stored in a new column called 'uid'. The JSON was transformed into a table and the resulting table was then uploaded to Carto. 
 
-Another table was created to store air quality metrics, calculated from the raw data. The following metrics were calculated for each compound:
+The raw data is provided as hourly data. After the raw data is uploaded to Carto, another table is created to store air quality metrics that are calculated from the raw data. The following metrics were calculated for each compound:
 * NO₂: maximum daily 1-hour average
 * PM2.5: daily average
 * O₃: maximum daily 8-hour average
