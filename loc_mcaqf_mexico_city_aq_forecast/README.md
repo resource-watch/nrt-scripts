@@ -8,7 +8,7 @@ This file describes the near real-time script that retrieves and processes the [
 
 This dataset was provided by the source as a NETCDF file. The air quality data for each compound at each timestep was converted to a tif file so that it could be uploaded to Google Earth Engine.
 
-Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/\loc_mcaqf_mexico_city_aq_forecast/contents/src/__init__.py) for more details on this processing.
+Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/loc_mcaqf_mexico_city_aq_forecast/contents/src/__init__.py) for more details on this processing.
 
 **Schedule**
 
