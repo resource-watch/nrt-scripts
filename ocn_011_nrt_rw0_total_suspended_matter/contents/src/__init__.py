@@ -322,7 +322,8 @@ def processNewData():
             # Upload new file (tif) to GEE
             eeUtil.uploadAsset(sds_tif, asset, GS_FOLDER, timeout=1000)
             # store the name of the uploaded asset to the dictionary
-            val['asset'] = asset 
+            val['asset'] = asset[1:]
+            logging.info('{} uploaded to GEE'.format(val['asset']))
             
         else:
             logging.info('Data for {} already up to date'.format(product))
