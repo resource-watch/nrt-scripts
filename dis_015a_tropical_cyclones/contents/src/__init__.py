@@ -14,7 +14,6 @@ import geopandas as gpd
 import glob
 import json
 
-
 # name of data directory in Docker container
 DATA_DIR = 'data'
 
@@ -357,6 +356,38 @@ def updateResourceWatch():
             }
         }
         new_layer = new_layer.update(update_params=payload, token=API_TOKEN)
+    update_default_layer(DATASET_ID, most_recent_year)
+
+def update_default_layer(ds_id, default_year):
+    '''
+    Given a Resource Watch dataset's API ID and the year we want to set as the default layer, this function will 
+    update the default layer on Resource Watch
+    INPUT   ds_id: Resource Watch API dataset ID (string)
+            default_year: year to be used as default layer on Resource Watch (integer)
+    '''
+    # pull the dataset we want to update
+    dataset = lmi.Dataset(ds_id)
+    for layer in dataset.layers:
+        # check which year the current layer is for
+        year = layer.attributes['name'][:4]
+        # check if this is currently the default layer
+        default = layer.attributes['default']
+        # if it is the year we want to set as default, and it is not already set as default,
+        # update the 'default' parameter to True
+        if year == str(default_year) and default==False:
+            payload = {
+                'default': True}
+            # update the layer on the API
+            layer = layer.update(update_params=payload, token=API_TOKEN)
+            print(f'default layer updated to {year}')
+        # if this layer should no longer be the default layer, but it was previously,
+        # make sure the 'default' parameter is False
+        elif year != str(default_year) and default==True:
+            payload = {
+                'default': False}
+            # update the layer on the API
+            layer = layer.update(update_params=payload, token=API_TOKEN)
+            print(f'{year} is no longer default layer')
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
