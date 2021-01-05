@@ -44,11 +44,13 @@ MAX_ASSETS = 15
 # format of date (used in both the source data files and GEE)
 DATE_FORMAT = '%Y%m%d'
 
-# Resource Watch dataset API ID
+# Resource Watch dataset API ID and GFW dataset API ID
 # Important! Before testing this script:
 # Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
 # Failing to do so will overwrite the last update date on a different dataset on Resource Watch
-DATASET_ID = 'c56ee507-9a3b-41d3-90ac-1406bee32c32'
+DATASET_IDS = {
+    'RW': 'c56ee507-9a3b-41d3-90ac-1406bee32c32',
+    'GFW': '3b850f92-c7e3-4103-9f24-ea7d41a94b84'}
 
 '''
 FUNCTIONS FOR ALL DATASETS
@@ -461,7 +463,7 @@ def update_layer(layer, new_date):
     old_date_text = ' '.join(old_date)
 
     # latest data is for one day ago, so subtracting a day
-    new_date_end = (new_date - datetime.timedelta(days=1))
+    new_date_end = (new_date)
     # get text for new date
     new_date_text = datetime.datetime.strftime(new_date_end, "%B %d, %Y")
 
@@ -494,23 +496,25 @@ def updateResourceWatch():
     '''
     # Get the most recent date from the data in the GEE collection
     most_recent_date = get_most_recent_date(EE_COLLECTION)
-    # Get the current 'last update date' from the dataset on Resource Watch
-    current_date = getLastUpdate(DATASET_ID)
-    # Update the dates on layer legends
-    logging.info('Updating {}'.format(EE_COLLECTION))
-    # pull dictionary of current layers from API
-    layer_dict = pull_layers_from_API(DATASET_ID)
-    # go through each layer, pull the definition and update
-    for layer in layer_dict:
-        # replace layer title with new dates
-        update_layer(layer, most_recent_date)
+    # update the layer dates on RW and GFW
+    for DATASET_ID in DATASET_IDS.values():
+        # Get the current 'last update date' from the dataset on Resource Watch
+        current_date = getLastUpdate(DATASET_ID)
+        # Update the dates on layer legends
+        logging.info('Updating {}'.format(EE_COLLECTION))
+        # pull dictionary of current layers from API
+        layer_dict = pull_layers_from_API(DATASET_ID)
+        # go through each layer, pull the definition and update
+        for layer in layer_dict:
+            # replace layer title with new dates
+            update_layer(layer, most_recent_date)
     # If the most recent date from the GEE collection does not match the 'last update date' on the RW API, update it
     if current_date != most_recent_date:
         logging.info('Updating last update date and flushing cache.')
         # Update dataset's last update date on Resource Watch
-        lastUpdateDate(DATASET_ID, most_recent_date)
+        lastUpdateDate(DATASET_IDS["RW"], most_recent_date)
         # get layer ids and flush tile cache for each
-        layer_ids = getLayerIDs(DATASET_ID)
+        layer_ids = getLayerIDs(DATASET_IDS["RW"])
         for layer_id in layer_ids:
             flushTileCache(layer_id)
 
