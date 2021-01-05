@@ -299,7 +299,7 @@ def get_most_recent_date(table):
     # sort the dates from oldest to newest
     dates.sort()
     # turn the last (newest) date into a datetime object
-    most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
+    most_recent_date = datetime.datetime.strptime(dates[-1][:-3], '%Y-%m-%d %H:%M:%S')
 
     return most_recent_date
 
@@ -341,10 +341,10 @@ def update_layer(layer):
     # get current date
     current_date = datetime.datetime.now()    
     # get text for new date end which will be the current date
-    new_date_end = current_date.strftime("%B %d, %Y, %H%M")
+    new_date_end = current_date.strftime("%B %d, %Y, %H:%M")
     # get most recent starting date, 24 hours ago
     new_date_start = (current_date - datetime.timedelta(hours=24))
-    new_date_start = datetime.datetime.strftime(new_date_start, "%B %d, %Y, %H%M")
+    new_date_start = datetime.datetime.strftime(new_date_start, "%B %d, %Y, %H:%M")
     # construct new date range by joining new start date and new end date
     new_date_text = new_date_start + ' UTC' + ' - ' + new_date_end + ' UTC'
     
