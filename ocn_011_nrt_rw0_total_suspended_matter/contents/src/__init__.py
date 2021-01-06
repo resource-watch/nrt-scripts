@@ -245,7 +245,7 @@ def getDate(filename):
 
 def find_latest_date():
     '''
-    Fetch the latest date for which coral bleach monitoring data is available        
+    Fetch the latest date for which coral bleach monitoring data is available and store it in the data dictionary
     '''
     ftp = ftplib.FTP('ftp.hermes.acri.fr')
     ftp.login(ftp_username, ftp_password)
@@ -289,28 +289,31 @@ def processNewData():
     INPUT   existing_dates: list of dates we already have in GEE (list of strings)
     RETURN  asset: file name for asset that have been uploaded to GEE (string)
     '''
-    for product, val in DATA_DICT.items():
     # Get latest available date that is availble on the source
-        find_latest_date()
+    find_latest_date()
+    # loop through the items in the data dictionary
+    for product, val in DATA_DICT.items():
+        # if the latest available data does not exist in the image collection on GEE 
         if val['latest date'] not in val['existing dates']:
             # fetch files for the latest date
             logging.info('Fetching files')   
             fetch(product)
             # convert netcdfs to tifs and store the tif filenames to a new key in the parent dictionary
-            logging.info('Extracting relevant GeoTIFFs from source NetCDFs, and modifying nodata values in the resulting GeoTIFFs where appropriate')
-
-            nc = val['raw_data_file'] # originally raw_data_file
+            logging.info('Extracting relevant GeoTIFFs from source NetCDFs')
+            # file path to the netcdf file
+            nc = val['raw_data_file'] 
+            # the name of the layer in netcdf that is being converted to GEOTIFF 
             sds = val['sds'][0]
 
             # should be of the format 'NETCDF:"filename.nc":variable'
             sds_path = f'NETCDF:"{nc}":{sds}'
             # generate a name to save the tif file we will translate the netcdf file's subdataset into
             sds_tif = '{}_{}.tif'.format(os.path.splitext(nc)[0], sds_path.split(':')[-1])
-
-            #cmd = f'gdal_translate -q -a_srs EPSG:4326 -a_nodata {local_nodata} -ot Float32 -unscale {sds_path} {sds_tif} '
+            # create the gdal command and run it to convert the netcdf to tif
             cmd = ['gdal_translate','-q', '-a_srs', 'EPSG:4326',  sds_path, sds_tif]
             completed_process = subprocess.run(cmd, shell=False)
             logging.debug(str(completed_process))
+            # store the file path to the tif file in the data dictionary
             val['tif'] = sds_tif
 
             logging.info('Uploading files')
@@ -319,7 +322,8 @@ def processNewData():
             # Upload new file (tif) to GEE
             eeUtil.uploadAsset(sds_tif, asset, GS_FOLDER, timeout=1000)
             # store the name of the uploaded asset to the dictionary
-            val['asset'] = asset 
+            val['asset'] = asset[1:]
+            logging.info('{} uploaded to GEE'.format(val['asset']))
             
         else:
             logging.info('Data for {} already up to date'.format(product))
@@ -330,17 +334,18 @@ def processNewData():
 def checkCreateCollection():
     '''
     List assets in collection if it exists, else create new collection
-    INPUT   vars: list variables (as named in netcdf) that we want to check collections for (list of strings)
-    RETURN  existing_dates_by_var: list of dates, in the format of the DATE_FORMAT variable, that exist for each individual variable collection in GEE (list containing list of strings for each variable)
     '''
     # Check if folder to store GEE collections exists. If not, create it.
         # we will make one collection per product, all stored in the parent folder for the dataset
+
+    # if the parent folder does not exist yet, create it on gee
     if not eeUtil.exists(COLLECTION):
         logging.info('{} does not exist, creating'.format(COLLECTION))
         eeUtil.createFolder(COLLECTION)
 
     # loop through each product that we want to pull
     for product, val in DATA_DICT.items():
+        # fetch the name of the collection storing this product 
         collection = getCollectionName(product)
 
         # If the GEE collection for a particular product exists
@@ -520,7 +525,6 @@ def main():
     # Fetch, process, and upload the new data
     os.chdir(DATA_DIR)
     processNewData()
-    # Get the dates of the new data we have added
     for product, val in DATA_DICT.items():
         logging.info('Previous assets for product {}: {}, new: {}, max: {}'.format(
             product, len(val['existing dates']), val['asset'], MAX_ASSETS))
