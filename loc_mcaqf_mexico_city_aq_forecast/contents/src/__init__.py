@@ -637,7 +637,7 @@ def updateResourceWatch(new_dates):
             # execute requests
             for future in futures:
                 try:
-                    future.get(timeout=10)
+                    future.get(timeout=15)
                 except TimeoutError:
                     pass
             logging.info('Updating last update date and flushing cache.')
@@ -655,7 +655,7 @@ def updateResourceWatch(new_dates):
             # execute requests
             for future in futures:
                 try:
-                    future.get(timeout=10)
+                    future.get(timeout=15)
                 except TimeoutError:
                     pass
 
