@@ -615,7 +615,9 @@ def updateResourceWatch(new_dates):
     This may include updating the 'last update date', flushing the tile cache, and updating any dates on layers
     INPUT   new_dates: list of new dates (list of strings)
     '''
+    i=0
     for var, ds_id in DATASET_IDS.items():
+        i+=1
         logging.info('Updating {}'.format(var))
         # Get the most recent date from the data in the GEE collection
         most_recent_date = get_most_recent_date_from_list(new_dates)
@@ -635,11 +637,15 @@ def updateResourceWatch(new_dates):
                 kwds = update_layer(var,  layer, most_recent_date)
                 futures.append(pool.apply_async(requests.patch, kwds=kwds))
             # execute requests
-            for future in futures:
-                try:
-                    future.get(timeout=15)
-                except TimeoutError:
-                    pass
+            if i<5:
+                for future in futures:
+                    try:
+                        print(future.get(timeout=1))
+                    except TimeoutError:
+                        pass
+            else:
+                for future in futures:
+                    print(future.get())
             logging.info('Updating last update date and flushing cache.')
             # create a pool of processes
             pool = Pool()
@@ -653,11 +659,15 @@ def updateResourceWatch(new_dates):
                 kwds = flushTileCache_future(layer_id)
                 futures.append(pool.apply_async(requests.delete, kwds=kwds))
             # execute requests
-            for future in futures:
-                try:
-                    future.get(timeout=15)
-                except TimeoutError:
-                    pass
+            if i<5:
+                for future in futures:
+                    try:
+                        print(future.get(timeout=1))
+                    except TimeoutError:
+                        pass
+            else:
+                for future in futures:
+                    print(future.get())
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
