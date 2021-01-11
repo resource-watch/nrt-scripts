@@ -1,6 +1,7 @@
 import sys, bs4
 import requests
 import pandas as pd
+from shapely.geometry import Polygon, mapping
 from datetime import date, timedelta, datetime
 import numpy as np
 import re
