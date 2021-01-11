@@ -242,13 +242,13 @@ def fetcher_nodes():
                 aux_noSoup = str(noStarchSoup).split('</nodo>')
             
                 for nS in aux_noSoup:
-                    scrape_fecha=list(map(lambda x: x.getText(), bs4.BeautifulSoup(nS).select('fecha')))
+                    scrape_fecha=list(map(lambda x: x.getText(), bs4.BeautifulSoup(nS, features="lxml").select('fecha')))
                     scrape_node = bs4.BeautifulSoup(nS).select('clv_nodo')
-                    scrape_hora = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS).select('hora')))
-                    scrape_pml = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS).select('pml')))
-                    scrape_pml_ene = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS).select('pml_ene')))
-                    scrape_pml_per = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS).select('pml_per')))
-                    scrape_pml_cng = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS).select('pml_cng')))
+                    scrape_hora = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS, features="lxml").select('hora')))
+                    scrape_pml = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS, features="lxml").select('pml')))
+                    scrape_pml_ene = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS, features="lxml").select('pml_ene')))
+                    scrape_pml_per = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS, features="lxml").select('pml_per')))
+                    scrape_pml_cng = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS, features="lxml").select('pml_cng')))
                 
                     if len(scrape_pml)>0:
                         for i in range(len(scrape_node)):
@@ -429,12 +429,12 @@ def fetcher_load():
 #This function uploads new data to carto 
 def upload_data(df,existing_ids,CARTO_TABLE,CARTO_SCHEMA):
     #Droping unwanted columns after merging with nodes table
-    df.drop(['cartodb_id', 'uid', 'the_geom'], axis=1, inplace=True, errors='ignore')
+    df.drop(['cartodb_id', 'uid'], axis=1, inplace=True, errors='ignore')
     # create a 'uid' column to store the index of rows as unique ids
     df = df.reset_index(drop=True)
     df['uid'] = df.index + max([int(i) for i in existing_ids],default = 0)+1   
     # create 'the_geom' column to store the geometry of the data points
-    df['the_geom'] = [{'type': 'Point','coordinates': [x, y]} for (x, y) in zip(df['longitude'], df['latitude'])]
+    df['the_geom'] = df['the_geom'].apply(mapping)
     #Turn empty spaces and other characters to null
     df = df.where(pd.notnull(df), None)
     # reorder the columns in the dataframe based on the keys from the dictionary "CARTO_SCHEMA"
