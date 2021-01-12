@@ -231,8 +231,16 @@ def pull_layers_from_API(dataset_id):
     rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer?page[size]=100'.format(dataset_id)
     # request data
     r = requests.get(rw_api_url)
-    # convert response into json and make dictionary of layers
-    layer_dict = json.loads(r.content.decode('utf-8'))['data']
+    try_num = 1
+    while try_num <= 3:
+        try: 
+            # convert response into json and make dictionary of layers
+            layer_dict = json.loads(r.content.decode('utf-8'))['data']
+            break
+        except:
+            logging.info("Failed to fetch layers. Trying again after 30 seconds.")
+            time.sleep(30)
+            try_num += 1
     return layer_dict
 
 def update_layer(layer):
