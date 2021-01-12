@@ -312,7 +312,8 @@ def main():
 
         # 2.1 parse data excluding existing observations
         try:
-            logging.info(DATA_URL.format(page))
+            logging.info(DATA_URL.format(page=page))
+            logging.info(r.url)
             logging.info(r.content)
             results = r.json()['results']
             for obs in results:
