@@ -312,9 +312,7 @@ def main():
 
         # 2.1 parse data excluding existing observations
         try:
-            logging.info(DATA_URL.format(page=page))
             logging.info(r.url)
-            logging.info(r.content)
             results = r.json()['results']
             for obs in results:
                 param = obs['parameter']
@@ -357,7 +355,8 @@ def main():
 
         # failed to read ['results']
         except Exception as e:
-            logging.info("Failed to read results")
+            logging.info('Failed to read results. Waiting for {} seconds before trying again.'.format(WAIT_TIME))
+            time.sleep(30)
             retries += 1
             page -= 1
             if retries > 3:
