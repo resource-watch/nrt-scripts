@@ -67,9 +67,7 @@ CARTO_LOAD_PML_SCHEMA = OrderedDict([
        ('state_code', 'text'),
        ('state','text'),
        ('municipality_code', 'text'),
-       ('municipality','text'),
-       ('longitude','numeric'),
-       ('latitude','numeric')
+       ('municipality','text')
     ])
 # how many rows can be stored in the Carto table before the oldest ones are deleted?
 MAX_ROWS = 1000000
@@ -213,8 +211,8 @@ def fetcher_nodes():
     db_ene = pd.DataFrame(columns = ['FECHA','ID_NODO','H1','H2','H3','H4','H5','H6','H7','H8','H9','H10','H11','H12','H13','H14','H15','H16','H17','H18','H19','H20','H21','H22','H23','H24'])
     db_per = pd.DataFrame(columns = ['FECHA','ID_NODO','H1','H2','H3','H4','H5','H6','H7','H8','H9','H10','H11','H12','H13','H14','H15','H16','H17','H18','H19','H20','H21','H22','H23','H24'])
     db_cng = pd.DataFrame(columns = ['FECHA','ID_NODO','H1','H2','H3','H4','H5','H6','H7','H8','H9','H10','H11','H12','H13','H14','H15','H16','H17','H18','H19','H20','H21','H22','H23','H24'])
-    #dinicio = date(2020,12,16) ##Use this function the first time to update the table
-    #dfin = date.today() ###to current date
+    #dinicio = date(2021,1,1) ##Use this function the first time to update the table
+    #dfin = date(2021,1,7) ###to desired date
     dinicio = (get_most_recent_date(CARTO_NODES_PML_TABLE) +timedelta(days=1)).date()
     dfin =  dinicio + timedelta(days=6)
     while dinicio <= dfin:
@@ -244,7 +242,7 @@ def fetcher_nodes():
             
                 for nS in aux_noSoup:
                     scrape_fecha=list(map(lambda x: x.getText(), bs4.BeautifulSoup(nS, features="lxml").select('fecha')))
-                    scrape_node = bs4.BeautifulSoup(nS).select('clv_nodo')
+                    scrape_node = bs4.BeautifulSoup(nS, features="lxml").select('clv_nodo')
                     scrape_hora = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS, features="lxml").select('hora')))
                     scrape_pml = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS, features="lxml").select('pml')))
                     scrape_pml_ene = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS, features="lxml").select('pml_ene')))
@@ -358,8 +356,8 @@ def fetcher_load():
     auth=cartoframes.auth.Credentials(username=CARTO_USER, api_key=CARTO_KEY)
     df = cartoframes.read_carto('loc_mx_ene_load_zones', credentials=auth)
     db_ca=pd.DataFrame(columns = ['FECHA','SISTEMA','ZONA_CARGA','H1','H2','H3','H4','H5','H6','H7','H8','H9','H10','H11','H12','H13','H14','H15','H16','H17','H18','H19','H20','H21','H22','H23','H24'])
-    #dinicio = date(2020,12,16)###Use this function to update the table for the first time
-    #dfin = date.today()####
+    #dinicio = date(2021,1,1) ##Use this function the first time to update the table
+    #dfin = date(2021,1,7) ###to desired date
     dinicio = (get_most_recent_date(CARTO_LOAD_PML_TABLE) +timedelta(days=1)).date()
     dfin =  dinicio + timedelta(days=6)
     while dinicio <= dfin:
@@ -429,13 +427,16 @@ def fetcher_load():
 
 #This function uploads new data to carto 
 def upload_data(df,existing_ids,CARTO_TABLE,CARTO_SCHEMA):
+    # create 'the_geom' column to store the geometry of the data points
+    if len(df.columns) > 11:
+        df['the_geom'] = [{'type': 'Point','coordinates': [x, y]} for (x, y) in zip(df['longitude'], df['latitude'])]      
+    else:
+        df['the_geom'] = df['the_geom'].apply(mapping)   
     #Droping unwanted columns after merging with nodes table
     df.drop(['cartodb_id', 'uid'], axis=1, inplace=True, errors='ignore')
     # create a 'uid' column to store the index of rows as unique ids
     df = df.reset_index(drop=True)
     df['uid'] = df.index + max([int(i) for i in existing_ids],default = 0)+1   
-    # create 'the_geom' column to store the geometry of the data points
-    df['the_geom'] = df['the_geom'].apply(mapping)
     #Turn empty spaces and other characters to null
     df = df.where(pd.notnull(df), None)
     # reorder the columns in the dataframe based on the keys from the dictionary "CARTO_SCHEMA"

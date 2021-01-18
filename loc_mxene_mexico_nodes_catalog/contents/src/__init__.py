@@ -244,7 +244,7 @@ def inegi_municipio():
     zip_ref.close()
     shapefile = glob.glob(os.path.join(municipalities_file_unzipped, 'mg_sep2019_integrado', 'conjunto_de_datos','*00mun.shp'))[0]
     gdf = gpd.read_file(shapefile)
-    #gdf = gdf.explode()
+    gdf['geometry'] = gdf['geometry'].to_crs(epsg=4326)
     
     return gdf 
 
@@ -290,10 +290,10 @@ def get_nodes_zones(table,param_column):
 
 def upload_data(df,param_column,existing_ids,CARTO_TABLE,CARTO_SCHEMA):
     # create 'the_geom' column to store the geometry of the data points
-    if df is new_zones:
-        df['the_geom'] = df['the_geom'].apply(mapping)
-    else:
+    if len(df.columns) == 11:
         df['the_geom'] = [{'type': 'Point','coordinates': [x, y]} for (x, y) in zip(df['longitude'], df['latitude'])]
+    else:
+        df['the_geom'] = df['the_geom'].apply(mapping)
     #Check if fetched entries are already in the carto table, and if so removes them.
     df = df[~df[param_column].isin(get_nodes_zones(CARTO_TABLE, param_column))]
     # create a 'uid' column to store the index of rows as unique ids
