@@ -384,7 +384,7 @@ def fetcher_load():
                 res.raise_for_status()     
                 noStarchSoup = bs4.BeautifulSoup(res.text, 'html.parser')
                 aux_noSoup = str(str(noStarchSoup).split('</Resultados>')).split('</Zona_Carga> ')
-                split_zones=bs4.BeautifulSoup(aux_noSoup[0]).select('zona_carga')
+                split_zones=bs4.BeautifulSoup(aux_noSoup[0], features="lxml").select('zona_carga')
                 scrape_sys=noStarchSoup.select('sistema')[0].getText()
                 for children in split_zones:
                     fecha=children.select('fecha')
