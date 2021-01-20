@@ -309,7 +309,7 @@ def main():
     # read at least 10 pages; stop when no new results or 100 pages
     while page <= MIN_PAGES or new_count and page < MAX_PAGES:
         logging.info("Fetching page {}".format(page))
-        r = requests.get(DATA_URL.format(page=page))
+        url = (DATA_URL.format(page=page))
         page += 1
         new_count = 0
 
@@ -320,6 +320,7 @@ def main():
 
         # 2.1 parse data excluding existing observations
         try:
+            r = requests.get(url)
             logging.info(r.url)
             results = r.json()['results']
             for obs in results:
@@ -361,6 +362,7 @@ def main():
                     new_count += count
                 new_counts[param] += count
 
+            retries = 0
         # failed to read ['results']
         except Exception as e:
             logging.info('Failed to read results. Waiting for {} seconds before trying again.'.format(WAIT_TIME))
