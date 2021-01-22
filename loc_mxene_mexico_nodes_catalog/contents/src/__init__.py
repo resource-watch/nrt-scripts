@@ -67,7 +67,9 @@ CARTO_LOAD_ZONES_SCHEMA = OrderedDict([
        ('state_code', 'text'),
        ('state','text'),
        ('municipality_code','text'),
-       ('municipality','text')
+       ('municipality','text'),
+       ('longitude', 'numeric'),
+       ('latitude', 'numeric')
     ])
 
 UID_FIELD = 'uid'
@@ -229,25 +231,6 @@ def download_nodes():
     
     return merged_nodes
 
-#This function fetches the shape files of Mexico municipalities needed for the load zones 
-def inegi_municipio():
-    #Downloading shapefiles using urlib
-    url = 'https://www.inegi.org.mx/contenido/productos/prod_serv/contenidos/espanol/bvinegi/productos/geografia/marcogeo/889463776079/mg_sep2019_integrado.zip'
-    # download the data from the source
-    municipalities_file = os.path.join(os.getcwd(), 'municipios_shp.zip')
-    urllib.request.urlretrieve(url, municipalities_file)
-
-    # unzip source data
-    municipalities_file_unzipped = municipalities_file.split('.')[0]
-    zip_ref = ZipFile(municipalities_file, 'r')
-    zip_ref.extractall(municipalities_file_unzipped)
-    zip_ref.close()
-    shapefile = glob.glob(os.path.join(municipalities_file_unzipped, 'mg_sep2019_integrado', 'conjunto_de_datos','*00mun.shp'))[0]
-    gdf = gpd.read_file(shapefile)
-    gdf['geometry'] = gdf['geometry'].to_crs(epsg=4326)
-    
-    return gdf 
-
 #This function download the load zones from cenace's api, then merge the file with inegi shape files of the municipalities.
 def load_zone_download():
     ficheros=[file for file in os.listdir(os.getcwd()) if file.endswith('.xlsx')]
@@ -262,11 +245,10 @@ def load_zone_download():
     group_zone['CLAVE DE MUNICIPIO (INEGI)'] = group_zone['CLAVE DE MUNICIPIO (INEGI)'].astype(str).str.zfill(3)
     group_zone.reset_index(drop=True, inplace=True)
     #Merging load zones frame with the shapefile from INEGI
-    merged_d3 = pd.merge(group_zone, inegi_municipio(), how = 'left', left_on = ['CLAVE DE ENTIDAD FEDERATIVA (INEGI)', 'CLAVE DE MUNICIPIO (INEGI)'], right_on = ['CVE_ENT','CVE_MUN'])
-    merged_zones = merged_d3[['SISTEMA','ZONA DE CARGA', 'CLAVE DE ENTIDAD FEDERATIVA (INEGI)','ENTIDAD FEDERATIVA (INEGI)','CLAVE DE MUNICIPIO (INEGI)','MUNICIPIO (INEGI)','geometry']]
+    merged_d3 = pd.merge(group_zone, inegi_localidad(group_zone), how = 'left', left_on = ['CLAVE DE ENTIDAD FEDERATIVA (INEGI)', 'CLAVE DE MUNICIPIO (INEGI)'], right_on = ['datos.cve_agee','datos.cve_agem'])
+    merged_zones = merged_d3[['SISTEMA','ZONA DE CARGA', 'CLAVE DE ENTIDAD FEDERATIVA (INEGI)','ENTIDAD FEDERATIVA (INEGI)','CLAVE DE MUNICIPIO (INEGI)','MUNICIPIO (INEGI)','datos.longitud','datos.latitud']]
     merged_zones = merged_zones.reset_index(drop=True)
-    merged_zones.columns = ['SYSTEM','LOAD_ZONE','STATE_CODE', 'STATE', 'MUNICIPALITY_CODE','MUNICIPALITY', 'geometry']
-    merged_zones.rename(columns={'geometry':'the_geom'}, inplace=True)
+    merged_zones.columns = ['SYSTEM','LOAD_ZONE','STATE_CODE', 'STATE', 'MUNICIPALITY_CODE','MUNICIPALITY', 'LONGITUDE', 'LATITUDE']
     merged_zones['LOAD_ZONE'] = merged_zones['LOAD_ZONE'].replace('-','')
     merged_zones['LOAD_ZONE']= merged_zones['LOAD_ZONE'].replace(to_replace="\s\s*",value = '',regex=True)
     merged_zones.columns= merged_zones.columns.str.strip().str.lower()
@@ -289,16 +271,13 @@ def get_nodes_zones(table,param_column):
     return lis_param
 
 def upload_data(df,param_column,existing_ids,CARTO_TABLE,CARTO_SCHEMA):
-    # create 'the_geom' column to store the geometry of the data points
-    if len(df.columns) == 11:
-        df['the_geom'] = [{'type': 'Point','coordinates': [x, y]} for (x, y) in zip(df['longitude'], df['latitude'])]
-    else:
-        df['the_geom'] = df['the_geom'].apply(mapping)
     #Check if fetched entries are already in the carto table, and if so removes them.
     df = df[~df[param_column].isin(get_nodes_zones(CARTO_TABLE, param_column))]
     # create a 'uid' column to store the index of rows as unique ids
     df = df.reset_index(drop=True)
     df['uid'] = df.index + max([int(i) for i in existing_ids],default = 0)+1
+    # create 'the_geom' column to store the geometry of the data points
+    df['the_geom'] = [{'type': 'Point','coordinates': [x, y]} for (x, y) in zip(df['longitude'], df['latitude'])]
     #Turn empty spaces and other characters to null
     df = df.where(pd.notnull(df), None)
     # reorder the columns in the dataframe based on the keys from the dictionary "CARTO_SCHEMA"
