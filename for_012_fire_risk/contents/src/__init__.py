@@ -459,9 +459,7 @@ def update_layer(layer, new_date):
     cur_title = layer['attributes']['name']
     
     # get current end date being used from title by string manupulation
-    old_date = re.search(r'(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}', cur_title).group()
-    # join each time variable to construct text of current date
-    old_date_text = ' '.join(old_date)
+    old_date_text = re.search(r'(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}', cur_title).group()
 
     # latest data is for one day ago, so subtracting a day
     new_date_end = (new_date)
