@@ -288,7 +288,9 @@ def processNewData(src_url, existing_ids, existing_stations):
     new_rows = []
     # pull data from request response json
     data = r.json()
-    # reverse the order so the list so we start with the newest data
+    # sort data by oldest date and 
+    # reverse the order so we start with the newest data
+    data = sorted(data, key = lambda x: datetime.datetime.strptime(x["date"],"%Y-%m-%dT%H:%M:%S.%fZ"))
     data.reverse()
     # get most updated list of station information
     station_df = cartoframes.read_carto('cit_004_city_aq_stations', credentials=AUTH)
