@@ -637,15 +637,11 @@ def updateResourceWatch(new_dates):
                 kwds = update_layer(var,  layer, most_recent_date)
                 futures.append(pool.apply_async(requests.patch, kwds=kwds))
             # execute requests
-            if i<5:
-                for future in futures:
-                    try:
-                        print(future.get(timeout=1))
-                    except TimeoutError:
-                        pass
-            else:
-                for future in futures:
-                    print(future.get())
+            for future in futures:
+                try:
+                    print(future.get(timeout=2))
+                except TimeoutError:
+                    pass
             logging.info('Updating last update date and flushing cache.')
             # create a pool of processes
             pool = Pool()
@@ -659,15 +655,11 @@ def updateResourceWatch(new_dates):
                 kwds = flushTileCache_future(layer_id)
                 futures.append(pool.apply_async(requests.delete, kwds=kwds))
             # execute requests
-            if i<5:
-                for future in futures:
-                    try:
-                        print(future.get(timeout=1))
-                    except TimeoutError:
-                        pass
-            else:
-                for future in futures:
-                    print(future.get())
+            for future in futures:
+                try:
+                    print(future.get(timeout=2))
+                except TimeoutError:
+                    pass
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)

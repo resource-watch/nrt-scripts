@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 import urllib.request
 import time
 import json
+import re
 
 # url for fire weather data
 SOURCE_URL = 'https://portal.nccs.nasa.gov/datashare/GlobalFWI/v2.0/fwiCalcs.GEOS-5/Default/GPM.LATE.v5/{year}/FWI.GPM.LATE.v5.Daily.Default.{date}.nc'
@@ -458,9 +459,7 @@ def update_layer(layer, new_date):
     cur_title = layer['attributes']['name']
     
     # get current end date being used from title by string manupulation
-    old_date = cur_title.split()[0:3]
-    # join each time variable to construct text of current date
-    old_date_text = ' '.join(old_date)
+    old_date_text = re.search(r'(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}', cur_title).group()
 
     # latest data is for one day ago, so subtracting a day
     new_date_end = (new_date)
