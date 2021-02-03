@@ -292,7 +292,7 @@ def upload_data(df,param_column,existing_ids,CARTO_TABLE,CARTO_SCHEMA):
     else: num_new = 0
     
     return(num_new)
-
+    
 def main():
       
     # Check if table exists, create it if it does not

@@ -87,7 +87,7 @@ DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 MAXROWS = 10000000
 
 # url for devseed air quality data
-SOURCE_URL = 'http://gmao-aq-prod-1707436367.us-east-1.elb.amazonaws.com/api/forecast/'
+SOURCE_URL = 'http://gmao-aq-prod-1707436367.us-east-1.elb.amazonaws.com/api/forecast'
 
 # url to get info about specific station
 STATION_URL = 'http://gmao-aq-prod-1707436367.us-east-1.elb.amazonaws.com/api/station/{station}/'
@@ -415,6 +415,7 @@ def processNewData(src_url, existing_ids, existing_stations):
         # insert new data into the carto table
         cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(),
             new_rows, user=CARTO_USER, key=CARTO_KEY)
+    else: logging.info('No new rows to add')
     return new_ids
 
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
@@ -673,7 +674,7 @@ def main():
     existing_metrics_ids = processMetrics(new_ids)
 
     # Delete data to get back to MAX_ROWS
-    logging.info('Deleting excess rows')
+    #logging.info('Deleting excess rows')
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD)
 
     # Update Resource Watch
