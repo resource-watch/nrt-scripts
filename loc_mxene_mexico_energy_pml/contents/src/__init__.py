@@ -3,6 +3,7 @@ import requests
 import pandas as pd
 from shapely.geometry import Polygon, mapping
 from datetime import date, timedelta, datetime
+from dateutil.relativedelta import relativedelta
 import numpy as np
 import re
 from urllib.parse import urljoin
@@ -30,13 +31,13 @@ CARTO_USER = os.getenv('CARTO_USER')
 CARTO_KEY = os.getenv('CARTO_KEY')
 # asserting table structure rather than reading from input
 # We will create four tables for this dataset, due to the different dissagregation levels.
-CARTO_NODES_PML_TABLE = 'loc_mx_ene_nodes_pml'
-CARTO_LOAD_PML_TABLE = 'loc_mx_ene_load_pml'
+CARTO_NODES_DASH_PML_TABLE = 'dash_loc_mx_ene_nodes'
+CARTO_LOAD_DASH_PML_TABLE = 'dash_loc_mx_ene_load'
 
 # column names and types for data table
 # column names should be lowercase
 # column types should be one of the following: geometry, text, numeric, timestamp
-CARTO_NODES_PML_SCHEMA = OrderedDict([
+CARTO_NODES_DASH_SCHEMA = OrderedDict([
        ('the_geom', 'geometry'),
        ('uid', 'numeric'),
        ('entry_date', 'timestamp'),
@@ -53,11 +54,15 @@ CARTO_NODES_PML_SCHEMA = OrderedDict([
        ('state','text'),
        ('municipality_code', 'text'),
        ('municipality','text'),
-       ('longitude','numeric'),
-       ('latitude','numeric')
+       ('last_week_pct_change', 'numeric'),
+       ('last_month_pct_change', 'numeric'),
+       ('last_year_pct_change', 'numeric'),
+       ('pml_label', 'text'),
+       ('pml_syst_avg', 'text'),
+       ('pml_syst_pct_change', 'text')
     ])
 
-CARTO_LOAD_PML_SCHEMA = OrderedDict([
+CARTO_LOAD_DASH_SCHEMA = OrderedDict([
        ('the_geom', 'geometry'),
        ('uid', 'numeric'),
        ('entry_date', 'timestamp'),
@@ -67,7 +72,9 @@ CARTO_LOAD_PML_SCHEMA = OrderedDict([
        ('state_code', 'text'),
        ('state','text'),
        ('municipality_code', 'text'),
-       ('municipality','text')
+       ('municipality','text'),
+       ('load_syst_total', 'numeric'),
+       ('load_syst_pct', 'numeric')
     ])
 # how many rows can be stored in the Carto table before the oldest ones are deleted?
 MAX_ROWS = 1000000
@@ -76,6 +83,12 @@ UID_FIELD = 'uid'
 TIME_FIELD = 'entry_date'
 NODE_FIELD = 'node_id'
 LOAD_FIELD = 'load_zone'
+
+#Getting dates that we will fetch
+yesterday = date.today() - timedelta(days=1)
+last_week = yesterday - timedelta(days=7)
+last_month = yesterday - relativedelta(months=1)
+last_year = yesterday - relativedelta(years=1)
 
 CARTO_USER = os.environ.get('CARTO_USER')
 CARTO_KEY = os.environ.get('CARTO_KEY')
@@ -200,7 +213,7 @@ def db_mkr(lis,db):
     return db
 
 #This function performs the call to cenace api and process data
-def fetcher_nodes():
+def fetcher_nodes(yesterday, last_week, last_month, last_year):
     lis_pml = []
     lis_ene = []
     lis_per = []
@@ -211,60 +224,51 @@ def fetcher_nodes():
     db_ene = pd.DataFrame(columns = ['FECHA','ID_NODO','H1','H2','H3','H4','H5','H6','H7','H8','H9','H10','H11','H12','H13','H14','H15','H16','H17','H18','H19','H20','H21','H22','H23','H24'])
     db_per = pd.DataFrame(columns = ['FECHA','ID_NODO','H1','H2','H3','H4','H5','H6','H7','H8','H9','H10','H11','H12','H13','H14','H15','H16','H17','H18','H19','H20','H21','H22','H23','H24'])
     db_cng = pd.DataFrame(columns = ['FECHA','ID_NODO','H1','H2','H3','H4','H5','H6','H7','H8','H9','H10','H11','H12','H13','H14','H15','H16','H17','H18','H19','H20','H21','H22','H23','H24'])
-    #dinicio = date(2021,1,1) ##Use this function the first time to update the table
-    #dfin = date(2021,1,7) ###to desired date
-    dinicio = (get_most_recent_date(CARTO_NODES_PML_TABLE) +timedelta(days=1)).date()
-    dfin =  dinicio + timedelta(days=6)
-    while dinicio <= dfin:
-        daux = dinicio+timedelta(days=6)
-        if (daux < dfin) & (dinicio < dfin):
-            print('Downloading information for dates {} - {} \n'.format(dinicio,daux))
-            links=PMLs_URL(df,dinicio.strftime("%Y/%m/%d"),daux.strftime("%Y/%m/%d"))
-            dinicio=daux+timedelta(days=1)
-            daux=dinicio+timedelta(days=6)
-        if (daux >= dfin) & (dinicio < dfin):
-            daux=dfin
-            print('Downloading information for dates {} - {} \n'.format(dinicio,daux))
-            links=PMLs_URL(df,dinicio.strftime("%Y/%m/%d"),daux.strftime("%Y/%m/%d"))
-            dinicio=daux+timedelta(days=1)
-        if (dinicio == dfin) & (daux > dfin):
-            daux=dfin
-            print('Downloading information for dates {} - {} \n'.format(dinicio,daux))
-            links=PMLs_URL(df,dinicio.strftime("%Y/%m/%d"),daux.strftime("%Y/%m/%d"))
-            dinicio=dinicio+timedelta(days=1)
+    #dinicio = date(2020,12,16) ##Use this function the first time to update the table
+    #dfin = date.today() ###to current date
+    #dinicio = (get_most_recent_date(CARTO_NODES_PML_TABLE) +timedelta(days=1)).date()
+    #dfin =  dinicio + timedelta(days=6)
+    print('Downloading information for dates {} - {} \n'.format(yesterday,yesterday))
+    links=PMLs_URL(df,yesterday.strftime("%Y/%m/%d"),yesterday.strftime("%Y/%m/%d"))
+    print('Downloading information for dates {} - {} \n'.format(last_week,last_week))
+    links.extend(PMLs_URL(df,last_week.strftime("%Y/%m/%d"),last_week.strftime("%Y/%m/%d")))
+    print('Downloading information for dates {} - {} \n'.format(last_month,last_month))
+    links.extend(PMLs_URL(df,last_month.strftime("%Y/%m/%d"),last_month.strftime("%Y/%m/%d")))
+    print('Downloading information for dates {} - {} \n'.format(last_year,last_year))
+    links.extend(PMLs_URL(df,last_year.strftime("%Y/%m/%d"),last_year.strftime("%Y/%m/%d")))
             
-        for link in links:
-            try:
-                res = requests.get(link, timeout=None)
-                res.raise_for_status()  
-                noStarchSoup = bs4.BeautifulSoup(res.text, 'xml')
-                aux_noSoup = str(noStarchSoup).split('</nodo>')
+    for link in links:
+        try:
+            res = requests.get(link, timeout=None)
+            res.raise_for_status()  
+            noStarchSoup = bs4.BeautifulSoup(res.text, 'xml')
+            aux_noSoup = str(noStarchSoup).split('</nodo>')
             
-                for nS in aux_noSoup:
-                    scrape_fecha=list(map(lambda x: x.getText(), bs4.BeautifulSoup(nS, features="lxml").select('fecha')))
-                    scrape_node = bs4.BeautifulSoup(nS, features="lxml").select('clv_nodo')
-                    scrape_hora = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS, features="lxml").select('hora')))
-                    scrape_pml = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS, features="lxml").select('pml')))
-                    scrape_pml_ene = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS, features="lxml").select('pml_ene')))
-                    scrape_pml_per = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS, features="lxml").select('pml_per')))
-                    scrape_pml_cng = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS, features="lxml").select('pml_cng')))
+            for nS in aux_noSoup:
+                scrape_fecha=list(map(lambda x: x.getText(), bs4.BeautifulSoup(nS).select('fecha')))
+                scrape_node = bs4.BeautifulSoup(nS).select('clv_nodo')
+                scrape_hora = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS).select('hora')))
+                scrape_pml = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS).select('pml')))
+                scrape_pml_ene = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS).select('pml_ene')))
+                scrape_pml_per = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS).select('pml_per')))
+                scrape_pml_cng = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS).select('pml_cng')))
                 
-                    if len(scrape_pml)>0:
-                        for i in range(len(scrape_node)):
-                            c_node = scrape_node[i].getText()
-                            parsed_row = df.loc[df['node_id'].isin([c_node])]
-                            nodo_id =tuple(parsed_row['node_id'])[0]                                        
+                if len(scrape_pml)>0:
+                    for i in range(len(scrape_node)):
+                        c_node = scrape_node[i].getText()
+                        parsed_row = df.loc[df['node_id'].isin([c_node])]
+                        nodo_id =tuple(parsed_row['node_id'])[0]                                        
                     
-                            fecha=[]
-                            [fecha.append(f) for f in scrape_fecha if f not in fecha]
-                            to_db_pml, to_db_ene, to_db_per, to_db_cng={}, {}, {}, {}
+                        fecha=[]
+                        [fecha.append(f) for f in scrape_fecha if f not in fecha]
+                        to_db_pml, to_db_ene, to_db_per, to_db_cng={}, {}, {}, {}
                         
-                            for f in fecha:
-                                for i in range(1,25):
-                                    to_db_pml[f,nodo_id, i]=0
-                                    to_db_ene[f,nodo_id, i]=0
-                                    to_db_per[f,nodo_id, i]=0
-                                    to_db_cng[f,nodo_id, i]=0
+                        for f in fecha:
+                            for i in range(1,25):
+                                to_db_pml[f,nodo_id, i]=0
+                                to_db_ene[f,nodo_id, i]=0
+                                to_db_per[f,nodo_id, i]=0
+                                to_db_cng[f,nodo_id, i]=0
                         
                             for index, f in enumerate(scrape_fecha):
                                 to_db_pml[f, nodo_id, scrape_hora[index]]=scrape_pml[index] 
@@ -299,8 +303,8 @@ def fetcher_nodes():
                                     row_frame = pd.DataFrame(dlis).T
                                     lis_cng.append(row_frame)
                                         
-            except Exception as exc:
-                print('There was a problem: %s' % (exc))
+        except Exception as exc:
+            print('There was a problem: %s' % (exc))
     #Running function to concatenate dataframes
     db_pml = db_mkr(lis_pml,db_pml)
     db_ene = db_mkr(lis_ene,db_ene)
@@ -318,7 +322,20 @@ def fetcher_nodes():
     merged_nodes = pd.merge(merged_tmp, df, left_on =['ID_NODO'], right_on =['node_id'], how='right')    
     merged_nodes.drop('ID_NODO', axis=1, inplace=True)
     merged_nodes.rename(columns={'FECHA':'entry_date'}, inplace=True)    
-    merged_nodes = merged_nodes.reset_index(drop=True)
+    merged_nodes = merged_nodes.sort_values(['node_id', 'entry_date'], ascending=[True, True]).reset_index(drop=True)
+    # Group on keys and call `pct_change` inside `apply`.
+    merged_nodes['last_week_pct_change'] = merged_nodes.groupby('node_id', sort=False)['pml'].apply(lambda x: x.pct_change()).to_numpy()
+    merged_nodes['last_month_pct_change'] = merged_nodes.groupby('node_id', sort=False)['pml'].apply(lambda x: x.pct_change(periods=2)).to_numpy()
+    merged_nodes['last_year_pct_change'] = merged_nodes.groupby('node_id', sort=False)['pml'].apply(lambda x: x.pct_change(periods=3)).to_numpy()
+    #Labeling PML ranges to simplify visualization on RW backoffice.
+    criteria = [merged_nodes['pml'].between(0, 49), merged_nodes['pml'].between(50, 249), merged_nodes['pml'].between(250,499),merged_nodes['pml'].between(500,749),merged_nodes['pml'].between(750,999), merged_nodes['pml'].between(1000,1499),merged_nodes['pml'].between(1500,1999),merged_nodes['pml'].between(2000, 2499),merged_nodes['pml'].between(2500, 2999),merged_nodes['pml'].between(3000, 3999),merged_nodes['pml'].between(4000,4999),merged_nodes['pml'].between(5000, 5999), merged_nodes['pml'].between(6000, 20000)]
+    values = ['<50','50-249','250-499','500-749','750-999','1000-1499','1500-1999','2000-2499','2500-2999','3000-3999','4000-4999','5000-5999','>6000']
+    merged_nodes['pml_label'] = np.select(criteria, values, 0)
+    merged_nodes['pml_label'] = merged_nodes['pml_label'].replace(['0',0],np.nan)
+    #Calculating whole system average per date and adding pct_change against node pml value.
+    system_avg = merged_nodes.groupby('entry_date').agg(pml_syst_avg=('pml', 'mean'))
+    merged_nodes = pd.merge(merged_nodes, system_avg, on='entry_date', how='left')
+    merged_nodes['pml_syst_pct_change'] = (merged_nodes.pml - merged_nodes.pml_syst_avg)/merged_nodes.pml_syst_avg * 100
     
     return merged_nodes
 
@@ -351,57 +368,48 @@ def db_load_mkr(lis,db):
     return db
 
 #This function downloads information from CENACE API at the load zone level
-def fetcher_load():
+def fetcher_load(yesterday, last_week, last_month, last_year):
     lis_ca = []
     auth=cartoframes.auth.Credentials(username=CARTO_USER, api_key=CARTO_KEY)
     df = cartoframes.read_carto('loc_mx_ene_load_zones', credentials=auth)
     db_ca=pd.DataFrame(columns = ['FECHA','SISTEMA','ZONA_CARGA','H1','H2','H3','H4','H5','H6','H7','H8','H9','H10','H11','H12','H13','H14','H15','H16','H17','H18','H19','H20','H21','H22','H23','H24'])
     #dinicio = date(2021,1,1) ##Use this function the first time to update the table
     #dfin = date(2021,1,7) ###to desired date
-    dinicio = (get_most_recent_date(CARTO_LOAD_PML_TABLE) +timedelta(days=1)).date()
-    dfin =  dinicio + timedelta(days=6)
-    while dinicio <= dfin:
-        daux = dinicio+timedelta(days=6)
-        if (daux < dfin) & (dinicio < dfin):
-            print('Downloading information for dates {} - {} \n'.format(dinicio,daux))
-            links=load_zones_url(df,dinicio.strftime("%Y/%m/%d"),daux.strftime("%Y/%m/%d"))
-            dinicio=daux+timedelta(days=1)
-            daux=dinicio+timedelta(days=6)
-        if (daux >= dfin) & (dinicio < dfin):
-            daux=dfin
-            print('Downloading information for dates {} - {} \n'.format(dinicio,daux))
-            links=load_zones_url(df,dinicio.strftime("%Y/%m/%d"),daux.strftime("%Y/%m/%d"))
-            dinicio=daux+timedelta(days=1)
-        if (dinicio == dfin) & (daux > dfin):
-            daux=dfin
-            print('Downloading information for dates {} - {} \n'.format(dinicio,daux))
-            links=load_zones_url(df,dinicio.strftime("%Y/%m/%d"),daux.strftime("%Y/%m/%d"))
-            dinicio=dinicio+timedelta(days=1)
+    #dinicio = (get_most_recent_date(CARTO_LOAD_PML_TABLE) +timedelta(days=1)).date()
+    #dfin =  dinicio + timedelta(days=6)    
+    print('Downloading information for dates {} - {} \n'.format(yesterday,yesterday))
+    links=load_zones_url(df,yesterday.strftime("%Y/%m/%d"),yesterday.strftime("%Y/%m/%d"))
+    print('Downloading information for dates {} - {} \n'.format(last_week,last_week))
+    links.extend(load_zones_url(df,last_week.strftime("%Y/%m/%d"),last_week.strftime("%Y/%m/%d")))
+    print('Downloading information for dates {} - {} \n'.format(last_month,last_month))
+    links.extend(load_zones_url(df,last_month.strftime("%Y/%m/%d"),last_month.strftime("%Y/%m/%d")))
+    print('Downloading information for dates {} - {} \n'.format(last_year,last_year))
+    links.extend(load_zones_url(df,last_year.strftime("%Y/%m/%d"),last_year.strftime("%Y/%m/%d")))
 
-        for link in links:
-            try:
-                res = requests.get(link, timeout=None)
-                res.raise_for_status()     
-                noStarchSoup = bs4.BeautifulSoup(res.text, 'html.parser')
-                aux_noSoup = str(str(noStarchSoup).split('</Resultados>')).split('</Zona_Carga> ')
-                split_zones=bs4.BeautifulSoup(aux_noSoup[0], features="lxml").select('zona_carga')
-                scrape_sys=noStarchSoup.select('sistema')[0].getText()
-                for children in split_zones:
-                    fecha=children.select('fecha')
-                    if fecha:
-                        scrape_fecha=list(map(lambda x: x.getText(), children.select('fecha')))
-                        scrape_zona=children.select('zona_carga')[0].getText()
-                        scrape_hora = list(map(lambda x: float(x.getText()), children.select('hora')))
-                        scrape_CT = list(map(lambda x: float(x.getText()), children.select('total_cargas')))
-                        fecha=[]
-                        [fecha.append(f) for f in scrape_fecha if f not in fecha]
-                        to_db_CDM, to_db_CIM, to_db_CT={}, {}, {}
-                        parsed_row = df.loc[df['load_zone'].isin([scrape_zona])]
-                        zona_id =tuple(parsed_row['load_zone'])[0]
-                        
-                        for f in fecha:
-                            for i in range(1,25):
-                                to_db_CT[f,zona_id, i]=0
+    for link in links:
+        try:
+            res = requests.get(link, timeout=None)
+            res.raise_for_status()     
+            noStarchSoup = bs4.BeautifulSoup(res.text, 'html.parser')
+            aux_noSoup = str(str(noStarchSoup).split('</Resultados>')).split('</Zona_Carga> ')
+            split_zones=bs4.BeautifulSoup(aux_noSoup[0], features="lxml").select('zona_carga')  
+            scrape_sys=noStarchSoup.select('sistema')[0].getText()
+            for children in split_zones:
+                fecha=children.select('fecha')
+                if fecha:
+                    scrape_fecha=list(map(lambda x: x.getText(), children.select('fecha')))
+                    scrape_zona=children.select('zona_carga')[0].getText()
+                    scrape_hora = list(map(lambda x: float(x.getText()), children.select('hora')))
+                    scrape_CT = list(map(lambda x: float(x.getText()), children.select('total_cargas')))
+                    fecha=[]
+                    [fecha.append(f) for f in scrape_fecha if f not in fecha]
+                    to_db_CDM, to_db_CIM, to_db_CT={}, {}, {}
+                    parsed_row = df.loc[df['load_zone'].isin([scrape_zona])]
+                    zona_id =tuple(parsed_row['load_zone'])[0]
+                
+                    for f in fecha:
+                        for i in range(1,25):
+                            to_db_CT[f,zona_id, i]=0
                                                         
                         for index, f in enumerate(scrape_fecha):
                             to_db_CT[f, zona_id, scrape_hora[index]]=scrape_CT[index] 
@@ -414,29 +422,30 @@ def fetcher_load():
                                 lis_ca.append(row_frame)
                             else:
                                 print('Information of load zone {} with date {} already exists'.format(zona_id,f))
-            except Exception as exc:
-                print('There was a problem: %s' % (exc))
+        except Exception as exc:
+            print('There was a problem: %s' % (exc))
     db_ca = db_load_mkr(lis_ca,db_ca)
     merged_tmp = pd.merge(df, db_ca, left_on=['system','load_zone'], right_on=['SISTEMA','ZONA_CARGA'], how='right')
     merged_tmp.rename(columns={'value':'load'}, inplace=True)
     merged_tmp.drop(['SISTEMA', 'ZONA_CARGA'], axis=1, inplace=True)
     merged_zones = merged_tmp.reset_index(drop=True)
     merged_zones.rename(columns={'FECHA':'entry_date'}, inplace=True)
-    
+    #Calculating percentage of total load of the system
+    system_total = merged_zones.groupby('entry_date').agg(load_syst_total=('load', 'sum'))
+    merged_zones = pd.merge(merged_zones, system_total, on='entry_date', how='left')
+    merged_zones['load_syst_pct'] = (merged_zones.load/merged_zones.load_syst_total) * 100
+        
     return merged_zones
 
 #This function uploads new data to carto 
 def upload_data(df,existing_ids,CARTO_TABLE,CARTO_SCHEMA):
-    # create 'the_geom' column to store the geometry of the data points
-    if len(df.columns) > 11:
-        df['the_geom'] = [{'type': 'Point','coordinates': [x, y]} for (x, y) in zip(df['longitude'], df['latitude'])]      
-    else:
-        df['the_geom'] = df['the_geom'].apply(mapping)   
     #Droping unwanted columns after merging with nodes table
     df.drop(['cartodb_id', 'uid'], axis=1, inplace=True, errors='ignore')
     # create a 'uid' column to store the index of rows as unique ids
     df = df.reset_index(drop=True)
-    df['uid'] = df.index + max([int(i) for i in existing_ids],default = 0)+1   
+    df['uid'] = df.index + max([int(i) for i in existing_ids],default = 0)+1
+    # create 'the_geom' column to store the geometry of the data points
+    df['the_geom'] = [{'type': 'Point','coordinates': [x, y]} for (x, y) in zip(df['longitude'], df['latitude'])]
     #Turn empty spaces and other characters to null
     df = df.where(pd.notnull(df), None)
     # reorder the columns in the dataframe based on the keys from the dictionary "CARTO_SCHEMA"
@@ -481,31 +490,29 @@ def deleteExcessRows(table, max_rows, time_field):
 def main():
     # Check if table exists, create it if it does not
     logging.info('Checking if nodes_pml table exists and getting existing IDs.')
-    nodes_pml_existing_ids = checkCreateTable(CARTO_NODES_PML_TABLE, CARTO_NODES_PML_SCHEMA, UID_FIELD, TIME_FIELD)
+    nodes_pml_existing_ids = checkCreateTable(CARTO_NODES_DASH_PML_TABLE, CARTO_NODES_DASH_SCHEMA, UID_FIELD, TIME_FIELD)
     # Fetch, process, and upload new data
     logging.info('Fetching nodes pml info from cenace api!')
-    new_nodes_pml = fetcher_nodes()
+    new_nodes_pml = fetcher_nodes(yesterday, last_week, last_month, last_year)
     #Updating carto table with pml information
     logging.info('Uploading pml info!')
-    num_new = upload_data(new_nodes_pml, nodes_pml_existing_ids,CARTO_NODES_PML_TABLE, CARTO_NODES_PML_SCHEMA)
+    num_new = upload_data(new_nodes_pml, nodes_pml_existing_ids,CARTO_NODES_DASH_PML_TABLE, CARTO_NODES_DASH_SCHEMA)
     logging.info('Previous rows: {},  New rows: {}'.format(len(nodes_pml_existing_ids), num_new))
      # Delete data to get back to MAX_ROWS
     logging.info('Delete Nodes pml excess Rows!')
     num_deleted = deleteExcessRows(CARTO_NODES_PML_TABLE, MAX_ROWS, TIME_FIELD)
-    ##################################
-    #Repeating process for load zones#
-    ##################################
+    logging.info('Success!')
     # Check if table exists, create it if it does not
     logging.info('Checking if zones_pml table exists and getting existing IDs.')
-    zones_pml_existing_ids = checkCreateTable(CARTO_LOAD_PML_TABLE, CARTO_LOAD_PML_SCHEMA, UID_FIELD, TIME_FIELD)
+    zones_pml_existing_ids = checkCreateTable(CARTO_LOAD_DASH_PML_TABLE, CARTO_LOAD_DASH_SCHEMA, UID_FIELD, TIME_FIELD)
     # Fetch, process, and upload new data
     logging.info('Fetching zones pml info from cenace api!')
-    new_zones_pml = fetcher_load()
+    new_zones_pml = fetcher_load(yesterday, last_week, last_month, last_year)
     #Updating carto table with pml information
     logging.info('Uploading zones pml info!')
-    num_new = upload_data(new_zones_pml, zones_pml_existing_ids,CARTO_LOAD_PML_TABLE, CARTO_LOAD_PML_SCHEMA)
+    num_new = upload_data(new_zones_pml, zones_pml_existing_ids,CARTO_LOAD_DASH_PML_TABLE, CARTO_LOAD_DASH_SCHEMA)
     logging.info('Previous rows: {},  New rows: {}'.format(len(zones_pml_existing_ids), num_new))
     # Delete data to get back to MAX_ROWS
     logging.info('Delete load pml excess Rows!')
-    num_deleted = deleteExcessRows(CARTO_LOAD_PML_TABLE, MAX_ROWS, TIME_FIELD)
+    num_deleted = deleteExcessRows(CARTO_LOAD_DASH_PML_TABLE, MAX_ROWS, TIME_FIELD)
     logging.info("SUCCESS")
