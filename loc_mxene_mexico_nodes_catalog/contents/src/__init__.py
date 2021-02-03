@@ -293,7 +293,7 @@ def upload_data(df,param_column,existing_ids,CARTO_TABLE,CARTO_SCHEMA):
     
     return(num_new)
     
-def main():
+    def main():
       
     # Check if table exists, create it if it does not
     logging.info('Checking if nodes table exists and getting existing IDs.')
