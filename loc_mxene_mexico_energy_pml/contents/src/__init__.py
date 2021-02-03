@@ -500,7 +500,7 @@ def main():
     logging.info('Previous rows: {},  New rows: {}'.format(len(nodes_pml_existing_ids), num_new))
      # Delete data to get back to MAX_ROWS
     logging.info('Delete Nodes pml excess Rows!')
-    num_deleted = deleteExcessRows(CARTO_NODES_PML_TABLE, MAX_ROWS, TIME_FIELD)
+    num_deleted = deleteExcessRows(CARTO_NODES_DASH_PML_TABLE, MAX_ROWS, TIME_FIELD)
     logging.info('Success!')
     # Check if table exists, create it if it does not
     logging.info('Checking if zones_pml table exists and getting existing IDs.')
