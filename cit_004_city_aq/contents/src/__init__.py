@@ -560,6 +560,7 @@ def processMetrics(new_ids):
     INPUT   new_ids: UIDs for new data added to unprocessed data table
     '''
     logging.info('Processing Air Quality Metrics')
+    labels = ['cartodb_id', 'the_geom', 'the_geom_webmercator', 'uid', 'name','created', 'date', 'o3_ugm3', 'no2_ugm3', 'pm25_gcc_ugm3', 'pm25_gocart_ugm3', 'o3_ppm', 'no2_ppm', 'o3_ppb', 'no2_ppb']
     # If there are new entries in the Carto table
     if len(new_ids)>0:
         # get a list of the newest dates
@@ -574,7 +575,7 @@ def processMetrics(new_ids):
             # request the data from the Carto table
             r = cartosql.get(sql, user=CARTO_USER, key=CARTO_KEY)
             # turn the response into a dataframe
-            df = pd.DataFrame.from_records(r.json()['rows'])
+            df = pd.DataFrame.from_records(r.json()['rows'], columns = labels)
             # Calculate daily metrics for each variable
             # define the groupings to use when calculating metrics
             grouping = ['name', 'the_geom', 'the_geom_webmercator']
@@ -602,16 +603,16 @@ def processMetrics(new_ids):
             df = df.drop_duplicates()
 
             # generate unique id by using the date and station number
+        # convert geometry column from string to json
+        # replace nan with none
+        if len(df)>0:
             df['uid'] = df.apply(lambda row: genUID(row['created'], row['date'], row['name']), axis=1)
-            
-            # convert geometry column from string to json
             df['the_geom'] = df.apply(lambda row: json.loads(row['the_geom']), axis=1)
-
-            # replace nan with none
             df = df.where(pd.notnull(df), None)
 
-            # upload data to carto
-            cartosql.insertRows(METRICS_CARTO_TABLE, METRICS_CARTO_SCHEMA.keys(), METRICS_CARTO_SCHEMA.values(), df.values.tolist(), user=CARTO_USER, key=CARTO_KEY)
+        # upload data to carto
+        cartosql.insertRows(METRICS_CARTO_TABLE, METRICS_CARTO_SCHEMA.keys(), METRICS_CARTO_SCHEMA.values(), df.values.tolist(), user=CARTO_USER, key=CARTO_KEY)
+
 
 
 
