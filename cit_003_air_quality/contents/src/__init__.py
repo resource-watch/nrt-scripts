@@ -14,13 +14,13 @@ logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 ### Constants
 DATA_DIR = 'data'
 # max page size = 10000
-DATA_URL = 'https://api.openaq.org/v1/measurements?limit=10000&include_fields=attribution&page={page}'
+DATA_URL = 'https://api.openaq.org/v1/measurements?limit=6000&include_fields=attribution&page={page}'
 # always check first 10 pages
 MIN_PAGES = 10
 MAX_PAGES = 100
 
 # how long to wait before trying to get data again incase of failure
-WAIT_TIME = 30
+WAIT_TIME = 60
 
 # asserting table structure rather than reading from input
 PARAMS = ('pm25', 'pm10', 'so2', 'no2', 'o3', 'co', 'bc')
@@ -132,7 +132,7 @@ def parseFields(obs, uid, fields):
     for field in fields:
         if field == 'the_geom':
             # construct geojson
-            if 'coordinates' in obs:
+            if 'coordinates' in obs and obs['coordinates']:
                 geom = {
                     "type": "Point",
                     "coordinates": [
@@ -357,7 +357,7 @@ def main():
                             break
                         except:
                             logging.info('Waiting for {} seconds before trying again.'.format(WAIT_TIME))
-                            time.sleep(30)
+                            time.sleep(WAIT_TIME)
                             try_num += 1
                     new_count += count
                 new_counts[param] += count
@@ -369,7 +369,7 @@ def main():
             time.sleep(30)
             retries += 1
             page -= 1
-            if retries > 3:
+            if retries > 5:
                 raise(e)
 
     # 3. Remove old observations
