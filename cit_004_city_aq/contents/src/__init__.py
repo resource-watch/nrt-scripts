@@ -567,7 +567,7 @@ def processMetrics(new_ids):
         new_dates = getLatestForecastDates(new_ids)
         
         # delete the old rows in the carto table
-        #cartosql.deleteRows(METRICS_CARTO_TABLE, 'cartodb_id IS NOT NULL', user=CARTO_USER, key=CARTO_KEY)
+        cartosql.deleteRows(METRICS_CARTO_TABLE, 'cartodb_id IS NOT NULL', user=CARTO_USER, key=CARTO_KEY)
 
         for date in new_dates[1:]:
             # define a sql statement to pull in the 24 hours of data for the current date
@@ -663,7 +663,7 @@ def updateResourceWatch(new_ids):
                 continue          
                 # Update dataset's last update date on Resource Watch
             lastUpdateDate(ds_id, new_creation_date)
-            
+
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
