@@ -621,26 +621,12 @@ def updateResourceWatch(new_ids):
     This may include updating the 'last update date' and updating any dates on layers
     INPUT   new_ids: new IDs added to Carto table (list)
     '''
-    auth=cartoframes.auth.Credentials(username=CARTO_USER, api_key=CARTO_KEY)
-    df = cartoframes.read_carto(METRICS_CARTO_TABLE, credentials=auth)
     # If there are new entries in the Carto table
     if len(new_ids)>0:
         # get a list of the newest dates
         new_dates = getLatestForecastDates(new_ids)
         # get the creation date for the forecast
         new_creation_date = new_dates[0]
-        #Group by creation date and forecast date, sort values by forecast date and
-        #get first five dates
-        df = df.groupby(['created','date']).size().reset_index().rename(columns={0:'count'})
-        df = df.drop_duplicates(subset='date', keep="last")
-        df = df.sort_values(by=['date'], ascending=True).head()
-        #Create a list with the last five forecast dates
-        new_metric_dates = df['date'].tolist()
-        new_metric_dates = [datetime.datetime.strptime(str(t), "%Y-%m-%d %H:%M:%S") for t in new_metric_dates]
-        #We get a list with the creation dates for the last forecast dates
-        new_metric_creation_dates = df['created'].tolist()
-        new_metric_creation_dates = [datetime.datetime.strptime(str(t), "%Y-%m-%d %H:%M:%S") for t in new_metric_creation_dates]
-            
         logging.info('Updating Resource Watch Layers')
         for var, ds_id in DATASET_IDS.items():
             # Update the dates on layer legends
@@ -651,19 +637,13 @@ def updateResourceWatch(new_ids):
             for layer in layer_dict:
                 # check which point on the timeline this is
                 order = layer['attributes']['layerConfig']['order']
-                try:
-                    # get the forecast date that should be used for this layer
-                    new_metric_date = new_metric_dates[order]
-                    # get the metric creation date to use with this layer
-                    new_metric_creation_date = new_metric_creation_dates[order]
-                    # replace layer sql and title with new dates
-                    update_layer(layer, new_metric_creation_date, new_metric_date)
-                except IndexError:
-                    pass
-                continue          
-                # Update dataset's last update date on Resource Watch
+                # get the new date that should be used for this layer
+                new_date = new_dates[order+1]
+                # replace layer sql and title with new dates
+                update_layer(layer, new_creation_date, new_date)
+            # Update dataset's last update date on Resource Watch
             lastUpdateDate(ds_id, new_creation_date)
-
+            
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
