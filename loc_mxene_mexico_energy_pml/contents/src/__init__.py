@@ -84,11 +84,79 @@ TIME_FIELD = 'entry_date'
 NODE_FIELD = 'node_id'
 LOAD_FIELD = 'load_zone'
 
-#Getting dates that we will fetch
+#Setting up logging
+logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+
+# do you want to delete everything currently in the Carto table when you run this script?
+CLEAR_TABLE_FIRST = True
+
+# name of data directory in Docker container
+DATA_DIR = 'data'
+
+# Carto username and API key for account where we will store the data
+CARTO_USER = os.getenv('CARTO_USER')
+CARTO_KEY = os.getenv('CARTO_KEY')
+# asserting table structure rather than reading from input
+# We will create four tables for this dataset, due to the different dissagregation levels.
+CARTO_NODES_DASH_PML_TABLE = 'dash_loc_mx_ene_nodes'
+CARTO_LOAD_DASH_PML_TABLE = 'dash_loc_mx_ene_load'
+
+# column names and types for data table
+# column names should be lowercase
+# column types should be one of the following: geometry, text, numeric, timestamp
+CARTO_NODES_DASH_SCHEMA = OrderedDict([
+       ('the_geom', 'geometry'),
+       ('uid', 'numeric'),
+       ('entry_date', 'timestamp'),
+       ('node_id', 'text'),
+       ('pml','numeric'),
+       ('energy','numeric'),
+       ('losses','numeric'),
+       ('congestion','numeric'),
+       ('node_name','text'),
+       ('system','text'),
+       ('control_center','text'),
+       ('load_zone','text'),
+       ('state_code', 'text'),
+       ('state','text'),
+       ('municipality_code', 'text'),
+       ('municipality','text'),
+       ('last_week_pct_change', 'numeric'),
+       ('last_month_pct_change', 'numeric'),
+       ('last_year_pct_change', 'numeric'),
+       ('pml_label', 'text'),
+       ('pml_syst_avg', 'text'),
+       ('pml_syst_pct_change', 'text')
+    ])
+
+CARTO_LOAD_DASH_SCHEMA = OrderedDict([
+       ('the_geom', 'geometry'),
+       ('uid', 'numeric'),
+       ('entry_date', 'timestamp'),
+       ('load','numeric'),
+       ('system', 'text'),
+       ('load_zone','text'),
+       ('state_code', 'text'),
+       ('state','text'),
+       ('municipality_code', 'text'),
+       ('municipality','text'),
+       ('load_syst_total', 'numeric'),
+       ('load_syst_pct', 'numeric')
+    ])
+# how many rows can be stored in the Carto table before the oldest ones are deleted?
+MAX_ROWS = 1000000
+
+UID_FIELD = 'uid'
+TIME_FIELD = 'entry_date'
+NODE_FIELD = 'node_id'
+LOAD_FIELD = 'load_zone'
+
+#Getting the same day for previous time period
 yesterday = date.today() - timedelta(days=1)
-last_week = yesterday - timedelta(days=7)
-last_month = yesterday - relativedelta(months=1)
-last_year = yesterday - relativedelta(years=1)
+day_of_week = eval(yesterday.strftime('%A')[:2].upper())
+last_week = yesterday + relativedelta(weekday=day_of_week(-2))
+last_month = yesterday - relativedelta(months=1, weekday=day_of_week)
+last_year = yesterday - relativedelta(years=1, weekday=day_of_week)
 
 CARTO_USER = os.environ.get('CARTO_USER')
 CARTO_KEY = os.environ.get('CARTO_KEY')
@@ -245,13 +313,13 @@ def fetcher_nodes(yesterday, last_week, last_month, last_year):
             aux_noSoup = str(noStarchSoup).split('</nodo>')
             
             for nS in aux_noSoup:
-                scrape_fecha=list(map(lambda x: x.getText(), bs4.BeautifulSoup(nS).select('fecha')))
-                scrape_node = bs4.BeautifulSoup(nS).select('clv_nodo')
-                scrape_hora = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS).select('hora')))
-                scrape_pml = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS).select('pml')))
-                scrape_pml_ene = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS).select('pml_ene')))
-                scrape_pml_per = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS).select('pml_per')))
-                scrape_pml_cng = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS).select('pml_cng')))
+                scrape_fecha=list(map(lambda x: x.getText(), bs4.BeautifulSoup(nS,features="lxml").select('fecha')))
+                scrape_node = bs4.BeautifulSoup(nS, features="lxml").select('clv_nodo')
+                scrape_hora = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS,features="lxml").select('hora')))
+                scrape_pml = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS,features="lxml").select('pml')))
+                scrape_pml_ene = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS,features="lxml").select('pml_ene')))
+                scrape_pml_per = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS,features="lxml").select('pml_per')))
+                scrape_pml_cng = list(map(lambda x: float(x.getText()), bs4.BeautifulSoup(nS,features="lxml").select('pml_cng')))
                 
                 if len(scrape_pml)>0:
                     for i in range(len(scrape_node)):
