@@ -19,6 +19,9 @@ import zipfile
 import pandas as pd
 import shutil
 
+import dotenv
+dotenv.load_dotenv('C:\\Users\\yujing.wu\\OneDrive - World Resources Institute\\Documents\\Github\\cred\\.env')
+
 # do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = True
 
@@ -43,7 +46,7 @@ DATA_DICT['point'] = {'CARTO_TABLE': 'bio_007b_nrt_rw0_marine_protected_areas_po
 # column names should be lowercase
 # column types should be one of the following: geometry, text, numeric, timestamp
 DATA_DICT['polygon']['CARTO_SCHEMA'] = OrderedDict([
-    ('wpdaid', "numeric"),
+    ('wdpaid', "numeric"),
     ("wdpa_id", "text"),
     ('pa_def', "numeric"),
     ("name", "text"),
@@ -76,7 +79,7 @@ DATA_DICT['polygon']['CARTO_SCHEMA'] = OrderedDict([
     ("the_geom", "geometry")])
 
 DATA_DICT['point']['CARTO_SCHEMA'] = OrderedDict([
-    ('wpdaid', "numeric"),
+    ('wdpaid', "numeric"),
     ("wdpa_id", "text"),
     ('pa_def', "numeric"),
     ("name", "text"),
@@ -243,27 +246,6 @@ def fetch():
                         ignore_index=True), crs=gpd.read_file(value['path'][0]).crs)
         logging.info(list(value['gdf']))
 
-    
-
-def upload_to_carto(file, privacy, collision_strategy='skip'):
-    '''
-    Upload tables to Carto
-    INPUT   file: location of file on local computer that you want to upload (string)
-            privacy: the privacy setting of the dataset to upload to Carto (string)
-            collision_strategy: determines what happens if a table with the same name already exists
-            set the parameter to 'overwrite' if you want to overwrite the existing table on Carto
-    '''
-    # set up carto authentication using local variables for username (CARTO_WRI_RW_USER) and API key (CARTO_WRI_RW_KEY)
-    auth_client = APIKeyAuthClient(api_key=CARTO_KEY, base_url="https://{user}.carto.com/".format(user=CARTO_USER))
-    # set up dataset manager with authentication
-    dataset_manager = DatasetManager(auth_client)
-    # upload dataset to carto
-    dataset = dataset_manager.create(file, collision_strategy = collision_strategy)
-    logger.info('Carto table created: {}'.format(os.path.basename(file).split('.')[0]))
-    # set dataset privacy
-    dataset.privacy = privacy
-    dataset.save()
-
 def processData():
     '''
     Fetch, process, upload, and clean new data
@@ -277,19 +259,24 @@ def processData():
         # create a copy of the geopandas dataframe
         gdf_converted = value['gdf'].copy()
         # convert the geometry of the geodataframe copy to geojsons
-        converted_geom = []
-        for geom in gdf_converted.geometry:
-            converted_geom.append(geom.__geo_interface__)
-        gdf_converted['geometry'] = converted_geom
+        gdf_converted['geometry'] = [x.__geo_interface__ if x.geom_type == 'Polygon' else x[0].__geo_interface__ if (x.geom_type == 'MultiPoint') & (len(x) == 1) else x.__geo_interface__ for x in gdf_converted.geometry]
         # convert all the Nan to None 
         gdf_converted = gdf_converted.where(pd.notnull(gdf_converted), None)
         # upload the data to Carto 
         logging.info('Uploading data to {}'.format(value['CARTO_TABLE']))
-        cartosql.blockInsertRows(value['CARTO_TABLE'], value['CARTO_SCHEMA'].keys(), value['CARTO_SCHEMA'].values(), gdf_converted.values.tolist(), user=CARTO_USER, key=CARTO_KEY)
-        # 
+        for index, row in gdf_converted.iterrows():
+            try:
+                cartosql.insertRows(value['CARTO_TABLE'], value['CARTO_SCHEMA'].keys(), value['CARTO_SCHEMA'].values(), [row.values.tolist()], user=CARTO_USER, key=CARTO_KEY)
+            except:
+                logging.info('Failed to upload row {}. Trying again after 5 seconds'.format(index))
+                time.sleep(5)
+                try:
+                    cartosql.insertRows(value['CARTO_TABLE'], value['CARTO_SCHEMA'].keys(), value['CARTO_SCHEMA'].values(), [row.values.tolist()], user=CARTO_USER, key=CARTO_KEY)
+                except Exception as e:
+                    raise(e)
+
+        # add the number of rows uploaded to num_new
         num_new += len(gdf_converted.index)
-        #for index, row in gdf_converted.iterrows():
-        #    cartosql.insertRows(value['CARTO_TABLE'], value['CARTO_SCHEMA'].keys(), value['CARTO_SCHEMA'].values(), [row.values.tolist()], user=CARTO_USER, key=CARTO_KEY)
         # change privacy of table on Carto
         # set up carto authentication using local variables for username and API key 
         auth_client = APIKeyAuthClient(api_key=CARTO_KEY, base_url="https://{user}.carto.com/".format(user=CARTO_USER))
@@ -334,10 +321,10 @@ def main():
 
         # Check if table exists, create it if it does not
         logging.info('Checking if table exists and getting existing IDs.')
-        existing_ids = checkCreateTable(value['CARTO_TABLE'], value['CARTO_SCHEMA'], UID_FIELD)
+        checkCreateTable(value['CARTO_TABLE'], value['CARTO_SCHEMA'], UID_FIELD)
 
-    processData()
-    logging.info('Previous rows: {},  New rows: {}'.format(len(existing_ids), num_new))
+    num_new = processData()
+    logging.info('Number of rows uploaded: {}'.format(num_new))
 
     # Update Resource Watch
     updateResourceWatch(num_new)
