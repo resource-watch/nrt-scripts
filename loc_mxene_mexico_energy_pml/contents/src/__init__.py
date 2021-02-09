@@ -88,7 +88,7 @@ LOAD_FIELD = 'load_zone'
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 # do you want to delete everything currently in the Carto table when you run this script?
-CLEAR_TABLE_FIRST = True
+CLEAR_TABLE_FIRST = False
 
 # name of data directory in Docker container
 DATA_DIR = 'data'
