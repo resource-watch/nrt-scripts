@@ -1,5 +1,5 @@
 ## Marine Protected Areas Dataset Near Real-time Script
-This file describes the near real-time script that retrieves and processes the [World Database on Protected Areas (WDPA) and other effective area-based conservation measures (OECM) database](http://www.protectedplanet.net/) for [display on Resource Watch](https://resourcewatch.org/data/explore/483c87c7-8724-4758-b8f0-a536b3a8f8a9).
+This file describes the near real-time script that retrieves and processes marine protected areas within the [World Database on Protected Areas (WDPA) and other effective area-based conservation measures (OECM) database](http://www.protectedplanet.net/) for [display on Resource Watch](https://resourcewatch.org/data/explore/483c87c7-8724-4758-b8f0-a536b3a8f8a9).
 
 The source provided the data as three point shapefiles and three polygon shapefiles within zipped folders. They were merged into one point shapefile and one polygon shapefile before being uploaded to Carto.
 
