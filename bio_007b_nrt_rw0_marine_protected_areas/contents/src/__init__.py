@@ -279,7 +279,7 @@ def processData():
 
         # add the number of rows uploaded to num_new
         num_new += len(gdf_converted.index)
-        # change privacy of table on Carto
+        """ # change privacy of table on Carto
         # set up carto authentication using local variables for username and API key 
         auth_client = APIKeyAuthClient(api_key=CARTO_KEY, base_url="https://{user}.carto.com/".format(user=CARTO_USER))
         # set up dataset manager with authentication
@@ -287,7 +287,7 @@ def processData():
         # set dataset privacy
         dataset = dataset_manager.get(value['CARTO_TABLE'])
         dataset.privacy = 'LINK'
-        dataset.save()
+        dataset.save() """
 
     return num_new
 
