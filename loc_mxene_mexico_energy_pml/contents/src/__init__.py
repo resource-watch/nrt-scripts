@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 from shapely.geometry import Polygon, mapping
 from datetime import date, timedelta, datetime
-from dateutil.relativedelta import relativedelta
+from dateutil.relativedelta import *
 import numpy as np
 import re
 from urllib.parse import urljoin
