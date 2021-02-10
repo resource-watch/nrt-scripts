@@ -11,6 +11,7 @@ RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
 RUN pip install requests
 RUN pip install numpy
 RUN pip install pandas
+RUN pip install geopandas==0.8.1
 
 # set name
 ARG NAME=bio_007b
