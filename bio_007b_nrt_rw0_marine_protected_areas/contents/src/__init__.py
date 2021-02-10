@@ -19,9 +19,6 @@ import zipfile
 import pandas as pd
 import shutil
 
-import dotenv
-dotenv.load_dotenv('C:\\Users\\yujing.wu\\OneDrive - World Resources Institute\\Documents\\Github\\cred\\.env')
-
 # do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = True
 
@@ -32,13 +29,9 @@ DATA_DIR = 'data'
 CARTO_USER = os.getenv('CARTO_USER')
 CARTO_KEY = os.getenv('CARTO_KEY')
 
-# do you want to update all the entries in the table when you run this script?
-# True - update entire table
-# False - just check for new areas added or areas deleted
-# for now, we will replace everything in the table because there is no way to see if an area has been updated
-REPLACE_ALL = True
-
+# create a dictionary to store the parameters of the two wdpa marine datasets: point and polygon
 DATA_DICT = OrderedDict()
+# the name of the two carto tables to store the data 
 DATA_DICT['polygon'] = {'CARTO_TABLE': 'bio_007b_nrt_rw0_marine_protected_areas_polygon'}
 DATA_DICT['point'] = {'CARTO_TABLE': 'bio_007b_nrt_rw0_marine_protected_areas_point'}
 
@@ -112,13 +105,14 @@ DATA_DICT['point']['CARTO_SCHEMA'] = OrderedDict([
 # column of table that can be used as a unique ID (UID)
 UID_FIELD='wdpa_id'
 
+# url at which the data can be downloaded 
 SOURCE_URL = 'https://d1gam3xoknrgr2.cloudfront.net/current/WDPA_WDOECM_marine_shp.zip' #check
 
 # Resource Watch dataset API ID
 # Important! Before testing this script:
 # Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
 # Failing to do so will overwrite the last update date on a different dataset on Resource Watch
-DATASET_ID = ''
+DATASET_ID = '483c87c7-8724-4758-b8f0-a536b3a8f8a9'
 
 '''
 FUNCTIONS FOR ALL DATASETS
@@ -216,14 +210,17 @@ The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
 def fetch():
+    '''
+    download, unzip, and import the data as geopandas dataframes
+    '''
     # download the data from the source
     raw_data_file = os.path.join(DATA_DIR, os.path.basename(SOURCE_URL))
-    # urllib.request.urlretrieve(SOURCE_URL, raw_data_file)
+    urllib.request.urlretrieve(SOURCE_URL, raw_data_file)
 
     # unzip source data
     raw_data_file_unzipped = raw_data_file.split('.')[0]
     zip_ref = ZipFile(raw_data_file, 'r')
-    # zip_ref.extractall(raw_data_file_unzipped)
+    zip_ref.extractall(raw_data_file_unzipped)
     zip_ref.close()
 
     # find all the zipped folders that contain the shapefiles
@@ -232,7 +229,7 @@ def fetch():
     # unzipped each of them
     for zipped in zipped_shp:
         zip_ref = ZipFile(zipped, 'r')
-        # zip_ref.extractall(zipped.split('.')[0])
+        zip_ref.extractall(zipped.split('.')[0])
         zip_ref.close()
     
     # store the path to all the point shapefiles in a list 
@@ -241,6 +238,7 @@ def fetch():
     # store the path to all the polygon shapefiles in a list
     DATA_DICT['polygon']['path'] = [glob.glob(os.path.join(path.split('.')[0], '*polygons.shp'))[0] for path in zipped_shp]
 
+    # for each value in the dictionary, merge the corresponding three shapefiles and read them as one single dataframe
     for value in DATA_DICT.values():
         value['gdf'] = gpd.GeoDataFrame(pd.concat([gpd.read_file(shp) for shp in value['path']], 
                         ignore_index=True), crs=gpd.read_file(value['path'][0]).crs)
@@ -248,26 +246,30 @@ def fetch():
 
 def processData():
     '''
-    Fetch, process, upload, and clean new data
+    Fetch and upload new data
     RETURN  num_new: total number of rows of data sent to Carto table (integer)
     '''
     num_new = 0
     # fetch the shapefiles from the data source and import them as geopandas dataframes
+    logging.info('Download the data, unzip the folders, and import the shapefiles as geopandas dataframes.')
     fetch()
     # loop through the data dictionary
     for value in DATA_DICT.values():
         # create a copy of the geopandas dataframe
         gdf_converted = value['gdf'].copy()
-        # convert the geometry of the geodataframe copy to geojsons
+        # convert the geometry of the geodataframe to geojsons
         gdf_converted['geometry'] = [x.__geo_interface__ if x.geom_type == 'Polygon' else x[0].__geo_interface__ if (x.geom_type == 'MultiPoint') & (len(x) == 1) else x.__geo_interface__ for x in gdf_converted.geometry]
         # convert all the Nan to None 
         gdf_converted = gdf_converted.where(pd.notnull(gdf_converted), None)
         # upload the data to Carto 
         logging.info('Uploading data to {}'.format(value['CARTO_TABLE']))
+        # for each row in the geopandas dataframe
         for index, row in gdf_converted.iterrows():
             try:
+                # upload the row to the carto table
                 cartosql.insertRows(value['CARTO_TABLE'], value['CARTO_SCHEMA'].keys(), value['CARTO_SCHEMA'].values(), [row.values.tolist()], user=CARTO_USER, key=CARTO_KEY)
             except:
+                # if the upload has failed, try again after 5 seconds since it may be due to too many request to the api
                 logging.info('Failed to upload row {}. Trying again after 5 seconds'.format(index))
                 time.sleep(5)
                 try:
@@ -295,13 +297,11 @@ def updateResourceWatch(num_new):
     This function should update Resource Watch to reflect the new data.
     This may include updating the 'last update date' and updating any dates on layers
     '''
-    # If there are new entries in the Carto table
+    # If there have been data uploaded to the Carto table
     if num_new > 0:
         # Update dataset's last update date on Resource Watch
         most_recent_date = datetime.datetime.utcnow()
         lastUpdateDate(DATASET_ID, most_recent_date)
-
-    # Update the dates on layer legends - TO BE ADDED IN FUTURE
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
@@ -314,7 +314,13 @@ def main():
             # if the table exists
             if cartosql.tableExists(value['CARTO_TABLE'], user=CARTO_USER, key=CARTO_KEY):
                 # delete all the rows
-                cartosql.deleteRows(value['CARTO_TABLE'], 'cartodb_id IS NOT NULL', user=CARTO_USER, key=CARTO_KEY)
+                try:
+                    cartosql.deleteRows(value['CARTO_TABLE'], 'cartodb_id IS NOT NULL', user=CARTO_USER, key=CARTO_KEY)
+                except:
+                    logging.info('Failed to clear table. Try again after 5 seconds.')
+                    time.sleep(5)
+                    cartosql.deleteRows(value['CARTO_TABLE'], 'cartodb_id IS NOT NULL', user=CARTO_USER, key=CARTO_KEY)
+                    logging.info('{} cleared.'.format(value['CARTO_TABLE']))
                 # note: we do not delete the entire table because this will cause the dataset visualization on Resource Watch
                 # to disappear until we log into Carto and open the table again. If we simply delete all the rows, this
                 # problem does not occur
@@ -323,6 +329,7 @@ def main():
         logging.info('Checking if table exists and getting existing IDs.')
         checkCreateTable(value['CARTO_TABLE'], value['CARTO_SCHEMA'], UID_FIELD)
 
+    # fetch, process, and upload the data to the carto tables 
     num_new = processData()
     logging.info('Number of rows uploaded: {}'.format(num_new))
 
