@@ -291,7 +291,7 @@ def processNewData(src_url, existing_ids, existing_stations):
     data = r.json()
     # sort data by oldest date and 
     # reverse the order so we start with the newest data
-    data = sorted(data, key = lambda x: datetime.datetime.strptime(x["date"],"%Y-%m-%dT%H:%M:%S.%fZ"))
+    data = sorted(data, key = lambda x: datetime.datetime.strptime(x["created"],"%Y-%m-%dT%H:%M:%S.%fZ"))
     data.reverse()
     # get most updated list of station information
     station_df = cartoframes.read_carto('cit_004_city_aq_stations', credentials=AUTH)
@@ -368,8 +368,8 @@ def processNewData(src_url, existing_ids, existing_stations):
                     row.append(name)
                 # if we are fetching data for date of forecast creation column
                 elif field == 'created':
-                    # turn already generated date into a datetime
-                    date = datetime.datetime.strptime(created, DATETIME_FORMAT)
+                    # turn already generated creation date into a datetime
+                    created = datetime.datetime.strptime(created, DATETIME_FORMAT)
                     # add date to the list of data from this row
                     row.append(created)
                 # if we are fetching data for date column
