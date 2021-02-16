@@ -32,8 +32,8 @@ CARTO_KEY = os.getenv('CARTO_KEY')
 # create a dictionary to store the parameters of the two wdpa marine datasets: point and polygon
 DATA_DICT = OrderedDict()
 # the name of the two carto tables to store the data 
-DATA_DICT['polygon'] = {'CARTO_TABLE': 'bio_007b_nrt_rw0_marine_protected_areas_polygon'}
-DATA_DICT['point'] = {'CARTO_TABLE': 'bio_007b_nrt_rw0_marine_protected_areas_point'}
+DATA_DICT['polygon'] = {'CARTO_TABLE': 'bio_007b_rw0_marine_protected_area_polygon_edit'}
+DATA_DICT['point'] = {'CARTO_TABLE': 'bio_007b_rw0_marine_protected_area_point_edit'}
 
 # column names and types for data table
 # column names should be lowercase
