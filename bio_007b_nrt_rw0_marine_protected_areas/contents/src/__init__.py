@@ -244,42 +244,68 @@ def fetch():
                         ignore_index=True), crs=gpd.read_file(value['path'][0]).crs)
         logging.info(list(value['gdf']))
 
-def processData():
+def processData(table, gdf, schema):
     '''
-    Fetch and upload new data
+    Upload new data
+    INPUT   table: Carto table to upload data to (string)
+            gdf: data to be uploaded to the Carto table (geopandas dataframe)
+            schema: dictionary of column names and types, used if we are creating the table for the first time (dictionary)
+
     RETURN  num_new: total number of rows of data sent to Carto table (integer)
     '''
-    num_new = 0
-    # fetch the shapefiles from the data source and import them as geopandas dataframes
-    logging.info('Download the data, unzip the folders, and import the shapefiles as geopandas dataframes.')
-    fetch()
-    # loop through the data dictionary
-    for value in DATA_DICT.values():
-        # create a copy of the geopandas dataframe
-        gdf_converted = value['gdf'].copy()
-        # convert the geometry of the geodataframe to geojsons
-        gdf_converted['geometry'] = [x.__geo_interface__ if x.geom_type == 'Polygon' else x[0].__geo_interface__ if (x.geom_type == 'MultiPoint') & (len(x) == 1) else x.__geo_interface__ for x in gdf_converted.geometry]
-        # convert all the Nan to None 
-        gdf_converted = gdf_converted.where(pd.notnull(gdf_converted), None)
-        # upload the data to Carto 
-        logging.info('Uploading data to {}'.format(value['CARTO_TABLE']))
-        # for each row in the geopandas dataframe
-        for index, row in gdf_converted.iterrows():
+
+    # create a copy of the geopandas dataframe
+    gdf_converted = gdf.copy()
+    # convert the geometry of the geodataframe to geojsons
+    '''
+    gdf_converted['geometry'] = [x.__geo_interface__ if x.geom_type == 'Polygon' else x[0].__geo_interface__ if (x.geom_type == 'MultiPoint') & (len(x) == 1) else x.__geo_interface__ for x in gdf_converted.geometry]
+    '''
+    converted_geometry = []
+    for geom in gdf_converted['geometry']:
+        # if it's a polygon
+        if geom.geom_type == 'Polygon':
+            converted_geometry.append(geom.__geo_interface__)
+        # if it's a multipoint series containing only one point
+        elif (geom.geom_type == 'MultiPoint') & (len(geom) == 1):
+            converted_geometry.append(geom[0].__geo_interface__)
+        else:
+            converted_geometry.append(geom.__geo_interface__)
+    gdf_converted['geometry'] = converted_geometry
+    # convert all the Nan to None 
+    gdf_converted = gdf_converted.where(pd.notnull(gdf_converted), None)
+    # upload the data to Carto 
+    logging.info('Uploading data to {}'.format(table))
+    # maximum attempts to make
+    n_tries = 4
+    # sleep time between each attempt   
+    retry_wait_time = 5
+    # for each row in the geopandas dataframe
+    for index, row in gdf_converted.iterrows():
+        insert_exception = None
+        for i in range(n_tries):
             try:
                 # upload the row to the carto table
-                cartosql.insertRows(value['CARTO_TABLE'], value['CARTO_SCHEMA'].keys(), value['CARTO_SCHEMA'].values(), [row.values.tolist()], user=CARTO_USER, key=CARTO_KEY)
-            except:
-                # if the upload has failed, try again after 5 seconds since it may be due to too many request to the api
-                logging.info('Failed to upload row {}. Trying again after 5 seconds'.format(index))
-                time.sleep(5)
-                try:
-                    cartosql.insertRows(value['CARTO_TABLE'], value['CARTO_SCHEMA'].keys(), value['CARTO_SCHEMA'].values(), [row.values.tolist()], user=CARTO_USER, key=CARTO_KEY)
-                except Exception as e:
-                    raise(e)
+                cartosql.insertRows(table, schema.keys(), schema.values(), [row.values.tolist()], user=CARTO_USER, key=CARTO_KEY)
+            except Exception as e: # if there's an exception do this
+                insert_exception = e
+                logging.warning('Attempt #{} to upload row #{} unsuccessful. Trying again after {} seconds].format(i, index, retry_wait_time')
+                logging.debug('Exception encountered during upload attempt: '+ str(e))
+                time.sleep(retry_wait_time)
+            else: # if no exception do this
+                break # break this for loop, because we don't need to try again
+        else:
+            # this happens if the for loop completes, ie if it attempts to insert row n_tries times
+            logging.error('Upload of row #{} has failed after {} attempts'.format(index, n_tries))
+            # could skip to next row, or more likely abort operation, for example by raising uncaught exception
+            logging.error('Problematic row: '+ str(row))
+            logging.error('Raising exception encountered during last upload attempt')
+            logging.error(insert_exception)
+            raise insert_exception
 
-        # add the number of rows uploaded to num_new
-        num_new += len(gdf_converted.index)
-        """ # change privacy of table on Carto
+    # add the number of rows uploaded to num_new
+    logging.info('{} of rows uploaded to {}'.format(len(gdf_converted.index), table))
+    num_new = len(gdf_converted.index)
+    """ # change privacy of table on Carto
         # set up carto authentication using local variables for username and API key 
         auth_client = APIKeyAuthClient(api_key=CARTO_KEY, base_url="https://{user}.carto.com/".format(user=CARTO_USER))
         # set up dataset manager with authentication
@@ -307,6 +333,13 @@ def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
 
+    # fetch the shapefiles from the data source and import them as geopandas dataframes
+    logging.info('Download the data, unzip the folders, and import the shapefiles as geopandas dataframes.')
+    delete_local()
+    fetch()
+
+    # number of rows of data uploaded 
+    num_new = 0
     for value in DATA_DICT.values():
         # clear the table before starting, if specified
         if CLEAR_TABLE_FIRST:
@@ -314,13 +347,28 @@ def main():
             # if the table exists
             if cartosql.tableExists(value['CARTO_TABLE'], user=CARTO_USER, key=CARTO_KEY):
                 # delete all the rows
-                try:
-                    cartosql.deleteRows(value['CARTO_TABLE'], 'cartodb_id IS NOT NULL', user=CARTO_USER, key=CARTO_KEY)
-                except:
-                    logging.info('Failed to clear table. Try again after 5 seconds.')
-                    time.sleep(5)
-                    cartosql.deleteRows(value['CARTO_TABLE'], 'cartodb_id IS NOT NULL', user=CARTO_USER, key=CARTO_KEY)
-                    logging.info('{} cleared.'.format(value['CARTO_TABLE']))
+                # maximum attempts to make
+                n_tries = 3
+                # sleep time between each attempt   
+                retry_wait_time = 5
+                clear_exception = None
+                for i in range(n_tries):
+                    try:
+                        cartosql.deleteRows(value['CARTO_TABLE'], 'cartodb_id IS NOT NULL', user=CARTO_USER, key=CARTO_KEY)
+                    except Exception as e:
+                        clear_exception = e
+                        logging.info('Failed to clear table. Try again after 5 seconds.')
+                        time.sleep(5)
+                    else:
+                        logging.info('{} cleared.'.format(value['CARTO_TABLE']))
+                        break
+                else: 
+                    # this happens if the for loop completes, ie if it attempts to clear the table n_tries times
+                    logging.info('Failed to clear table.')
+                    logging.error('Raising exception encountered during last clear table attempt')
+                    logging.error(clear_exception)
+                    raise insert_exception
+                 
                 # note: we do not delete the entire table because this will cause the dataset visualization on Resource Watch
                 # to disappear until we log into Carto and open the table again. If we simply delete all the rows, this
                 # problem does not occur
@@ -328,10 +376,9 @@ def main():
         # Check if table exists, create it if it does not
         logging.info('Checking if table exists and getting existing IDs.')
         checkCreateTable(value['CARTO_TABLE'], value['CARTO_SCHEMA'], UID_FIELD)
-
-    # fetch, process, and upload the data to the carto tables 
-    num_new = processData()
-    logging.info('Number of rows uploaded: {}'.format(num_new))
+        
+        # process and upload the data to the carto tables 
+        num_new += processData(value['CARTO_TABLE'], value['gdf'], value['CARTO_SCHEMA'])
 
     # Update Resource Watch
     updateResourceWatch(num_new)
