@@ -664,6 +664,7 @@ def updateResourceWatch(new_dates):
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
+    logging.info('CPU count: ' + str(multiprocessing.cpu_count()))
 
     # Initialize eeUtil
     eeUtil.initJson()
