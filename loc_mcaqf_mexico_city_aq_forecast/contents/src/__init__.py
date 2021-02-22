@@ -628,7 +628,7 @@ def updateResourceWatch(new_dates):
             # Update the dates on layer legends - TO BE ADDED IN FUTURE
             layer_dict = pull_layers_from_API(ds_id)
             # create a pool of processes
-            pool = Pool()
+            pool = Pool(processes=4)
             # create an empty list to store layer update calls
             futures = []                
             # go through each layer, pull the definition and update
@@ -644,7 +644,7 @@ def updateResourceWatch(new_dates):
                     pass
             logging.info('Updating last update date and flushing cache.')
             # create a pool of processes
-            pool = Pool()
+            pool = Pool(processes=4)
             # create an empty list to store layer update calls
             futures = [] 
             # Update dataset's last update date on Resource Watch
