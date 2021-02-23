@@ -15,6 +15,7 @@ from netCDF4 import Dataset
 import numpy as np
 import copy
 import json
+import multiprocessing 
 from multiprocessing import Pool, TimeoutError
 
 # set up boto3 client with AWS credentials
