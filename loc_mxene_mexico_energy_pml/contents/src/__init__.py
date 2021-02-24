@@ -508,7 +508,9 @@ def fetcher_load(yesterday, last_week, last_month, last_year):
 #This function uploads new data to carto 
 def upload_data(df,existing_ids,CARTO_TABLE,CARTO_SCHEMA):
     #Droping unwanted columns after merging with nodes table
-    df.drop(['cartodb_id', 'uid'], axis=1, inplace=True, errors='ignore')
+    df.drop(['cartodb_id', 'uid'], axis=1, inplace=True, errors='ignore')  
+    # convert existing ids from string to integer
+    existing_ids = [int(float(i)) for i in existing_ids] 
     # create a 'uid' column to store the index of rows as unique ids
     df = df.reset_index(drop=True)
     df['uid'] = df.index + max([int(i) for i in existing_ids],default = 0)+1
