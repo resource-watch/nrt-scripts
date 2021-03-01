@@ -288,7 +288,7 @@ def processData(table, gdf, schema):
                 cartosql.insertRows(table, schema.keys(), schema.values(), [row.values.tolist()], user=CARTO_USER, key=CARTO_KEY)
             except Exception as e: # if there's an exception do this
                 insert_exception = e
-                logging.warning('Attempt #{} to upload row #{} unsuccessful. Trying again after {} seconds'.format(i, index, retry_wait_time)
+                logging.warning('Attempt #{} to upload row #{} unsuccessful. Trying again after {} seconds'.format(i, index, retry_wait_time))
                 logging.debug('Exception encountered during upload attempt: '+ str(e))
                 time.sleep(retry_wait_time)
             else: # if no exception do this
