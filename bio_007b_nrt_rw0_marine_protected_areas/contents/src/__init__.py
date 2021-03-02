@@ -227,18 +227,17 @@ def fetch():
 
     # find all the zipped folders that contain the shapefiles
     zipped_shp = glob.glob(os.path.join(raw_data_file_unzipped, '*shp*.zip' ))
-
     # unzipped each of them
     for zipped in zipped_shp:
         zip_ref = ZipFile(zipped, 'r')
-        zip_ref.extractall(zipped.split('.')[0])
+        zip_ref.extractall(os.path.join(raw_data_file_unzipped, zipped.split('.')[0][-5:]))
         zip_ref.close()
     
     # store the path to all the point shapefiles in a list 
-    DATA_DICT['point']['path'] = [glob.glob(os.path.join(path.split('.')[0], '*points.shp'))[0] for path in zipped_shp]
+    DATA_DICT['point']['path'] = [glob.glob(os.path.join(raw_data_file_unzipped, zipped.split('.')[0][-5:], '*points.shp'))[0] for path in zipped_shp]
 
     # store the path to all the polygon shapefiles in a list
-    DATA_DICT['polygon']['path'] = [glob.glob(os.path.join(path.split('.')[0], '*polygons.shp'))[0] for path in zipped_shp]
+    DATA_DICT['polygon']['path'] = [glob.glob(os.path.join(raw_data_file_unzipped, zipped.split('.')[0][-5:], '*polygons.shp'))[0] for path in zipped_shp]
 
     # for each value in the dictionary, merge the corresponding three shapefiles and read them as one single dataframe
     for value in DATA_DICT.values():
@@ -358,7 +357,7 @@ def main():
                     except Exception as e:
                         clear_exception = e
                         logging.info('Failed to clear table. Try again after 5 seconds.')
-                        time.sleep(5)
+                        time.sleep(retry_wait_time)
                     else:
                         logging.info('{} cleared.'.format(value['CARTO_TABLE']))
                         break
@@ -367,7 +366,7 @@ def main():
                     logging.info('Failed to clear table.')
                     logging.error('Raising exception encountered during last clear table attempt')
                     logging.error(clear_exception)
-                    raise insert_exception
+                    raise clear_exception
                  
                 # note: we do not delete the entire table because this will cause the dataset visualization on Resource Watch
                 # to disappear until we log into Carto and open the table again. If we simply delete all the rows, this
