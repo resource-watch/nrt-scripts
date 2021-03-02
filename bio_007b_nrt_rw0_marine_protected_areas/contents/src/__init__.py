@@ -40,7 +40,7 @@ DATA_DICT['point'] = {'CARTO_TABLE': 'bio_007b_rw0_marine_protected_area_point_e
 # column types should be one of the following: geometry, text, numeric, timestamp
 DATA_DICT['polygon']['CARTO_SCHEMA'] = OrderedDict([
     ('wdpaid', "numeric"),
-    ("wdpa_id", "text"),
+    ("wdpa_pid", "text"),
     ('pa_def', "numeric"),
     ("name", "text"),
     ("orig_name", "text"),
@@ -260,17 +260,6 @@ def processData(table, gdf, schema):
     '''
     gdf_converted['geometry'] = [x.__geo_interface__ if x.geom_type == 'Polygon' else x[0].__geo_interface__ if (x.geom_type == 'MultiPoint') & (len(x) == 1) else x.__geo_interface__ for x in gdf_converted.geometry]
     '''
-    converted_geometry = []
-    for geom in gdf_converted['geometry']:
-        # if it's a polygon
-        if geom.geom_type == 'Polygon':
-            converted_geometry.append(geom.__geo_interface__)
-        # if it's a multipoint series containing only one point
-        elif (geom.geom_type == 'MultiPoint') & (len(geom) == 1):
-            converted_geometry.append(geom[0].__geo_interface__)
-        else:
-            converted_geometry.append(geom.__geo_interface__)
-    gdf_converted['geometry'] = converted_geometry
     # convert all the Nan to None 
     gdf_converted = gdf_converted.where(pd.notnull(gdf_converted), None)
     # upload the data to Carto 
@@ -281,6 +270,15 @@ def processData(table, gdf, schema):
     retry_wait_time = 5
     # for each row in the geopandas dataframe
     for index, row in gdf_converted.iterrows():
+        geom = row['geometry']
+        # if it's a polygon
+        if geom.geom_type == 'Polygon':
+            row['geometry'] = geom.__geo_interface__
+        # if it's a multipoint series containing only one point
+        elif (geom.geom_type == 'MultiPoint') & (len(geom) == 1):
+            row['geometry'] = geom[0].__geo_interface__
+        else:
+            row['geometry'] = geom.__geo_interface__
         insert_exception = None
         for i in range(n_tries):
             try:
