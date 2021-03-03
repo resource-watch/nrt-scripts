@@ -182,7 +182,7 @@ def flushTileCache_future(layer_id):
     while try_num<tries:
         try:
             # try to delete the cache
-            r = requests.delete(url = apiUrl, headers = headers, timeout=1000)
+            r = requests.delete(url = apiUrl, headers = headers, timeout=1)
             # if we get a 200, the cache has been deleted
             # if we get a 504 (gateway timeout) - the tiles are still being deleted, but it worked
             if r.ok or r.status_code==504:
@@ -605,7 +605,7 @@ def update_layer(var, layer, most_recent_date):
         'interactionConfig': layer['attributes']['interactionConfig']
     }
     # patch API with updates
-    r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
+    r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers(), timeout=1)
     # check response
     # if we get a 200, the layers have been replaced
     # if we get a 504 (gateway timeout) - the layers are still being replaced, but it worked
