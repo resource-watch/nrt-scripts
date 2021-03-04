@@ -183,25 +183,8 @@ def flushTileCache_future(layer_id):
         try:
             # try to delete the cache
             r = requests.delete(url = apiUrl, headers = headers, timeout=1)
-            # if we get a 200, the cache has been deleted
-            # if we get a 504 (gateway timeout) - the tiles are still being deleted, but it worked
-            if r.ok or r.status_code==504:
-                logging.info('[Cache tiles deleted] for {}: status code {}'.format(layer_id, r.status_code))
-                return r.status_code
-            # if we don't get a 200 or 504:
-            else:
-                # if we are not on our last try, wait 60 seconds and try to clear the cache again
-                if try_num < (tries-1):
-                    logging.info('Cache failed to flush: status code {}'.format(r.status_code))
-                    time.sleep(60)
-                    logging.info('Trying again.')
-                # if we are on our last try, log that the cache flush failed
-                else:
-                    logging.error('Cache failed to flush: status code {}'.format(r.status_code))
-                    logging.error('Aborting.')
-            try_num += 1
-        except Exception as e:
-            logging.error('Failed: {}'.format(e))
+        except TimeoutError:
+            pass
 
 
 '''
@@ -605,15 +588,11 @@ def update_layer(var, layer, most_recent_date):
         'interactionConfig': layer['attributes']['interactionConfig']
     }
     # patch API with updates
-    r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers(), timeout=1)
-    # check response
-    # if we get a 200, the layers have been replaced
-    # if we get a 504 (gateway timeout) - the layers are still being replaced, but it worked
-    if r.ok or r.status_code==504:
-        logging.info('Layer replaced: {}'.format(layer['id']))
-    else:
-        logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
-
+    try:
+        r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers(), timeout=1)
+    except TimeoutError:
+        pass
+    
 def get_most_recent_date(var):
     '''
     Get most recent data it
