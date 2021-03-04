@@ -187,20 +187,19 @@ def fetch_data():
     # note: IDs are pulled from this csv and not the API because querying the API is very slow, so it is much faster
     # to get a list of all the IDS from this csv
     filename_data = 'WDPA_Feb2021_Public'
-    """ 
+    
     url_data = f'https://d1gam3xoknrgr2.cloudfront.net/current/{filename_data}.zip'
     urllib.request.urlretrieve(url_data, DATA_DIR + '/' + filename_data + '.zip')
 
-    # unzip file containing csv
+    # unzip file containing the data 
     zip_ref = zipfile.ZipFile(DATA_DIR + '/' + filename_data + '.zip', 'r')
     zip_ref.extractall(DATA_DIR + '/' + filename_data)
-    zip_ref.close() """
+    zip_ref.close()
 
     # load in the table from the geodatabase
     gdb = glob.glob(os.path.join(DATA_DIR + '/' + filename_data, '*.gdb'))[0]
     gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8')
     
-    logging.info(list(gdf))
     return gdf
 
 def delete_carto_entries(id_list, column):
