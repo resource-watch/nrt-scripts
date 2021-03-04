@@ -1,5 +1,5 @@
 #Change the NAME variable with the name of your script
-NAME=bio_007_rw2_wdpa
+NAME=bio_007_rw2_wdpa 
 LOG=${LOG:-udp://localhost}
 
 docker build -t $NAME --build-arg NAME=$NAME .
