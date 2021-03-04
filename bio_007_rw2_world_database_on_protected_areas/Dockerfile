@@ -27,4 +27,5 @@ RUN useradd $NAME
 RUN chown -R $NAME:$NAME .
 USER $NAME
 
+
 CMD ["python", "main.py"]
