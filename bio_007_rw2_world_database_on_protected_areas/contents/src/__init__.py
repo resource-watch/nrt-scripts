@@ -199,6 +199,7 @@ def fetch_data():
     # load in the table from the geodatabase
     gdb = glob.glob(os.path.join(DATA_DIR + '/' + filename_data, '*.gdb'))[0]
     gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8')
+    logging.info('Data imported as a geopandas dataframe.')
     
     return gdf
 
