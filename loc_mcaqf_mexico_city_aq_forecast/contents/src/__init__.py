@@ -183,7 +183,7 @@ def flushTileCache_future(layer_id):
         try:
             # try to delete the cache
             r = requests.delete(url = apiUrl, headers = headers, timeout=1)
-        except TimeoutError:
+        except:
             pass
 
 
@@ -590,7 +590,7 @@ def update_layer(var, layer, most_recent_date):
     # patch API with updates
     try:
         r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers(), timeout=1)
-    except TimeoutError:
+    except:
         pass
     
 def get_most_recent_date(var):
