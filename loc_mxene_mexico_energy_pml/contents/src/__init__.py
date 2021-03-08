@@ -91,9 +91,6 @@ last_week = yesterday + relativedelta(weekday=day_of_week(-2))
 last_month = yesterday - relativedelta(months=1, weekday=day_of_week)
 last_year = yesterday - relativedelta(years=1, weekday=day_of_week)
 
-CARTO_USER = os.environ.get('CARTO_USER')
-CARTO_KEY = os.environ.get('CARTO_KEY')
-
 #DATASET_ID =
 '''
 FUNCTIONS FOR ALL DATASETS
