@@ -350,7 +350,7 @@ def processData(existing_ids):
     # the number of rows we want to fetch and process each time 
     step = 25000
     # number of cores used in multiprocessing
-    NUM_CORES = 7
+    NUM_CORES = 5
     # create an empty list to store all the wdpa_pids 
     all_ids = []
     for i in range(0, 100):
@@ -369,6 +369,7 @@ def processData(existing_ids):
         gdf_new = gdf[gdf['WDPA_PID'].isin(existing_ids) == False].copy()
         gdf_ori = gdf[gdf['WDPA_PID'].isin(existing_ids)].copy()
         
+        multiprocessing.set_start_method('spawn')
         # if there is new data 
         if gdf_new.shape[0] > 0:
             with multiprocessing.Pool(NUM_CORES) as pool:
