@@ -348,7 +348,7 @@ def processData(existing_ids):
     # the index of the first row we want to import from the geodatabase
     start = 0
     # the number of rows we want to fetch and process each time 
-    step = 50000
+    step = 25000
     # number of cores used in multiprocessing
     NUM_CORES = 7
     # create an empty list to store all the wdpa_pids 
