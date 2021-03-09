@@ -106,7 +106,7 @@ DATA_DICT['point']['CARTO_SCHEMA'] = OrderedDict([
 UID_FIELD='wdpa_id'
 
 # url at which the data can be downloaded 
-SOURCE_URL = 'https://d1gam3xoknrgr2.cloudfront.net/current/WDPA_WDOECM_Feb2021_Public_marine_shp.zip' #check
+SOURCE_URL = 'https://d1gam3xoknrgr2.cloudfront.net/current/WDPA_WDOECM_{}_Public_marine_shp.zip' #check
 
 # Resource Watch dataset API ID
 # Important! Before testing this script:
@@ -213,17 +213,36 @@ def fetch():
     '''
     download, unzip, and import the data as geopandas dataframes
     '''
-    logging.info('Download the data')
-    # download the data from the source
-    raw_data_file = os.path.join(DATA_DIR, os.path.basename(SOURCE_URL))
-    urllib.request.urlretrieve(SOURCE_URL, raw_data_file)
-
-    logging.info('Unzip the data folder')
-    # unzip source data
-    raw_data_file_unzipped = raw_data_file.split('.')[0]
-    zip_ref = ZipFile(raw_data_file, 'r')
-    zip_ref.extractall(raw_data_file_unzipped)
-    zip_ref.close()
+    # pull the data from the url 
+    n_tries = 5
+    date = datetime.datetime.utcnow()  
+    fetch_exception = None
+    for i in range(0, n_tries):
+        try:
+            date_str = date.strftime("%b%Y")
+            raw_data_file = os.path.join(DATA_DIR, os.path.basename(SOURCE_URL.format(date_str)))
+            urllib.request.urlretrieve(SOURCE_URL.format(date_str), raw_data_file)
+            # unzip file containing the data 
+            logging.info('Unzip the data folder')
+    
+            # unzip source data
+            raw_data_file_unzipped = raw_data_file.split('.')[0]
+            zip_ref = ZipFile(raw_data_file, 'r')
+            zip_ref.extractall(raw_data_file_unzipped)
+            zip_ref.close()
+            
+            logging.info("Data of {} successfully fetched.".format(date_str))
+        except Exception as e: 
+            fetch_exception = e
+            first = date.replace(day=1)
+            date = (first - datetime.timedelta(days=1)).strftime("%b%Y") 
+        
+        else: 
+            break
+    
+    else: 
+        logging.info('Failed to fetch data.')
+        raise fetch_exception
 
     # find all the zipped folders that contain the shapefiles
     zipped_shp = glob.glob(os.path.join(raw_data_file_unzipped, '*shp*.zip' ))
