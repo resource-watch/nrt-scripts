@@ -102,37 +102,6 @@ DATA_DICT['polygon']['CARTO_SCHEMA'] = OrderedDict([
     ("cons_obj", "text"),
     ("the_geom", "geometry")])
 
-DATA_DICT['point']['CARTO_SCHEMA'] = OrderedDict([
-    ('wdpaid', "numeric"),
-    ("wdpa_pid", "text"),
-    ('pa_def', "numeric"),
-    ("name", "text"),
-    ("orig_name", "text"),
-    ("desig", "text"),
-    ("desig_eng", "text"),
-    ("desig_type", "text"),
-    ("iucn_cat", "text"),
-    ("int_crit", "text"),
-    ("marine", "numeric"),
-    ("rep_m_area", "numeric"),
-    ("rep_area", "numeric"),
-    ("no_take", "text"),
-    ("no_tk_area", "numeric"),
-    ("status", "text"),
-    ("status_yr", "numeric"),
-    ("gov_type", "text"),
-    ("own_type", "text"),
-    ("mang_auth", "text"),
-    ("mang_plan", "text"),
-    ("verif", "text"),
-    ("metadataid", "numeric"),
-    ("sub_loc", "text"),
-    ("parent_iso", "text"),
-    ("iso3", "text"),
-    ("supp_info", "text"),
-    ("cons_obj", "text"),
-    ("the_geom", "geometry")])
-
 # column of table that can be used as a unique ID (UID)
 UID_FIELD='wdpa_pid'
 
