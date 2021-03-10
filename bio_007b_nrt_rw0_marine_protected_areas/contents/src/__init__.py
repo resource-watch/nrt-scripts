@@ -38,7 +38,7 @@ DATA_DICT['point'] = {'CARTO_TABLE': 'bio_007b_rw0_marine_protected_area_point_e
 # column names and types for data table
 # column names should be lowercase
 # column types should be one of the following: geometry, text, numeric, timestamp
-DATA_DICT['polygon']['CARTO_SCHEMA'] = OrderedDict([
+DATA_DICT['point']['CARTO_SCHEMA'] = OrderedDict([
     ('wdpaid', "numeric"),
     ("wdpa_pid", "text"),
     ('pa_def', "numeric"),
@@ -51,9 +51,7 @@ DATA_DICT['polygon']['CARTO_SCHEMA'] = OrderedDict([
     ("int_crit", "text"),
     ("marine", "numeric"),
     ("rep_m_area", "numeric"),
-    ("gis_m_area", "numeric"),
     ("rep_area", "numeric"),
-    ("gis_area", "numeric"),
     ("no_take", "text"),
     ("no_tk_area", "numeric"),
     ("status", "text"),
@@ -71,7 +69,7 @@ DATA_DICT['polygon']['CARTO_SCHEMA'] = OrderedDict([
     ("cons_obj", "text"),
     ("the_geom", "geometry")])
 
-DATA_DICT['point']['CARTO_SCHEMA'] = OrderedDict([
+DATA_DICT['polygon']['CARTO_SCHEMA'] = OrderedDict([
     ('wdpaid', "numeric"),
     ("wdpa_pid", "text"),
     ('pa_def', "numeric"),
@@ -84,7 +82,9 @@ DATA_DICT['point']['CARTO_SCHEMA'] = OrderedDict([
     ("int_crit", "text"),
     ("marine", "numeric"),
     ("rep_m_area", "numeric"),
+    ("gis_m_area", "numeric"),
     ("rep_area", "numeric"),
+    ("gis_area", "numeric"),
     ("no_take", "text"),
     ("no_tk_area", "numeric"),
     ("status", "text"),
@@ -316,6 +316,7 @@ def processData(table, gdf, schema):
                 r = s.post('https://{}.carto.com/api/v2/sql'.format(CARTO_USER), json=payload)
                 r.raise_for_status()
             except Exception as e: # if there's an exception do this
+                logging.info(r.content)
                 insert_exception = e
                 logging.warning('Attempt #{} to upload row #{} unsuccessful. Trying again after {} seconds'.format(i, index, retry_wait_time))
                 logging.debug('Exception encountered during upload attempt: '+ str(e))
@@ -404,6 +405,7 @@ def main():
 
         # Check if table exists, create it if it does not
         logging.info('Checking if table exists and getting existing IDs.')
+        time.sleep(10)
         checkCreateTable(value['CARTO_TABLE'], value['CARTO_SCHEMA'], UID_FIELD)
         
         # process and upload the data to the carto tables 
