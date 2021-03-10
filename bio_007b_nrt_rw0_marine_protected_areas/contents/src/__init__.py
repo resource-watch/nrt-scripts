@@ -253,10 +253,10 @@ def fetch():
         zip_ref.close()
     
     # store the path to all the point shapefiles in a list 
-    DATA_DICT['point']['path'] = [glob.glob(os.path.join(raw_data_file_unzipped, zipped.split('.')[0][-5:], '*points.shp'))[0] for path in zipped_shp]
+    DATA_DICT['point']['path'] = [glob.glob(os.path.join(raw_data_file_unzipped, zipped.split('.')[0][-5:], '*points.shp'))[0] for zipped in zipped_shp]
 
     # store the path to all the polygon shapefiles in a list
-    DATA_DICT['polygon']['path'] = [glob.glob(os.path.join(raw_data_file_unzipped, zipped.split('.')[0][-5:], '*polygons.shp'))[0] for path in zipped_shp]
+    DATA_DICT['polygon']['path'] = [glob.glob(os.path.join(raw_data_file_unzipped, zipped.split('.')[0][-5:], '*polygons.shp'))[0] for zipped in zipped_shp]
 
     """ # for each value in the dictionary, merge the corresponding three shapefiles and read them as one single dataframe
     for value in DATA_DICT.values():
@@ -285,9 +285,11 @@ def processData(table, gdf, schema):
     # upload the data to Carto 
     logging.info('Uploading data to {}'.format(table))
     # maximum attempts to make
-    n_tries = 4
+    n_tries = 6
     # sleep time between each attempt   
     retry_wait_time = 5
+    # build a request session 
+    s = requests.Session()
     # for each row in the geopandas dataframe
     for index, row in gdf_converted.iterrows():
         geom = row['geometry']
@@ -303,7 +305,16 @@ def processData(table, gdf, schema):
         for i in range(n_tries):
             try:
                 # upload the row to the carto table
-                cartosql.insertRows(table, schema.keys(), schema.values(), [row.values.tolist()], user=CARTO_USER, key=CARTO_KEY)
+                # construct the sql query to upload to the Carto table
+                fields = schema.keys()
+                values = cartosql._dumpRows([row.values.tolist()], tuple(schema.values()))
+                sql = 'INSERT INTO "{}" ({}) VALUES {}'.format(table, ', '.join(fields), values)
+                payload = {
+                    'api_key': CARTO_KEY,
+                    'q': sql
+                    }
+                r = s.post('https://{}.carto.com/api/v2/sql'.format(CARTO_USER), json=payload)
+                r.raise_for_status()
             except Exception as e: # if there's an exception do this
                 insert_exception = e
                 logging.warning('Attempt #{} to upload row #{} unsuccessful. Trying again after {} seconds'.format(i, index, retry_wait_time))
