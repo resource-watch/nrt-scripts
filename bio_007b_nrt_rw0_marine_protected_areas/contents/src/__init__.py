@@ -399,10 +399,11 @@ def main():
         for shapefile in value['path']:
             start = 0
             # the number of rows we want to fetch and process each time 
-            step = 5000
+            step = 1000
             logging.info('Processing one shapefile')
             for i in range(0, 100):
                 # import the shapefile slice by slice to reduce memory usage
+                logging.info('Import a slice of {} rows from the shapefile'.format(step))
                 gdf = gpd.read_file(shapefile, rows = slice(start, start + step))
                 logging.info('A slice of shapefile has been imported as geopandas dataframe.')
                 # process the imported slice of shapefile 
