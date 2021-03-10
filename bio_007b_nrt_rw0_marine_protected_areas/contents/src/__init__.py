@@ -258,12 +258,12 @@ def fetch():
     # store the path to all the polygon shapefiles in a list
     DATA_DICT['polygon']['path'] = [glob.glob(os.path.join(raw_data_file_unzipped, zipped.split('.')[0][-5:], '*polygons.shp'))[0] for path in zipped_shp]
 
-    # for each value in the dictionary, merge the corresponding three shapefiles and read them as one single dataframe
+    """ # for each value in the dictionary, merge the corresponding three shapefiles and read them as one single dataframe
     for value in DATA_DICT.values():
         value['gdf'] = gpd.GeoDataFrame(pd.concat([gpd.read_file(shp) for shp in value['path']], 
                         ignore_index=True), crs=gpd.read_file(value['path'][0]).crs)
         logging.info(list(value['gdf']))
-
+ """
 def processData(table, gdf, schema):
     '''
     Upload new data
@@ -396,7 +396,9 @@ def main():
         checkCreateTable(value['CARTO_TABLE'], value['CARTO_SCHEMA'], UID_FIELD)
         
         # process and upload the data to the carto tables 
-        num_new += processData(value['CARTO_TABLE'], value['gdf'], value['CARTO_SCHEMA'])
+        for shapefile in value['path']:
+            gdf = gpd.read_file(shapefile)
+            num_new += processData(value['CARTO_TABLE'], gdf, value['CARTO_SCHEMA'])
 
     # Update Resource Watch
     updateResourceWatch(num_new)
