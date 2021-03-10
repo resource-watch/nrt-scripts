@@ -235,7 +235,7 @@ def fetch():
         except Exception as e: 
             fetch_exception = e
             first = date.replace(day=1)
-            date = (first - datetime.timedelta(days=1)).strftime("%b%Y") 
+            date = first - datetime.timedelta(days=1)
         
         else: 
             break
@@ -397,8 +397,26 @@ def main():
         
         # process and upload the data to the carto tables 
         for shapefile in value['path']:
-            gdf = gpd.read_file(shapefile)
-            num_new += processData(value['CARTO_TABLE'], gdf, value['CARTO_SCHEMA'])
+            start = 0
+            # the number of rows we want to fetch and process each time 
+            step = 25000
+            logging.info('Processing one shapefile')
+            for i in range(0, 100):
+                # import the shapefile slice by slice to reduce memory usage
+                gdf = gpd.read_file(shapefile, rows = slice(start, start + step))
+                logging.info('A slice of shapefile has been imported as geopandas dataframe.')
+                # process the imported slice of shapefile 
+                num_new += processData(value['CARTO_TABLE'], gdf, value['CARTO_SCHEMA'])
+                logging.info('A slice of shapefile has been processed.')
+                
+                # if the number of rows is equal to the size of the slice 
+                if gdf.shape[0] == step:
+                    # move to the next slice
+                    start += step
+                else:
+                    # we've processed the whole dataframe 
+                    logging.info('One shapefile processed.')
+                    break
 
     # Update Resource Watch
     updateResourceWatch(num_new)
