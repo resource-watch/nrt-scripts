@@ -73,7 +73,7 @@ DATA_DICT['polygon']['CARTO_SCHEMA'] = OrderedDict([
 
 DATA_DICT['point']['CARTO_SCHEMA'] = OrderedDict([
     ('wdpaid', "numeric"),
-    ("wdpa_id", "text"),
+    ("wdpa_pid", "text"),
     ('pa_def', "numeric"),
     ("name", "text"),
     ("orig_name", "text"),
@@ -103,7 +103,7 @@ DATA_DICT['point']['CARTO_SCHEMA'] = OrderedDict([
     ("the_geom", "geometry")])
 
 # column of table that can be used as a unique ID (UID)
-UID_FIELD='wdpa_id'
+UID_FIELD='wdpa_pid'
 
 # url at which the data can be downloaded 
 SOURCE_URL = 'https://d1gam3xoknrgr2.cloudfront.net/current/WDPA_WDOECM_{}_Public_marine_shp.zip' #check
