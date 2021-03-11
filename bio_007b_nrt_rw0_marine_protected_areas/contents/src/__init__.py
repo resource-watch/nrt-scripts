@@ -283,8 +283,6 @@ def processData(table, gdf, schema):
     s = requests.Session()
     # for each row in the geopandas dataframe
     for index, row in gdf.iterrows():
-        if index == 436:
-            logging.info(row)
         geom = row['geometry']
         # if it's a polygon
         if geom.geom_type == 'Polygon':
