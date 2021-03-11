@@ -32,8 +32,8 @@ CARTO_KEY = os.getenv('CARTO_KEY')
 # create a dictionary to store the parameters of the two wdpa marine datasets: point and polygon
 DATA_DICT = OrderedDict()
 # the name of the two carto tables to store the data 
-DATA_DICT['polygon'] = {'CARTO_TABLE': 'bio_007b_rw0_marine_protected_area_polygon_edit'}
 DATA_DICT['point'] = {'CARTO_TABLE': 'bio_007b_rw0_marine_protected_area_point_edit'}
+DATA_DICT['polygon'] = {'CARTO_TABLE': 'bio_007b_rw0_marine_protected_area_polygon_edit'}
 
 # column names and types for data table
 # column names should be lowercase
@@ -257,13 +257,7 @@ def fetch():
 
     # store the path to all the polygon shapefiles in a list
     DATA_DICT['polygon']['path'] = [glob.glob(os.path.join(raw_data_file_unzipped, zipped.split('.')[0][-5:], '*polygons.shp'))[0] for zipped in zipped_shp]
-
-    """ # for each value in the dictionary, merge the corresponding three shapefiles and read them as one single dataframe
-    for value in DATA_DICT.values():
-        value['gdf'] = gpd.GeoDataFrame(pd.concat([gpd.read_file(shp) for shp in value['path']], 
-                        ignore_index=True), crs=gpd.read_file(value['path'][0]).crs)
-        logging.info(list(value['gdf']))
- """
+    
 def processData(table, gdf, schema):
     '''
     Upload new data
@@ -273,15 +267,12 @@ def processData(table, gdf, schema):
 
     RETURN  num_new: total number of rows of data sent to Carto table (integer)
     '''
-
-    # create a copy of the geopandas dataframe
-    gdf_converted = gdf.copy()
     # convert the geometry of the geodataframe to geojsons
     '''
     gdf_converted['geometry'] = [x.__geo_interface__ if x.geom_type == 'Polygon' else x[0].__geo_interface__ if (x.geom_type == 'MultiPoint') & (len(x) == 1) else x.__geo_interface__ for x in gdf_converted.geometry]
     '''
     # convert all the Nan to None 
-    gdf_converted = gdf_converted.where(pd.notnull(gdf_converted), None)
+    gdf = gdf.where(pd.notnull(gdf), None)
     # upload the data to Carto 
     logging.info('Uploading data to {}'.format(table))
     # maximum attempts to make
@@ -291,7 +282,7 @@ def processData(table, gdf, schema):
     # build a request session 
     s = requests.Session()
     # for each row in the geopandas dataframe
-    for index, row in gdf_converted.iterrows():
+    for index, row in gdf.iterrows():
         geom = row['geometry']
         # if it's a polygon
         if geom.geom_type == 'Polygon':
@@ -333,8 +324,8 @@ def processData(table, gdf, schema):
             raise insert_exception
 
     # add the number of rows uploaded to num_new
-    logging.info('{} of rows uploaded to {}'.format(len(gdf_converted.index), table))
-    num_new = len(gdf_converted.index)
+    logging.info('{} of rows uploaded to {}'.format(len(gdf.index), table))
+    num_new = len(gdf.index)
     """ # change privacy of table on Carto
         # set up carto authentication using local variables for username and API key 
         auth_client = APIKeyAuthClient(api_key=CARTO_KEY, base_url="https://{user}.carto.com/".format(user=CARTO_USER))
