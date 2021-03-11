@@ -259,10 +259,11 @@ def convert_geometry(geom):
     else:
         return geom.__geo_interface__
 
-def update_carto(gdf):
+def update_carto(gdf, session):
     '''
     Function to update existing rows in the Carto table 
     INPUT   gdf: the geopandas dataframe of data we want to update the existing rows with (geopandas dataframe)
+            session: the request session used to post requests to Carto 
     '''
     # replace all null values with None
     gdf = gdf.where(gdf.notnull(), None)
@@ -281,10 +282,15 @@ def update_carto(gdf):
         values = cartosql._dumpRows([row.values.tolist()], tuple(CARTO_SCHEMA.values()))
         sql = 'UPDATE "{}" o SET {} FROM (VALUES {}) n({}) WHERE O.wdpa_pid = n.wdpa_pid'.format(
             CARTO_TABLE, ', '.join([field+'=n.'+field for field in fields]), values, ', '.join(fields))
+        payload = {
+                    'api_key': CARTO_KEY,
+                    'q': sql
+                    }
         for i in range(n_tries):
             try:
                 # update an existing row in the carto table
-                cartosql.post(sql, CARTO_USER, CARTO_KEY)
+                r = session.post('https://{}.carto.com/api/v2/sql'.format(CARTO_USER), json=payload)
+                r.raise_for_status()
             except Exception as e: 
                 update_exception = e
                 logging.warning('Attempt #{} to update row #{} unsuccessful. Trying again after {} seconds'.format(i, index, retry_wait_time))
@@ -300,10 +306,11 @@ def update_carto(gdf):
             logging.error(update_exception)
             raise update_exception
         
-def upload_to_carto(gdf):
+def upload_to_carto(gdf, session):
     '''
     Function to upload data to the Carto table 
     INPUT   gdf: the geopandas dataframe of data we want to upload (geopandas dataframe)
+            session: the request session initiated to send requests to Carto 
     '''
     # replace all null values with None
     gdf = gdf.where(gdf.notnull(), None)
@@ -318,10 +325,18 @@ def upload_to_carto(gdf):
         insert_exception = None
         # convert the geometry in the geometry column to geojsons
         row['geometry'] = convert_geometry(row['geometry'])
+        # construct the sql query to upload the row to the carto table
+        fields = CARTO_SCHEMA.keys()
+        values = cartosql._dumpRows([row.values.tolist()], tuple(CARTO_SCHEMA.values()))
+        sql = 'INSERT INTO "{}" ({}) VALUES {}'.format(CARTO_TABLE, ', '.join(fields), values)
+        payload = {
+            'api_key': CARTO_KEY,
+            'q': sql
+            }
         for i in range(n_tries):
             try:
-                # upload the row to the carto table
-                cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), [row.values.tolist()], user=CARTO_USER, key=CARTO_KEY)
+                r = session.post('https://{}.carto.com/api/v2/sql'.format(CARTO_USER), json=payload)
+                r.raise_for_status()
             except Exception as e: # if there's an exception do this
                 insert_exception = e
                 logging.warning('Attempt #{} to upload row #{} unsuccessful. Trying again after {} seconds'.format(i, index, retry_wait_time))
@@ -350,7 +365,7 @@ def processData(existing_ids):
     # the number of rows we want to fetch and process each time 
     step = 25000
     # number of cores used in multiprocessing
-    NUM_CORES = 5
+    #NUM_CORES = 5
     # create an empty list to store all the wdpa_pids 
     all_ids = []
     for i in range(0, 100):
@@ -365,21 +380,24 @@ def processData(existing_ids):
         # add the ids to the list 
         all_ids.extend(gdf['WDPA_PID'])
         logging.info('Process {} rows starting from the {}th row as a geopandas dataframe.'.format(step, start))
+        s = requests.Session()
         # subset the dataframe to isolate rows that are already in the table and those not 
         gdf_new = gdf[gdf['WDPA_PID'].isin(existing_ids) == False].copy()
         gdf_ori = gdf[gdf['WDPA_PID'].isin(existing_ids)].copy()
         
-        multiprocessing.set_start_method('spawn')
+        #multiprocessing.set_start_method('spawn')
         # if there is new data 
         if gdf_new.shape[0] > 0:
-            with multiprocessing.Pool(NUM_CORES) as pool:
-                pool.map(upload_to_carto, np.array_split(gdf_new, NUM_CORES))
+            """ with multiprocessing.Pool(NUM_CORES) as pool:
+                pool.map(upload_to_carto, np.array_split(gdf_new, NUM_CORES)) """
+            upload_to_carto(gdf_new, s)
             logging.info('{} rows of new records added!'.format(gdf_new.shape[0]))
 
         # if there is data that is already stored in the table 
         if gdf_ori.shape[0] > 0:
-            with multiprocessing.Pool(NUM_CORES) as pool:
-                pool.map(update_carto, np.array_split(gdf_ori, NUM_CORES))
+            """ with multiprocessing.Pool(NUM_CORES) as pool:
+                pool.map(update_carto, np.array_split(gdf_ori, NUM_CORES)) """
+            update_carto(gdf_ori, s)
             logging.info('{} rows of existing records updated!'.format(gdf_ori.shape[0]))
         
         # if the number of rows is equal to the size of the slice 
