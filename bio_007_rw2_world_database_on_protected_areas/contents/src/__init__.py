@@ -281,7 +281,7 @@ def update_carto(gdf, session):
         fields = CARTO_SCHEMA.keys()
         values = cartosql._dumpRows([row.values.tolist()], tuple(CARTO_SCHEMA.values()))
         sql = 'UPDATE "{}" o SET {} FROM (VALUES {}) n({}) WHERE O.wdpa_pid = n.wdpa_pid'.format(
-            CARTO_TABLE, ', '.join([field+'=n.'+field for field in fields]), values, ', '.join(fields))
+            CARTO_TABLE, ', '.join([field+'=n.'+field if field != 'legal_status_updated_at' else field+'=date(n.'+field + ')' for field in fields]), values, ', '.join(fields))
         payload = {
                     'api_key': CARTO_KEY,
                     'q': sql
@@ -339,6 +339,7 @@ def upload_to_carto(gdf, session):
                 r.raise_for_status()
             except Exception as e: # if there's an exception do this
                 insert_exception = e
+                logging.error(r.content)
                 logging.warning('Attempt #{} to upload row #{} unsuccessful. Trying again after {} seconds'.format(i, index, retry_wait_time))
                 logging.debug('Exception encountered during upload attempt: '+ str(e))
                 time.sleep(retry_wait_time)
