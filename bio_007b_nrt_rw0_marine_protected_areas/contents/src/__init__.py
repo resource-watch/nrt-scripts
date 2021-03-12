@@ -257,71 +257,79 @@ def fetch():
 
     # store the path to all the polygon shapefiles in a list
     DATA_DICT['polygon']['path'] = [glob.glob(os.path.join(raw_data_file_unzipped, zipped.split('.')[0][-5:], '*polygons.shp'))[0] for zipped in zipped_shp]
+
+def convert_geometry(geom):
+    '''
+    Function to convert shapely geometries to geojsons
+    INPUT   geom: shapely geometry 
+    RETURN  output: geojson 
+    '''
+    # if it's a polygon
+    if geom.geom_type == 'Polygon':
+        return geom.__geo_interface__
+    # if it's a multipoint series containing only one point
+    elif geom.geom_type == 'MultiPoint' and len(geom) == 1:
+        return geom[0].__geo_interface__
+    else:
+        return geom.__geo_interface__
+        
+def insert_carto(row, table, schema, session):
+    '''
+    Function to upload data to the Carto table 
+    INPUT   row: the geopandas dataframe of data we want to upload (geopandas dataframe)
+            session: the request session initiated to send requests to Carto 
+            schema: fields and corresponding data types of the Carto table
+            table: name of the Carto table
+    '''
+    # replace all null values with None
+    row = row.where(row.notnull(), None)
+    # maximum attempts to make
+    n_tries = 4
+    # sleep time between each attempt   
+    retry_wait_time = 6
     
-def processData(table, gdf, schema):
+    insert_exception = None
+    # convert the geometry in the geometry column to geojsons
+    row['geometry'] = convert_geometry(row['geometry'])
+    # construct the sql query to upload the row to the carto table
+    fields = schema.keys()
+    values = cartosql._dumpRows([row.values.tolist()], tuple(schema.values()))
+    sql = 'INSERT INTO "{}" ({}) VALUES {}'.format(table, ', '.join(fields), values)
+    payload = {
+        'api_key': CARTO_KEY,
+        'q': sql
+        }
+    for i in range(n_tries):
+        try:
+            r = session.post('https://{}.carto.com/api/v2/sql'.format(CARTO_USER), json=payload)
+            r.raise_for_status()
+        except Exception as e: # if there's an exception do this
+            insert_exception = e
+            logging.error(r.content)
+            logging.warning('Attempt #{} to upload row #{} unsuccessful. Trying again after {} seconds'.format(i, row['WDPA_PID'], retry_wait_time))
+            logging.debug('Exception encountered during upload attempt: '+ str(e))
+            time.sleep(retry_wait_time)
+        else: # if no exception do this
+            break # break this for loop, because we don't need to try again
+    else:
+        # this happens if the for loop completes, ie if it attempts to insert row n_tries times
+        logging.error('Upload of row #{} has failed after {} attempts'.format(row['WDPA_PID'], n_tries))
+        logging.error('Problematic row: '+ str(row))
+        logging.error('Raising exception encountered during last upload attempt')
+        logging.error(insert_exception)
+        raise insert_exception
+
+def processData(table, gdf, schema, session):
     '''
     Upload new data
     INPUT   table: Carto table to upload data to (string)
             gdf: data to be uploaded to the Carto table (geopandas dataframe)
             schema: dictionary of column names and types, used if we are creating the table for the first time (dictionary)
-
+            session: request session to send requests to Carto
     RETURN  num_new: total number of rows of data sent to Carto table (integer)
     '''
-    # convert the geometry of the geodataframe to geojsons
-    '''
-    gdf_converted['geometry'] = [x.__geo_interface__ if x.geom_type == 'Polygon' else x[0].__geo_interface__ if (x.geom_type == 'MultiPoint') & (len(x) == 1) else x.__geo_interface__ for x in gdf_converted.geometry]
-    '''
-    # convert all the Nan to None 
-    gdf = gdf.where(pd.notnull(gdf), None)
-    # upload the data to Carto 
-    logging.info('Uploading data to {}'.format(table))
-    # maximum attempts to make
-    n_tries = 6
-    # sleep time between each attempt   
-    retry_wait_time = 5
-    # build a request session 
-    s = requests.Session()
-    # for each row in the geopandas dataframe
-    for index, row in gdf.iterrows():
-        geom = row['geometry']
-        # if it's a polygon
-        if geom.geom_type == 'Polygon':
-            row['geometry'] = geom.__geo_interface__
-        # if it's a multipoint series containing only one point
-        elif (geom.geom_type == 'MultiPoint') & (len(geom) == 1):
-            row['geometry'] = geom[0].__geo_interface__
-        else:
-            row['geometry'] = geom.__geo_interface__
-        insert_exception = None
-        for i in range(n_tries):
-            try:
-                # upload the row to the carto table
-                # construct the sql query to upload to the Carto table
-                fields = schema.keys()
-                values = cartosql._dumpRows([row.values.tolist()], tuple(schema.values()))
-                sql = 'INSERT INTO "{}" ({}) VALUES {}'.format(table, ', '.join(fields), values)
-                payload = {
-                    'api_key': CARTO_KEY,
-                    'q': sql
-                    }
-                r = s.post('https://{}.carto.com/api/v2/sql'.format(CARTO_USER), json=payload)
-                r.raise_for_status()
-            except Exception as e: # if there's an exception do this
-                logging.info(r.content)
-                insert_exception = e
-                logging.warning('Attempt #{} to upload row #{} unsuccessful. Trying again after {} seconds'.format(i, index, retry_wait_time))
-                logging.debug('Exception encountered during upload attempt: '+ str(e))
-                time.sleep(retry_wait_time)
-            else: # if no exception do this
-                break # break this for loop, because we don't need to try again
-        else:
-            # this happens if the for loop completes, ie if it attempts to insert row n_tries times
-            logging.error('Upload of row #{} has failed after {} attempts'.format(index, n_tries))
-            # could skip to next row, or more likely abort operation, for example by raising uncaught exception
-            logging.error('Problematic row: '+ str(row))
-            logging.error('Raising exception encountered during last upload attempt')
-            logging.error(insert_exception)
-            raise insert_exception
+    # upload the gdf to Carto
+    gdf.apply(insert_carto, args=(table, schema, session,), axis = 1)
 
     # add the number of rows uploaded to num_new
     logging.info('{} of rows uploaded to {}'.format(len(gdf.index), table))
@@ -399,6 +407,8 @@ def main():
         time.sleep(10)
         checkCreateTable(value['CARTO_TABLE'], value['CARTO_SCHEMA'], UID_FIELD)
         
+        # create a request session 
+        s = requests.Session()
         # process and upload the data to the carto tables 
         for shapefile in value['path']:
             start = 0
@@ -411,7 +421,7 @@ def main():
                 gdf = gpd.read_file(shapefile, rows = slice(start, start + step))
                 logging.info('A slice of shapefile has been imported as geopandas dataframe.')
                 # process the imported slice of shapefile 
-                num_new += processData(value['CARTO_TABLE'], gdf, value['CARTO_SCHEMA'])
+                num_new += processData(value['CARTO_TABLE'], gdf, value['CARTO_SCHEMA'], s)
                 logging.info('A slice of shapefile has been processed.')
                 
                 # if the number of rows is equal to the size of the slice 
