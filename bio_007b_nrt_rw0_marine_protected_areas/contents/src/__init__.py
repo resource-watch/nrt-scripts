@@ -332,7 +332,7 @@ def processData(table, gdf, schema, session):
     gdf.apply(insert_carto, args=(table, schema, session,), axis = 1)
 
     # add the number of rows uploaded to num_new
-    logging.info('{} of rows uploaded to {}'.format(len(gdf.index), table))
+    #logging.info('{} of rows uploaded to {}'.format(len(gdf.index), table))
     num_new = len(gdf.index)
     """ # change privacy of table on Carto
         # set up carto authentication using local variables for username and API key 
@@ -415,7 +415,7 @@ def main():
             # the number of rows we want to fetch and process each time 
             step = 20
             logging.info('Processing one shapefile')
-            for i in range(0, 100):
+            for i in range(0, 10000):
                 # import the shapefile slice by slice to reduce memory usage
                 #logging.info('Import a slice of {} rows from the shapefile'.format(step))
                 gdf = gpd.read_file(shapefile, rows = slice(start, start + step))
