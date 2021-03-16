@@ -413,7 +413,7 @@ def main():
         for shapefile in value['path']:
             start = 0
             # the number of rows we want to fetch and process each time 
-            step = 800
+            step = 200
             logging.info('Processing one shapefile')
             for i in range(0, 100):
                 # import the shapefile slice by slice to reduce memory usage
