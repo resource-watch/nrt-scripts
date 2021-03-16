@@ -26,12 +26,6 @@ DATA_DIR = 'data'
 CARTO_USER = os.getenv('CARTO_USER')
 CARTO_KEY = os.getenv('CARTO_KEY')
 
-# do you want to update all the entries in the table when you run this script?
-# True - update entire table
-# False - just check for new areas added or areas deleted
-# for now, we will replace everything in the table because there is no way to see if an area has been updated
-REPLACE_ALL = True
-
 # name of table in Carto where we will upload the data
 CARTO_TABLE = 'bio_007_rw2_world_database_on_protected_areas'
 
