@@ -413,16 +413,16 @@ def main():
         for shapefile in value['path']:
             start = 0
             # the number of rows we want to fetch and process each time 
-            step = 200
+            step = 20
             logging.info('Processing one shapefile')
             for i in range(0, 100):
                 # import the shapefile slice by slice to reduce memory usage
-                logging.info('Import a slice of {} rows from the shapefile'.format(step))
+                #logging.info('Import a slice of {} rows from the shapefile'.format(step))
                 gdf = gpd.read_file(shapefile, rows = slice(start, start + step))
-                logging.info('A slice of shapefile has been imported as geopandas dataframe.')
+                #logging.info('A slice of shapefile has been imported as geopandas dataframe.')
                 # process the imported slice of shapefile 
                 num_new += processData(value['CARTO_TABLE'], gdf, value['CARTO_SCHEMA'], s)
-                logging.info('A slice of shapefile has been processed.')
+                #logging.info('A slice of shapefile has been processed.')
                 
                 # if the number of rows is equal to the size of the slice 
                 if gdf.shape[0] == step:
