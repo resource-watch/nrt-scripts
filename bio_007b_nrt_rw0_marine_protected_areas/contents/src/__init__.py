@@ -293,7 +293,8 @@ def insert_carto(row, table, schema, session):
     row['geometry'] = convert_geometry(row['geometry'])
     # construct the sql query to upload the row to the carto table
     fields = schema.keys()
-    sql = 'INSERT INTO "{}" ({}) VALUES {}'.format(table, ', '.join(fields), cartosql._dumpRows([row.values.tolist()], tuple(schema.values())))
+    values = cartosql._dumpRows([row.values.tolist()], tuple(schema.values()))
+    sql = 'INSERT INTO "{}" ({}) VALUES {}'.format(table, ', '.join(fields), values)
     payload = {
         'api_key': CARTO_KEY,
         'q': sql
@@ -412,7 +413,7 @@ def main():
         for shapefile in value['path']:
             start = 0
             # the number of rows we want to fetch and process each time 
-            step = 900
+            step = 800
             logging.info('Processing one shapefile')
             for i in range(0, 100):
                 # import the shapefile slice by slice to reduce memory usage

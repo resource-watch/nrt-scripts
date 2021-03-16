@@ -1,4 +1,4 @@
-FROM python:3.6
+FROM python:3.7
 MAINTAINER Yujing Wu <yujing.wu@wri.org>
 #Note this script was originally developed by Yujing Wu <yujing.wu@wri.org>
 
