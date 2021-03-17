@@ -32,8 +32,8 @@ CARTO_KEY = os.getenv('CARTO_KEY')
 # create a dictionary to store the parameters of the two wdpa marine datasets: point and polygon
 DATA_DICT = OrderedDict()
 # the name of the two carto tables to store the data 
-DATA_DICT['point'] = {'CARTO_TABLE': 'bio_007b_rw0_marine_protected_area_point_edit'}
-DATA_DICT['polygon'] = {'CARTO_TABLE': 'bio_007b_rw0_marine_protected_area_polygon_edit'}
+DATA_DICT['point'] = {'CARTO_TABLE': 'bio_007b_rw0_marine_protected_area_point_edit_archive031621'}
+DATA_DICT['polygon'] = {'CARTO_TABLE': 'bio_007b_rw0_marine_protected_area_polygon_edit_archive_031621'}
 
 # column names and types for data table
 # column names should be lowercase
@@ -296,13 +296,9 @@ def insert_carto(row, table, schema, session):
     values = cartosql._dumpRows([row.values.tolist()], tuple(schema.values()))
     sql = 'INSERT INTO "{}" ({}) VALUES {}'.format(table, ', '.join(fields), values)
     del values
-    payload = {
-        'api_key': CARTO_KEY,
-        'q': sql
-        }
     for i in range(n_tries):
         try:
-            r = session.post('https://{}.carto.com/api/v2/sql'.format(CARTO_USER), json=payload)
+            r = session.post('https://{}.carto.com/api/v2/sql'.format(CARTO_USER), json={'api_key': CARTO_KEY,'q': sql})
             r.raise_for_status()
         except Exception as e: # if there's an exception do this
             insert_exception = e
@@ -434,7 +430,7 @@ def main():
                     break
 
     # Update Resource Watch
-    updateResourceWatch(num_new)
+    #updateResourceWatch(num_new)
 
     # Delete local files in Docker container
     delete_local()
