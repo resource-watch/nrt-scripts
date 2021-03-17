@@ -295,6 +295,7 @@ def insert_carto(row, table, schema, session):
     fields = schema.keys()
     values = cartosql._dumpRows([row.values.tolist()], tuple(schema.values()))
     sql = 'INSERT INTO "{}" ({}) VALUES {}'.format(table, ', '.join(fields), values)
+    del values
     payload = {
         'api_key': CARTO_KEY,
         'q': sql
@@ -305,7 +306,6 @@ def insert_carto(row, table, schema, session):
             r.raise_for_status()
         except Exception as e: # if there's an exception do this
             insert_exception = e
-            logging.error(r.content)
             logging.warning('Attempt #{} to upload row #{} unsuccessful. Trying again after {} seconds'.format(i, row['WDPA_PID'], retry_wait_time))
             logging.debug('Exception encountered during upload attempt: '+ str(e))
             time.sleep(retry_wait_time)
