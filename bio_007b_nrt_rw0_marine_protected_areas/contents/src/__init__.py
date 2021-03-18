@@ -286,7 +286,7 @@ def insert_carto(row, table, schema, session):
     # maximum attempts to make
     n_tries = 4
     # sleep time between each attempt   
-    retry_wait_time = 6
+    retry_wait_time = 20
     
     insert_exception = None
     # convert the geometry in the geometry column to geojsons
@@ -375,7 +375,7 @@ def main():
                 # maximum attempts to make
                 n_tries = 3
                 # sleep time between each attempt   
-                retry_wait_time = 5
+                retry_wait_time = 30
                 clear_exception = None
                 for i in range(n_tries):
                     try:
