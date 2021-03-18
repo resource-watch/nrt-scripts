@@ -284,9 +284,9 @@ def insert_carto(row, table, schema, session):
     # replace all null values with None
     row = row.where(row.notnull(), None)
     # maximum attempts to make
-    n_tries = 4
+    n_tries = 5
     # sleep time between each attempt   
-    retry_wait_time = 20
+    retry_wait_time = 6
     
     insert_exception = None
     # convert the geometry in the geometry column to geojsons
@@ -373,15 +373,16 @@ def main():
             if cartosql.tableExists(value['CARTO_TABLE'], user=CARTO_USER, key=CARTO_KEY):
                 # delete all the rows
                 # maximum attempts to make
-                n_tries = 3
+                n_tries = 5
                 # sleep time between each attempt   
-                retry_wait_time = 30
+                retry_wait_time = 5
                 clear_exception = None
                 for i in range(n_tries):
                     try:
                         cartosql.deleteRows(value['CARTO_TABLE'], 'cartodb_id IS NOT NULL', user=CARTO_USER, key=CARTO_KEY)
                     except Exception as e:
                         clear_exception = e
+                        logging.error(clear_exception)
                         logging.info('Failed to clear table. Try again after 5 seconds.')
                         time.sleep(retry_wait_time)
                     else:
