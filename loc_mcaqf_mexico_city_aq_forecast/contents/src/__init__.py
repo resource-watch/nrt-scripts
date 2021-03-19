@@ -158,7 +158,7 @@ def getLayerIDs(dataset):
             layerIDs.append(layer['id'])
     return layerIDs
 
-def flushTileCache_future(layer_id):
+def flushTileCache(layer_id):
     """
     Given the API ID for a GEE layer on Resource Watch,
     this function will clear the layer cache.
@@ -175,16 +175,11 @@ def flushTileCache_future(layer_id):
     }
 
     # clear the cache for the layer
-    # sometimetimes this fails, so we will try multiple times, if it does
-    # specify that we are on the first try
-    try_num=1
-    tries = 4
-    while try_num<tries:
-        try:
-            # try to delete the cache
-            r = requests.delete(url = apiUrl, headers = headers, timeout=1)
-        except:
-            pass
+    try:
+        r = requests.delete(url = apiUrl, headers = headers, timeout=1)
+    except:
+        pass
+
 
 
 '''
@@ -644,13 +639,14 @@ def updateResourceWatch(new_dates):
                 # replace layer asset and title date with new
                 update_layer(var,  layer, most_recent_date)
 
-            logging.info('Updating last update date and flushing cache.')
+            logging.info('Updating last update date')
             # Update dataset's last update date on Resource Watch
             lastUpdateDate(ds_id, most_recent_date)
             # get layer ids and flush tile cache for each
             layer_ids = getLayerIDs(ds_id)
+            logging.info('Flushing tile cache')
             for layer_id in layer_ids:
-                flushTileCache_future(layer_id)
+                flushTileCache(layer_id)
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
