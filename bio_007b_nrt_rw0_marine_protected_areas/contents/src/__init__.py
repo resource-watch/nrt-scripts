@@ -431,7 +431,7 @@ def main():
                     break
 
     # Update Resource Watch
-    #updateResourceWatch(num_new)
+    updateResourceWatch(num_new)
 
     # Delete local files in Docker container
     delete_local()
