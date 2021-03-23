@@ -386,6 +386,8 @@ def process_control_centers(df):
         cartosql.deleteRows(CARTO_CENTERS_DASH_PML_TABLE, 'cartodb_id IS NOT NULL', user=CARTO_USER, key=CARTO_KEY)
     # Group by control center and entry date, then create columns for average, max and min pml values
     df = df.groupby(['control_center','entry_date'])['pml'].agg(lmp_avg='mean', lmp_max='max',lmp_min='min').reset_index()
+    # Convert entry_date to datetime
+    df['entry_date'] = pd.to_datetime(df['entry_date'], format="%Y-%m-%d %H:%M:%S")
     # Create column to store hour from entry_date
     df['hour']= df['entry_date'].dt.hour
     # Create date column storing only day information
