@@ -30,9 +30,10 @@ DATA_DIR = 'data'
 CARTO_USER = os.getenv('CARTO_USER')
 CARTO_KEY = os.getenv('CARTO_KEY')
 # asserting table structure rather than reading from input
-# We will create four tables for this dataset, due to the different dissagregation levels.
+# We will create three tables for this dataset.
 CARTO_NODES_DASH_PML_TABLE = 'dash_loc_mx_ene_nodes'
 CARTO_LOAD_DASH_PML_TABLE = 'dash_loc_mx_ene_load'
+CARTO_CENTERS_DASH_PML_TABLE = 'dash_loc_mx_ene_centers'
 
 # column names and types for data table
 # column names should be lowercase
@@ -76,6 +77,18 @@ CARTO_LOAD_DASH_SCHEMA = OrderedDict([
        ('load_syst_total', 'numeric'),
        ('load_syst_pct', 'numeric')
     ])
+
+CARTO_CENTERS_DASH_SCHEMA = OrderedDict([
+       ('uid', 'numeric'),
+       ('entry_date', 'timestamp'),
+       ('control_center', 'text'),
+       ('lmp_avg','numeric'),
+       ('lmp_avg','numeric'),
+       ('lmp_max','numeric'),
+       ('lmp_min','numeric'),
+       ('hour','numeric')
+    ])
+
 # how many rows can be stored in the Carto table before the oldest ones are deleted?
 MAX_ROWS = 1000000
 
@@ -204,12 +217,15 @@ def db_mkr(lis,db):
     tmp.columns = ['FECHA','ID_NODO','H1','H2','H3','H4','H5','H6','H7','H8','H9','H10','H11','H12','H13','H14','H15','H16','H17','H18','H19','H20','H21','H22','H23','H24']
     db = pd.concat([db,tmp]).drop_duplicates(subset=['FECHA','ID_NODO'], keep='last')
     db = pd.melt(db, id_vars=['FECHA','ID_NODO'], value_vars=['H1','H2','H3','H4','H5','H6','H7','H8','H9','H10','H11','H12','H13','H14','H15','H16','H17','H18','H19','H20','H21','H22','H23','H24'], var_name = 'HOUR')
+    db['HOUR'] = db['HOUR'].apply(lambda x: x.replace('H', ''))
+    db['HOUR'] = pd.to_timedelta(db['HOUR'].astype('int64'),'h')
     db['value'] = db['value'].astype('float64')
-    db = db.groupby(['ID_NODO','FECHA']).agg({'value': np.mean}).reset_index()    
-    db['FECHA'] = pd.to_datetime(db['FECHA'], format="%Y-%m-%d")
+    db['FECHA'] = pd.to_datetime(db['FECHA'], format="%Y-%m-%d %H:%M:%S")
+    db['FECHA'] = db['FECHA']+ db['HOUR']
+    db.drop(columns =['HOUR'],inplace = True)
     db = db.reset_index(drop=True)
+    
     return db
-
 #This function performs the call to cenace api and process data
 def fetcher_nodes(yesterday, last_week, last_month, last_year):
     lis_pml = []
@@ -222,10 +238,6 @@ def fetcher_nodes(yesterday, last_week, last_month, last_year):
     db_ene = pd.DataFrame(columns = ['FECHA','ID_NODO','H1','H2','H3','H4','H5','H6','H7','H8','H9','H10','H11','H12','H13','H14','H15','H16','H17','H18','H19','H20','H21','H22','H23','H24'])
     db_per = pd.DataFrame(columns = ['FECHA','ID_NODO','H1','H2','H3','H4','H5','H6','H7','H8','H9','H10','H11','H12','H13','H14','H15','H16','H17','H18','H19','H20','H21','H22','H23','H24'])
     db_cng = pd.DataFrame(columns = ['FECHA','ID_NODO','H1','H2','H3','H4','H5','H6','H7','H8','H9','H10','H11','H12','H13','H14','H15','H16','H17','H18','H19','H20','H21','H22','H23','H24'])
-    #dinicio = date(2020,12,16) ##Use this function the first time to update the table
-    #dfin = date.today() ###to current date
-    #dinicio = (get_most_recent_date(CARTO_NODES_PML_TABLE) +timedelta(days=1)).date()
-    #dfin =  dinicio + timedelta(days=6)
     print('Downloading information for dates {} - {} \n'.format(yesterday,yesterday))
     links=PMLs_URL(df,yesterday.strftime("%Y/%m/%d"),yesterday.strftime("%Y/%m/%d"))
     print('Downloading information for dates {} - {} \n'.format(last_week,last_week))
@@ -320,25 +332,91 @@ def fetcher_nodes(yesterday, last_week, last_month, last_year):
     merged_nodes = pd.merge(merged_tmp, df, left_on =['ID_NODO'], right_on =['node_id'], how='right')    
     merged_nodes.drop('ID_NODO', axis=1, inplace=True)
     merged_nodes.rename(columns={'FECHA':'entry_date'}, inplace=True)    
-    merged_nodes = merged_nodes.sort_values(['node_id', 'entry_date'], ascending=[True, True]).reset_index(drop=True)
-    # Group on keys and call `pct_change` inside `apply`.
-    merged_nodes['last_week_pct_change'] = merged_nodes.groupby('node_id', sort=False)['pml'].apply(lambda x: x.pct_change()).to_numpy()
-    merged_nodes['last_month_pct_change'] = merged_nodes.groupby('node_id', sort=False)['pml'].apply(lambda x: x.pct_change(periods=2)).to_numpy()
-    merged_nodes['last_year_pct_change'] = merged_nodes.groupby('node_id', sort=False)['pml'].apply(lambda x: x.pct_change(periods=3)).to_numpy()
-    #Labeling PML ranges to simplify visualization on RW backoffice.
-    criteria = [merged_nodes['pml'].between(0, 49), merged_nodes['pml'].between(50, 249), merged_nodes['pml'].between(250,499),merged_nodes['pml'].between(500,749),merged_nodes['pml'].between(750,999), merged_nodes['pml'].between(1000,1499),merged_nodes['pml'].between(1500,1999),merged_nodes['pml'].between(2000, 2499),merged_nodes['pml'].between(2500, 2999),merged_nodes['pml'].between(3000, 3999),merged_nodes['pml'].between(4000,4999),merged_nodes['pml'].between(5000, 5999), merged_nodes['pml'].between(6000, 20000)]
-    values = ['<50','50-249','250-499','500-749','750-999','1000-1499','1500-1999','2000-2499','2500-2999','3000-3999','4000-4999','5000-5999','>6000']
-    merged_nodes['pml_label'] = np.select(criteria, values, 0)
-    merged_nodes['pml_label'] = merged_nodes['pml_label'].replace(['0',0],np.nan)
-    #Calculating whole system average per date and adding pct_change against node pml value.
-    system_avg = merged_nodes.groupby('entry_date').agg(pml_syst_avg=('pml', 'mean'))
-    merged_nodes = pd.merge(merged_nodes, system_avg, on='entry_date', how='left')
-    merged_nodes['pml_syst_pct_change'] = (merged_nodes.pml - merged_nodes.pml_syst_avg)/merged_nodes.pml_syst_avg * 100
+    merged_nodes = merged_nodes.reset_index(drop=True)
     
     return merged_nodes
+# This functions continues the processing of the nodes table
+def process_nodes(df):
+    # Convert timestamp to date
+    df['entry_date'] = df['entry_date'].dt.date
+    # Group by id of the nodes and entry_date to obtain the averages of
+    # pml,energy, losses and congestion columns while keeping the other columns
+    df = df.groupby(['node_id','entry_date'], as_index=False).agg({
+        'pml': 'mean', 'energy': 'mean', 'losses': 'mean', 'congestion': 'mean',
+        'node_name': 'first','system': 'first','control_center': 'first','load_zone': 'first',
+        'state_code': 'first','state': 'first', 'municipality_code': 'first','municipality': 'first',
+        'longitude': 'first', 'latitude': 'first'
+    })
+    # Sort values to allow further calculations 
+    df = df.sort_values(['node_id', 'entry_date'], ascending=[True, True]).reset_index(drop=True)
+    # Group on keys and call `pct_change` inside `apply`.
+    df['last_week_pct_change'] = df.groupby('node_id', sort=False)['pml'].apply(lambda x: x.pct_change()).to_numpy()
+    df['last_month_pct_change'] = df.groupby('node_id', sort=False)['pml'].apply(lambda x: x.pct_change(periods=2)).to_numpy()
+    df['last_year_pct_change'] = df.groupby('node_id', sort=False)['pml'].apply(lambda x: x.pct_change(periods=3)).to_numpy()
+    #Labeling PML ranges to simplify visualization on RW backoffice.
+    criteria = [df['pml'].between(0, 500),df['pml'].between(501, 1000), df['pml'].between(1001, 1500), df['pml'].between(1501, 2000), df['pml'].between(2001, 20000)] 
+    values = ['0-500','501-1000','1001-1500','1501-2000','>2000']
+    df['pml_label'] = np.select(criteria, values, 0)
+    df['pml_label'] = df['pml_label'].replace(['0',0],np.nan)
+    #Calculating whole system average per date and adding pct_change against node pml value.
+    system_avg = df.groupby('entry_date').agg(pml_syst_avg=('pml', 'mean'))
+    df = pd.merge(df, system_avg, on='entry_date', how='left')
+    df['pml_syst_pct_change'] = (df.pml - df.pml_syst_avg)/df.pml_syst_avg * 100
+    # filter dataframe to store only latest day   
+    df = df.loc[df['entry_date'] == yesterday].reset_index(drop=True)
+    # Convert entry_date values to timestamp
+    df['entry_date'] = df['entry_date'].apply(lambda x: pd.Timestamp(x))
+    return df
+'''
+The following functions perform the processing for
+the regional control centers
+'''
 
-#The following functions perform the scraping process at the load zone dissagregation level
-
+def process_control_centers(df):
+    '''
+    Process nodes dataframe to obtain table 
+    showing regional control centers hourly lmp values
+    
+    INPUT   df: nodes dataframe 
+    '''
+    logging.info('Processing control centers')
+    # If there are new entries in nodes lmp table
+    if len(df)>0:
+        # Delete content of previous day
+        cartosql.deleteRows(CARTO_CENTERS_DASH_PML_TABLE, 'cartodb_id IS NOT NULL', user=CARTO_USER, key=CARTO_KEY)
+    # Group by control center and entry date, then create columns for average, max and min pml values
+    df = df.groupby(['control_center','entry_date'])['pml'].agg(lmp_avg='mean', lmp_max='max',lmp_min='min').reset_index()
+    # Create column to store hour from entry_date
+    df['hour']= df['entry_date'].dt.hour
+    # Create date column storing only day information
+    df['date'] = df['entry_date'].dt.date
+    # filter dataframe to store only latest day 
+    df = df.loc[df['date'] == yesterday]
+    # Turn strings to title format
+    df['control_center'] = df.control_center.str.title()
+    # create a 'uid' column to store the index of rows as unique ids
+    df = df.reset_index(drop=True)
+    df['uid'] = df.index + 1
+     #Turn empty spaces and other characters to null
+    df = df.where(pd.notnull(df), None)
+    # reorder the columns in the dataframe based on the keys from the dictionary "CARTO_CENTERS_DASH_SCHEMA"
+    df = df[CARTO_CENTERS_DASH_SCHEMA.keys()]
+    if len(df):
+        # find the length of the data
+        num_new = len(df)
+        # create a list of new data
+        data = df.values.tolist()
+        # Updating carto table with lmp information
+        logging.info('Uploading regional control centers lmp info!')
+        # insert new data into the carto table
+        cartosql.blockInsertRows(CARTO_CENTERS_DASH_PML_TABLE, CARTO_CENTERS_DASH_SCHEMA.keys(), CARTO_CENTERS_DASH_SCHEMA.values(), data, user=CARTO_USER, key=CARTO_KEY)
+        logging.info('New rows: {}'.format(num_new))
+    return num_new
+        
+'''
+The following functions perform the scraping process 
+at the load zone dissagregation level
+'''
 #This function builds the urls to perform the api calls to download load zones information
 def load_zones_url(group_zona, dinicio,dfin):
     zones=group_zona['system'].unique()    
@@ -371,10 +449,6 @@ def fetcher_load(yesterday, last_week, last_month, last_year):
     auth=cartoframes.auth.Credentials(username=CARTO_USER, api_key=CARTO_KEY)
     df = cartoframes.read_carto('loc_mx_ene_load_zones', credentials=auth)
     db_ca=pd.DataFrame(columns = ['FECHA','SISTEMA','ZONA_CARGA','H1','H2','H3','H4','H5','H6','H7','H8','H9','H10','H11','H12','H13','H14','H15','H16','H17','H18','H19','H20','H21','H22','H23','H24'])
-    #dinicio = date(2021,1,1) ##Use this function the first time to update the table
-    #dfin = date(2021,1,7) ###to desired date
-    #dinicio = (get_most_recent_date(CARTO_LOAD_PML_TABLE) +timedelta(days=1)).date()
-    #dfin =  dinicio + timedelta(days=6)    
     print('Downloading information for dates {} - {} \n'.format(yesterday,yesterday))
     links=load_zones_url(df,yesterday.strftime("%Y/%m/%d"),yesterday.strftime("%Y/%m/%d"))
     print('Downloading information for dates {} - {} \n'.format(last_week,last_week))
@@ -486,7 +560,6 @@ def deleteExcessRows(table, max_rows, time_field):
 
     return(num_dropped)
 
-
 def main():
     # Check if table exists, create it if it does not
     logging.info('Checking if nodes_pml table exists and getting existing IDs.')
@@ -494,13 +567,20 @@ def main():
     # Fetch, process, and upload new data
     logging.info('Fetching nodes pml info from cenace api!')
     new_nodes_pml = fetcher_nodes(yesterday, last_week, last_month, last_year)
-    #Updating carto table with pml information
+    processed_nodes = process_nodes(new_nodes_pml)
+    # Updating carto table with pml information
     logging.info('Uploading pml info!')
-    num_new = upload_data(new_nodes_pml, nodes_pml_existing_ids,CARTO_NODES_DASH_PML_TABLE, CARTO_NODES_DASH_SCHEMA)
+    num_new = upload_data(processed_nodes, nodes_pml_existing_ids,CARTO_NODES_DASH_PML_TABLE, CARTO_NODES_DASH_SCHEMA)
     logging.info('Previous rows: {},  New rows: {}'.format(len(nodes_pml_existing_ids), num_new))
-     # Delete data to get back to MAX_ROWS
+    # Delete data to get back to MAX_ROWS
     logging.info('Delete Nodes pml excess Rows!')
     num_deleted = deleteExcessRows(CARTO_NODES_DASH_PML_TABLE, MAX_ROWS, TIME_FIELD)
+    logging.info('Success!')
+    # Check if table exists, create it if it does not
+    logging.info('Checking if regional control centers table exists and getting existing IDs.')
+    control_centers_existing_ids = checkCreateTable(CARTO_CENTERS_DASH_PML_TABLE, CARTO_CENTERS_DASH_SCHEMA, UID_FIELD, TIME_FIELD)
+    # Process, and upload new control centers data
+    regional_centers = process_control_centers(new_nodes_pml)
     logging.info('Success!')
     # Check if table exists, create it if it does not
     logging.info('Checking if zones_pml table exists and getting existing IDs.')
@@ -508,7 +588,7 @@ def main():
     # Fetch, process, and upload new data
     logging.info('Fetching zones pml info from cenace api!')
     new_zones_pml = fetcher_load(yesterday, last_week, last_month, last_year)
-    #Updating carto table with pml information
+    #Updating load zones table 
     logging.info('Uploading zones pml info!')
     num_new = upload_data(new_zones_pml, zones_pml_existing_ids,CARTO_LOAD_DASH_PML_TABLE, CARTO_LOAD_DASH_SCHEMA)
     logging.info('Previous rows: {},  New rows: {}'.format(len(zones_pml_existing_ids), num_new))
