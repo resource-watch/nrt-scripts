@@ -386,8 +386,6 @@ def process_control_centers(df):
         cartosql.deleteRows(CARTO_CENTERS_DASH_PML_TABLE, 'cartodb_id IS NOT NULL', user=CARTO_USER, key=CARTO_KEY)
     # Group by control center and entry date, then create columns for average, max and min pml values
     df = df.groupby(['control_center','entry_date'])['pml'].agg(lmp_avg='mean', lmp_max='max',lmp_min='min').reset_index()
-    # Convert entry_date to datetime
-    df['entry_date'] = pd.to_datetime(df['entry_date'], format="%Y-%m-%d %H:%M:%S")
     # Create column to store hour from entry_date
     df['hour']= df['entry_date'].dt.hour
     # Create date column storing only day information
@@ -566,35 +564,38 @@ def main():
     # Check if table exists, create it if it does not
     logging.info('Checking if nodes_pml table exists and getting existing IDs.')
     nodes_pml_existing_ids = checkCreateTable(CARTO_NODES_DASH_PML_TABLE, CARTO_NODES_DASH_SCHEMA, UID_FIELD, TIME_FIELD)
-    # Fetch, process, and upload new data
-    logging.info('Fetching nodes pml info from cenace api!')
+    # Fetch new nodes data
+    logging.info('Fetching nodes lmp info from cenace api!')
     new_nodes_pml = fetcher_nodes(yesterday, last_week, last_month, last_year)
+    # Make a copy to avoid altering datetime values
+    new_nodes_pml_copy = new_nodes_pml.copy()
+    # Process and upload nodes table
     processed_nodes = process_nodes(new_nodes_pml)
-    # Updating carto table with pml information
-    logging.info('Uploading pml info!')
+    # Updating carto table with lmp information
+    logging.info('Uploading lmp info!')
     num_new = upload_data(processed_nodes, nodes_pml_existing_ids,CARTO_NODES_DASH_PML_TABLE, CARTO_NODES_DASH_SCHEMA)
     logging.info('Previous rows: {},  New rows: {}'.format(len(nodes_pml_existing_ids), num_new))
     # Delete data to get back to MAX_ROWS
-    logging.info('Delete Nodes pml excess Rows!')
+    logging.info('Delete Nodes lmp excess Rows!')
     num_deleted = deleteExcessRows(CARTO_NODES_DASH_PML_TABLE, MAX_ROWS, TIME_FIELD)
     logging.info('Success!')
     # Check if table exists, create it if it does not
     logging.info('Checking if regional control centers table exists and getting existing IDs.')
     control_centers_existing_ids = checkCreateTable(CARTO_CENTERS_DASH_PML_TABLE, CARTO_CENTERS_DASH_SCHEMA, UID_FIELD, TIME_FIELD)
     # Process, and upload new control centers data
-    regional_centers = process_control_centers(new_nodes_pml)
+    regional_centers = process_control_centers(new_nodes_pml_copy)
     logging.info('Success!')
     # Check if table exists, create it if it does not
     logging.info('Checking if zones_pml table exists and getting existing IDs.')
     zones_pml_existing_ids = checkCreateTable(CARTO_LOAD_DASH_PML_TABLE, CARTO_LOAD_DASH_SCHEMA, UID_FIELD, TIME_FIELD)
     # Fetch, process, and upload new data
-    logging.info('Fetching zones pml info from cenace api!')
+    logging.info('Fetching zones lmp info from cenace api!')
     new_zones_pml = fetcher_load(yesterday, last_week, last_month, last_year)
     #Updating load zones table 
-    logging.info('Uploading zones pml info!')
+    logging.info('Uploading zones lmp info!')
     num_new = upload_data(new_zones_pml, zones_pml_existing_ids,CARTO_LOAD_DASH_PML_TABLE, CARTO_LOAD_DASH_SCHEMA)
     logging.info('Previous rows: {},  New rows: {}'.format(len(zones_pml_existing_ids), num_new))
     # Delete data to get back to MAX_ROWS
-    logging.info('Delete load pml excess Rows!')
+    logging.info('Delete load lmp excess Rows!')
     num_deleted = deleteExcessRows(CARTO_LOAD_DASH_PML_TABLE, MAX_ROWS, TIME_FIELD)
     logging.info("SUCCESS")
