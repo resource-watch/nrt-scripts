@@ -83,10 +83,10 @@ MAXROWS = 1000000
 DATE_FORMAT = '%Y-%m-%d'
 
 # url for UCDP Georeferenced Event Dataset data
-HISTORY_URL = 'http://ucdpapi.pcr.uu.se/api/gedevents/20.1?pagesize=1000&page={page}'
+HISTORY_URL = 'http://ucdpapi.pcr.uu.se/api/gedevents/20.1?pagesize=1000&page={{{page}}}'
 
 # url for UCDP Georeferenced Event Dataset data formatted for a specific start date
-LATEST_URL = 'http://ucdpapi.pcr.uu.se/api/gedevents/20.1?pagesize=1000&page={page}&StartDate={start_date}'
+LATEST_URL = 'http://ucdpapi.pcr.uu.se/api/gedevents/20.1?pagesize=1000&page={{{page}}}\&StartDate={{{start_date}}}'
 
 # Do we want to get historical data?
 PROCESS_HISTORY = False
