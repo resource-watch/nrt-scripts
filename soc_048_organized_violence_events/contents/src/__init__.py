@@ -4,13 +4,21 @@ import sys
 from collections import OrderedDict
 import datetime
 import cartosql
+import json
 import requests
+import LMIPy as lmi
+
+import dotenv
+dotenv.load_dotenv('C:\\Users\\yujing.wu\\OneDrive - World Resources Institute\\Documents\\Github\\cred\\.env')
 
 # do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = False
 
 # name of data directory in Docker container
 DATA_DIR = 'data'
+
+# pull in RW API key for updating and adding new layers
+API_TOKEN = os.getenv('RW_API_KEY')
 
 # Carto username and API key for account where we will store the data
 CARTO_USER = os.getenv('CARTO_USER')
@@ -365,6 +373,51 @@ def get_most_recent_date(table):
     most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
     return most_recent_date
 
+def update_default_layer(ds_id, default_year):
+    '''
+    Given a Resource Watch dataset's API ID and the year we want to set as the default layer, this function will 
+    update the default layer on Resource Watch
+    INPUT   ds_id: Resource Watch API dataset ID (string)
+            default_year: year to be used as default layer on Resource Watch (integer)
+    '''
+    # pull the dataset we want to update
+    dataset = lmi.Dataset(ds_id)
+    for layer in dataset.layers:
+        # check which year the current layer is for
+        year = layer.attributes['name'][:4]
+        # check if this is currently the default layer
+        default = layer.attributes['default']
+        # if it is the year we want to set as default, and it is not already set as default,
+        # update the 'default' parameter to True
+        if year == str(default_year) and default==False:
+            payload = {
+                'default': True}
+            # update the layer on the API
+            layer = layer.update(update_params=payload, token=API_TOKEN)
+            print(f'default layer updated to {year}')
+        # if this layer should no longer be the default layer, but it was previously,
+        # make sure the 'default' parameter is False
+        elif year != str(default_year) and default==True:
+            payload = {
+                'default': False}
+            # update the layer on the API
+            layer = layer.update(update_params=payload, token=API_TOKEN)
+            print(f'{year} is no longer default layer')
+
+def pull_layers_from_API(dataset_id):
+    '''
+    Pull dictionary of current layers from API
+    INPUT   dataset_id: Resource Watch API dataset ID (string)
+    RETURN  layer_dict: dictionary of layers (dictionary of strings)
+    '''
+    # generate url to access layer configs for this dataset in back office
+    rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer?page[size]=100'.format(dataset_id)
+    # request data
+    r = requests.get(rw_api_url)
+    # convert response into json and make dictionary of layers
+    layer_dict = json.loads(r.content.decode('utf-8'))['data']
+    return layer_dict
+
 def updateResourceWatch(num_new):
     '''
     This function should update Resource Watch to reflect the new data.
@@ -372,10 +425,93 @@ def updateResourceWatch(num_new):
     INPUT   num_new: number of new rows in Carto table (integer)
     '''
     # If there are new entries in the Carto table
-    if num_new>0:
+    if num_new > 0 :
         # Update dataset's last update date on Resource Watch
         most_recent_date = get_most_recent_date(CARTO_TABLE)
         lastUpdateDate(DATASET_ID, most_recent_date)
+
+        # Create a new layer once a new year of data is uploaded to Carto 
+        most_recent_year = most_recent_date.year
+        # pull dictionary of current layers from API
+        layer_dict = pull_layers_from_API(DATASET_ID)
+        # extract the years we currently have in the layers 
+        current_years = [layer['attributes']['name'][:4] for layer in layer_dict]
+        # sort the years 
+        current_years.sort()
+        # find the most recent year among the layers 
+        most_recent_ly = current_years[-1]
+        # if the most recent year in the updated Carto table is larger than the most recent year among the layers 
+        if most_recent_year > int(most_recent_ly):
+            # pull the dataset we want to update
+            dataset = lmi.Dataset(DATASET_ID)
+            # pull out its first layer to use as a template to create new layers
+            layer_to_clone = dataset.layers[0]
+
+            # get attributes that might need to change:
+            name = layer_to_clone.attributes['name']
+            description = layer_to_clone.attributes['description']
+            appConfig = layer_to_clone.attributes['layerConfig']
+            sql = appConfig['body']['layers'][0]['options']['sql']
+            order = str(appConfig['order'])
+            timeLineLabel = appConfig['timelineLabel']
+            interactionConfig = layer_to_clone.attributes['interactionConfig']
+
+            # pull out the year from the example layer's name - we will use this to find all instances of the year within our
+            # example layer so that we can replace it with the correct year in the new layers
+            replace_string = name[:4]
+
+            # replace year in example layer with {}
+            name_convention = name.replace(replace_string, '{}')
+            description_convention = description.replace(replace_string, '{}')
+            sql_convention = sql.replace(replace_string, '{}')
+            order_convention = order.replace(replace_string, '{}')
+            timeLineLabel_convention = timeLineLabel.replace(replace_string, '{}')
+            for i, dictionary in enumerate(interactionConfig.get('output')):
+                for key, value in dictionary.items():
+                    if value != None:
+                        if replace_string in value:
+                            interactionConfig.get('output')[i][key] = value.replace(replace_string, '{}')
+
+            # generate the layer attributes with the correct year
+            new_layer_name = name_convention.replace('{}', str(most_recent_year))
+            new_description = description_convention.replace('{}', str(most_recent_year))
+            new_sql = sql_convention.replace('{}', str(most_recent_year))
+            new_timeline_label = timeLineLabel_convention.replace('{}', str(most_recent_year))
+            new_order = int(order_convention.replace('{}', str(most_recent_year)))
+
+            # Clone the example layer to make a new layer
+            clone_attributes = {
+                'name': new_layer_name,
+                'description': new_description
+            }
+            new_layer = layer_to_clone.clone(token=API_TOKEN, env='production', layer_params=clone_attributes,
+                                         target_dataset_id=DATASET_ID)
+
+            # Replace layerConfig with new values
+            appConfig = new_layer.attributes['layerConfig']
+            appConfig['body']['layers'][0]['options']['sql'] = new_sql
+            appConfig['order'] = new_order
+            appConfig['timelineLabel'] = new_timeline_label
+            payload = {
+                'layerConfig': {
+                    **appConfig
+                }
+            }
+            new_layer = new_layer.update(update_params=payload, token=API_TOKEN)
+
+            # Replace interaction config with new values
+            interactionConfig = new_layer.attributes['interactionConfig']
+            for i, element in enumerate(interactionConfig['output']):
+                if '{}' in element.get('property'):
+                    interactionConfig['output'][i]['property'] = interactionConfig['output'][i]['property'].replace(
+                        '{}', str(most_recent_year))
+            payload = {
+                'interactionConfig': {
+                    **interactionConfig
+                }
+            }
+            new_layer = new_layer.update(update_params=payload, token=API_TOKEN)
+        update_default_layer(DATASET_ID, most_recent_year)
 
     # Update the dates on layer legends - TO BE ADDED IN FUTURE
 
@@ -399,12 +535,12 @@ def main():
     existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, TIME_FIELD)
 
     # Fetch, process, and upload new data
-    new_count = processNewData(existing_ids)
+    #new_count = processNewData(existing_ids)
 
     # Remove old observations
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD)
 
     # Update Resource Watch
-    updateResourceWatch(new_count)
+    updateResourceWatch(1)
 
     logging.info('SUCCESS')
