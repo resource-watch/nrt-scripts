@@ -203,7 +203,7 @@ def fetch_ids(existing_ids_int):
     # pull current csv containing WDPA IDs
     # note: IDs are pulled from this csv and not the API because querying the API is very slow, so it is much faster
     # to get a list of all the IDS from this csv
-    filename_csv = 'WDPA_WDOECM_wdpa_csv'
+    filename_csv = 'WDPA_Apr2021_Public_csv'
     url_csv = f'http://d1gam3xoknrgr2.cloudfront.net/current/{filename_csv}.zip'
     urllib.request.urlretrieve(url_csv, DATA_DIR + '/' + filename_csv + '.zip')
 
@@ -386,11 +386,33 @@ def processData(existing_ids):
 
                 # push new data rows to Carto
                 logging.info('Adding {} new records.'.format(num_new))
+
                 # Carto does not accept Nans for numeric columns; convert them to None 
                 for row in new_data: 
                     row = [None if x is np.nan else x for x in row]
-                    cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), [row], user=CARTO_USER, key=CARTO_KEY)
+                    
+                    insert_exception = None
+                    # maximum attempts to make
+                    n_tries = 5
+                    # sleep time between each attempt   
+                    retry_wait_time = 6
 
+                    for i in range(n_tries):
+                        try:        
+                            cartosql.blockInsertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), [row], user=CARTO_USER, key=CARTO_KEY)
+                        except Exception as e: # if there's an exception do this
+                            insert_exception = e
+                            logging.warning('Attempt #{} to upload unsuccessful. Trying again after {} seconds'.format(i, retry_wait_time))
+                            logging.debug('Exception encountered during upload attempt: '+ str(e))
+                            time.sleep(retry_wait_time)
+                        else: # if no exception do this
+                            break # break this for loop, because we don't need to try again
+                    else:
+                        # this happens if the for loop completes, ie if it attempts to insert row n_tries times
+                        logging.error('Upload of row has failed after {} attempts'.format(n_tries))
+                        logging.error('Raising exception encountered during last upload attempt')
+                        logging.error(insert_exception)
+                        raise insert_exception
                 # start with empty lists again to process the next batch of data
                 new_data = []
                 send_list = []
