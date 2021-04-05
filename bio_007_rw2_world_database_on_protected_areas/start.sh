@@ -4,7 +4,7 @@ LOG=${LOG:-udp://localhost}
 
 docker build -t $NAME --no-cache --build-arg NAME=$NAME .
 docker run \
-    -m 1700m \
+    -m 1500m \
     --log-driver=syslog \
     --log-opt syslog-address=$LOG \
     --log-opt tag=$NAME \
