@@ -354,10 +354,10 @@ def processData(existing_ids):
     # the index of the first row we want to import from the geodatabase
     start = 0
     # the number of rows we want to fetch and process each time 
-    step = 80000
+    step = 5000
     # create an empty list to store all the wdpa_pids 
     all_ids = []
-    for i in range(0, 100):
+    for i in range(0, 1000):
         # import a slice of the geopandas dataframe 
         gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(start, start + step))
         # get rid of the \r\n in the wdpa_pid column 
