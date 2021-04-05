@@ -5,8 +5,7 @@ from collections import OrderedDict
 import cartosql
 import requests
 import datetime
-import copy
-import multiprocessing
+from concurrent.futures import ThreadPoolExecutor
 import time
 import numpy as np
 import urllib
@@ -25,6 +24,9 @@ DATA_DIR = 'data'
 # Carto username and API key for account where we will store the data
 CARTO_USER = os.getenv('CARTO_USER')
 CARTO_KEY = os.getenv('CARTO_KEY')
+
+# initiate a request session
+session = requests.Session()
 
 # name of table in Carto where we will upload the data
 CARTO_TABLE = 'bio_007_rw2_world_database_on_protected_areas'
@@ -253,11 +255,10 @@ def convert_geometry(geom):
     else:
         return geom.__geo_interface__
 
-def update_carto(row, session):
+def update_carto(row):
     '''
     Function to update existing rows in the Carto table 
-    INPUT   gdf: the geopandas dataframe of data we want to update the existing rows with (geopandas dataframe)
-            session: the request session used to post requests to Carto 
+    INPUT   gdf: the geopandas dataframe of data we want to update the existing rows with (geopandas dataframe) 
     '''
     # replace all null values with None
     row = row.where(row.notnull(), None)
@@ -298,11 +299,10 @@ def update_carto(row, session):
         logging.error(update_exception)
         raise update_exception
         
-def upload_to_carto(row, session):
+def upload_to_carto(row):
     '''
     Function to upload data to the Carto table 
     INPUT   row: the geopandas dataframe of data we want to upload (geopandas dataframe)
-            session: the request session initiated to send requests to Carto 
     '''
     # replace all null values with None
     row = row.where(row.notnull(), None)
@@ -354,9 +354,7 @@ def processData(existing_ids):
     # the index of the first row we want to import from the geodatabase
     start = 0
     # the number of rows we want to fetch and process each time 
-    step = 10000
-    # number of cores used in multiprocessing
-    #NUM_CORES = 5
+    step = 80000
     # create an empty list to store all the wdpa_pids 
     all_ids = []
     for i in range(0, 100):
@@ -371,24 +369,24 @@ def processData(existing_ids):
         # add the ids to the list 
         all_ids.extend(gdf['WDPA_PID'])
         logging.info('Process {} rows starting from the {}th row as a geopandas dataframe.'.format(step, start))
-        s = requests.Session()
         # subset the dataframe to isolate rows that are already in the table and those not 
-        gdf_new = gdf[gdf['WDPA_PID'].isin(existing_ids) == False].copy()
-        gdf_ori = gdf[gdf['WDPA_PID'].isin(existing_ids)].copy()
+        gdf_new = gdf[gdf['WDPA_PID'].isin(existing_ids) == False]
+        gdf_ori = gdf[gdf['WDPA_PID'].isin(existing_ids)]
         
-        #multiprocessing.set_start_method('spawn')
         # if there is new data 
         if gdf_new.shape[0] > 0:
-            """ with multiprocessing.Pool(NUM_CORES) as pool:
-                pool.map(upload_to_carto, np.array_split(gdf_new, NUM_CORES)) """
-            gdf_new.apply(upload_to_carto, args=(s,), axis = 1)
+            #gdf_new.apply(upload_to_carto, args=(s,), axis = 1)
+            with ThreadPoolExecutor(max_workers=12) as executor:
+                for index, row in gdf_new.iterrows():
+                    executor.submit(upload_to_carto, row)
             logging.info('{} rows of new records added!'.format(gdf_new.shape[0]))
 
         # if there is data that is already stored in the table 
         if gdf_ori.shape[0] > 0:
-            """ with multiprocessing.Pool(NUM_CORES) as pool:
-                pool.map(update_carto, np.array_split(gdf_ori, NUM_CORES)) """
-            gdf_ori.apply(update_carto, args=(s,), axis = 1)
+            #gdf_ori.apply(update_carto, args=(s,), axis = 1)
+            with ThreadPoolExecutor(max_workers=12) as executor:
+                for index, row in gdf_ori.iterrows():
+                    executor.submit(update_carto, row)
             logging.info('{} rows of existing records updated!'.format(gdf_ori.shape[0]))
         
         # if the number of rows is equal to the size of the slice 
