@@ -354,7 +354,7 @@ def processData(existing_ids):
     # the index of the first row we want to import from the geodatabase
     start = 0
     # the number of rows we want to fetch and process each time 
-    step = 5000
+    step = 10000
     # create an empty list to store all the wdpa_pids 
     all_ids = []
     for i in range(0, 1000):
@@ -376,7 +376,7 @@ def processData(existing_ids):
         # if there is new data 
         if gdf_new.shape[0] > 0:
             #gdf_new.apply(upload_to_carto, args=(s,), axis = 1)
-            with ThreadPoolExecutor(max_workers=12) as executor:
+            with ThreadPoolExecutor(max_workers=10) as executor:
                 for index, row in gdf_new.iterrows():
                     executor.submit(upload_to_carto, row)
             logging.info('{} rows of new records added!'.format(gdf_new.shape[0]))
