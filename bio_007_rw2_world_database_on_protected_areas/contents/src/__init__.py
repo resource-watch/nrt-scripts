@@ -384,8 +384,8 @@ def processData(existing_ids):
         # if there is data that is already stored in the table 
         if gdf_ori.shape[0] > 0:
             #gdf_ori.apply(update_carto, args=(s,), axis = 1)
-            with ThreadPoolExecutor(max_workers=10) as executor:
-                for row, index in gdf_ori.iterrows():
+            with ThreadPoolExecutor(max_workers=12) as executor:
+                for index, row in gdf_ori.iterrows():
                     executor.submit(update_carto, row)
             logging.info('{} rows of existing records updated!'.format(gdf_ori.shape[0]))
         
