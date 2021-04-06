@@ -359,7 +359,7 @@ def processData(existing_ids):
     end = None
     # create an empty list to store all the wdpa_pids 
     all_ids = []
-    for i in range(0, 1000):
+    for i in range(0, 10000):
         # import a slice of the geopandas dataframe 
         gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(start, end))
         # get rid of the \r\n in the wdpa_pid column 
