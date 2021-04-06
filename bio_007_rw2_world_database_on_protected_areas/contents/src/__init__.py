@@ -365,7 +365,6 @@ def processData(existing_ids):
         # create a new column to store the status_yr column as timestamps
         gdf.insert(19, "legal_status_updated_at", [None if x == 0 else datetime.datetime(x, 1, 1) for x in gdf['STATUS_YR']])
         gdf["legal_status_updated_at"] = gdf["legal_status_updated_at"].astype(object)
-        logging.info(gdf.columns)
         # add the ids to the list 
         all_ids.extend(gdf['WDPA_PID'])
         logging.info('Process {} rows starting from the {}th row as a geopandas dataframe.'.format(step, start))
