@@ -352,14 +352,16 @@ def processData(existing_ids):
     # fetch the path to the unzipped geodatabase folder
     gdb = fetch_data()
     # the index of the first row we want to import from the geodatabase
-    start = 0
+    start = -200
     # the number of rows we want to fetch and process each time 
     step = 200
+    # the row after the last one we want to fetch and process
+    end = None
     # create an empty list to store all the wdpa_pids 
     all_ids = []
     for i in range(0, 1000):
         # import a slice of the geopandas dataframe 
-        gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(start, start + step))
+        gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(start, end))
         # get rid of the \r\n in the wdpa_pid column 
         gdf['WDPA_PID'] = [x.split('\r\n')[0] for x in gdf['WDPA_PID']]
         # create a new column to store the status_yr column as timestamps
@@ -391,7 +393,8 @@ def processData(existing_ids):
         # if the number of rows is equal to the size of the slice 
         if gdf.shape[0] == step:
             # move to the next slice
-            start += step
+            end = start 
+            start -= step
         else:
             # we've processed the whole dataframe 
             break
