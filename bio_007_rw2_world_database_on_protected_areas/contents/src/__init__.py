@@ -395,6 +395,10 @@ def processData(existing_ids):
             # move to the next slice
             end = start 
             start -= step
+
+        elif gdf.shape[0] == 0:
+            # the last slice 
+            start = 0
         else:
             # we've processed the whole dataframe 
             break
