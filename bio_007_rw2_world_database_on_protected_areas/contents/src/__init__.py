@@ -351,6 +351,8 @@ def processData(existing_ids):
     '''
     # fetch the path to the unzipped geodatabase folder
     gdb = fetch_data()
+    # whether we have reached the last slice 
+    last_slice = False
     # the index of the first row we want to import from the geodatabase
     start = -200
     # the number of rows we want to fetch and process each time 
@@ -395,6 +397,11 @@ def processData(existing_ids):
             # move to the next slice
             end = start 
             start -= step
+
+        elif gdf.shape[0] == 0 and last_slice == False:
+            # the last slice 
+            start = 0
+            last_slice = True
         else:
             # we've processed the whole dataframe 
             break
