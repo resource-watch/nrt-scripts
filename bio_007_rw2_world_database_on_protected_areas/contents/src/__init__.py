@@ -405,6 +405,7 @@ def processData(existing_ids):
     # if there is any 
     if len(id_remove) > 0:
         # remove them from the carto table 
+        logging.info('Remove old ids that are no longer in the dataset.')
         delete_carto_entries(id_remove, UID_FIELD)
 
     return(all_ids)
