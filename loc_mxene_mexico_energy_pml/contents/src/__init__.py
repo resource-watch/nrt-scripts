@@ -104,7 +104,15 @@ last_week = yesterday + relativedelta(weekday=day_of_week(-2))
 last_month = yesterday - relativedelta(months=1, weekday=day_of_week)
 last_year = yesterday - relativedelta(years=1, weekday=day_of_week)
 
-#DATASET_ID =
+# Resource Watch dataset API ID
+# Important! Before testing this script:
+# Please change these IDs OR comment out the getLayerIDs(DATASET_ID) function in the script below
+# Failing to do so will overwrite the last update date on a different dataset on Resource Watch
+DATASET_IDS = {
+    'nodes':'d1e84d97-c312-4da6-8823-1659bb4f71a8',
+    'load_zones':'c36ade9f-b2e9-4ef2-ad9a-3bf726a8075e'
+}
+
 '''
 FUNCTIONS FOR ALL DATASETS
 The functions below must go in every near real-time script.
@@ -560,6 +568,105 @@ def deleteExcessRows(table, max_rows, time_field):
 
     return(num_dropped)
 
+def create_headers():
+    '''
+    Create headers to perform authorized actions on API
+    '''
+    return {
+        'Content-Type': "application/json",
+        'Authorization': "{}".format(os.getenv('apiToken')),
+    }
+
+def pull_layers_from_API(dataset_id):
+    '''
+    Pull dictionary of current layers from API
+    INPUT   dataset_id: Resource Watch API dataset ID (string)
+    RETURN  layer_dict: dictionary of layers (dictionary of strings)
+    '''
+    # generate url to access layer configs for this dataset in back office
+    rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer?page[size]=100'.format(dataset_id)
+    # request data
+    r = requests.get(rw_api_url)
+    try_num = 1
+    while try_num <= 3:
+        try: 
+            # convert response into json and make dictionary of layers
+            layer_dict = json.loads(r.content.decode('utf-8'))['data']
+            break
+        except:
+            logging.info("Failed to fetch layers. Trying again after 30 seconds.")
+            time.sleep(30)
+            try_num += 1
+    return layer_dict
+
+def update_layer(layer, last_date):
+    '''
+    Update layers in Resource Watch back office.
+    INPUT   layer: layer that will be updated (string)
+            yesterday: date of last update
+            
+    '''
+    # get current layer name
+    lyr_name = layer['attributes']['name']
+  
+    # get current date being used from description by string manupulation
+    old_date =lyr_name.split(' Mexico')[0]
+    old_date = old_date.replace(",", "")
+
+    # change to layer name text of date
+    old_date_dt = datetime.strptime(old_date, "%B %d %Y")
+    old_date_text = datetime.strftime(old_date_dt, "%B %-d, %Y")
+
+    # get text for new date
+    new_date_text = datetime.strftime(last_date, "%B %-d, %Y")
+
+    # replace date in layer's title with new date
+    layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
+
+    # send patch to API to replace layers
+    # generate url to patch layer
+    rw_api_url_layer = "https://api.resourcewatch.org/v1/dataset/{dataset_id}/layer/{layer_id}".format(
+        dataset_id=layer['attributes']['dataset'], layer_id=layer['id'])
+    # create payload with new title and layer configuration
+    payload = {
+        'application': ['rw'],
+        'layerConfig': layer['attributes']['layerConfig'],
+        'name': layer['attributes']['name'],
+        'interactionConfig': layer['attributes']['interactionConfig']
+    }
+    # patch API with updates
+    r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
+    # check response
+    # if we get a 200, the layers have been replaced
+    # if we get a 504 (gateway timeout) - the layers are still being replaced, but it worked
+    if r.ok or r.status_code==504:
+        logging.info('Layer replaced: {}'.format(layer['id']))
+    else:
+        logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
+        
+def updateResourceWatch(num_new, yesterday):
+    '''
+    This function should update Resource Watch to reflect the new data.
+    This may include updating the 'last update date' and updating any dates on layers
+    INPUT   new_ids: new IDs added to Carto table (list)
+    '''
+    # If there are new entries in the Carto table
+    if len(num_new)>0:
+        # get date of today
+        new_date = date.today()
+        logging.info('Updating Resource Watch Layers')
+        for var, ds_id in DATASET_IDS.items():
+            # Update the dates on layer legends
+            logging.info('Updating {}'.format(var))
+            # pull dictionary of current layers from API
+            layer_dict = pull_layers_from_API(ds_id)
+            # go through each layer, pull the definition and update
+            for layer in layer_dict:
+                # replace layer title with new dates
+                update_layer(layer, yesterday)
+            # Update dataset's last update date on Resource Watch
+            lastUpdateDate(ds_id, new_date)
+
 def main():
     # Check if table exists, create it if it does not
     logging.info('Checking if nodes_pml table exists and getting existing IDs.')
@@ -582,7 +689,7 @@ def main():
     # Check if table exists, create it if it does not
     logging.info('Checking if regional control centers table exists and getting existing IDs.')
     control_centers_existing_ids = checkCreateTable(CARTO_CENTERS_DASH_PML_TABLE, CARTO_CENTERS_DASH_SCHEMA, UID_FIELD, TIME_FIELD)
-    # Process, and upload new control centers data
+    # Process, and upload new control centers data 
     regional_centers = process_control_centers(new_nodes_pml_copy)
     logging.info('Success!')
     # Check if table exists, create it if it does not
@@ -599,3 +706,5 @@ def main():
     logging.info('Delete load lmp excess Rows!')
     num_deleted = deleteExcessRows(CARTO_LOAD_DASH_PML_TABLE, MAX_ROWS, TIME_FIELD)
     logging.info("SUCCESS")
+    # Update layers in Resource Watch back office
+    updateResourceWatch(num_new, yesterday)
