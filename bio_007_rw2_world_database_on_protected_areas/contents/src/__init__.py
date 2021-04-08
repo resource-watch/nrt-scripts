@@ -378,7 +378,6 @@ def processData(existing_ids):
         
         # if there is new data 
         if gdf_new.shape[0] > 0:
-            #gdf_new.apply(upload_to_carto, args=(s,), axis = 1)
             with ThreadPoolExecutor(max_workers=10) as executor:
                 for index, row in gdf_new.iterrows():
                     executor.submit(upload_to_carto, row)
@@ -386,7 +385,6 @@ def processData(existing_ids):
 
         # if there is data that is already stored in the table 
         if gdf_ori.shape[0] > 0:
-            #gdf_ori.apply(update_carto, args=(s,), axis = 1)
             with ThreadPoolExecutor(max_workers=12) as executor:
                 for index, row in gdf_ori.iterrows():
                     executor.submit(update_carto, row)
