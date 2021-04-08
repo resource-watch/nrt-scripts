@@ -651,7 +651,7 @@ def updateResourceWatch(num_new, yesterday):
     INPUT   new_ids: new IDs added to Carto table (list)
     '''
     # If there are new entries in the Carto table
-    if len(num_new)>0:
+    if num_new > 0:
         # get date of today
         new_date = date.today()
         logging.info('Updating Resource Watch Layers')
