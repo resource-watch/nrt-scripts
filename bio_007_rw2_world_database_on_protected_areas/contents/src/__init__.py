@@ -16,7 +16,7 @@ import shutil
 import glob
 
 # do you want to delete everything currently in the Carto table when you run this script?
-CLEAR_TABLE_FIRST = False
+CLEAR_TABLE_FIRST = True
 
 # name of data directory in Docker container
 DATA_DIR = 'data'
@@ -378,7 +378,6 @@ def processData(existing_ids):
         
         # if there is new data 
         if gdf_new.shape[0] > 0:
-            #gdf_new.apply(upload_to_carto, args=(s,), axis = 1)
             with ThreadPoolExecutor(max_workers=10) as executor:
                 for index, row in gdf_new.iterrows():
                     executor.submit(upload_to_carto, row)
@@ -386,7 +385,6 @@ def processData(existing_ids):
 
         # if there is data that is already stored in the table 
         if gdf_ori.shape[0] > 0:
-            #gdf_ori.apply(update_carto, args=(s,), axis = 1)
             with ThreadPoolExecutor(max_workers=12) as executor:
                 for index, row in gdf_ori.iterrows():
                     executor.submit(update_carto, row)
@@ -440,13 +438,36 @@ def main():
         # if the table exists
         if cartosql.tableExists(CARTO_TABLE, user=CARTO_USER, key=CARTO_KEY):
             # delete all the rows
-            cartosql.deleteRows(CARTO_TABLE, 'cartodb_id IS NOT NULL', user=CARTO_USER, key=CARTO_KEY)
+            # maximum attempts to make
+            n_tries = 5
+            # sleep time between each attempt   
+            retry_wait_time = 10
+            clear_exception = None
+            for i in range(n_tries):
+                try:
+                    cartosql.deleteRows(CARTO_TABLE, 'cartodb_id IS NOT NULL', user=CARTO_USER, key=CARTO_KEY)
+                except Exception as e:
+                    clear_exception = e
+                    logging.error(clear_exception)
+                    logging.info('Failed to clear table. Try again after 5 seconds.')
+                    time.sleep(retry_wait_time)
+                else:
+                    logging.info('{} cleared.'.format(CARTO_TABLE))
+                    break
+            else: 
+                # this happens if the for loop completes, ie if it attempts to clear the table n_tries times
+                logging.info('Failed to clear table.')
+                logging.error('Raising exception encountered during last clear table attempt')
+                logging.error(clear_exception)
+                raise clear_exception
+                 
             # note: we do not delete the entire table because this will cause the dataset visualization on Resource Watch
             # to disappear until we log into Carto and open the table again. If we simply delete all the rows, this
             # problem does not occur
 
     # Check if table exists, create it if it does not
     logging.info('Checking if table exists and getting existing IDs.')
+    time.sleep(10)
     existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD)
 
     # Fetch, process, and upload the new data
