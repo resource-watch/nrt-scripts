@@ -182,13 +182,16 @@ def fetch_data():
     Get a file path to where the unzipped geodatabase is stored
     RETURN  gdb: the file path to the location of the unzipped geodatabase
     '''
-    # pull the data from the url 
+    # pull the data from the url
+    # maximum number of attempts 
     n_tries = 5
+    # retrieve the current date 
     date = datetime.datetime.utcnow()  
     fetch_exception = None
     for i in range(0, n_tries):
         try:
             date_str = date.strftime("%b%Y")
+            # construct the url based on the current month and year
             urllib.request.urlretrieve(URL.format(date_str), DATA_DIR + '/' + os.path.basename(URL.format(date_str)))
             # unzip file containing the data 
             zip_ref = zipfile.ZipFile(DATA_DIR + '/' + os.path.basename(URL.format(date_str)), 'r')
@@ -199,8 +202,10 @@ def fetch_data():
             gdb = glob.glob(os.path.join(DATA_DIR + '/' + os.path.basename(URL.format(date_str)).split('.')[0], '*.gdb'))[0]
             
             logging.info("Data of {} successfully fetched.".format(date_str))
+
         except Exception as e: 
             fetch_exception = e
+            # use the previous month in the next attempt 
             first = date.replace(day=1)
             date = first - datetime.timedelta(days=1)
         
@@ -255,50 +260,6 @@ def convert_geometry(geom):
         return geom[0].__geo_interface__
     else:
         return geom.__geo_interface__
-
-def update_carto(row):
-    '''
-    Function to update existing rows in the Carto table 
-    INPUT   gdf: the geopandas dataframe of data we want to update the existing rows with (geopandas dataframe) 
-    '''
-    # replace all null values with None
-    row = row.where(row.notnull(), None)
-    # the number of attempts we are going to make 
-    n_tries = 4
-    # sleep time between each attempt   
-    retry_wait_time = 6
-    
-    update_exception = None
-    # convert the geometry in the geometry column to geojsons
-    row['geometry'] = convert_geometry(row['geometry'])
-    # construct the sql query to update existing Carto table
-    fields = CARTO_SCHEMA.keys()
-    values = cartosql._dumpRows([row.values.tolist()], tuple(CARTO_SCHEMA.values()))
-    sql = 'UPDATE "{}" o SET {} FROM (VALUES {}) n({}) WHERE O.wdpa_pid = n.wdpa_pid'.format(
-        CARTO_TABLE, ', '.join([field+'=n.'+field if field != 'legal_status_updated_at' else field+'=date(n.'+field + ')' for field in fields]), values, ', '.join(fields))
-    payload = {
-                'api_key': CARTO_KEY,
-                'q': sql
-                }
-    for i in range(n_tries):
-        try:
-            # update an existing row in the carto table
-            r = session.post('https://{}.carto.com/api/v2/sql'.format(CARTO_USER), json=payload)
-            r.raise_for_status()
-        except Exception as e: 
-            update_exception = e
-            logging.warning('Attempt #{} to update row #{} unsuccessful. Trying again after {} seconds'.format(i, row['WDPA_PID'], retry_wait_time))
-            logging.debug('Exception encountered during upload attempt: '+ str(e))
-            time.sleep(retry_wait_time)
-        else: 
-            break # break this for loop, because we don't need to try again
-    else:
-        # this happens if the for loop completes, ie if it attempts to insert row n_tries times
-        logging.error('Update of row #{} has failed after {} attempts'.format(row['WDPA_PID'], n_tries))
-        logging.error('Problematic row: '+ str(row))
-        logging.error('Raising exception encountered during last upload attempt')
-        logging.error(update_exception)
-        raise update_exception
         
 def upload_to_carto(row):
     '''
@@ -307,7 +268,6 @@ def upload_to_carto(row):
     '''
     # replace all null values with None
     row = row.where(row.notnull(), None)
-    # upload the data to Carto 
     # maximum attempts to make
     n_tries = 4
     # sleep time between each attempt   
@@ -326,6 +286,7 @@ def upload_to_carto(row):
         }
     for i in range(n_tries):
         try:
+            # send the sql query to the carto API 
             r = session.post('https://{}.carto.com/api/v2/sql'.format(CARTO_USER), json=payload)
             r.raise_for_status()
         except Exception as e: # if there's an exception do this
@@ -375,6 +336,7 @@ def processData():
 
         with ThreadPoolExecutor(max_workers=10) as executor:
             for index, row in gdf.iterrows():
+                # for each row in the geopandas dataframe, submit a task to the executor to upload it to carto 
                 executor.submit(upload_to_carto, row)
         logging.info('{} rows of new records added!'.format(gdf.shape[0]))
 
@@ -385,7 +347,7 @@ def processData():
             start -= step
 
         elif gdf.shape[0] == 0 and last_slice == False:
-            # the last slice 
+            # we may have reached the last slice 
             start = 0
             last_slice = True
         else:
@@ -413,6 +375,7 @@ def main():
 
     # Check if table exists, create it if it does not
     logging.info('Checking if table exists and getting existing IDs.')
+    # fetch the existing ids in the carto table 
     existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD)
 
     # clear the table before starting, if specified
@@ -422,7 +385,7 @@ def main():
         if cartosql.tableExists(CARTO_TABLE, user=CARTO_USER, key=CARTO_KEY):
             with ThreadPoolExecutor(max_workers=10) as executor:
                 for i in range(0, len(existing_ids), 500):
-                    # loop through the existing ids to remove all rows from the table
+                    # loop through the existing ids to remove all rows from the table in chunks of size 500 
                     executor.submit(delete_carto_entries, existing_ids[i: i + 500])
             logging.info('{} rows of old records removed!'.format(len(existing_ids)))
             # note: we do not delete the entire table because this will cause the dataset visualization on Resource Watch

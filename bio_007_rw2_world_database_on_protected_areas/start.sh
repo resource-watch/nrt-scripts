@@ -3,6 +3,7 @@ NAME=bio_007_rw2_wdpa
 LOG=${LOG:-udp://localhost}
 
 docker build -t $NAME --no-cache --build-arg NAME=$NAME .
+# --m is used to limit the memory usage of this script to prevent memory errors
 docker run \
     -m 1700m \
     --log-driver=syslog \
