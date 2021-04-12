@@ -214,22 +214,23 @@ def fetch_data():
     
     return gdb
 
-def delete_carto_entries(id_list, column):
+def delete_carto_entries(id_list):
     '''
     Delete entries in Carto table based on values in a specified column
     INPUT   id_list: list of column values for which you want to delete entries in table (list of strings)
-            column: column name where you should search for these values (string)
     '''
     # generate empty variable to store WHERE clause of SQL query we will send
     where = None
+    # column: column name where you should search for these values 
+    column = UID_FIELD
     # go through each ID in the list to be deleted
     for delete_id in id_list:
         # if we already have values in the SQL query, add the new value with an OR before it
         if where:
-            where += f' OR {column} = {delete_id}'
+            where += f" OR {column} = '{delete_id}'"
         # if the SQL query is empty, create the start of the WHERE clause
         else:
-            where = f'{column} = {delete_id}'
+            where = f"{column} = '{delete_id}'"
         # if where statement is long or we are on the last id, delete rows
         # the length of 15000 was chosen arbitrarily - all the IDs to be deleted could not be sent at once, but no
         # testing was done to optimize this value
@@ -343,10 +344,9 @@ def upload_to_carto(row):
         logging.error(insert_exception)
         raise insert_exception
 
-def processData(existing_ids):
+def processData():
     '''
     Fetch, process, upload, and clean new data
-    INPUT   existing_ids: list of WDPA IDs that we already have in our Carto table  (list of strings)
     RETURN  all_ids: a list storing all the wdpa_pids in the current dataframe (list of strings)
     '''
     # fetch the path to the unzipped geodatabase folder
@@ -372,24 +372,12 @@ def processData(existing_ids):
         # add the ids to the list 
         all_ids.extend(gdf['WDPA_PID'])
         logging.info('Process {} rows starting from the {}th row as a geopandas dataframe.'.format(step, start))
-        # subset the dataframe to isolate rows that are already in the table and those not 
-        gdf_new = gdf[gdf['WDPA_PID'].isin(existing_ids) == False]
-        gdf_ori = gdf[gdf['WDPA_PID'].isin(existing_ids)]
-        
-        # if there is new data 
-        if gdf_new.shape[0] > 0:
-            with ThreadPoolExecutor(max_workers=10) as executor:
-                for index, row in gdf_new.iterrows():
-                    executor.submit(upload_to_carto, row)
-            logging.info('{} rows of new records added!'.format(gdf_new.shape[0]))
 
-        # if there is data that is already stored in the table 
-        if gdf_ori.shape[0] > 0:
-            with ThreadPoolExecutor(max_workers=12) as executor:
-                for index, row in gdf_ori.iterrows():
-                    executor.submit(update_carto, row)
-            logging.info('{} rows of existing records updated!'.format(gdf_ori.shape[0]))
-        
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            for index, row in gdf.iterrows():
+                executor.submit(upload_to_carto, row)
+        logging.info('{} rows of new records added!'.format(gdf.shape[0]))
+
         # if the number of rows is equal to the size of the slice 
         if gdf.shape[0] == step:
             # move to the next slice
@@ -403,15 +391,6 @@ def processData(existing_ids):
         else:
             # we've processed the whole dataframe 
             break
-
-    logging.info('{} of rows processed'.format(len(all_ids))) 
-    # find the ids that are in the carto table but not in the current dataframe 
-    id_remove = [x for x in existing_ids if x not in all_ids]
-    # if there is any 
-    if len(id_remove) > 0:
-        # remove them from the carto table 
-        logging.info('Remove old ids that are no longer in the dataset.')
-        delete_carto_entries(id_remove, UID_FIELD)
 
     return(all_ids)
 
@@ -432,48 +411,28 @@ def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
 
+    # Check if table exists, create it if it does not
+    logging.info('Checking if table exists and getting existing IDs.')
+    existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD)
+
     # clear the table before starting, if specified
     if CLEAR_TABLE_FIRST:
         logging.info('Clearing Table')
         # if the table exists
         if cartosql.tableExists(CARTO_TABLE, user=CARTO_USER, key=CARTO_KEY):
-            # delete all the rows
-            # maximum attempts to make
-            n_tries = 5
-            # sleep time between each attempt   
-            retry_wait_time = 10
-            clear_exception = None
-            for i in range(n_tries):
-                try:
-                    cartosql.deleteRows(CARTO_TABLE, 'cartodb_id IS NOT NULL', user=CARTO_USER, key=CARTO_KEY)
-                except Exception as e:
-                    clear_exception = e
-                    logging.error(clear_exception)
-                    logging.info('Failed to clear table. Try again after 5 seconds.')
-                    time.sleep(retry_wait_time)
-                else:
-                    logging.info('{} cleared.'.format(CARTO_TABLE))
-                    break
-            else: 
-                # this happens if the for loop completes, ie if it attempts to clear the table n_tries times
-                logging.info('Failed to clear table.')
-                logging.error('Raising exception encountered during last clear table attempt')
-                logging.error(clear_exception)
-                raise clear_exception
-                 
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                for i in range(0, len(existing_ids), 500):
+                    # loop through the existing ids to remove all rows from the table
+                    executor.submit(delete_carto_entries, existing_ids[i: i + 500])
+            logging.info('{} rows of old records removed!'.format(len(existing_ids)))
             # note: we do not delete the entire table because this will cause the dataset visualization on Resource Watch
             # to disappear until we log into Carto and open the table again. If we simply delete all the rows, this
             # problem does not occur
 
-    # Check if table exists, create it if it does not
-    logging.info('Checking if table exists and getting existing IDs.')
-    time.sleep(10)
-    existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD)
-
     # Fetch, process, and upload the new data
-    logging.info('Fetching new data')
+    logging.info('Fetching and processing new data')
     # The total number of rows in the Carto table
-    num_new = len(processData(existing_ids))
+    num_new = len(processData())
     logging.info('Previous rows: {},  Current rows: {}'.format(len(existing_ids), num_new))
 
     # Update Resource Watch
