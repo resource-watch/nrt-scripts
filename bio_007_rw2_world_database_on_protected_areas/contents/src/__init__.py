@@ -266,6 +266,8 @@ def upload_to_carto(row):
     Function to upload data to the Carto table 
     INPUT   row: the geopandas dataframe of data we want to upload (geopandas dataframe)
     '''
+    if row['WDPA_PID'] == '555643544':
+        logging.info('Reached large geometries')
     # replace all null values with None
     row = row.where(row.notnull(), None)
     # maximum attempts to make
@@ -287,9 +289,11 @@ def upload_to_carto(row):
     for i in range(n_tries):
         try:
             # send the sql query to the carto API 
+            if row['WDPA_PID'] == '555643544':
+                logging.info('Sending request including large geometries')
             r = session.post('https://{}.carto.com/api/v2/sql'.format(CARTO_USER), json=payload)
             if row['WDPA_PID'] == '555643544':
-                logging.info('Reached large geometries')
+                logging.info('Request including large geometries sent')
                 logging.info(r.content)
             r.raise_for_status()
         except Exception as e: # if there's an exception do this
@@ -341,7 +345,7 @@ def processData():
             for index, row in gdf.iterrows():
                 # for each row in the geopandas dataframe, submit a task to the executor to upload it to carto 
                 executor.submit(upload_to_carto, row)
-        logging.info('{} rows of new records added!'.format(gdf.shape[0]))
+        #logging.info('{} rows of new records added!'.format(gdf.shape[0]))
 
         # if the number of rows is equal to the size of the slice 
         if gdf.shape[0] == step:
