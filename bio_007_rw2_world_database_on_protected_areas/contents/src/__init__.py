@@ -292,6 +292,9 @@ def upload_to_carto(row):
             if row['WDPA_PID'] == '555643544':
                 logging.info('Sending request including large geometries')
             r = session.post('https://{}.carto.com/api/v2/sql'.format(CARTO_USER), json=payload)
+            if row['WDPA_PID'] == '555643544':
+                logging.info('Request including large geometries sent')
+                logging.info(r.content)
             r.raise_for_status()
         except Exception as e: # if there's an exception do this
             insert_exception = e
