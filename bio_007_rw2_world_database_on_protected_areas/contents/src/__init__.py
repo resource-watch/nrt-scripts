@@ -16,7 +16,7 @@ import shutil
 import glob
 
 # do you want to delete everything currently in the Carto table when you run this script?
-CLEAR_TABLE_FIRST = True
+CLEAR_TABLE_FIRST = False
 
 # name of data directory in Docker container
 DATA_DIR = 'data'
@@ -288,6 +288,7 @@ def upload_to_carto(row):
         try:
             # send the sql query to the carto API 
             r = session.post('https://{}.carto.com/api/v2/sql'.format(CARTO_USER), json=payload)
+            logging.info(r.content)
             r.raise_for_status()
         except Exception as e: # if there's an exception do this
             insert_exception = e
@@ -337,7 +338,9 @@ def processData():
         with ThreadPoolExecutor(max_workers=10) as executor:
             for index, row in gdf.iterrows():
                 # for each row in the geopandas dataframe, submit a task to the executor to upload it to carto 
-                executor.submit(upload_to_carto, row)
+                if row['WDPA_PID'] == '555643544':
+                    logging.info('Sending request of large geometries!')
+                    executor.submit(upload_to_carto, row)
         logging.info('{} rows of new records added!'.format(gdf.shape[0]))
 
         # if the number of rows is equal to the size of the slice 
