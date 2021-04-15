@@ -284,16 +284,22 @@ def processNewData(src_url, existing_ids, existing_stations):
         logging.error('Could not fetch forecast data')
    
     # create an empty list to store unique ids of new data we will be sending to Carto table
+    logging.info('Creating list to store unique ids')
     new_ids = []
     # create an empty list to store each row of new data
+    logging.info('Creating list to store new rows')
     new_rows = []
     # pull data from request response json
+    logging.info('Pulling data to json')
     data = r.json()
     # sort data by oldest date and 
     # reverse the order so we start with the newest data
+    logging.info('Ordering json by creation date')
     data = sorted(data, key = lambda x: datetime.datetime.strptime(x["created"],"%Y-%m-%dT%H:%M:%S.%fZ"))
+    logging.info('Reversing data')
     data.reverse()
     # get most updated list of station information
+    logging.info('Getting station table')
     station_df = cartoframes.read_carto('cit_004_city_aq_stations', credentials=AUTH)
 
     logging.info('Processing new data')
