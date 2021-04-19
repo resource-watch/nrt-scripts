@@ -5,7 +5,7 @@ from collections import OrderedDict
 import cartosql
 import requests
 import datetime
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 import numpy as np
 import urllib
@@ -265,9 +265,8 @@ def upload_to_carto(row):
     '''
     Function to upload data to the Carto table 
     INPUT   row: the geopandas dataframe of data we want to upload (geopandas dataframe)
+    RETURN  the wdpa_pid of the row just uploaded
     '''
-    if row['WDPA_PID'] == '555643544':
-        logging.info('Reached large geometries')
     # replace all null values with None
     row = row.where(row.notnull(), None)
     # maximum attempts to make
@@ -289,12 +288,7 @@ def upload_to_carto(row):
     for i in range(n_tries):
         try:
             # send the sql query to the carto API 
-            if row['WDPA_PID'] == '555643544':
-                logging.info('Sending request including large geometries')
             r = session.post('https://{}.carto.com/api/v2/sql'.format(CARTO_USER), json=payload)
-            if row['WDPA_PID'] == '555643544':
-                logging.info('Request including large geometries sent')
-                logging.info(r.content)
             r.raise_for_status()
         except Exception as e: # if there's an exception do this
             insert_exception = e
@@ -303,7 +297,7 @@ def upload_to_carto(row):
             logging.debug('Exception encountered during upload attempt: '+ str(e))
             time.sleep(retry_wait_time)
         else: # if no exception do this
-            break # break this for loop, because we don't need to try again
+            return row['WDPA_PID']
     else:
         # this happens if the for loop completes, ie if it attempts to insert row n_tries times
         logging.error('Upload of row #{} has failed after {} attempts'.format(row['WDPA_PID'], n_tries))
@@ -337,15 +331,18 @@ def processData():
         # create a new column to store the status_yr column as timestamps
         gdf.insert(19, "legal_status_updated_at", [None if x == 0 else datetime.datetime(x, 1, 1) for x in gdf['STATUS_YR']])
         gdf["legal_status_updated_at"] = gdf["legal_status_updated_at"].astype(object)
-        # add the ids to the list 
-        all_ids.extend(gdf['WDPA_PID'])
         logging.info('Process {} rows starting from the {}th row as a geopandas dataframe.'.format(step, start))
 
         with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = []
             for index, row in gdf.iterrows():
                 # for each row in the geopandas dataframe, submit a task to the executor to upload it to carto 
-                executor.submit(upload_to_carto, row)
-        #logging.info('{} rows of new records added!'.format(gdf.shape[0]))
+                futures.append(
+                    executor.submit(
+                        upload_to_carto, row)
+                        )
+            for future in as_completed(futures):
+                all_ids.append(future.result())
 
         # if the number of rows is equal to the size of the slice 
         if gdf.shape[0] == step:
