@@ -273,17 +273,16 @@ def upload_to_carto(row):
     n_tries = 4
     # sleep time between each attempt   
     retry_wait_time = 6
-    
+
     insert_exception = None
     # convert the geometry in the geometry column to geojsons
     row['geometry'] = convert_geometry(row['geometry'])
     # construct the sql query to upload the row to the carto table
     fields = CARTO_SCHEMA.keys()
     values = cartosql._dumpRows([row.values.tolist()], tuple(CARTO_SCHEMA.values()))
-    sql = 'INSERT INTO "{}" ({}) VALUES {}'.format(CARTO_TABLE, ', '.join(fields), values)
     payload = {
         'api_key': CARTO_KEY,
-        'q': sql
+        'q': 'INSERT INTO "{}" ({}) VALUES {}'.format(CARTO_TABLE, ', '.join(fields), values)
         }
     for i in range(n_tries):
         try:
@@ -316,14 +315,14 @@ def processData():
     # whether we have reached the last slice 
     last_slice = False
     # the index of the first row we want to import from the geodatabase
-    start = -50
+    start = -20
     # the number of rows we want to fetch and process each time 
-    step = 50
+    step = 20
     # the row after the last one we want to fetch and process
     end = None
     # create an empty list to store all the wdpa_pids 
     all_ids = []
-    for i in range(0, 10000):
+    for i in range(0, 100000):
         # import a slice of the geopandas dataframe 
         gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(start, end))
         # get rid of the \r\n in the wdpa_pid column 
