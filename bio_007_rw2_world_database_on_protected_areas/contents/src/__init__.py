@@ -318,7 +318,7 @@ def processData():
     # the index of the first row we want to import from the geodatabase
     start = -200
     # the number of rows we want to fetch and process each time 
-    step = 200
+    step = 100
     # the row after the last one we want to fetch and process
     end = None
     # create an empty list to store all the wdpa_pids 
