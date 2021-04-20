@@ -8,6 +8,7 @@ import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 import numpy as np
+import gc
 import urllib
 import zipfile
 import geopandas as gpd
@@ -286,7 +287,6 @@ def upload_to_carto(row):
         except Exception as e:
             dump_exception = e
             logging.error('Reached large geometries!')
-            del values
             gc.collect()
             time.sleep(retry_wait_time)
         else:
