@@ -269,17 +269,33 @@ def upload_to_carto(row):
     '''
     # replace all null values with None
     row = row.where(row.notnull(), None)
-    # maximum attempts to make
-    n_tries = 4
-    # sleep time between each attempt   
-    retry_wait_time = 6
-
-    insert_exception = None
     # convert the geometry in the geometry column to geojsons
     row['geometry'] = convert_geometry(row['geometry'])
     # construct the sql query to upload the row to the carto table
     fields = CARTO_SCHEMA.keys()
-    values = cartosql._dumpRows([row.values.tolist()], tuple(CARTO_SCHEMA.values()))
+
+    # maximum attempts to make
+    n_tries = 4
+
+    dump_exception = None
+    # sleep time between each attempt   
+    retry_wait_time = 6
+    for j in range(n_tries):
+        try:
+            values = cartosql._dumpRows([row.values.tolist()], tuple(CARTO_SCHEMA.values()))
+        except Exception as e:
+            dump_exception = e
+            logging.error('Reached large geometries!')
+            del values
+            gc.collect()
+            time.sleep(retry_wait_time)
+        else:
+            break
+    else:
+        logging.error('Upload of row #{} has failed after {} attempts'.format(row['WDPA_PID'], n_tries))
+        raise(dump_exception)
+
+    insert_exception = None
     payload = {
         'api_key': CARTO_KEY,
         'q': 'INSERT INTO "{}" ({}) VALUES {}'.format(CARTO_TABLE, ', '.join(fields), values)
