@@ -300,6 +300,7 @@ def upload_to_carto(row):
     INPUT   row: the geopandas dataframe of data we want to upload (geopandas dataframe)
     RETURN  the wdpa_pid of the row just uploaded
     '''
+    logging.info('Processing {}'.format(row['WDPA_PID']))
     # replace all null values with None
     row = row.where(row.notnull(), None)
     # convert the geometry in the geometry column to geojsons
@@ -355,7 +356,25 @@ def processData():
     end = None
     # create an empty list to store all the wdpa_pids 
     all_ids = []
-    for i in range(0, 100000):
+    gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(-59340, -59320))
+    # get rid of the \r\n in the wdpa_pid column 
+    gdf['WDPA_PID'] = [x.split('\r\n')[0] for x in gdf['WDPA_PID']]
+    # create a new column to store the status_yr column as timestamps
+    gdf.insert(19, "legal_status_updated_at", [None if x == 0 else datetime.datetime(x, 1, 1) for x in gdf['STATUS_YR']])
+    gdf["legal_status_updated_at"] = gdf["legal_status_updated_at"].astype(object)
+    logging.info('Process {} rows starting from the {}th row as a geopandas dataframe.'.format(step, start))
+    with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = []
+            for index, row in gdf.iterrows():
+                # for each row in the geopandas dataframe, submit a task to the executor to upload it to carto 
+                futures.append(
+                    executor.submit(
+                        upload_to_carto, row)
+                        )
+            for future in as_completed(futures):
+                all_ids.append(future.result())
+
+    """ for i in range(0, 100000):
         # import a slice of the geopandas dataframe 
         gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(start, end))
         # get rid of the \r\n in the wdpa_pid column 
@@ -389,7 +408,7 @@ def processData():
         else:
             # we've processed the whole dataframe 
             break
-
+ """
     return(all_ids)
 
 def updateResourceWatch(num_new):
