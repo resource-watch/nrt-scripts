@@ -364,15 +364,15 @@ def processData():
     gdf["legal_status_updated_at"] = gdf["legal_status_updated_at"].astype(object)
     logging.info('Process {} rows starting from the {}th row as a geopandas dataframe.'.format(step, start))
     with ThreadPoolExecutor(max_workers=10) as executor:
-            futures = []
-            for index, row in gdf.iterrows():
-                # for each row in the geopandas dataframe, submit a task to the executor to upload it to carto 
-                futures.append(
-                    executor.submit(
-                        upload_to_carto, row)
-                        )
-            for future in as_completed(futures):
-                all_ids.append(future.result())
+        futures = []
+        for index, row in gdf.iterrows():
+            # for each row in the geopandas dataframe, submit a task to the executor to upload it to carto 
+            futures.append(
+                executor.submit(
+                    upload_to_carto, row)
+                    )
+        for future in as_completed(futures):
+            all_ids.append(future.result())
 
     """ for i in range(0, 100000):
         # import a slice of the geopandas dataframe 
