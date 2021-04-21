@@ -7,8 +7,7 @@ import requests
 import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
-import numpy as np
-import gc
+import json
 import urllib
 import zipfile
 import geopandas as gpd
@@ -261,7 +260,40 @@ def convert_geometry(geom):
         return geom[0].__geo_interface__
     else:
         return geom.__geo_interface__
-        
+
+def _escapeValue(value, dtype):
+    '''
+    Escape value for SQL based on field type
+
+    TYPE         Escaped
+    None      -> NULL
+    geometry  -> string as is; obj dumped as GeoJSON
+    text      -> single quote escaped
+    timestamp -> single quote escaped
+    varchar   -> single quote escaped
+    else      -> as is
+    '''
+    if value is None:
+        return "NULL"
+    if dtype == 'geometry':
+        # if not string assume GeoJSON and assert WKID
+        if isinstance(value, str):
+            return value
+        else:
+            value = json.dumps(value)
+            return "ST_SetSRID(ST_GeomFromGeoJSON('{}'),4326)".format(value)
+    elif dtype in ('text', 'timestamp', 'varchar'):
+        # quote strings, escape quotes, and drop nbsp
+        return "'{}'".format(
+            str(value).replace("'", "''"))
+    else:
+        return str(value)
+
+def _dumpRows(rows, dtypes):
+    '''Escapes rows of data to SQL strings'''
+    escaped = [_escapeValue(rows[i], dtypes[i]) for i in range(len(dtypes))]
+    return '({})'.format(','.join(escaped))
+
 def upload_to_carto(row):
     '''
     Function to upload data to the Carto table 
@@ -277,24 +309,9 @@ def upload_to_carto(row):
 
     # maximum attempts to make
     n_tries = 4
-
-    dump_exception = None
     # sleep time between each attempt   
     retry_wait_time = 6
-    for j in range(n_tries):
-        try:
-            values = cartosql._dumpRows([row.values.tolist()], tuple(CARTO_SCHEMA.values()))
-        except Exception as e:
-            dump_exception = e
-            logging.error('Reached large geometries!')
-            gc.collect()
-            time.sleep(retry_wait_time)
-        else:
-            break
-    else:
-        logging.error('Upload of row #{} has failed after {} attempts'.format(row['WDPA_PID'], n_tries))
-        raise(dump_exception)
-
+    values = _dumpRows(row.values.tolist(), tuple(CARTO_SCHEMA.values()))
     insert_exception = None
     payload = {
         'api_key': CARTO_KEY,
