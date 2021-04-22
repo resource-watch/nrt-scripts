@@ -319,6 +319,7 @@ def upload_to_carto(row):
         'api_key': CARTO_KEY,
         'q': 'INSERT INTO "{}" ({}) VALUES {}'.format(CARTO_TABLE, ', '.join(fields), values)
         }
+    del values
     for i in range(n_tries):
         try:
             # send the sql query to the carto API 
@@ -363,7 +364,7 @@ def processData():
     # create a new column to store the status_yr column as timestamps
     gdf.insert(19, "legal_status_updated_at", [None if x == 0 else datetime.datetime(x, 1, 1) for x in gdf['STATUS_YR']])
     gdf["legal_status_updated_at"] = gdf["legal_status_updated_at"].astype(object)
-    with ThreadPoolExecutor(max_workers=6) as executor:
+    with ThreadPoolExecutor(max_workers=5) as executor:
         futures = []
         for index, row in gdf.iterrows():
             # for each row in the geopandas dataframe, submit a task to the executor to upload it to carto 
