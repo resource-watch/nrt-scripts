@@ -319,6 +319,7 @@ def upload_to_carto(row):
         'api_key': CARTO_KEY,
         'q': 'INSERT INTO "{}" ({}) VALUES {}'.format(CARTO_TABLE, ', '.join(fields), values)
         }
+    del values
     for i in range(n_tries):
         try:
             # send the sql query to the carto API 
