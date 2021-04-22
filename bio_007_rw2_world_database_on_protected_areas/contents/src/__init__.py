@@ -366,7 +366,7 @@ def processData():
     gdf.insert(19, "legal_status_updated_at", [None if x == 0 else datetime.datetime(x, 1, 1) for x in gdf['STATUS_YR']])
     gdf["legal_status_updated_at"] = gdf["legal_status_updated_at"].astype(object)
     gdf = pd.concat([gdf.loc[gdf['WDPA_PID'] =='555643543'], gdf.loc[gdf['WDPA_PID'] != '555643543']])
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=1) as executor:
         futures = []
         for index, row in gdf.iterrows():
             # for each row in the geopandas dataframe, submit a task to the executor to upload it to carto 
