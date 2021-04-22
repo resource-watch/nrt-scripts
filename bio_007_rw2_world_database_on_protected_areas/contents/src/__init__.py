@@ -182,6 +182,8 @@ def fetch_data():
     Get a file path to where the unzipped geodatabase is stored
     RETURN  gdb: the file path to the location of the unzipped geodatabase
     '''
+
+    delete_local()
     # pull the data from the url
     # maximum number of attempts 
     n_tries = 5
