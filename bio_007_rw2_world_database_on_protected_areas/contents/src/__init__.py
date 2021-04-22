@@ -10,6 +10,7 @@ import time
 import json
 import urllib
 import zipfile
+import gc
 import geopandas as gpd
 import pandas as pd
 import shutil
@@ -356,7 +357,8 @@ def processData():
     end = None
     # create an empty list to store all the wdpa_pids 
     all_ids = []
-
+    # whether the gdf has been split due to large geometry 
+    large_geometry = False
     for i in range(0, 100000):
         # import a slice of the geopandas dataframe 
         gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(start, end))
@@ -369,11 +371,13 @@ def processData():
 
         if '555643543' in gdf['WDPA_PID']:
             # isolate the large polygon
+            logging.info('Large geometry dealt with first!')
+            gc.collect()
             gdf_first = gdf.loc[gdf['WDPA_PID'] =='555643543']
             # first upload the polygon to carto
             upload_to_carto(gdf_first.iloc[0])
             all_ids.append('555643543')
-            logging.info('Large geometry dealt with first!')
+            large_geometry = True
             gdf = gdf.loc[gdf['WDPA_PID'] !='555643543']
 
         with ThreadPoolExecutor(max_workers=10) as executor:
@@ -389,6 +393,11 @@ def processData():
 
         # if the number of rows is equal to the size of the slice 
         if gdf.shape[0] == step:
+            # move to the next slice
+            end = start 
+            start -= step
+        
+        elif large_geometry == True and gdf.shape[0] + 1 == step:
             # move to the next slice
             end = start 
             start -= step
