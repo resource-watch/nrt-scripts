@@ -359,12 +359,13 @@ def processData():
     # create an empty list to store all the wdpa_pids 
     all_ids = []
     gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(-59340, -59320))
+    logging.info('Slice imported!')
     # get rid of the \r\n in the wdpa_pid column 
     gdf['WDPA_PID'] = [x.split('\r\n')[0] for x in gdf['WDPA_PID']]
     # create a new column to store the status_yr column as timestamps
     gdf.insert(19, "legal_status_updated_at", [None if x == 0 else datetime.datetime(x, 1, 1) for x in gdf['STATUS_YR']])
     gdf["legal_status_updated_at"] = gdf["legal_status_updated_at"].astype(object)
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=2) as executor:
         futures = []
         for index, row in gdf.iterrows():
             # for each row in the geopandas dataframe, submit a task to the executor to upload it to carto 
