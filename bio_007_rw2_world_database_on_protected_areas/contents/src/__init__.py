@@ -10,6 +10,7 @@ import time
 import json
 import urllib
 import zipfile
+import gc
 import geopandas as gpd
 import pandas as pd
 import shutil
