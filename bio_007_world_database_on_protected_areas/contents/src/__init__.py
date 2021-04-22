@@ -78,7 +78,7 @@ CARTO_SCHEMA =OrderedDict([
 # Important! Before testing this script:
 # Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
 # Failing to do so will overwrite the last update date on a different dataset on Resource Watch
-DATASET_ID = 'dc930848-5a2d-4d76-bff6-99d8ad9a0763'
+DATASET_ID = '2442891a-157a-40e6-9092-ee596e6d30ba'
 
 '''
 FUNCTIONS FOR ALL DATASETS
