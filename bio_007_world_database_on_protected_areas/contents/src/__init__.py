@@ -349,7 +349,7 @@ def processData():
     # whether we have reached the last slice 
     last_slice = False
     # the index of the first row we want to import from the geodatabase
-    start = -20
+    start = -200
     # the number of rows we want to fetch and process each time 
     step = 200
     # the row after the last one we want to fetch and process
