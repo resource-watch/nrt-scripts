@@ -10,7 +10,6 @@ import time
 import json
 import urllib
 import zipfile
-import gc
 import geopandas as gpd
 import pandas as pd
 import shutil
@@ -369,10 +368,9 @@ def processData():
         gdf["legal_status_updated_at"] = gdf["legal_status_updated_at"].astype(object)
         logging.info('Process {} rows starting from the {}th row as a geopandas dataframe.'.format(step, start))
 
-        if '555643543' in gdf['WDPA_PID']:
+        if '555643543' in gdf['WDPA_PID'].to_list():
             # isolate the large polygon
             logging.info('Large geometry dealt with first!')
-            gc.collect()
             gdf_first = gdf.loc[gdf['WDPA_PID'] =='555643543']
             # first upload the polygon to carto
             upload_to_carto(gdf_first.iloc[0])
