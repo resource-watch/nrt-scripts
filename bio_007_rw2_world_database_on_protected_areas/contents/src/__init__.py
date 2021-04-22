@@ -356,28 +356,8 @@ def processData():
     end = None
     # create an empty list to store all the wdpa_pids 
     all_ids = []
-    gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(-59340, -59320))
-    logging.info('Slice imported!')
-    # get rid of the \r\n in the wdpa_pid column 
-    gdf['WDPA_PID'] = [x.split('\r\n')[0] for x in gdf['WDPA_PID']]
-    # create a new column to store the status_yr column as timestamps
-    gdf.insert(19, "legal_status_updated_at", [None if x == 0 else datetime.datetime(x, 1, 1) for x in gdf['STATUS_YR']])
-    gdf["legal_status_updated_at"] = gdf["legal_status_updated_at"].astype(object)
-    gdf_first = gdf.loc[gdf['WDPA_PID'] =='555643543']
-    upload_to_carto(gdf_first.iloc[0])
-    logging.info('Large geometry dealt with first!')
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        futures = []
-        for index, row in gdf.loc[gdf['WDPA_PID'] !='555643543'].iterrows():
-            # for each row in the geopandas dataframe, submit a task to the executor to upload it to carto 
-            futures.append(
-                executor.submit(
-                    upload_to_carto, row)
-                    )
-        for future in as_completed(futures):
-            all_ids.append(future.result())
 
-    """ for i in range(0, 100000):
+    for i in range(0, 100000):
         # import a slice of the geopandas dataframe 
         gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(start, end))
         # get rid of the \r\n in the wdpa_pid column 
@@ -386,6 +366,15 @@ def processData():
         gdf.insert(19, "legal_status_updated_at", [None if x == 0 else datetime.datetime(x, 1, 1) for x in gdf['STATUS_YR']])
         gdf["legal_status_updated_at"] = gdf["legal_status_updated_at"].astype(object)
         logging.info('Process {} rows starting from the {}th row as a geopandas dataframe.'.format(step, start))
+
+        if '555643543' in gdf['WDPA_PID']:
+            # isolate the large polygon
+            gdf_first = gdf.loc[gdf['WDPA_PID'] =='555643543']
+            # first upload the polygon to carto
+            upload_to_carto(gdf_first.iloc[0])
+            all_ids.append('555643543')
+            logging.info('Large geometry dealt with first!')
+            gdf = gdf.loc[gdf['WDPA_PID'] !='555643543']
 
         with ThreadPoolExecutor(max_workers=10) as executor:
             futures = []
@@ -411,7 +400,7 @@ def processData():
         else:
             # we've processed the whole dataframe 
             break
- """
+
     return(all_ids)
 
 def updateResourceWatch(num_new):
