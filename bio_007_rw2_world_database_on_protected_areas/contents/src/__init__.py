@@ -182,8 +182,6 @@ def fetch_data():
     Get a file path to where the unzipped geodatabase is stored
     RETURN  gdb: the file path to the location of the unzipped geodatabase
     '''
-
-    delete_local()
     # pull the data from the url
     # maximum number of attempts 
     n_tries = 5
@@ -366,7 +364,7 @@ def processData():
     gdf.insert(19, "legal_status_updated_at", [None if x == 0 else datetime.datetime(x, 1, 1) for x in gdf['STATUS_YR']])
     gdf["legal_status_updated_at"] = gdf["legal_status_updated_at"].astype(object)
     gdf_first = gdf.loc[gdf['WDPA_PID'] =='555643543']
-    upload_to_carto(gdf_first)
+    upload_to_carto(gdf_first.iloc[0])
     logging.info('Large geometry dealt with first!')
     with ThreadPoolExecutor(max_workers=1) as executor:
         futures = []
