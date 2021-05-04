@@ -122,8 +122,15 @@ def main():
         # flood data set doesn't always have events that occur every 10 days
         elif 'wat.040' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=30)
+        # GLAD Deforestation Alerts
         elif 'for.003' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=10)
+        # Tropical Cyclones
+        elif 'dis.015' in r['data']['attributes']['name']:
+            allowed_time = datetime.timedelta(days=20)
+        # Tsunamis
+        elif 'dis.009' in r['data']['attributes']['name']:
+            allowed_time = datetime.timedelta(days=20)
 
         '''check if the time since last update surpasses the time we allow for this type of data set'''
         # if the dataset is out-of-date
