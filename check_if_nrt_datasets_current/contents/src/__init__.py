@@ -129,7 +129,7 @@ def main():
         elif 'dis.015' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=20)
         # Tsunamis
-        elif 'dis.009' in ['data']['attributes']['name']:
+        elif 'dis.009' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=20)
 
         '''check if the time since last update surpasses the time we allow for this type of data set'''
