@@ -4,6 +4,7 @@ LOG=${LOG:-udp://localhost}
 
 docker build -t $NAME --build-arg NAME=$NAME .
 docker run \
+# -m limits the memory usuage of the docker to prevent memory error
     -m 1700m \
     --log-driver=syslog \
     --log-opt syslog-address=$LOG \
