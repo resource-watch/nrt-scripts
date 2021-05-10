@@ -5,7 +5,7 @@ The source provided the data as an image collection on Google Earth Engine. Each
 
 For each day, the data from the five different regions is mosaicked to create a global dataset for display on Resource Watch.
 
-Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/for_003_nrt_glad_deforestation_alerts/contents/src/__init__.py) for more details on this processing.
+Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/for_003_nrt_rw1_glad_deforestation_alerts/contents/src/__init__.py) for more details on this processing.
 
 You can view the processed GLAD Deforestation Alerts dataset [on Resource Watch](http://resourcewatch.org/data/explore/6ec78a52-3fb2-478f-a02b-abafa5328244).
 
