@@ -691,9 +691,6 @@ def main():
     arctic_dates_orig = [getDate(a) for a in arctic_assets_orig]
     arctic_dates_reproj = [getDate(a) for a in arctic_assets_reproj]
 
-    #existing_dates=antarctic_dates_reproj
-    #arctic_or_antarctic="antarctic"
-    #new_or_hist="new"
     # Fetch, process, and upload the new arctic data
     new_arctic_assets_orig, new_arctic_assets_reproj = processNewData(arctic_dates_reproj, 'arctic', new_or_hist='new')
     # Get the dates of the new data we have added to each collection
@@ -722,7 +719,7 @@ def main():
 
     # Create a list of each collection of old asset dates
     e_dates = [arctic_dates_orig, arctic_dates_reproj,
-                        antarctic_dates_orig, antarctic_dates_reproj]
+                antarctic_dates_orig, antarctic_dates_reproj]
     # Create a list each collection of new asset dates
     n_dates = [new_arctic_dates_orig, new_arctic_dates_reproj,
                 new_antarctic_dates_orig, new_antarctic_dates_reproj]
@@ -764,7 +761,7 @@ def main():
 
         # Fetch, process, and upload the new arctic data
         new_arctic_assets_orig, new_arctic_assets_reproj = processNewData(arctic_dates_reproj, 'arctic',
-                                                                            new_or_hist='hist', month=month)
+                                                                          new_or_hist='hist', month=month)
         # Get the dates of the new data we have added to each collection
         new_arctic_dates_orig = [getDate(a) for a in new_arctic_assets_orig]
         new_arctic_dates_reproj = [getDate(a) for a in new_arctic_assets_reproj]
@@ -792,5 +789,6 @@ def main():
 
     # Update Resource Watch
     updateResourceWatch()
+
 
     logging.info('SUCCESS')
