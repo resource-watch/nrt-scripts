@@ -678,7 +678,7 @@ def main():
     # Clear the GEE collections, if specified above
     if CLEAR_COLLECTION_FIRST:
         # Put collection names into a list to loop through for processing
-        collections = [arctic_collection_orig, arctic_collection_reproj,antarctic_collection_orig, antarctic_collection_reproj]
+        collections = [arctic_collection_orig, arctic_collection_reproj, antarctic_collection_orig, antarctic_collection_reproj]
         for collection in collections:
             if eeUtil.exists(collection):
                 eeUtil.removeAsset(collection, recursive=True)
@@ -789,6 +789,5 @@ def main():
 
     # Update Resource Watch
     updateResourceWatch()
-
 
     logging.info('SUCCESS')
