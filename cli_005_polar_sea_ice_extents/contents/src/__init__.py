@@ -31,7 +31,7 @@ DATA_DIR = 'data'
 GS_FOLDER = 'cli_005_polar_sea_ice_extent'
 
 # name of collection in GEE where we will upload the final data for current sea ice extent
-EE_COLLECTION = 'cli_005_{arctic_or_antarctic}_sea_ice_extent_{orig_or_reproj}'
+EE_COLLECTION = '/projects/resource-watch-gee/cli_005_sea_ice_extent/cli_005_{arctic_or_antarctic}_sea_ice_extent_{orig_or_reproj}'
 # name of collection in GEE where we will upload the final data for historical min/max sea ice
 EE_COLLECTION_BY_MONTH = '/projects/resource-watch-gee/cli_005_historical_sea_ice_extent/cli_005_{arctic_or_antarctic}_sea_ice_extent_{orig_or_reproj}_month{month}_hist'
 
@@ -53,8 +53,8 @@ DATE_FORMAT = '%Y%m'
 # Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
 # Failing to do so will overwrite the last update date on a different dataset on Resource Watch
 DATASET_ID = {
-    'cli_005_antarctic_sea_ice_extent_reproj':'e740efec-c673-431a-be2c-b214613f641a',
-    'cli_005_arctic_sea_ice_extent_reproj': '484fbba1-ac34-402f-8623-7b1cc9c34f17',
+    '/projects/resource-watch-gee/cli_005_sea_ice_extent/cli_005_antarctic_sea_ice_extent_reproj':'e740efec-c673-431a-be2c-b214613f641a',
+    '/projects/resource-watch-gee/cli_005_sea_ice_extent/cli_005_arctic_sea_ice_extent_reproj': '484fbba1-ac34-402f-8623-7b1cc9c34f17',
 }
 
 # Resource Watch dataset API ID for historical sea ice maximums and minimums
@@ -436,8 +436,8 @@ def processNewData(existing_dates, arctic_or_antarctic, new_or_hist, month=None)
     datestamps = [datetime.datetime.strptime(date, DATE_FORMAT)
                   for date in dates]  # returns list of datetime object
     # Upload new files (tifs) to GEE
-    eeUtil.uploadAssets(orig_tifs, orig_assets, GS_FOLDER, datestamps, timeout=3000)
-    eeUtil.uploadAssets(reproj_tifs, reproj_assets, GS_FOLDER, datestamps, timeout=3000)
+    eeUtil.uploadAssets(orig_tifs, orig_assets, GS_FOLDER, datestamps, timeout=600)
+    eeUtil.uploadAssets(reproj_tifs, reproj_assets, GS_FOLDER, datestamps, timeout=600)
 
     # Delete local files
     logging.info('Cleaning local files')
@@ -462,7 +462,7 @@ def checkCreateCollection(collection):
     # if collection does not exist, create it and return an empty list (because no assets are in the collection)
     else:
         logging.info('{} does not exist, creating'.format(collection))
-        eeUtil.createFolder(collection, True, public=True)
+        eeUtil.createFolder(collection, imageCollection=True, public=True)
         return []
 
 def deleteExcessAssets(dates, orig_or_reproj, arctic_or_antarctic, max_assets, new_or_hist):
@@ -678,8 +678,7 @@ def main():
     # Clear the GEE collections, if specified above
     if CLEAR_COLLECTION_FIRST:
         # Put collection names into a list to loop through for processing
-        collections = [arctic_collection_orig, arctic_collection_reproj,
-                       antarctic_collection_orig, antarctic_collection_reproj]
+        collections = [arctic_collection_orig, arctic_collection_reproj,antarctic_collection_orig, antarctic_collection_reproj]
         for collection in collections:
             if eeUtil.exists(collection):
                 eeUtil.removeAsset(collection, recursive=True)
@@ -692,6 +691,9 @@ def main():
     arctic_dates_orig = [getDate(a) for a in arctic_assets_orig]
     arctic_dates_reproj = [getDate(a) for a in arctic_assets_reproj]
 
+    #existing_dates=antarctic_dates_reproj
+    #arctic_or_antarctic="antarctic"
+    #new_or_hist="new"
     # Fetch, process, and upload the new arctic data
     new_arctic_assets_orig, new_arctic_assets_reproj = processNewData(arctic_dates_reproj, 'arctic', new_or_hist='new')
     # Get the dates of the new data we have added to each collection
@@ -720,7 +722,7 @@ def main():
 
     # Create a list of each collection of old asset dates
     e_dates = [arctic_dates_orig, arctic_dates_reproj,
-                     antarctic_dates_orig, antarctic_dates_reproj]
+                        antarctic_dates_orig, antarctic_dates_reproj]
     # Create a list each collection of new asset dates
     n_dates = [new_arctic_dates_orig, new_arctic_dates_reproj,
                 new_antarctic_dates_orig, new_antarctic_dates_reproj]
@@ -762,7 +764,7 @@ def main():
 
         # Fetch, process, and upload the new arctic data
         new_arctic_assets_orig, new_arctic_assets_reproj = processNewData(arctic_dates_reproj, 'arctic',
-                                                                          new_or_hist='hist', month=month)
+                                                                            new_or_hist='hist', month=month)
         # Get the dates of the new data we have added to each collection
         new_arctic_dates_orig = [getDate(a) for a in new_arctic_assets_orig]
         new_arctic_dates_reproj = [getDate(a) for a in new_arctic_assets_reproj]
