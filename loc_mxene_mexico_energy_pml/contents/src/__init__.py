@@ -100,7 +100,7 @@ NODE_FIELD = 'node_id'
 LOAD_FIELD = 'load_zone'
 
 #Getting the same day for previous time period
-yesterday = date.today() - timedelta(days=1)
+yesterday = date.today() 
 day_of_week = eval(yesterday.strftime('%A')[:2].upper())
 last_week = yesterday + relativedelta(weekday=day_of_week(-2))
 last_month = yesterday - relativedelta(months=1, weekday=day_of_week)
