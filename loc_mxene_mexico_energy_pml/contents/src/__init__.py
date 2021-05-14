@@ -101,6 +101,7 @@ LOAD_FIELD = 'load_zone'
 
 #Getting the same day for previous time period
 yesterday = date.today() 
+logging.info('Date of today is {} - {} \n'.format(yesterday,yesterday))
 day_of_week = eval(yesterday.strftime('%A')[:2].upper())
 last_week = yesterday + relativedelta(weekday=day_of_week(-2))
 last_month = yesterday - relativedelta(months=1, weekday=day_of_week)
