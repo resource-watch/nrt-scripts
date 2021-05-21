@@ -178,7 +178,7 @@ def processData(src_url, existing_ids):
 
     # Retrieve and process new data; continue until the current year is 
     # older than the oldest year allowed in the table, set by the MAX_AGE variable
-    while year > MAX_AGE.year and num_new:
+    while year > MAX_AGE.year:
         logging.info("Fetching data for {} from {}".format(year, src_url.format(year=year)))
         # generate the url and pull data for the selected year
         res = requests.get(src_url.format(year=year))
@@ -204,7 +204,6 @@ def processData(src_url, existing_ids):
             else:
                 idx[k.replace(' ', '_')] = v
                 logging.info('updated column name:{}'.format(k.replace(' ', '_')))
-        logging.info(idx.keys())
         # create an empty list to store each row of new data
         new_rows = []
         # iterate over each line in the reader object
@@ -269,6 +268,7 @@ def processData(src_url, existing_ids):
             # insert new data into the carto table
             cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(),
                                  new_rows, user=CARTO_USER, key=CARTO_KEY)
+        year -= 1
     return new_ids
 
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
