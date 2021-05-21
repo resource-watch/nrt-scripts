@@ -63,7 +63,7 @@ TIME_FIELD = 'Reported_Date'
 MAX_ROWS = 500000
 
 # oldest date that can be stored in the Carto table before we start deleting
-MAX_YEARS = 10
+MAX_YEARS = 6
 MAX_AGE = datetime.datetime.today() - datetime.timedelta(days=365*MAX_YEARS)
 
 # url for Missing Migrants data
