@@ -29,7 +29,7 @@ CARTO_KEY = os.getenv('CARTO_KEY')
 session = requests.Session()
 
 # name of table in Carto where we will upload the data
-CARTO_TABLE = 'bio_007_world_database_on_protected_areas'
+CARTO_TABLE = 'bio_007_world_database_on_protected_areas_archived04222021'
 
 # column of table that can be used as a unique ID (UID)
 UID_FIELD='wdpa_pid'
@@ -311,7 +311,11 @@ def upload_to_carto(row):
     n_tries = 4
     # sleep time between each attempt   
     retry_wait_time = 6
-    values = _dumpRows(row.values.tolist(), tuple(CARTO_SCHEMA.values()))
+    try:
+        values = _dumpRows(row.values.tolist(), tuple(CARTO_SCHEMA.values()))
+    except:
+        logging.info("{} is causing the problem".format(row['wdpa_pid']))
+    
     insert_exception = None
     payload = {
         'api_key': CARTO_KEY,
@@ -370,10 +374,11 @@ def processData():
 
         if '555643543' in gdf['WDPA_PID'].to_list():
             # isolate the large polygon
-            logging.info('Large geometry dealt with first!')
+            logging.info('Deal with large geometry first!')
             gdf_first = gdf.loc[gdf['WDPA_PID'] =='555643543']
             # first upload the polygon to carto
             upload_to_carto(gdf_first.iloc[0])
+            logging.info('Large geometry upload completed!')
             all_ids.append('555643543')
             large_geometry = True
             gdf = gdf.loc[gdf['WDPA_PID'] !='555643543']
