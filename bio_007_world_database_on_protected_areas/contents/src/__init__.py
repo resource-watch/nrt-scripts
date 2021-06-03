@@ -353,16 +353,17 @@ def processData():
     # whether we have reached the last slice 
     last_slice = False
     # the index of the first row we want to import from the geodatabase
-    start = -200
+    start = -150
     # the number of rows we want to fetch and process each time 
-    step = 200
+    step = 150
     # the row after the last one we want to fetch and process
     end = None
     # create an empty list to store all the wdpa_pids 
     all_ids = []
-    # whether the gdf has been split due to large geometry 
-    large_geometry = False
+
     for i in range(0, 100000):
+        # whether the gdf has been split due to large geometry 
+        large_geometry = False
         # import a slice of the geopandas dataframe 
         gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(start, end))
         # get rid of the \r\n in the wdpa_pid column 
@@ -371,8 +372,22 @@ def processData():
         gdf.insert(19, "legal_status_updated_at", [None if x == 0 else datetime.datetime(x, 1, 1) for x in gdf['STATUS_YR']])
         gdf["legal_status_updated_at"] = gdf["legal_status_updated_at"].astype(object)
         logging.info('Process {} rows starting from the {}th row as a geopandas dataframe.'.format(step, start))
+        
+        # isolate large geometries from the slice
+        gdf_large = gdf[gdf['geometry'].length > 200]  
+        # loop through the large geometries and upload them one by one 
+        for index, row in gdf_large.iterrows():
+            logging.info('Deal with large geometries first!')
+            upload_to_carto(row)
+            logging.info('Large geometry of {} upload completed!'.format(row['WDPA_PID']))
+            all_ids.append(row['WDPA_PID'])
+            large_geometry = True
+            gdf = gdf.loc[gdf['WDPA_PID'] != row['WDPA_PID']]
 
-        if '555643543' in gdf['WDPA_PID'].to_list():
+        # take note of the number of large geometries
+        size_large = gdf_large.shape[0]
+
+        """ if '555643543' in gdf['WDPA_PID'].to_list():
             # isolate the large polygon
             logging.info('Deal with large geometry first!')
             gdf_first = gdf.loc[gdf['WDPA_PID'] =='555643543']
@@ -381,7 +396,7 @@ def processData():
             logging.info('Large geometry upload completed!')
             all_ids.append('555643543')
             large_geometry = True
-            gdf = gdf.loc[gdf['WDPA_PID'] !='555643543']
+            gdf = gdf.loc[gdf['WDPA_PID'] !='555643543'] """
 
         with ThreadPoolExecutor(max_workers=10) as executor:
             futures = []
@@ -400,7 +415,7 @@ def processData():
             end = start 
             start -= step
         
-        elif large_geometry == True and gdf.shape[0] + 1 == step:
+        elif large_geometry == True and gdf.shape[0] + size_large == step:
             # move to the next slice
             end = start 
             start -= step
