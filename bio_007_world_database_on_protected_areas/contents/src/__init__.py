@@ -14,7 +14,9 @@ import geopandas as gpd
 import pandas as pd
 import shutil
 import glob
-logging.getLogger("geopandas").setLevel(logging.ERROR)
+import warnings
+warnings.simplefilter(action='ignore', category=UserWarning)
+
 
 # do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = True
@@ -351,9 +353,9 @@ def processData():
     # whether we have reached the last slice 
     last_slice = False
     # the index of the first row we want to import from the geodatabase
-    start = -150
+    start = -100
     # the number of rows we want to fetch and process each time 
-    step = 150
+    step = 100
     # the row after the last one we want to fetch and process
     end = None
     # create an empty list to store all the wdpa_pids 
@@ -372,7 +374,9 @@ def processData():
         logging.info('Process {} rows starting from the {}th row as a geopandas dataframe.'.format(step, start))
         
         # isolate large geometries from the slice
-        gdf_large = gdf[gdf['geometry'].length > 200]  
+        gdf_large = gdf[gdf['geometry'].length > 200] 
+        gdf =  gdf[gdf['geometry'].length <= 200] 
+
         # loop through the large geometries and upload them one by one 
         for index, row in gdf_large.iterrows():
             logging.info('Deal with large geometries {} first!'.format(row['WDPA_PID']))
@@ -380,7 +384,6 @@ def processData():
             logging.info('Large geometry of {} upload completed!'.format(row['WDPA_PID']))
             all_ids.append(row['WDPA_PID'])
             large_geometry = True
-            gdf = gdf.loc[gdf['WDPA_PID'] != row['WDPA_PID']]
 
         # take note of the number of large geometries
         size_large = gdf_large.shape[0]
