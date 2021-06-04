@@ -14,6 +14,7 @@ import geopandas as gpd
 import pandas as pd
 import shutil
 import glob
+logging.getLogger("geopandas").setLevel(logging.ERROR)
 
 # do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = True
@@ -311,10 +312,7 @@ def upload_to_carto(row):
     n_tries = 4
     # sleep time between each attempt   
     retry_wait_time = 6
-    try:
-        values = _dumpRows(row.values.tolist(), tuple(CARTO_SCHEMA.values()))
-    except:
-        logging.info("{} is causing the problem".format(row['wdpa_pid']))
+    values = _dumpRows(row.values.tolist(), tuple(CARTO_SCHEMA.values()))
     
     insert_exception = None
     payload = {
@@ -377,7 +375,7 @@ def processData():
         gdf_large = gdf[gdf['geometry'].length > 200]  
         # loop through the large geometries and upload them one by one 
         for index, row in gdf_large.iterrows():
-            logging.info('Deal with large geometries first!')
+            logging.info('Deal with large geometries {} first!'.format(row['WDPA_PID']))
             upload_to_carto(row)
             logging.info('Large geometry of {} upload completed!'.format(row['WDPA_PID']))
             all_ids.append(row['WDPA_PID'])
