@@ -362,8 +362,6 @@ def processData():
     all_ids = []
 
     for i in range(0, 100000):
-        # whether the gdf has been split due to large geometry 
-        large_geometry = False
         # import a slice of the geopandas dataframe 
         gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(start, end))
         # get rid of the \r\n in the wdpa_pid column 
@@ -372,21 +370,6 @@ def processData():
         gdf.insert(19, "legal_status_updated_at", [None if x == 0 else datetime.datetime(x, 1, 1) for x in gdf['STATUS_YR']])
         gdf["legal_status_updated_at"] = gdf["legal_status_updated_at"].astype(object)
         logging.info('Process {} rows starting from the {}th row as a geopandas dataframe.'.format(step, start))
-        
-        # isolate large geometries from the slice
-        gdf_large = gdf[gdf['geometry'].length > 200] 
-        gdf =  gdf[gdf['geometry'].length <= 200] 
-
-        # loop through the large geometries and upload them one by one 
-        for index, row in gdf_large.iterrows():
-            logging.info('Deal with large geometries {} first!'.format(row['WDPA_PID']))
-            upload_to_carto(row)
-            logging.info('Large geometry of {} upload completed!'.format(row['WDPA_PID']))
-            all_ids.append(row['WDPA_PID'])
-            large_geometry = True
-
-        # take note of the number of large geometries
-        size_large = gdf_large.shape[0]
 
         """ if '555643543' in gdf['WDPA_PID'].to_list():
             # isolate the large polygon
@@ -403,20 +386,21 @@ def processData():
             futures = []
             for index, row in gdf.iterrows():
                 # for each row in the geopandas dataframe, submit a task to the executor to upload it to carto 
-                futures.append(
-                    executor.submit(
-                        upload_to_carto, row)
-                        )
+                if row['geometry'].length > 200:
+                    logging.info('Deal with large geometries {} first!'.format(row['WDPA_PID']))
+                    upload_to_carto(row)
+                    logging.info('Large geometry of {} upload completed!'.format(row['WDPA_PID']))
+                    all_ids.append(row['WDPA_PID'])
+                else: 
+                    futures.append(
+                        executor.submit(
+                            upload_to_carto, row)
+                            )
             for future in as_completed(futures):
                 all_ids.append(future.result())
 
         # if the number of rows is equal to the size of the slice 
         if gdf.shape[0] == step:
-            # move to the next slice
-            end = start 
-            start -= step
-        
-        elif large_geometry == True and gdf.shape[0] + size_large == step:
             # move to the next slice
             end = start 
             start -= step
