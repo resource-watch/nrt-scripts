@@ -12,6 +12,7 @@ RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=car
 RUN pip install requests
 RUN pip install numpy
 RUN pip install pandas
+RUN pip install python-rapidjson
 RUN pip install geopandas==0.8.1
 
 # set name

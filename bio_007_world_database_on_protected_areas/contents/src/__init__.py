@@ -8,6 +8,7 @@ import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 import json
+import rapidjson
 import urllib
 import zipfile
 import geopandas as gpd
@@ -283,7 +284,7 @@ def _escapeValue(value, dtype):
         if isinstance(value, str):
             return value
         else:
-            value = json.dumps(value)
+            value = rapidjson.dumps(value)
             return "ST_SetSRID(ST_GeomFromGeoJSON('{}'),4326)".format(value)
     elif dtype in ('text', 'timestamp', 'varchar'):
         # quote strings, escape quotes, and drop nbsp
