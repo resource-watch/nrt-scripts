@@ -415,10 +415,10 @@ def processNewData(existing_dates):
             new_assets_all_var += new_assets
             # Delete local files
             logging.info('Cleaning local files')
-            for tif in tifs:
+            """ for tif in tifs:
                 os.remove(tif)
             for f in files:
-                os.remove(f)
+                #os.remove(f) """
     return new_assets_all_var
 
 def checkCreateCollection(vars):
@@ -508,7 +508,10 @@ def deleteExcessAssets(dates, max_dates):
                 logging.info('Deleting old assets from GEE')
                 for date_ix in range(NUM_TIMESTEPS):
                     asset = getAssetName(getFilename(date, compound).split('.')[0]+'_' +str(date_ix).zfill(2))
-                    eeUtil.removeAsset(asset)
+                    try:
+                        eeUtil.removeAsset(asset)
+                    except:
+                        pass
 
 def create_headers():
     '''
