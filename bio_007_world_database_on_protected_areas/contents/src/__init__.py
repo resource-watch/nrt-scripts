@@ -294,8 +294,15 @@ def _escapeValue(value, dtype):
 
 def _dumpRows(rows, dtypes):
     '''Escapes rows of data to SQL strings'''
-    escaped = [_escapeValue(rows[i], dtypes[i]) for i in range(len(dtypes))]
-    return '({})'.format(','.join(escaped))
+    """ escaped = [_escapeValue(rows[i], dtypes[i]) for i in range(len(dtypes))] """
+
+    escaped = ''
+    for i in range(len(dtypes)):
+        if i == 0:
+            escaped += _escapeValue(rows[i], dtypes[i])
+        else:
+            escaped += ',' + _escapeValue(rows[i], dtypes[i])
+    return '({})'.format(escaped)
 
 def upload_to_carto(row):
     '''
@@ -386,8 +393,11 @@ def processData():
             futures = []
             for index, row in gdf.iterrows():
                 # for each row in the geopandas dataframe, submit a task to the executor to upload it to carto 
-                if row['geometry'].length > 200:
+                if row['geometry'].length > 300:
                     logging.info('Deal with large geometries {} first!'.format(row['WDPA_PID']))
+                    if futures != []:
+                        time.sleep(15)
+                        logging.info('Wait for previous requests to complete')
                     upload_to_carto(row)
                     logging.info('Large geometry of {} upload completed!'.format(row['WDPA_PID']))
                     all_ids.append(row['WDPA_PID'])
