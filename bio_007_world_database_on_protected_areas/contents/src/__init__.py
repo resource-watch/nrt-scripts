@@ -354,7 +354,7 @@ def upload_to_carto(row):
 def processData():
     '''
     Fetch, process, upload, and clean new data
-    RETURN  all_ids: a list storing all the wdpa_pids in the current dataframe (list of strings)
+    RETURN  all_ids: number of the wdpa_pids in the current dataframe (integer)
     '''
     # fetch the path to the unzipped geodatabase folder
     gdb = fetch_data()
@@ -367,7 +367,7 @@ def processData():
     # the row after the last one we want to fetch and process
     end = None
     # create an empty list to store all the wdpa_pids 
-    all_ids = []
+    all_ids = 0
 
     for i in range(0, 100000):
         # import a slice of the geopandas dataframe 
@@ -404,13 +404,13 @@ def processData():
                             upload_to_carto, row)
                             )
             for future in as_completed(futures):
-                all_ids.append(future.result())
+                all_ids += 1
         
         for index, row in gdf.loc[gdf['WDPA_PID'].isin(large_ids)].iterrows():
             logging.info('Processing large polygon of id {}'.format(row['WDPA_PID']))
             upload_to_carto(row)
             logging.info('Large polygon of id {} uploaded'.format(row['WDPA_PID']))
-            all_ids.append(row['WDPA_PID'])
+            all_ids += 1
 
         # if the number of rows is equal to the size of the slice 
         if gdf.shape[0] == step:
@@ -467,7 +467,7 @@ def main():
     # Fetch, process, and upload the new data
     logging.info('Fetching and processing new data')
     # The total number of rows in the Carto table
-    num_new = len(processData())
+    num_new = processData()
     logging.info('Previous rows: {},  Current rows: {}'.format(len(existing_ids), num_new))
 
     # Update Resource Watch
