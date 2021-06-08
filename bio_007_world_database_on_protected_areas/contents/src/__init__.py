@@ -369,6 +369,13 @@ def processData():
     # create an empty list to store all the wdpa_pids 
     all_ids = []
 
+    gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(-69000, -69200)) 
+    gdf_first = gdf.loc[gdf['geometry'].length > 300]
+    for index, row in gdf_first:
+        logging.info('Processing large polygon of id {}'.format(row['WDPA_PID']))
+        upload_to_carto(row)
+        logging.info('Large polygon of id {} uploaded'.format(row['WDPA_PID']))
+        
     for i in range(0, 100000):
         # import a slice of the geopandas dataframe 
         gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(start, end))
@@ -390,18 +397,14 @@ def processData():
             large_geometry = True
             gdf = gdf.loc[gdf['WDPA_PID'] !='555643543'] """
 
+        # create an empty list to store the ids of large polygons
+        large_ids = []
         with ThreadPoolExecutor(max_workers=10) as executor:
             futures = []
             for index, row in gdf.iterrows():
                 # for each row in the geopandas dataframe, submit a task to the executor to upload it to carto 
-                if row['geometry'].length > 300:
-                    logging.info('Deal with large geometries {} first!'.format(row['WDPA_PID']))
-                    if futures != []:
-                        time.sleep(15)
-                        logging.info('Wait for previous requests to complete')
-                    upload_to_carto(row)
-                    logging.info('Large geometry of {} upload completed!'.format(row['WDPA_PID']))
-                    all_ids.append(row['WDPA_PID'])
+                if row['geometry'].length > 10:
+                    large_ids.append(row['WDPA_PID'])
                 else: 
                     futures.append(
                         executor.submit(
@@ -409,6 +412,12 @@ def processData():
                             )
             for future in as_completed(futures):
                 all_ids.append(future.result())
+        
+        for index, row in gdf.loc[gdf['WDPA_PID'].isin(large_ids)].iterrows():
+            logging.info('Processing large polygon of id {}'.format(row['WDPA_PID']))
+            upload_to_carto(row)
+            logging.info('Large polygon of id {} uploaded'.format(row['WDPA_PID']))
+            all_ids.append(row['WDPA_PID'])
 
         # if the number of rows is equal to the size of the slice 
         if gdf.shape[0] == step:
