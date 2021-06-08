@@ -371,7 +371,7 @@ def processData():
 
     gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(-69000, -69200)) 
     gdf_first = gdf.loc[gdf['geometry'].length > 300]
-    for index, row in gdf_first:
+    for index, row in gdf_first.iterrows():
         logging.info('Processing large polygon of id {}'.format(row['WDPA_PID']))
         upload_to_carto(row)
         logging.info('Large polygon of id {} uploaded'.format(row['WDPA_PID']))
