@@ -354,7 +354,7 @@ def upload_to_carto(row):
 def processData():
     '''
     Fetch, process, upload, and clean new data
-    RETURN  all_ids: number of the wdpa_pids in the current dataframe (integer)
+    RETURN  all_ids: a list storing all the wdpa_pids in the current dataframe (list of strings)
     '''
     # fetch the path to the unzipped geodatabase folder
     gdb = fetch_data()
@@ -367,9 +367,25 @@ def processData():
     # the row after the last one we want to fetch and process
     end = None
     # create an empty list to store all the wdpa_pids 
-    all_ids = 0
+    all_ids = []
 
-    for i in range(0, 100000):
+    # deal with the large geometries first 
+    gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(-69500, -69000))
+    if '555643543' in gdf['WDPA_PID'].to_list():
+        # isolate the large polygon
+        gdf_large = gdf.loc[gdf['WDPA_PID'] =='555643543']
+        # get rid of the \r\n in the wdpa_pid column 
+        gdf_large['WDPA_PID'] = [x.split('\r\n')[0] for x in gdf_large['WDPA_PID']]
+        # create a new column to store the status_yr column as timestamps
+        gdf_large.insert(19, "legal_status_updated_at", [None if x == 0 else datetime.datetime(x, 1, 1) for x in gdf_large['STATUS_YR']])
+        gdf_large["legal_status_updated_at"] = gdf_large["legal_status_updated_at"].astype(object)
+       
+        # first upload the polygon to carto
+        upload_to_carto(gdf_large.iloc[0])
+        logging.info('Large geometry upload completed!')
+        all_ids.append('555643543')
+        
+    for i in range(0, 100000000):
         # import a slice of the geopandas dataframe 
         gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(start, end))
         # get rid of the \r\n in the wdpa_pid column 
@@ -379,38 +395,29 @@ def processData():
         gdf["legal_status_updated_at"] = gdf["legal_status_updated_at"].astype(object)
         logging.info('Process {} rows starting from the {}th row as a geopandas dataframe.'.format(step, start))
 
-        """ if '555643543' in gdf['WDPA_PID'].to_list():
-            # isolate the large polygon
-            logging.info('Deal with large geometry first!')
-            gdf_first = gdf.loc[gdf['WDPA_PID'] =='555643543']
-            # first upload the polygon to carto
-            upload_to_carto(gdf_first.iloc[0])
-            logging.info('Large geometry upload completed!')
-            all_ids.append('555643543')
-            large_geometry = True
-            gdf = gdf.loc[gdf['WDPA_PID'] !='555643543'] """
-
         # create an empty list to store the ids of large polygons
         large_ids = []
         with ThreadPoolExecutor(max_workers=10) as executor:
             futures = []
             for index, row in gdf.iterrows():
                 # for each row in the geopandas dataframe, submit a task to the executor to upload it to carto 
-                if row['geometry'].length > 300:
-                    large_ids.append(row['WDPA_PID'])
-                else: 
-                    futures.append(
-                        executor.submit(
-                            upload_to_carto, row)
-                            )
+                if row['WDPA_PID'] not in all_ids: 
+                    if row['geometry'].length > 300:
+                        large_ids.append(row['WDPA_PID'])
+                    else: 
+                        futures.append(
+                            executor.submit(
+                                upload_to_carto, row)
+                                )
+
             for future in as_completed(futures):
-                all_ids += 1
-        
+                all_ids.append(future.result())
+
         for index, row in gdf.loc[gdf['WDPA_PID'].isin(large_ids)].iterrows():
             logging.info('Processing large polygon of id {}'.format(row['WDPA_PID']))
             upload_to_carto(row)
             logging.info('Large polygon of id {} uploaded'.format(row['WDPA_PID']))
-            all_ids += 1
+            all_ids.append(row['WDPA_PID'])
 
         # if the number of rows is equal to the size of the slice 
         if gdf.shape[0] == step:
@@ -467,7 +474,7 @@ def main():
     # Fetch, process, and upload the new data
     logging.info('Fetching and processing new data')
     # The total number of rows in the Carto table
-    num_new = processData()
+    num_new = len(processData())
     logging.info('Previous rows: {},  Current rows: {}'.format(len(existing_ids), num_new))
 
     # Update Resource Watch
