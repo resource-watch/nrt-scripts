@@ -413,11 +413,11 @@ def processData():
             for future in as_completed(futures):
                 all_ids.append(future.result())
 
-            for index, row in gdf.loc[gdf['WDPA_PID'].isin(large_ids)].iterrows():
-                logging.info('Processing large polygon of id {}'.format(row['WDPA_PID']))
-                upload_to_carto(row)
-                logging.info('Large polygon of id {} uploaded'.format(row['WDPA_PID']))
-                all_ids.append(row['WDPA_PID'])
+        for index, row in gdf.loc[gdf['WDPA_PID'].isin(large_ids)].iterrows():
+            logging.info('Processing large polygon of id {}'.format(row['WDPA_PID']))
+            upload_to_carto(row)
+            logging.info('Large polygon of id {} uploaded'.format(row['WDPA_PID']))
+            all_ids.append(row['WDPA_PID'])
 
         # if the number of rows is equal to the size of the slice 
         if gdf.shape[0] == step:
