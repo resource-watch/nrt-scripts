@@ -385,7 +385,7 @@ def processData():
         logging.info('Large geometry upload completed!')
         all_ids.append('555643543')
         
-    for i in range(0, 10):
+    for i in range(0, 100000000):
         # import a slice of the geopandas dataframe 
         gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(start, end))
         # get rid of the \r\n in the wdpa_pid column 
@@ -394,17 +394,6 @@ def processData():
         gdf.insert(19, "legal_status_updated_at", [None if x == 0 else datetime.datetime(x, 1, 1) for x in gdf['STATUS_YR']])
         gdf["legal_status_updated_at"] = gdf["legal_status_updated_at"].astype(object)
         logging.info('Process {} rows starting from the {}th row as a geopandas dataframe.'.format(step, start))
-
-        """ if '555643543' in gdf['WDPA_PID'].to_list():
-            # isolate the large polygon
-            logging.info('Deal with large geometry first!')
-            gdf_first = gdf.loc[gdf['WDPA_PID'] =='555643543']
-            # first upload the polygon to carto
-            upload_to_carto(gdf_first.iloc[0])
-            logging.info('Large geometry upload completed!')
-            all_ids.append('555643543')
-            large_geometry = True
-            gdf = gdf.loc[gdf['WDPA_PID'] !='555643543'] """
 
         # create an empty list to store the ids of large polygons
         large_ids = []
