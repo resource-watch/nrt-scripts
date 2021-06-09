@@ -33,7 +33,7 @@ CARTO_KEY = os.getenv('CARTO_KEY')
 session = requests.Session()
 
 # name of table in Carto where we will upload the data
-CARTO_TABLE = 'bio_007_world_database_on_protected_areas_archived04222021'
+CARTO_TABLE = 'bio_007_world_database_on_protected_areas'
 
 # column of table that can be used as a unique ID (UID)
 UID_FIELD='wdpa_pid'
