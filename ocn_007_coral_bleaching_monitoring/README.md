@@ -1,5 +1,5 @@
 ## Coral Bleaching Monitoring Dataset Near Real-time Script
-This file describes the near real-time script that retrieves and processes the [Daily Global 5km Satellite Coral Bleaching Heat Stress Monitoring dataset](https://coralreefwatch.noaa.gov/product/5km/index.php) for [display on Resource Watch](https://resourcewatch.org/data/explore/).
+This file describes the near real-time script that retrieves and processes the [Daily Global 5km Satellite Coral Bleaching Heat Stress Monitoring dataset](https://coralreefwatch.noaa.gov/product/5km/index.php) for [display on Resource Watch](https://resourcewatch.org/data/explore/574f0b71-8363-4e3a-978f-2b1ce58c1c33).
 
 This dataset is provided by the source in a number of separate NetCDF files. The following variables are shown on Resource Watch:
 - Bleaching Alert Area (bleaching_alert_area_7d): Areas where bleaching thermal stress satisfies specific criteria based on HotSpot and Degree Heating Week (DHW) values
