@@ -1,17 +1,19 @@
+from io import DEFAULT_BUFFER_SIZE
 import os
 import logging
 import sys
 from collections import OrderedDict
 import datetime
+from dateutil.relativedelta import relativedelta
+import pandas as pd
 import cartosql
 import requests
 import json
+from shapely.geometry import shape
+import geopandas as gpd
 
 # do you want to delete everything currently in the Carto table when you run this script?
-CLEAR_TABLE_FIRST = False
-
-# name of data directory in Docker container
-DATA_DIR = 'data'
+CLEAR_TABLE_FIRST = True
 
 # Carto username and API key for account where we will store the data
 CARTO_USER = os.getenv('CARTO_USER')
@@ -22,10 +24,10 @@ ACLED_KEY = os.getenv('ACLED_KEY')
 ACLED_USER = os.getenv('ACLED_USER')
 
 # name of table in Carto where we will upload the data
-CARTO_TABLE = 'soc_016_conflict_protest_events'
+CARTO_TABLE = 'soc_016_conflict_protest_events_count'
 
-# column of table that can be used as a unique ID (UID)
-UID_FIELD = 'data_id'
+# name of the table in Carto that stores administrative boundaries
+CARTO_GEO = 'wpsi_adm2_counties_display'
 
 # column that stores datetime information
 TIME_FIELD = 'event_date'
@@ -67,13 +69,13 @@ CARTO_SCHEMA = OrderedDict([
 MAXROWS = 10000000
 
 # url for armed conflict location & event data
-SOURCE_URL = 'https://api.acleddata.com/acled/read/?key={key}&email={user}&page={page}'
+SOURCE_URL = 'https://api.acleddata.com/acled/read/?key={key}&email={user}&event_date={date_start}|{date_end}&event_date_where=BETWEEN&page={page}'
 
 # minimum pages to process
-MIN_PAGES = 15
+MIN_PAGES = 1
 
 # maximum pages to process
-MAX_PAGES = 400
+MAX_PAGES = 2
 
 # Resource Watch dataset API ID
 # Important! Before testing this script:
@@ -160,21 +162,26 @@ The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
 
-def processNewData(src_url, existing_ids):
+def processNewData(src_url):
     '''
     Fetch, process and upload new data
     INPUT   src_url: unformatted url where you can find the source data (string)
             existing_ids: list of unique IDs that we already have in our Carto table (list of strings)
     RETURN  new_ids: list of unique ids of new data sent to Carto table (list of strings)
     '''
+    # get the range of dates we will be fetching data from 
+    date_start = get_date_range()[0]
+    date_end = get_date_range()[1]
     # specify the page of source url we want to pull
     # initialize at 0 so that we can start pulling from page 1 in the loop
     page = 0
     # length (number of rows) of new_data
     # initialize at 1 so that the while loop works during first step
     new_count = 1
-    # create an empty list to store unique ids of new data we will be sending to Carto table
+    # create an empty list to store ids
     new_ids = []
+    # create an empty dataframe to store data
+    data_df = pd.DataFrame()
     # get and parse each page; stop when no new results or max pages
     # process up to MIN_PAGES even if there are no new results from them
     while page <= MIN_PAGES or new_count and page < MAX_PAGES:
@@ -182,64 +189,84 @@ def processNewData(src_url, existing_ids):
             # increment page number in every loop
             page += 1
             logging.info("Fetching page {}".format(page))
-            # generate the url and pull data for this page 
-            r = requests.get(src_url.format(key=ACLED_KEY, user=ACLED_USER, page=page))
-            # pull data from request response json
-            data = r.json()
-            # create an empty list to store each row of new data
+            # create an empty list to store data
             new_rows = []
-            # loop until no new observations
-            for obs in data['data']:
-                # generate unique id by using the data_id feature from json
-                uid = str(obs[UID_FIELD])
+            # generate the url and pull data for this page 
+            r = requests.get(src_url.format(key=ACLED_KEY, user=ACLED_USER, date_start=date_start, date_end=date_end, page=page))
+            # columns of the pandas dataframe
+            """  cols = ["data_id", "event_date", "year", "time_precision", "event_type", "sub_event_type", "actor1", "assoc_actor_1", "inter1", 
+            "actor2", "assoc_actor_2", "inter2", "interaction", "country", "iso3", "region", "admin1", "admin2", "admin3", "location", 
+            "geo_precision", "time_precision", "source", "source_scale", "notes", "fatalities", "latitude", "longitude"] """
+            cols = ['event_type', 'latitude', 'longitude']
+            # pull data from request response json
+            for obs in r.json()['data']:
                 # if the id doesn't already exist in Carto table or 
                 # isn't added to the list for sending to Carto yet 
-                if uid not in existing_ids + new_ids:
+                if obs['data_id'] not in new_ids:
                     # append the id to the list for sending to Carto 
-                    new_ids.append(uid)
+                    new_ids.append(obs['data_id'])
                     # create an empty list to store data from this row
                     row = []
                     # go through each column in the Carto table
-                    for field in CARTO_SCHEMA.keys():
-                        # if we are fetching data for geometry column
-                        if field == 'the_geom':
-                            # construct geojson geometry
-                            geom = {
-                                "type": "Point",
-                                "coordinates": [
-                                    obs['longitude'],
-                                    obs['latitude']
-                                ]
-                            }
-                            # add geojson geometry to the list of data from this row
-                            row.append(geom)
-                        # if we are fetching data for unique id column
-                        elif field == UID_FIELD:
-                            # add the unique id to the list of data from this row
-                            row.append(uid)
-                        else:
-                            try:
-                                # add data for remaining fields to the list of data from this row
-                                row.append(obs[field])
-                            except:
-                                logging.debug('{} not available for this row'.format(field))
-                                # if the column we are trying to retrieve doesn't exist in the source data, store blank
-                                row.append('')
+                    for col in cols:
+                        try:
+                            # add data for remaining fields to the list of data from this row
+                            row.append(obs[col])
+                        except:
+                            logging.debug('{} not available for this row'.format(col))
+                            # if the column we are trying to retrieve doesn't exist in the source data, store blank
+                            row.append('')
+
                     # add the list of values from this row to the list of new data
                     new_rows.append(row)
-
-            # find the length (number of rows) of new_data 
+            
+            # number of new rows added in this page 
             new_count = len(new_rows)
-            # check if new data is available
-            if new_count:
-                logging.info('Pushing {} new rows'.format(new_count))
-                # insert new data into the carto table
-                cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
-                                    CARTO_SCHEMA.values(), new_rows, user=CARTO_USER, key=CARTO_KEY)
+            # append the new rows to the pandas dataframe
+            data_df = data_df.append(pd.DataFrame(new_rows, columns=cols))
+
         except:
             logging.error('Could not fetch or process page {}'.format(page))
 
-    return new_ids
+    # convert the pandas dataframe to a geopandas dataframe
+    data_gdf = gpd.GeoDataFrame(data_df, geometry=gpd.points_from_xy(data_df.longitude, data_df.latitude))
+
+    # get the ids of polygons from the carto table storing administrative areas
+    r = cartosql.getFields('objectid', CARTO_GEO, f='csv', post=True, user=CARTO_USER, key=CARTO_KEY)
+    # turn the response into a list of ids
+    geo_id = r.text.split('\r\n')[1:-1]
+    # create a geopandas dataframe for the adminstrative area geometries
+    geo_gdf = get_admin(CARTO_GEO)
+
+    # spatial join the two dataframes to get the number of points per polygon
+    joined = spatial_join(data_gdf, geo_gdf)
+
+    return joined
+
+def get_admin(admin_table):
+    sql = 'SELECT * FROM "{}"'.format(admin_table)
+    r = cartosql.sendSql(sql, user=CARTO_USER, key=CARTO_KEY, f = 'GeoJSON', post=True)
+    data = r.json()
+    admin_gdf = gpd.GeoDataFrame.from_features(data)
+
+    return admin_gdf
+
+def spatial_join(gdf_pt, gdf_poly):
+    # spatial join the two geopandas dataframes
+    dfsjoin = gpd.sjoin(gdf_poly, gdf_pt)
+    # count the number of points per administrative area 
+    pt_poly = dfsjoin.groupby(['objectid', 'event_type']).aggsize().reset_index(name='counts')
+    
+    return pt_poly
+
+
+def get_date_range():
+    date_end = datetime.date.today()
+    date_start = date_end + relativedelta(months=-6)
+    date_end = date_end.strftime("%Y-%m-%d")
+    date_start = date_start.strftime("%Y-%m-%d")
+
+    return date_start, date_end
 
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
     ''' 
@@ -406,10 +433,10 @@ def main():
 
     # Check if table exists, create it if it does not
     logging.info('Checking if table exists and getting existing IDs.')
-    existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, TIME_FIELD)
+    #existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, TIME_FIELD)
 
     # Fetch, process, and upload new data
-    new_ids = processNewData(SOURCE_URL, existing_ids)
+    new_ids = processNewData(SOURCE_URL)
     # find the length of new data that were uploaded to Carto
     num_new = len(new_ids)
 
