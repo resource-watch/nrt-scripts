@@ -9,8 +9,11 @@ import pandas as pd
 import cartosql
 import requests
 import json
-from shapely.geometry import shape
+import time
 import geopandas as gpd
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import warnings
+warnings.simplefilter(action='ignore', category=UserWarning)
 
 # do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = True
@@ -26,47 +29,39 @@ ACLED_USER = os.getenv('ACLED_USER')
 # name of table in Carto where we will upload the data
 CARTO_TABLE = 'soc_016_conflict_protest_events_count'
 
+# initiate a request session
+session = requests.Session()
+
 # name of the table in Carto that stores administrative boundaries
 CARTO_GEO = 'wpsi_adm2_counties_display'
 
-# column that stores datetime information
+# column that stores the unique ids
+UID_FIELD = 'objectid'
+
+# column that stores time in the point dataset
 TIME_FIELD = 'event_date'
 
 # column names and types for data table
 # column names should be lowercase
 # column types should be one of the following: geometry, text, numeric, timestamp
-CARTO_SCHEMA = OrderedDict([
-    ("the_geom", "geometry"),
-    ("data_id", "int"),
-    ("event_date", "timestamp"),
-    ("year", "int"),
-    ("time_precision", "int"),
-    ("event_type", "text"),
-    ("sub_event_type", "text"),
-    ("actor1", "text"),
-    ("assoc_actor_1", "text"),
-    ("inter1", "int"),
-    ("actor2", "text"),
-    ("assoc_actor_2", "text"),
-    ("inter2", "int"),
-    ("interaction", "int"),
-    ("country", "text"),
-    ("iso3", "text"),
-    ("region", "text"),
-    ("admin1", "text"),
-    ("admin2", "text"),
-    ("admin3", "text"),
-    ("location", "text"),
-    ("geo_precision", "int"),
-    ("time_precision", "int"),
-    ("source", "text"),
-    ("source_scale", "text"),
-    ("notes", "text"),
-    ("fatalities", "int"),
-])
-
-# how many rows can be stored in the Carto table before the oldest ones are deleted?
-MAXROWS = 10000000
+CARTO_SCHEMA = OrderedDict([('cartodb_id', 'text'), 
+('engtype_1', 'text'), 
+('engtype_2', 'text'), 
+('the_geom', 'geometry'), 
+('gid_0', 'text'), 
+('gid_1', 'text'), 
+('gid_2', 'text'), 
+('name_0', 'text'), 
+('name_1', 'text'), 
+('name_2', 'text'), 
+('objectid', 'text'), 
+('shape_area', 'numeric'), 
+('shape_leng', 'numeric'),
+('battles', 'numeric'),
+('protests', 'numeric'),
+('riots', 'numeric'), 
+('strategic_developments', 'numeric'),
+('total', 'numeric')])
 
 # url for armed conflict location & event data
 SOURCE_URL = 'https://api.acleddata.com/acled/read/?key={key}&email={user}&event_date={date_start}|{date_end}&event_date_where=BETWEEN&page={page}'
@@ -75,7 +70,7 @@ SOURCE_URL = 'https://api.acleddata.com/acled/read/?key={key}&email={user}&event
 MIN_PAGES = 1
 
 # maximum pages to process
-MAX_PAGES = 2
+MAX_PAGES = 800
 
 # Resource Watch dataset API ID
 # Important! Before testing this script:
@@ -230,21 +225,120 @@ def processNewData(src_url):
 
     # convert the pandas dataframe to a geopandas dataframe
     data_gdf = gpd.GeoDataFrame(data_df, geometry=gpd.points_from_xy(data_df.longitude, data_df.latitude))
-
+   
     # get the ids of polygons from the carto table storing administrative areas
     r = cartosql.getFields('objectid', CARTO_GEO, f='csv', post=True, user=CARTO_USER, key=CARTO_KEY)
+    
     # turn the response into a list of ids
     geo_id = r.text.split('\r\n')[1:-1]
-    # create a geopandas dataframe for the adminstrative area geometries
-    geo_gdf = get_admin(CARTO_GEO)
+    
+    # create an empty list to store the ids of rows uploaded to Carto
+    uploaded_ids = []
 
-    # spatial join the two dataframes to get the number of points per polygon
-    joined = spatial_join(data_gdf, geo_gdf)
+    # number of rows in each slice 
+    slice = 1000 
 
-    return joined
+    # access the administrative areas in slices 
+    for i in range(0, len(geo_id) - slice, slice):
+        # create a geopandas dataframe for the adminstrative area geometries
+        geo_gdf = get_admin_area(CARTO_GEO, geo_id[i:i+slice])
+        # spatial join the two dataframes to get the number of points per polygon
+        joined = spatial_join(data_gdf, geo_gdf)
+        # convert the geometry column to geojson 
+        joined['geometry'] = [convert_geometry(geom) for geom in joined.geometry]
+        
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = []
+            for index, row in joined.iterrows():
+                # for each row in the geopandas dataframe, submit a task to the executor to upload it to carto 
+                if row['objectid'] not in uploaded_ids: 
+                    futures.append(
+                        executor.submit(
+                            upload_to_carto, row)
+                            )
+            for future in as_completed(futures):
+                uploaded_ids.append(future.result())
+        logging.info('{} of rows uploaded to Carto.'.format(slice))
 
-def get_admin(admin_table):
-    sql = 'SELECT * FROM "{}"'.format(admin_table)
+    return uploaded_ids
+
+def convert_geometry(geom):
+    '''
+    Function to convert shapely geometries to geojsons
+    INPUT   geom: shapely geometry 
+    RETURN  output: geojson 
+    '''
+    return geom.__geo_interface__
+
+def upload_to_carto(row):
+    '''
+    Function to upload data to the Carto table 
+    INPUT   row: the geopandas dataframe of data we want to upload (geopandas dataframe)
+    RETURN  the objectid of the row just uploaded
+    '''
+    # maximum attempts to make
+    n_tries = 4
+    # sleep time between each attempt   
+    retry_wait_time = 6
+
+    insert_exception = None
+
+    # construct the sql query to upload the row to the carto table
+    fields = CARTO_SCHEMA.keys()
+    values = cartosql._dumpRows([row.values.tolist()], tuple(CARTO_SCHEMA.values()))
+
+    payload = {
+        'api_key': CARTO_KEY,
+        'q': 'INSERT INTO "{}" ({}) VALUES {}'.format(CARTO_TABLE, ', '.join(fields), values)
+        }
+
+    for i in range(n_tries):
+        try:
+            # send the sql query to the carto API 
+            r = session.post('https://{}.carto.com/api/v2/sql'.format(CARTO_USER), json=payload)
+            r.raise_for_status()
+        except Exception as e: # if there's an exception do this
+            insert_exception = e
+            try:
+                logging.error(r.content)
+            except:
+                pass
+            logging.warning('Attempt #{} to upload row #{} unsuccessful. Trying again after {} seconds'.format(i, row['objectid'], retry_wait_time))
+            logging.debug('Exception encountered during upload attempt: '+ str(e))
+            time.sleep(retry_wait_time)
+        else: # if no exception do this
+            return row['objectid']
+    else:
+        # this happens if the for loop completes, ie if it attempts to insert row n_tries times
+        logging.error('Upload of row #{} has failed after {} attempts'.format(row['objectid'], n_tries))
+        logging.error('Problematic row: '+ str(row))
+        logging.error('Raising exception encountered during last upload attempt')
+        logging.error(insert_exception)
+        raise insert_exception
+    
+    return row['objectid']
+
+def get_admin_area(admin_table, id_list):
+    '''
+    Delete entries in Carto table based on values in a specified column
+    INPUT   admin_table: the name of the carto table storing the administrative areas (string)
+            id_list: list of ids for rows to fetch from the table (list of strings)
+    RETURN  data fetched from the table (geopandas dataframe)
+    '''
+    # generate empty variable to store WHERE clause of SQL query we will send
+    where = None
+    # column: column name where you should search for these values 
+    column = 'objectid'
+    # go through each ID in the list to be deleted
+    for id in id_list:
+        # if we already have values in the SQL query, add the new value with an OR before it
+        if where:
+            where += f" OR {column} = '{id}'"
+        # if the SQL query is empty, create the start of the WHERE clause
+        else:
+            where = f"{column} = '{id}'"
+    
+    sql = 'SELECT * FROM "{}" WHERE {}'.format(admin_table, where)
     r = cartosql.sendSql(sql, user=CARTO_USER, key=CARTO_KEY, f = 'GeoJSON', post=True)
     data = r.json()
     admin_gdf = gpd.GeoDataFrame.from_features(data)
@@ -255,58 +349,32 @@ def spatial_join(gdf_pt, gdf_poly):
     # spatial join the two geopandas dataframes
     dfsjoin = gpd.sjoin(gdf_poly, gdf_pt)
     # count the number of points per administrative area 
-    pt_poly = dfsjoin.groupby(['objectid', 'event_type']).aggsize().reset_index(name='counts')
-    
+    pt_count = dfsjoin.groupby(['objectid', 'event_type']).size().reset_index(name='counts')
+    # convert the dataframe from long to wide form 
+    pt_count = pd.pivot_table(pt_count, index = 'objectid', columns='event_type')
+    # clean up the column names to match the naming requirements of Carto 
+    pt_count.columns = [x.lower().replace(' ', '_') for x in pt_count.columns.droplevel(0)]
+    # merge the counts to the administrative area dataframe
+    pt_poly = gdf_poly.merge(pt_count, how='left', on='objectid')
+    # replace NaN in the columns with zeros 
+    pt_poly[pt_count.columns] = pt_poly[pt_count.columns].fillna(value = 0)
+    # make sure there is one column for each event type
+    for event_type in ['battles', 'protests', 'riots', 'strategic_developments']:
+        if event_type not in pt_poly.columns:
+            pt_poly[event_type] = 0
+    # add a column to store the sum of number of events 
+    pt_poly['total'] = pt_poly['battles'] + pt_poly['protests'] + pt_poly['riots'] + pt_poly['strategic_developments']
+
     return pt_poly
 
 
 def get_date_range():
     date_end = datetime.date.today()
-    date_start = date_end + relativedelta(months=-6)
+    date_start = date_end + relativedelta(months=-12)
     date_end = date_end.strftime("%Y-%m-%d")
     date_start = date_start.strftime("%Y-%m-%d")
 
     return date_start, date_end
-
-def deleteExcessRows(table, max_rows, time_field, max_age=''):
-    ''' 
-    Delete rows that are older than a certain threshold and also bring count down to max_rows
-    INPUT   table: name of table in Carto from which we will delete excess rows (string)
-            max_rows: maximum rows that can be stored in the Carto table (integer)
-            time_field: column that stores datetime information (string) 
-            max_age: oldest date that can be stored in the Carto table (datetime object)
-    RETURN  num_dropped: number of rows that have been dropped from the table (integer)
-    ''' 
-    # initialize number of rows that will be dropped as 0
-    num_dropped = 0
-
-    # check if max_age is a datetime object
-    if isinstance(max_age, datetime.datetime):
-        # convert max_age to a string 
-        max_age = max_age.isoformat()
-
-    # if the max_age variable exists
-    if max_age:
-        # delete rows from table which are older than the max_age
-        r = cartosql.deleteRows(table, "{} < '{}'".format(time_field, max_age), user=CARTO_USER, key=CARTO_KEY)
-        # get the number of rows that were dropped from the table
-        num_dropped = r.json()['total_rows']
-
-    # get cartodb_ids from carto table sorted by date (new->old)
-    r = cartosql.getFields('cartodb_id', table, order='{} desc'.format(time_field),
-                           f='csv', user=CARTO_USER, key=CARTO_KEY)
-    # turn response into a list of strings of the ids
-    ids = r.text.split('\r\n')[1:-1]
-
-    # if number of rows is greater than max_rows, delete excess rows
-    if len(ids) > max_rows:
-        r = cartosql.deleteRowsByIDs(table, ids[max_rows:], user=CARTO_USER, key=CARTO_KEY)
-        # get the number of rows that have been dropped from the table
-        num_dropped += r.json()['total_rows']
-    if num_dropped:
-        logging.info('Dropped {} old rows from {}'.format(num_dropped, table))
-
-    return(num_dropped)
 
 def get_most_recent_date(table):
     '''
@@ -433,18 +501,14 @@ def main():
 
     # Check if table exists, create it if it does not
     logging.info('Checking if table exists and getting existing IDs.')
-    #existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, TIME_FIELD)
+    existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD)
 
     # Fetch, process, and upload new data
     new_ids = processNewData(SOURCE_URL)
     # find the length of new data that were uploaded to Carto
     num_new = len(new_ids)
 
-    # Delete data to get back to MAX_ROWS
-    logging.info('Deleting excess rows')
-    num_deleted = deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD) 
-
     # Update Resource Watch
-    updateResourceWatch(num_new)
+    #updateResourceWatch(num_new)
 
     logging.info('SUCCESS')
