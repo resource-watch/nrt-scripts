@@ -165,8 +165,8 @@ def processNewData(src_url):
     RETURN  new_ids: list of unique ids of new data sent to Carto table (list of strings)
     '''
     # get the range of dates we will be fetching data from 
-    date_start = get_date_range()[0]
-    date_end = get_date_range()[1]
+    date_start = get_date_range()[0].strftime("%Y-%m-%d")
+    date_end = get_date_range()[1].strftime("%Y-%m-%d")
     # specify the page of source url we want to pull
     # initialize at 0 so that we can start pulling from page 1 in the loop
     page = 0
@@ -235,12 +235,17 @@ def processNewData(src_url):
     # create an empty list to store the ids of rows uploaded to Carto
     uploaded_ids = []
 
+    # get the list of isos of countries covered by acled 
+    acled_coverage = fetch_acled_iso()
+
     # number of rows in each slice 
-    slice = 1000 
+    slice = 1000
 
     # access the administrative areas in slices 
-    for i in range(0, len(geo_id) - slice, slice):
+    for i in range(0, len(geo_id), slice):
         # create a geopandas dataframe for the adminstrative area geometries
+        if len(geo_id) - i < slice:
+            slice = len(geo_id) - i
         geo_gdf = get_admin_area(CARTO_GEO, geo_id[i:i+slice])
         # spatial join the two dataframes to get the number of points per polygon
         joined = spatial_join(data_gdf, geo_gdf)
@@ -251,7 +256,7 @@ def processNewData(src_url):
             futures = []
             for index, row in joined.iterrows():
                 # for each row in the geopandas dataframe, submit a task to the executor to upload it to carto 
-                if row['objectid'] not in uploaded_ids: 
+                if row['objectid'] not in uploaded_ids and row['gid_0'] in acled_coverage: 
                     futures.append(
                         executor.submit(
                             upload_to_carto, row)
@@ -261,6 +266,13 @@ def processNewData(src_url):
         logging.info('{} of rows uploaded to Carto.'.format(slice))
 
     return uploaded_ids
+
+def fetch_acled_iso():
+    iso_url = 'https://api.acleddata.com/country/read?key={key}&email={user}'
+    r = requests.get(iso_url.format(key=ACLED_KEY, user=ACLED_USER))
+    iso_list = [country["iso3"] for country in r.json()['data']]
+
+    return iso_list
 
 def convert_geometry(geom):
     '''
@@ -274,7 +286,7 @@ def upload_to_carto(row):
     '''
     Function to upload data to the Carto table 
     INPUT   row: the geopandas dataframe of data we want to upload (geopandas dataframe)
-    RETURN  the objectid of the row just uploaded
+    RETURN  the objectid of the row just uploaded (string)
     '''
     # maximum attempts to make
     n_tries = 4
@@ -369,29 +381,10 @@ def spatial_join(gdf_pt, gdf_poly):
 
 
 def get_date_range():
-    date_end = datetime.date.today()
+    date_end = datetime.date.today() + relativedelta(days=-1)
     date_start = date_end + relativedelta(months=-12)
-    date_end = date_end.strftime("%Y-%m-%d")
-    date_start = date_start.strftime("%Y-%m-%d")
 
     return date_start, date_end
-
-def get_most_recent_date(table):
-    '''
-    Find the most recent date of data in the specified Carto table
-    INPUT   table: name of table in Carto we want to find the most recent date for (string)
-    RETURN  most_recent_date: most recent date of data in the Carto table, found in the TIME_FIELD column of the table (datetime object)
-    '''
-    # get dates in TIME_FIELD column
-    r = cartosql.getFields(TIME_FIELD, table, f='csv', post=True, user=CARTO_USER, key=CARTO_KEY)
-    # turn the response into a list of dates
-    dates = r.text.split('\r\n')[1:-1]
-    # sort the dates from oldest to newest
-    dates.sort()
-    # turn the last (newest) date into a datetime object
-    most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
-
-    return most_recent_date
 
 def create_headers():
     '''
@@ -427,12 +420,12 @@ def update_layer(layer, title):
     old_date_text = title.split(' ACLED')[0]
 
     # get current date
-    current_date = datetime.datetime.now()    
+    current_date = get_date_range()[1]
     # get text for new date end which will be the current date
     new_date_end = current_date.strftime("%B %d, %Y")
     # get most recent starting date, 30 days ago
-    new_date_start = (current_date - datetime.timedelta(days=29))
-    new_date_start = datetime.datetime.strftime(new_date_start, "%B %d, %Y")
+    new_date_start = get_date_range()[0]
+    new_date_start = new_date_start.strftime("%B %d, %Y")
     # construct new date range by joining new start date and new end date
     new_date_text = new_date_start + ' - ' + new_date_end
     
@@ -467,7 +460,7 @@ def updateResourceWatch(num_new):
     # If there are new entries in the Carto table
     if num_new>0:
         # Update dataset's last update date on Resource Watch
-        most_recent_date = get_most_recent_date(CARTO_TABLE)
+        most_recent_date = get_date_range()[1]
         lastUpdateDate(DATASET_ID, most_recent_date)
         # Update the dates on layer legends
         logging.info('Updating {}'.format(CARTO_TABLE))
@@ -480,28 +473,60 @@ def updateResourceWatch(num_new):
             # get layer description
             lyr_dscrptn = layer['attributes']['description']       
             # if we are processing the layer that shows latest 30 days data
-            if lyr_dscrptn.startswith('Records of violence and protests from the past 30 days'):
+            if lyr_dscrptn.startswith('new layer for testing purposes'):
                 # replace layer title with new dates
                 update_layer(layer, cur_title)
+
+def delete_carto_entries(id_list):
+    '''
+    Delete entries in Carto table based on values in a specified column
+    INPUT   id_list: list of column values for which you want to delete entries in table (list of strings)
+    '''
+    # generate empty variable to store WHERE clause of SQL query we will send
+    where = None
+    # column: column name where you should search for these values 
+    column = UID_FIELD
+    # go through each ID in the list to be deleted
+    for delete_id in id_list:
+        # if we already have values in the SQL query, add the new value with an OR before it
+        if where:
+            where += f" OR {column} = '{delete_id}'"
+        # if the SQL query is empty, create the start of the WHERE clause
+        else:
+            where = f"{column} = '{delete_id}'"
+        # if where statement is long or we are on the last id, delete rows
+        # the length of 15000 was chosen arbitrarily - all the IDs to be deleted could not be sent at once, but no
+        # testing was done to optimize this value
+        if len(where) > 15000 or delete_id == id_list[-1]:
+            cartosql.deleteRows(CARTO_TABLE, where=where, user=CARTO_USER,
+                                key=CARTO_KEY)
+            # after we have deleted a set of rows, start over with a blank WHERE clause for the SQL query so we don't
+            # try to delete rows we have already deleted
+            where = None
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
+
+    # Check if table exists, create it if it does not
+    logging.info('Checking if table exists and getting existing IDs.')
+    existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD)
 
     # clear the table before starting, if specified
     if CLEAR_TABLE_FIRST:
         logging.info("clearing table")
         # if the table exists
         if cartosql.tableExists(CARTO_TABLE, user=CARTO_USER, key=CARTO_KEY):
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                for i in range(0, len(existing_ids), 500):
+                    # loop through the existing ids to remove all rows from the table in chunks of size 500 
+                    executor.submit(delete_carto_entries, existing_ids[i: i + 500])
+            logging.info('{} rows of old records removed!'.format(len(existing_ids)))
             # delete all the rows
             cartosql.deleteRows(CARTO_TABLE, 'cartodb_id IS NOT NULL', user=CARTO_USER, key=CARTO_KEY)
             # note: we do not delete the entire table because this will cause the dataset visualization on Resource Watch
             # to disappear until we log into Carto and open the table again. If we simply delete all the rows, this
             # problem does not occur
-
-    # Check if table exists, create it if it does not
-    logging.info('Checking if table exists and getting existing IDs.')
-    existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD)
 
     # Fetch, process, and upload new data
     new_ids = processNewData(SOURCE_URL)
@@ -509,6 +534,6 @@ def main():
     num_new = len(new_ids)
 
     # Update Resource Watch
-    #updateResourceWatch(num_new)
+    updateResourceWatch(num_new)
 
     logging.info('SUCCESS')
