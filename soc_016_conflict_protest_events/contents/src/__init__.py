@@ -27,7 +27,7 @@ ACLED_KEY = os.getenv('ACLED_KEY')
 ACLED_USER = os.getenv('ACLED_USER')
 
 # name of table in Carto where we will upload the data
-CARTO_TABLE = 'soc_016_conflict_protest_events_count'
+CARTO_TABLE = 'soc_016_conflict_protest_events'
 
 # initiate a request session
 session = requests.Session()
@@ -61,6 +61,8 @@ CARTO_SCHEMA = OrderedDict([('cartodb_id', 'text'),
 ('protests', 'numeric'),
 ('riots', 'numeric'), 
 ('strategic_developments', 'numeric'),
+('explosions_remote_violence', 'numeric'),
+('violence_against_civilians', 'numeric'),
 ('total', 'numeric')])
 
 # url for armed conflict location & event data
@@ -157,23 +159,25 @@ The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
 
-def processNewData(src_url):
+def fetch_data(src_url):
     '''
-    Fetch, process and upload new data
-    INPUT   src_url: unformatted url where you can find the source data (string)
-            existing_ids: list of unique IDs that we already have in our Carto table (list of strings)
-    RETURN  new_ids: list of unique ids of new data sent to Carto table (list of strings)
+    Fetch ACLED data via the API
+    INPUT   src_url: the url to fetch data from (string)
+    RETURN  data_gdf: ACLED data during the past 12 months (geopandas dataframe)
     '''
-    # get the range of dates we will be fetching data from 
+    # the dates between which we want the data 
     date_start = get_date_range()[0].strftime("%Y-%m-%d")
     date_end = get_date_range()[1].strftime("%Y-%m-%d")
+
     # specify the page of source url we want to pull
     # initialize at 0 so that we can start pulling from page 1 in the loop
     page = 0
+
     # length (number of rows) of new_data
     # initialize at 1 so that the while loop works during first step
     new_count = 1
-    # create an empty list to store ids
+
+    # create an empty list to store ids of data
     new_ids = []
     # create an empty dataframe to store data
     data_df = pd.DataFrame()
@@ -193,10 +197,10 @@ def processNewData(src_url):
             "actor2", "assoc_actor_2", "inter2", "interaction", "country", "iso3", "region", "admin1", "admin2", "admin3", "location", 
             "geo_precision", "time_precision", "source", "source_scale", "notes", "fatalities", "latitude", "longitude"] """
             cols = ['event_type', 'latitude', 'longitude']
+
             # pull data from request response json
             for obs in r.json()['data']:
-                # if the id doesn't already exist in Carto table or 
-                # isn't added to the list for sending to Carto yet 
+                # if the id hasn't been added to the list for storing acled ids
                 if obs['data_id'] not in new_ids:
                     # append the id to the list for sending to Carto 
                     new_ids.append(obs['data_id'])
@@ -226,6 +230,14 @@ def processNewData(src_url):
     # convert the pandas dataframe to a geopandas dataframe
     data_gdf = gpd.GeoDataFrame(data_df, geometry=gpd.points_from_xy(data_df.longitude, data_df.latitude))
    
+    return data_gdf
+
+def processNewData(data_gdf):
+    '''
+    Pocess and upload new data
+    INPUT   data_gdf: geopandas dataframe storing the point ACLED data (geopandas dataframe)
+    RETURN  new_ids: list of unique ids of new data sent to Carto table (list of strings)
+    '''
     # get the ids of polygons from the carto table storing administrative areas
     r = cartosql.getFields('objectid', CARTO_GEO, f='csv', post=True, user=CARTO_USER, key=CARTO_KEY)
     
@@ -243,11 +255,13 @@ def processNewData(src_url):
 
     # access the administrative areas in slices 
     for i in range(0, len(geo_id), slice):
-        # create a geopandas dataframe for the adminstrative area geometries
+        # if the number of polygons left is smaller than the slice size
+        # update the slice size to be the number of polygons left 
         if len(geo_id) - i < slice:
             slice = len(geo_id) - i
+        # fetch the administrative polygons from Carto based on the list of ids
         geo_gdf = get_admin_area(CARTO_GEO, geo_id[i:i+slice])
-        # spatial join the two dataframes to get the number of points per polygon
+        # spatial join the acled data to the polygons to get the number of points per polygon
         joined = spatial_join(data_gdf, geo_gdf)
         # convert the geometry column to geojson 
         joined['geometry'] = [convert_geometry(geom) for geom in joined.geometry]
@@ -255,7 +269,9 @@ def processNewData(src_url):
         with ThreadPoolExecutor(max_workers=10) as executor:
             futures = []
             for index, row in joined.iterrows():
-                # for each row in the geopandas dataframe, submit a task to the executor to upload it to carto 
+                # for each polygon in the geopandas dataframe
+                # if it's among the acled covered countries and have not been uploaded already 
+                # submit a task to the executor to upload it to carto 
                 if row['objectid'] not in uploaded_ids and row['gid_0'] in acled_coverage: 
                     futures.append(
                         executor.submit(
@@ -268,8 +284,15 @@ def processNewData(src_url):
     return uploaded_ids
 
 def fetch_acled_iso():
+    '''
+    Fetch the countries covered by the ACLED dataset 
+    RETURN  iso_list: list of isos for countries that are covered by ACLED (list of strings)
+    '''
+    # construct the url to fetch country info
     iso_url = 'https://api.acleddata.com/country/read?key={key}&email={user}'
+    # send the request to the API
     r = requests.get(iso_url.format(key=ACLED_KEY, user=ACLED_USER))
+    # store all the iso codes in a list
     iso_list = [country["iso3"] for country in r.json()['data']]
 
     return iso_list
@@ -299,6 +322,7 @@ def upload_to_carto(row):
     fields = CARTO_SCHEMA.keys()
     values = cartosql._dumpRows([row.values.tolist()], tuple(CARTO_SCHEMA.values()))
 
+    # include the API key and the sql query in the payload of the request 
     payload = {
         'api_key': CARTO_KEY,
         'q': 'INSERT INTO "{}" ({}) VALUES {}'.format(CARTO_TABLE, ', '.join(fields), values)
@@ -332,10 +356,10 @@ def upload_to_carto(row):
 
 def get_admin_area(admin_table, id_list):
     '''
-    Delete entries in Carto table based on values in a specified column
+    Obtain entries in Carto table based on values in a specified column
     INPUT   admin_table: the name of the carto table storing the administrative areas (string)
             id_list: list of ids for rows to fetch from the table (list of strings)
-    RETURN  data fetched from the table (geopandas dataframe)
+    RETURN  admin_gdf: data fetched from the table (geopandas dataframe)
     '''
     # generate empty variable to store WHERE clause of SQL query we will send
     where = None
@@ -351,36 +375,55 @@ def get_admin_area(admin_table, id_list):
             where = f"{column} = '{id}'"
     
     sql = 'SELECT * FROM "{}" WHERE {}'.format(admin_table, where)
+    # send the request to the Carto API to fetch the corresponding administrative area data
     r = cartosql.sendSql(sql, user=CARTO_USER, key=CARTO_KEY, f = 'GeoJSON', post=True)
+    # convert the response to json a
     data = r.json()
+    # convert the data to a geopandas dataframe 
     admin_gdf = gpd.GeoDataFrame.from_features(data)
 
     return admin_gdf
 
 def spatial_join(gdf_pt, gdf_poly):
+    '''
+    Spatial join two geopandas dataframes 
+    INPUT   gdf_pt: the point data from ACLED (geopandas dataframe)
+            gdf_poly: the polygons of administrative areas (geopandas dataframe)
+    RETURN  pt_poly: number of events per polygon (geopandas dataframe)
+    '''
     # spatial join the two geopandas dataframes
     dfsjoin = gpd.sjoin(gdf_poly, gdf_pt)
     # count the number of points per administrative area 
     pt_count = dfsjoin.groupby(['objectid', 'event_type']).size().reset_index(name='counts')
-    # convert the dataframe from long to wide form 
+    # convert the dataframe from long to wide form so each type of event has a column 
     pt_count = pd.pivot_table(pt_count, index = 'objectid', columns='event_type')
+
     # clean up the column names to match the naming requirements of Carto 
-    pt_count.columns = [x.lower().replace(' ', '_') for x in pt_count.columns.droplevel(0)]
-    # merge the counts to the administrative area dataframe
+    pt_count.columns = [x.lower().replace(' ', '_').replace('/', '_') for x in pt_count.columns.droplevel(0)]
+    # merge the counts to the original administrative area dataframe
     pt_poly = gdf_poly.merge(pt_count, how='left', on='objectid')
+
     # replace NaN in the columns with zeros 
     pt_poly[pt_count.columns] = pt_poly[pt_count.columns].fillna(value = 0)
     # make sure there is one column for each event type
-    for event_type in ['battles', 'protests', 'riots', 'strategic_developments']:
+    for event_type in ['battles', 'protests', 'riots', 'strategic_developments', 
+    'explosions_remote_violence', 'violence_against_civilians']:
         if event_type not in pt_poly.columns:
             pt_poly[event_type] = 0
     # add a column to store the sum of number of events 
-    pt_poly['total'] = pt_poly['battles'] + pt_poly['protests'] + pt_poly['riots'] + pt_poly['strategic_developments']
+    pt_poly['total'] = pt_poly['battles'] + pt_poly['protests'] + pt_poly['riots'] + pt_poly['strategic_developments'] + pt_poly['explosions_remote_violence'] + pt_poly['violence_against_civilians']
+    # reorder the columns based on the order in the carto schema 
+    pt_poly = pt_poly[pt_poly.columns[:-7].tolist() + list(CARTO_SCHEMA.keys())[-7:]]
 
     return pt_poly
 
 
 def get_date_range():
+    '''
+    Get the dates between which we want to fetch data for
+    RETURN  date_start: the first date for which we want to fetch data (datetime object)
+            date_end: the last date for which we want to fetch data (datetime object)
+    '''
     date_end = datetime.date.today() + relativedelta(days=-1)
     date_start = date_end + relativedelta(months=-12)
 
@@ -512,6 +555,8 @@ def main():
     logging.info('Checking if table exists and getting existing IDs.')
     existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD)
 
+    data_gdf = fetch_data(SOURCE_URL)
+
     # clear the table before starting, if specified
     if CLEAR_TABLE_FIRST:
         logging.info("clearing table")
@@ -529,7 +574,7 @@ def main():
             # problem does not occur
 
     # Fetch, process, and upload new data
-    new_ids = processNewData(SOURCE_URL)
+    new_ids = processNewData(data_gdf)
     # find the length of new data that were uploaded to Carto
     num_new = len(new_ids)
 
