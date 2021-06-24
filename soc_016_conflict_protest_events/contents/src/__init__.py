@@ -1,4 +1,3 @@
-from io import DEFAULT_BUFFER_SIZE
 import os
 import logging
 import sys
@@ -519,12 +518,8 @@ def updateResourceWatch(num_new):
         for layer in layer_dict:
             # get current layer titile
             cur_title = layer['attributes']['name'] 
-            # get layer description
-            lyr_dscrptn = layer['attributes']['description']       
-            # if we are processing the layer that shows latest 30 days data
-            if lyr_dscrptn.startswith('new layer for testing purposes'):
-                # replace layer title with new dates
-                update_layer(layer, cur_title)
+            # replace layer title with new dates
+            update_layer(layer, cur_title)
 
 def delete_carto_entries(id_list):
     '''
