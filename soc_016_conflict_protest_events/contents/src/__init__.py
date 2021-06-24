@@ -556,6 +556,7 @@ def main():
     logging.info('Checking if table exists and getting existing IDs.')
     existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD)
 
+    # fetch the ACLED data in the past 12 month 
     data_gdf = fetch_data(SOURCE_URL)
 
     # clear the table before starting, if specified
