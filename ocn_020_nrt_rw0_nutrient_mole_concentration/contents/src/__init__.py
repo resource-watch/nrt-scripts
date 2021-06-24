@@ -303,7 +303,7 @@ def fetch(product):
      raw_data_file = os.path.join(DATA_DIR,os.path.basename(url))
      try:
          # try to download the data
-         #urllib.request.urlretrieve(url, raw_data_file) 
+         urllib.request.urlretrieve(url, raw_data_file) 
          # if successful, add the file to a new key in the parent dictionary
          DATA_DICT[product]['raw_data_file'] = raw_data_file
      except Exception as e:
