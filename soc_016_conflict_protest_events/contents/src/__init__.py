@@ -8,6 +8,7 @@ from dateutil.relativedelta import relativedelta
 import pandas as pd
 import cartosql
 import requests
+import rtree
 import json
 import time
 import geopandas as gpd
@@ -45,9 +46,9 @@ TIME_FIELD = 'event_date'
 # column names should be lowercase
 # column types should be one of the following: geometry, text, numeric, timestamp
 CARTO_SCHEMA = OrderedDict([('cartodb_id', 'text'), 
+('the_geom', 'geometry'),
 ('engtype_1', 'text'), 
-('engtype_2', 'text'), 
-('the_geom', 'geometry'), 
+('engtype_2', 'text'),  
 ('gid_0', 'text'), 
 ('gid_1', 'text'), 
 ('gid_2', 'text'), 
@@ -229,7 +230,9 @@ def fetch_data(src_url):
 
     # convert the pandas dataframe to a geopandas dataframe
     data_gdf = gpd.GeoDataFrame(data_df, geometry=gpd.points_from_xy(data_df.longitude, data_df.latitude))
-   
+    # update the crs based on the info provided by ACLED
+    data_gdf.set_crs(epsg=3857, inplace=True)
+
     return data_gdf
 
 def processNewData(data_gdf):
@@ -266,10 +269,13 @@ def processNewData(data_gdf):
         # convert the geometry column to geojson 
         joined['geometry'] = [convert_geometry(geom) for geom in joined.geometry]
         
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        with ThreadPoolExecutor(max_workers=1) as executor:
             futures = []
             for index, row in joined.iterrows():
                 # for each polygon in the geopandas dataframe
+
+                # replace all null values with None
+                row = row.where(row.notnull(), None)
                 # if it's among the acled covered countries and have not been uploaded already 
                 # submit a task to the executor to upload it to carto 
                 if row['objectid'] not in uploaded_ids and row['gid_0'] in acled_coverage: 
@@ -321,13 +327,12 @@ def upload_to_carto(row):
     # construct the sql query to upload the row to the carto table
     fields = CARTO_SCHEMA.keys()
     values = cartosql._dumpRows([row.values.tolist()], tuple(CARTO_SCHEMA.values()))
-
     # include the API key and the sql query in the payload of the request 
     payload = {
         'api_key': CARTO_KEY,
         'q': 'INSERT INTO "{}" ({}) VALUES {}'.format(CARTO_TABLE, ', '.join(fields), values)
         }
-
+  
     for i in range(n_tries):
         try:
             # send the sql query to the carto API 
@@ -381,6 +386,7 @@ def get_admin_area(admin_table, id_list):
     data = r.json()
     # convert the data to a geopandas dataframe 
     admin_gdf = gpd.GeoDataFrame.from_features(data)
+    
 
     return admin_gdf
 
@@ -413,7 +419,7 @@ def spatial_join(gdf_pt, gdf_poly):
     # add a column to store the sum of number of events 
     pt_poly['total'] = pt_poly['battles'] + pt_poly['protests'] + pt_poly['riots'] + pt_poly['strategic_developments'] + pt_poly['explosions_remote_violence'] + pt_poly['violence_against_civilians']
     # reorder the columns based on the order in the carto schema 
-    pt_poly = pt_poly[pt_poly.columns[:-7].tolist() + list(CARTO_SCHEMA.keys())[-7:]]
+    pt_poly = pt_poly[['geometry' if x == 'the_geom' else x for x in list(CARTO_SCHEMA.keys())]]
 
     return pt_poly
 
