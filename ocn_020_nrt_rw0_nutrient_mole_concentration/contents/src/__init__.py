@@ -303,7 +303,7 @@ def fetch(product):
      raw_data_file = os.path.join(DATA_DIR,os.path.basename(url))
      try:
          # try to download the data
-         urllib.request.urlretrieve(url, raw_data_file) 
+         # urllib.request.urlretrieve(url, raw_data_file) 
          # if successful, add the file to a new key in the parent dictionary
          DATA_DICT[product]['raw_data_file'] = raw_data_file
      except Exception as e:
@@ -340,23 +340,23 @@ def processNewData():
                 raw_sds_tif = '{}_{}.tif'.format(os.path.splitext(nc)[0], sds_path.split(':')[-1])
                 # create the gdal command and run it to convert the netcdf to tif
                 cmd = ['gdal_translate','-q', '-a_srs', 'EPSG:4326',  sds_path, raw_sds_tif, '-b', '1', '-b','2', '-b','3', '-b', '4', '-b', '5']
-                completed_process = subprocess.run(cmd, shell=False)
-                logging.debug(str(completed_process))
+                #completed_process = subprocess.run(cmd, shell=False)
+                #logging.debug(str(completed_process))
                 # generate a name to save the processed tif file
                 processed_sds_tif = '{}_{}_edit.tif'.format(os.path.splitext(nc)[0], sds_path.split(':')[-1])
                 # create the gdal command and run it to average pixel values
                 cmd = 'gdal_calc.py -A ' + raw_sds_tif +' -B ' + raw_sds_tif + ' -C ' + raw_sds_tif + ' -D ' + raw_sds_tif +' -E ' + raw_sds_tif + ' --A_band=1 --B_band=2 --C_band=3 --D_band=4 --E_band=5 --outfile=' + processed_sds_tif + ' --calc="numpy.average((A,B,C,D,E), axis = 0)" --NoDataValue=-9.96920996838686905e+36'
                 # format to command line
                 posix_cmd = shlex.split(cmd, posix=True)
-                completed_process= subprocess.check_call(posix_cmd)   
-                logging.debug(str(completed_process))
+                #completed_process= subprocess.check_call(posix_cmd)   
+                #logging.debug(str(completed_process))
                 # store the file path to the tif file in the data dictionary
                 val['tif'].append(processed_sds_tif)
                 logging.info('Uploading files')
                 # Generate a name we want to use for the asset once we upload the file to GEE
                 asset = getAssetName(i, val, val['latest date'])
                 # Upload new file (tif) to GEE
-                eeUtil.uploadAsset(processed_sds_tif, asset, GS_FOLDER, timeout=1000)
+                #eeUtil.uploadAsset(processed_sds_tif, asset, GS_FOLDER, timeout=1000)
                 # store the name of the uploaded asset to the dictionary
                 val['asset'].append(asset[1:])
                 logging.info('{} uploaded to GEE'.format(val['asset'][i]))
@@ -409,8 +409,6 @@ def deleteExcessAssets(val, dates, max_assets):
                     in DATE_FORMAT variable (list of strings)
             max_assets: maximum number of assets allowed in the collection (int)
     '''
-    # sort the list of dates so that the oldest is first
-    dates.sort()
     # if we have more dates of data than allowed
     if len(dates) > max_assets:
         # go through each date, starting with the oldest, and delete until we only have the max number of assets left
@@ -426,7 +424,7 @@ def get_most_recent_date(val):
     # update the 'existing dates' values in the data dictionary
     checkCreateCollection()
     # get list of assets in collection
-    existing_dates =  [y for lst in [x['existing dates'] for x in DATA_DICT.values()] for y in lst]
+    existing_dates = val['existing dates']
     # sort these dates oldest to newest
     existing_dates.sort()
     # get the most recent date (last in the list) and turn it into a datetime
@@ -573,7 +571,13 @@ def main():
             product, len(val['existing dates']), val['asset'], MAX_ASSETS))
 
         # Delete excess assets
-        deleteExcessAssets(val, val['existing dates'] + [[val['latest date']]], MAX_ASSETS)
+        latest_date = val['latest date']
+        existing_dates = [date for date in val['existing dates']]
+        if latest_date not in existing_dates:
+            existing_dates.append(latest_date)
+        # sort the list of dates so that the oldest is first
+        existing_dates.sort()
+        deleteExcessAssets(val, existing_dates, MAX_ASSETS)
 
     # Update Resource Watch
     updateResourceWatch()

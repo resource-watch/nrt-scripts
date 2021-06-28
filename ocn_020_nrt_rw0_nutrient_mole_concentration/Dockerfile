@@ -1,6 +1,5 @@
 FROM python:3.6
-MAINTAINER Yujing Wu <yujing.wu@wri.org>
-#Note this script was originally developed by Peter Kerins <Peter.Kerins@wri.org>
+MAINTAINER Rachel Thoms <rachel.thoms@wri.org>
 
 # install core libraries
 RUN apt-get update
@@ -17,7 +16,7 @@ RUN pip install GDAL==2.4.2
 RUN apt-get -y install python-gdal
 
 # set name
-ARG NAME=ocn_011_total_suspended_matter
+ARG NAME=ocn_020_nutrient_mole_concentration
 ENV NAME ${NAME}
 
 # copy the application folder inside the container
