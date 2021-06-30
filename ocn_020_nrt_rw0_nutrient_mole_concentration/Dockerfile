@@ -1,4 +1,4 @@
-FROM python:3.6
+FROM python:3.7.7
 MAINTAINER Rachel Thoms <rachel.thoms@wri.org>
 
 # install core libraries
@@ -16,7 +16,7 @@ RUN pip install GDAL==2.4.2
 RUN apt-get -y install python-gdal
 
 # set name
-ARG NAME=ocn_020_nutrient_mole_concentration
+ARG NAME=ocn_020_nrt_rw0_nutrient_mole_concentration
 ENV NAME ${NAME}
 
 # copy the application folder inside the container
@@ -26,6 +26,7 @@ COPY contents/ .
 
 RUN useradd -r $NAME
 RUN chown -R $NAME:$NAME /opt/$NAME
+VOLUME /opt/$NAME/data
 USER $NAME
 
 CMD ["python", "main.py"]

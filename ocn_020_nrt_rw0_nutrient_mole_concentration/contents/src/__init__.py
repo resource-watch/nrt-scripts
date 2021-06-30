@@ -520,7 +520,7 @@ def updateResourceWatch():
     
     for var, id in DATASET_IDS.items():
         # Get the current 'last update date' from the dataset on Resource Watch
-        current_date = None #getLastUpdate(id) 
+        current_date = getLastUpdate(id) 
         for product, val in DATA_DICT.items():
             most_recent_date = get_most_recent_date(val)
             # If the most recent date from the GEE collection does not match the 'last update date' on the RW API, update it
