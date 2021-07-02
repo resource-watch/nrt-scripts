@@ -9,14 +9,15 @@ import requests
 import time 
 import json
 
+
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 ### Constants
 DATA_DIR = 'data'
 # max page size = 10000
-DATA_URL = 'https://api.openaq.org/v1/measurements?limit=6000&include_fields=attribution&page={page}'
-# always check first 10 pages
-MIN_PAGES = 10
+DATA_URL = 'https://u50g7n0cbj.execute-api.us-east-1.amazonaws.com/v2/measurements?date_from={date_from}T{hour}%3A{minute}%3A{second}&date_to={date_to}T{hour}%3A{minute}%3A{second}&limit=3000&page={page}&sort=desc&has_geo=true&parameter={parameter}&order_by=datetime&sensorType=reference%20grade'
+# always check first 15 pages
+MIN_PAGES = 15
 MAX_PAGES = 100
 
 # how long to wait before trying to get data again incase of failure
@@ -62,7 +63,7 @@ TIME_FIELD = 'utc'
 CARTO_USER = os.environ.get('CARTO_USER')
 CARTO_KEY = os.environ.get('CARTO_KEY')
 
-# Limit to 5M rows / 30 days
+# Limit to 500000 rows / 30 days
 MAXROWS = 500000
 MAXAGE = datetime.datetime.now() - datetime.timedelta(days=30)
 
@@ -302,49 +303,52 @@ def main():
     # this is done all together because OpenAQ endpoint filter by parameter
     # doesn't work
     new_counts = dict(((param, 0) for param in PARAMS))
-    new_count = 1
-    page = 1
-    retries = 0
-    # get and parse each page
-    # read at least 10 pages; stop when no new results or 100 pages
-    while page <= MIN_PAGES or new_count and page < MAX_PAGES:
-        logging.info("Fetching page {}".format(page))
-        url = (DATA_URL.format(page=page))
-        page += 1
-        new_count = 0
 
+    for param in PARAMS:
+        page = 1
+        retries = 0
+        date_from = (datetime.datetime.utcnow()-datetime.timedelta(hours=24)).strftime("%Y-%m-%d")
+        date_to = datetime.datetime.utcnow().strftime("%Y-%m-%d")
+        hour = datetime.datetime.utcnow().hour
+        minute = datetime.datetime.utcnow().minute
+        second = datetime.datetime.utcnow().second
 
-        # separate row lists per param
-        rows = dict(((param, []) for param in PARAMS))
-        loc_rows = []
+        while page <= MIN_PAGES or new_count and page < MAX_PAGES:
+            logging.info("Fetching page {}".format(page))
+            url = (DATA_URL.format(page = page, date_from = date_from, date_to = date_to, parameter = param, hour = hour, minute = minute, second = second))
+            page += 1
+            new_count = 0
+            
+            # separate row lists per param
+            rows = dict(((param, []) for param in PARAMS))
+            loc_rows = []
 
-        # 2.1 parse data excluding existing observations
-        try:
-            r = requests.get(url)
-            logging.info(r.url)
-            results = r.json()['results']
-            for obs in results:
-                param = obs['parameter']
-                uid = genUID(obs)
-                if uid not in existing_ids[param]:
-                    existing_ids[param].append(uid)
-                    rows[param].append(parseFields(obs, uid, CARTO_SCHEMA.keys()))
+            # 2.1 parse data excluding existing observations
+            try:
+                r = requests.get(url)
+                logging.info(r.url)
+                results = r.json()['results']
+                for obs in results:
+                    param = obs['parameter']
+                    uid = genUID(obs)
+                    if uid not in existing_ids[param]:
+                        existing_ids[param].append(uid)
+                        rows[param].append(parseFields(obs, uid, CARTO_SCHEMA.keys()))
 
-                    # 2.2 Check if new locations
-                    loc_id = genLocID(obs)
-                    if loc_id not in loc_ids and 'coordinates' in obs:
-                        loc_ids.append(loc_id)
-                        loc_rows.append(parseFields(obs, loc_id,
-                                                    CARTO_GEOM_SCHEMA.keys()))
+                        # 2.2 Check if new locations
+                        loc_id = genLocID(obs)
+                        if loc_id not in loc_ids and 'coordinates' in obs:
+                            loc_ids.append(loc_id)
+                            loc_rows.append(parseFields(obs, loc_id,
+                                                        CARTO_GEOM_SCHEMA.keys()))
 
-            # 2.3 insert new locations
-            if len(loc_rows):
-                logging.info('Pushing {} new locations'.format(len(loc_rows)))
-                cartosql.insertRows(CARTO_GEOM_TABLE, CARTO_GEOM_SCHEMA.keys(),
-                                    CARTO_GEOM_SCHEMA.values(), loc_rows)
+                # 2.3 insert new locations
+                if len(loc_rows):
+                    logging.info('Pushing {} new locations'.format(len(loc_rows)))
+                    cartosql.insertRows(CARTO_GEOM_TABLE, CARTO_GEOM_SCHEMA.keys(),
+                                        CARTO_GEOM_SCHEMA.values(), loc_rows)
 
-            # 2.4 insert new rows
-            for param in PARAMS:
+                # 2.4 insert new rows
                 count = len(rows[param])
                 if count:
                     try_num = 1
@@ -362,23 +366,22 @@ def main():
                     new_count += count
                 new_counts[param] += count
 
-            retries = 0
-        # failed to read ['results']
-        except Exception as e:
-            logging.info('Failed to read results. Waiting for {} seconds before trying again.'.format(WAIT_TIME))
-            time.sleep(30)
-            retries += 1
-            page -= 1
-            if retries > 5:
-                raise(e)
+                retries = 0
+            # failed to read ['results']
+            except Exception as e:
+                logging.info('Failed to read results. Waiting for {} seconds before trying again.'.format(WAIT_TIME))
+                time.sleep(30)
+                retries += 1
+                page -= 1
+                if retries > 5:
+                    raise(e)
 
-    # 3. Remove old observations
-    for param in PARAMS:
+        # 3. Remove old observations
         logging.info('Total rows: {}, New: {}, Max: {}'.format(
             len(existing_ids[param]), new_counts[param], MAXROWS))
         deleteExcessRows(CARTO_TABLES[param], MAXROWS, TIME_FIELD, MAXAGE)
 
-    for param in PARAMS:
+        # update layers
         dataset = DATASET_ID[param]
         most_recent_date = get_most_recent_date(param)
         lastUpdateDate(dataset, most_recent_date)
