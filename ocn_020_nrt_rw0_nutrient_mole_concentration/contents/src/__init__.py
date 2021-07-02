@@ -80,8 +80,10 @@ MAX_ASSETS = 3
 # url from which the data is downloaded 
 SOURCE_URL = 'ftp://{}:{}@nrt.cmems-du.eu{}'
 
+# regex pattern for the date (year)
 DATE_STR = re.compile(r'2[0-9][0-9][0-9]*')
 
+# variables for today's complete date, year, month, and day
 TODAY_DATE = datetime.date.today().strftime('%Y%m%d') 
 TODAY_YEAR = datetime.date.today().strftime('%Y')
 TODAY_MONTH = datetime.date.today().strftime('%m')
@@ -245,7 +247,6 @@ def getCollectionName(val,n):
     get GEE collection name
     INPUT   val: variable to be used in asset name (string)
             n: index for that variable in the data dictionary (string)
-            interval: the interval of the data (string)
     RETURN  GEE collection name for input date (string)
     '''
     return EE_COLLECTION_GEN.format(var=val['sds'][n])
@@ -253,8 +254,9 @@ def getCollectionName(val,n):
 def getAssetName(n, val, date):
      '''
      get asset name
-     INPUT   date: date in the format of the DATE_FORMAT variable (string)
-             product: the product of which the data is (string)
+     INPUT  val: variable to be used in asset name (string)
+            n: index for that variable in the data dictionary (string) 
+            date: date in the format of the DATE_FORMAT variable (string)
      RETURN  GEE asset name for input date (string) and product (string)
      '''
      return '/'.join([getCollectionName(val, n), FILENAME.format(x=val['x'][n], var= val['sds'][n], interval=val['interval'], date=date)])
@@ -273,6 +275,8 @@ def getDate(filename):
 def find_latest_date(val):
     '''
     Fetch the latest date for which coral bleach monitoring data is available and store it in the data dictionary
+    INPUT   val: the values in the DATA_DICT for a given product
+    OUTPUT  adds latest_date and url for the most recent date of data to the DATA_DICT
     '''
     ftp = ftplib.FTP('nrt.cmems-du.eu')
     ftp.login(ftp_username, ftp_password)
@@ -303,7 +307,7 @@ def fetch(product):
      raw_data_file = os.path.join(DATA_DIR,os.path.basename(url))
      try:
          # try to download the data
-         # urllib.request.urlretrieve(url, raw_data_file) 
+         urllib.request.urlretrieve(url, raw_data_file) 
          # if successful, add the file to a new key in the parent dictionary
          DATA_DICT[product]['raw_data_file'] = raw_data_file
      except Exception as e:
@@ -314,7 +318,6 @@ def fetch(product):
 def processNewData():
     '''
     fetch, process, upload, and clean new data
-    INPUT   existing dates: list of dates we already have in GEE (list of strings)
     RETURN  asset: file name for asset that have been uploaded to GEE (string)
     '''
    
@@ -340,23 +343,23 @@ def processNewData():
                 raw_sds_tif = '{}_{}.tif'.format(os.path.splitext(nc)[0], sds_path.split(':')[-1])
                 # create the gdal command and run it to convert the netcdf to tif
                 cmd = ['gdal_translate','-q', '-a_srs', 'EPSG:4326',  sds_path, raw_sds_tif, '-b', '1', '-b','2', '-b','3', '-b', '4', '-b', '5']
-                #completed_process = subprocess.run(cmd, shell=False)
-                #logging.debug(str(completed_process))
+                completed_process = subprocess.run(cmd, shell=False)
+                logging.debug(str(completed_process))
                 # generate a name to save the processed tif file
                 processed_sds_tif = '{}_{}_edit.tif'.format(os.path.splitext(nc)[0], sds_path.split(':')[-1])
                 # create the gdal command and run it to average pixel values
                 cmd = 'gdal_calc.py -A ' + raw_sds_tif +' -B ' + raw_sds_tif + ' -C ' + raw_sds_tif + ' -D ' + raw_sds_tif +' -E ' + raw_sds_tif + ' --A_band=1 --B_band=2 --C_band=3 --D_band=4 --E_band=5 --outfile=' + processed_sds_tif + ' --calc="numpy.average((A,B,C,D,E), axis = 0)" --NoDataValue=-9.96920996838686905e+36'
                 # format to command line
                 posix_cmd = shlex.split(cmd, posix=True)
-                #completed_process= subprocess.check_call(posix_cmd)   
-                #logging.debug(str(completed_process))
+                completed_process= subprocess.check_call(posix_cmd)   
+                logging.debug(str(completed_process))
                 # store the file path to the tif file in the data dictionary
                 val['tif'].append(processed_sds_tif)
                 logging.info('Uploading files')
                 # Generate a name we want to use for the asset once we upload the file to GEE
                 asset = getAssetName(i, val, val['latest date'])
                 # Upload new file (tif) to GEE
-                #eeUtil.uploadAsset(processed_sds_tif, asset, GS_FOLDER, timeout=1000)
+                eeUtil.uploadAsset(processed_sds_tif, asset, GS_FOLDER, timeout=1000)
                 # store the name of the uploaded asset to the dictionary
                 val['asset'].append(asset[1:])
                 logging.info('{} uploaded to GEE'.format(val['asset'][i]))
@@ -404,7 +407,7 @@ def checkCreateCollection():
 def deleteExcessAssets(val, dates, max_assets):
     '''
     Delete oldest assets, if more than specified in max_assets variable
-    INPUT   product: the product of which the data is (string)
+    INPUT   val: the values in the data dictionary for the product 
             dates: dates for all the assets currently in the GEE collection; dates should be in the format specified
                     in DATE_FORMAT variable (list of strings)
             max_assets: maximum number of assets allowed in the collection (int)
@@ -414,11 +417,13 @@ def deleteExcessAssets(val, dates, max_assets):
         # go through each date, starting with the oldest, and delete until we only have the max number of assets left
         for date in dates[:-max_assets]:
             for i in range(len(val['sds'])):
+                name = getAssetName(i, val, date)
                 eeUtil.removeAsset(getAssetName(i, val, date))
 
 def get_most_recent_date(val):
     '''
-    Get most recent date we have assets for
+    Get most recent date we have assets for 
+    INPUT: The values in the data dictionary for the product 
     RETURN  most_recent_date: most recent date in GEE collection (datetime)
     '''
     # update the 'existing dates' values in the data dictionary
@@ -463,6 +468,8 @@ def update_layer(layer, new_date, date_format, id):
     Update layers in Resource Watch back office.
     INPUT  layer: layer that will be updated (string)
            new_date: the time period of the data (string)
+           date_format: the datetime format to be used for updating the layer name (string)
+           id: RW layer id for the layer to be updated (string)
     '''
     # get previous date being used from
     text = re.compile(r' Mole Concentration of [\w,\W]*')
@@ -484,6 +491,7 @@ def update_layer(layer, new_date, date_format, id):
     # find the asset id of the latest image 
     product = [key for key in list(DATA_DICT.keys()) if key in old_asset][0]
     new_asset = [asset for asset in DATA_DICT[product]['asset'] if id in asset][0]
+
     # replace the asset id in the layer def with new asset id
     layer['attributes']['layerConfig']['assetId'] = new_asset
 
@@ -524,16 +532,20 @@ def updateResourceWatch():
         for product, val in DATA_DICT.items():
             most_recent_date = get_most_recent_date(val)
             # If the most recent date from the GEE collection does not match the 'last update date' on the RW API, update it
-            if current_date != most_recent_date:
+            if current_date < most_recent_date:
                 logging.info(('Updating last update date for {} (dataset ID = {}) and flushing cache.').format(var, id)) 
                 # Update dataset's last update date on Resource Watch
                 lastUpdateDate(id, most_recent_date)
        
                 # pull dictionary of current layers from API
                 layer_dict = pull_layers_from_API(id)
-        
+
+                # list of all layers in the dictionary
                 layer_product = [x for x in layer_dict if product in x['attributes']['layerConfig']['assetId']]
+                
+                # new date of data
                 layer_date = val['latest date']
+
                 # go through each layer, pull the definition and update
                 for layer in layer_product:
                     # update layer name, asset id, and interaction configuration 
@@ -567,12 +579,15 @@ def main():
     os.chdir(DATA_DIR)
     processNewData()
     for product, val in DATA_DICT.items():
-        logging.info('Previous assets for product {}: {}, new: {}, max: {}'.format(
+        logging.info('Previous assets for {} product: {}, new: {}, max: 2* {}'.format(
             product, len(val['existing dates']), val['asset'], MAX_ASSETS))
 
         # Delete excess assets
+        # latest date of data
         latest_date = val['latest date']
+        # existing dates of data on GEE
         existing_dates = [date for date in val['existing dates']]
+        # include latest dates in exisiting dates
         if latest_date not in existing_dates:
             existing_dates.append(latest_date)
         # sort the list of dates so that the oldest is first
@@ -583,5 +598,3 @@ def main():
     updateResourceWatch()
 
     logging.info('SUCCESS')
-
-main()
