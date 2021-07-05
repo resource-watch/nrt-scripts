@@ -606,8 +606,6 @@ def processMetrics(new_ids):
             # drop non-metric columns, as well as columns that correspond to indivdual 
             # measurements instead of the daily metric ('cartodb_id', 'uid')
             df = df.drop(['cartodb_id', 'uid', 'the_geom_webmercator', 'no2_ppb', 'no2_ppm', 'no2_ugm3', 'o3_ppb', 'o3_ppm', 'o3_ugm3', 'pm25_gcc_ugm3', 'pm25_gocart_ugm3'], axis=1)
-            #Replacing zeros with None, as they're empty forecasts
-            df = df.replace(0, np.nan) 
             # drop duplicate rows to get only one summary metric for each station
             df = df.drop_duplicates()
 
