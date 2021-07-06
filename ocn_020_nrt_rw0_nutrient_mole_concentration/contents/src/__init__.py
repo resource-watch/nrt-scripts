@@ -246,7 +246,7 @@ def getCollectionName(val,n):
     '''
     get GEE collection name
     INPUT   val: variable to be used in asset name (string)
-            n: index for that variable in the data dictionary (string)
+            n: index for that variable within the list of biogeochemical parameters in the data dictionary (integer)
     RETURN  GEE collection name for input date (string)
     '''
     return EE_COLLECTION_GEN.format(var=val['sds'][n])
@@ -297,7 +297,7 @@ def find_latest_date(val):
         
 def fetch(product):
      '''
-     Fetch latest netcdef files by using the url from the global dictionary
+     Fetch latest NetCDF files by using the url from the global dictionary
      INPUT   product: the product of which to fetch data (string)
      '''
      logging.info('Downloading raw data')
