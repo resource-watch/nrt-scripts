@@ -19,6 +19,18 @@ from osgeo import gdal
 import shlex
 import re
 
+# Create an ordered data dictionary contianing sub dictionaries for each product: daily and monthly
+    # sds: the subdatasets to be included in processed product (list)
+    # x: the letters that will be used as a suffix in the Resource Watch ID (ocn_020{x}) for each subdataset (list)
+    # interval: the interval at which the data is updated (string)
+    # original_nodata: no data value from the source (float)
+    # missing_data: no data value in GEE (float)
+    # pyramiding_policy: pyramiding policy for GEE (string)
+    # date_format: Datetime format for the layer titles on RW (datetime objecct)
+    # existing dates: empty list for the dates of existing images on GEE (list)
+    # tif: empty list for the extracted raw tif files (list)
+    # asset: empty list for the asset name for the new images in GEE (list)
+
 DATA_DICT = OrderedDict()
 
 DATA_DICT['daily'] = {
@@ -245,16 +257,16 @@ They should all be checked because their format likely will need to be changed.
 def getCollectionName(val,n):
     '''
     get GEE collection name
-    INPUT   val: variable to be used in asset name (string)
-            n: index for that variable within the list of biogeochemical parameters in the data dictionary (integer)
+    INPUT   val: DATA_DICT values for the product (dict)
+            n: index for that variable in the data dictionary (string)
     RETURN  GEE collection name for input date (string)
     '''
     return EE_COLLECTION_GEN.format(var=val['sds'][n])
 
 def getAssetName(n, val, date):
      '''
-     get asset name
-     INPUT  val: variable to be used in asset name (string)
+     get GEE asset name for the variable within a product on a given date
+     INPUT  val: DATA_DIC values for the product (dict)
             n: index for that variable in the data dictionary (string) 
             date: date in the format of the DATE_FORMAT variable (string)
      RETURN  GEE asset name for input date (string) and product (string)
@@ -275,29 +287,38 @@ def getDate(filename):
 def find_latest_date(val):
     '''
     Fetch the latest date for which coral bleach monitoring data is available and store it in the data dictionary
-    INPUT   val: the values in the DATA_DICT for a given product
+    INPUT   val: DATA_DIC values for the product (dict)
     OUTPUT  adds latest_date and url for the most recent date of data to the DATA_DICT
     '''
+    # log in to the ftp service
     ftp = ftplib.FTP('nrt.cmems-du.eu')
     ftp.login(ftp_username, ftp_password)
     
+    # if the product is monthly, navigate to folder for the current year within the monthly folder
     if val['interval'] == 'monthly':
         ftp.cwd('/Core/GLOBAL_ANALYSIS_FORECAST_BIO_001_028/global-analysis-forecast-bio-001-028-{}/{}'.format(val['interval'], TODAY_YEAR))
+        # get list of the files within the folder
         list_files = list(ftp.nlst())
+        # sort files and get the most recent
         list_files.sort()
         file = list_files[-1]
+    # if the product is daily, navigate to the folder for the current month within the daily folder
     else:
         ftp.cwd('/Core/GLOBAL_ANALYSIS_FORECAST_BIO_001_028/global-analysis-forecast-bio-001-028-{}/{}/{}'.format(val['interval'], TODAY_YEAR, TODAY_MONTH))
+        # get list of the files within the folder
         list_files = list(ftp.nlst())
+        # get the file for the current date
         file = [x for x in list_files if TODAY_DATE in x][0]
+    # get the date from the file
     date = DATE_STR.search(file).group()
     val['latest date'] = date 
+    # get the url for the file
     val['url'] = SOURCE_URL.format(ftp_username,ftp_password,'/'.join([ftp.pwd(), file]))
     ftp.cwd('/')
         
 def fetch(product):
      '''
-     Fetch latest NetCDF files by using the url from the global dictionary
+     Fetch latest netcdef files by using the url from the global dictionary
      INPUT   product: the product of which to fetch data (string)
      '''
      logging.info('Downloading raw data')
