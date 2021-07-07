@@ -1,0 +1,32 @@
+FROM python:3.7.7
+MAINTAINER Rachel Thoms <rachel.thoms@wri.org>
+
+# install core libraries
+RUN apt-get update
+RUN pip install -U pip
+
+# install application libraries
+RUN apt-get install -y gdal-bin libgdal-dev
+RUN pip install oauth2client==4.1.3
+RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
+RUN pip install requests==2.22.0
+RUN pip install numpy==1.14.3
+RUN pip install Cython==0.29.15
+RUN pip install GDAL==2.4.2
+RUN apt-get -y install python-gdal
+
+# set name
+ARG NAME=ocn_020
+ENV NAME ${NAME}
+
+# copy the application folder inside the container
+RUN mkdir -p /opt/$NAME/data
+WORKDIR /opt/$NAME/
+COPY contents/ .
+
+RUN useradd -r $NAME
+RUN chown -R $NAME:$NAME /opt/$NAME
+VOLUME /opt/$NAME/data
+USER $NAME
+
+CMD ["python", "main.py"]
