@@ -248,6 +248,23 @@ def flushTileCache(layer_id):
         except Exception as e:
               logging.error('Failed: {}'.format(e))
 
+def delete_local():
+    '''
+    Delete all files and folders in Docker container's data directory
+    '''
+    try:
+        # for each object in the data directory
+        for f in os.listdir(DATA_DIR):
+            # try to remove it as a file
+            try:
+                logging.info('Removing {}'.format(f))
+                os.remove(DATA_DIR+'/'+f)
+            # if it is not a file, remove it as a folder
+            except:
+                shutil.rmtree(f, ignore_errors=True)
+    except NameError:
+        logging.info('No local files to clean.')
+
 '''
 FUNCTIONS FOR THIS DATASET
 
@@ -578,7 +595,7 @@ def updateResourceWatch():
                     flushTileCache(layer_id)
             else:
                 logging.info('Data on Resource Watch up to date!')
-        
+
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
@@ -617,5 +634,8 @@ def main():
 
     # Update Resource Watch
     updateResourceWatch()
+
+    # Delete local files in Docker container
+    delete_local()
 
     logging.info('SUCCESS')
