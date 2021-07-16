@@ -510,7 +510,7 @@ def update_layer(layer, new_date, date_format, id):
            id: RW layer id for the layer to be updated (string)
     '''
     # get previous date being used from
-    text = re.compile(r' Mole Concentration of [\w,\W]*')
+    text = re.compile(r' [a-zA-Z]* Average Surface Concentration of [\w,\W]*')
     old_date_text = text.sub("", layer['attributes']['name'])
 
     # convert new datetimes to string
