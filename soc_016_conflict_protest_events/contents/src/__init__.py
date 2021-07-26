@@ -236,7 +236,7 @@ def fetch_data(src_url):
 
 def processNewData(data_gdf):
     '''
-    Pocess and upload new data
+    Process and upload new data
     INPUT   data_gdf: geopandas dataframe storing the point ACLED data (geopandas dataframe)
     RETURN  new_ids: list of unique ids of new data sent to Carto table (list of strings)
     '''
