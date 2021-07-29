@@ -77,7 +77,7 @@ MINDATES = 6
 # Important! Before testing this script:
 # Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
 # Failing to do so will overwrite the last update date on a different dataset on Resource Watch
-#DATASET_ID = 'ac6dcdb3-2beb-4c66-9f83-565c16c2c914'
+DATASET_ID = 'ac6dcdb3-2beb-4c66-9f83-565c16c2c914'
 
 '''
 FUNCTIONS FOR ALL DATASETS
@@ -243,17 +243,16 @@ def processNewData(existing_ids):
     # create an empty list to store unique ids of new data we will be sending to Carto table
     new_ids = []
 
-    # Get today's date and truncate to monthly resolution (this will show the date as the first of the current month)
-    date = datetime.datetime.strptime(
-        datetime.datetime.today().strftime(DATE_FORMAT), DATE_FORMAT)
-
     # Retrieve and process new data; continue until the current date is 
     # older than the oldest date allowed in the table, set by the MAX_AGE variable
 
     for country in findcountries():
         # loop through each country
-        # initiate a variable to indicate whether data has been fetched 
-        
+
+        # Get today's date and truncate to monthly resolution (this will show the date as the first of the current month)
+        date = datetime.datetime.strptime(
+        datetime.datetime.today().strftime(DATE_FORMAT), DATE_FORMAT)
+
         while date > MAXAGE:
             # iterate backwards 1 month at a time
             date -= relativedelta(months=1)
@@ -357,8 +356,6 @@ def processNewData(existing_ids):
                                             # convert the datetime for end_date to string 
                                             # add end_date to the list of data from this row
                                             row.append(end_date.strftime(DATETIME_FORMAT))
-                                        else:
-                                            rows
                                     # add the list of values from this row to the list of new data
                                     rows.append(row)
                                     # move to the next feature in the geojson
@@ -378,7 +375,7 @@ def processNewData(existing_ids):
         new_count = len(rows)
         # check if new data is available
         if new_count:
-            logging.info('Pushing {} new rows: {} for {}'.format(new_count, ifc_type, date))
+            logging.info('Pushing {} new rows: {} for {}'.format(new_count, country, date))
             # insert new data into the carto table
             cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
                                 CARTO_SCHEMA.values(), rows, user=CARTO_USER, key=CARTO_KEY)
