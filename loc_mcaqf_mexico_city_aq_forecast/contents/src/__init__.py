@@ -355,6 +355,11 @@ def fetch(dates, var):
     '''
     # make an empty list to store names of the files we downloaded
     files = []
+    # Create a sub-list of days for last two dates to handle exceptions
+    today_date = datetime.date.today()
+    last_dates = [today_date - datetime.timedelta(days=x) for x in range(2)]
+    # Convert the sublist to DATE_FORMAT
+    last_dates = [datetime.datetime.strftime(i, DATE_FORMAT) for i in last_dates]
     # go through each input date
     for date in dates:
         # get the url to download the file from the source for the given date/compound
@@ -370,8 +375,11 @@ def fetch(dates, var):
         except Exception as e:
             # if unsuccessful, log that the file was not downloaded
             # (could be because we are attempting to download a file that is not available yet)
-            logging.info('Could not fetch {}'.format(s3_filename))
-            logging.info(e)
+            if date in last_dates:
+                logging.info('Could not fetch {}'.format(s3_filename))
+                logging.info(e)
+            else:
+                logging.info('Could not fetch {} file out of range'.format(s3_filename))
     return files
 
 
