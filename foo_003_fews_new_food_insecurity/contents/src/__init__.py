@@ -246,16 +246,6 @@ def simplifyGeom(geom):
 
     return geometry.mapping(simp)
 
-""" def existing_dates(table):
-    r = cartosql.getFields(['admin0', TIME_FIELD, 'ifc_type'], table, f='csv', post=True)
-    # turn the response into a list of dates
-    cols = r.text.split('\r\n')[1:-1]
-    # sort the dates from oldest to newest
-    dates.sort()
-    # turn the last (newest) date into a datetime object
-    most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
-    return most_recent_date) """
-
 def processNewData(existing_ids):
     '''
     Fetch, process and upload new data
@@ -281,6 +271,10 @@ def processNewData(existing_ids):
             date -= relativedelta(months=1)
             datestr = date.strftime(DATE_FORMAT)
             rows = []
+            
+            cur_date_str = ','.join([country, date.strftime("%Y-%m-%d 00:00:00")])
+            if  cur_date_str in cur_data:
+                break
 
             logging.info('Fetching data for {} on {}'.format(country, datestr))
             # construct the url to fetch data for this country
@@ -403,12 +397,8 @@ def processNewData(existing_ids):
 def existing_dates(table):
     sql = "SELECT DISTINCT admin0, start_date FROM {} WHERE ifc_type LIKE 'CS'".format(CARTO_TABLE)
     r = cartosql.sendSql(sql, user=CARTO_USER, key=CARTO_KEY, f = 'csv', post=True)
-    data = r.text.split('\r\n')[1:-1]
-    if data:
-        cur_data = list(zip(r.text.split('\r\n')[1:-1][0], r.text.split('\r\n')[1:-1][0]))
-        return cur_data
-    else:
-        return None
+    cur_data = r.text.split('\r\n')[1:-1]
+    return cur_data
     
     
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
