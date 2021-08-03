@@ -4,7 +4,7 @@ import sys
 import urllib
 import zipfile
 import datetime
-import re
+import pandas as pd
 from dateutil.relativedelta import relativedelta
 import fiona
 from bs4 import BeautifulSoup
@@ -23,20 +23,21 @@ DATA_DIR = './data'
 CARTO_USER = os.getenv('CARTO_USER')
 CARTO_KEY = os.getenv('CARTO_KEY')
 
-#  Carto username and API key for account where we will fetch country info
+#  Carto username and API key for account where we will fetch country names and codes
 CARTO_WRI_USER = os.getenv('CARTO_WRI_RW_USER')
 CARTO_WRI_KEY = os.getenv('CARTO_WRI_RW_KEY')
 
 # name of table in Carto where we will upload the data
 CARTO_TABLE = 'foo_003_fews_net_food_insecurity_test'
 
-#
-COUNTRY_TABLE = 'wri_countries_a'
 # column of table that can be used as an unique ID (UID)
 UID_FIELD = '_uid'
 
 # column that stores datetime information
 TIME_FIELD = 'start_date'
+
+# name of table in Carto where we will get country names and codes 
+COUNTRY_TABLE = 'wri_countries_a'
 
 # column names and types for data table
 # column names should be lowercase
@@ -44,6 +45,8 @@ TIME_FIELD = 'start_date'
 CARTO_SCHEMA = OrderedDict([
     ('the_geom', 'geometry'),
     ('_uid', 'text'),
+    ('admin0', 'text'),
+    ('admin1', 'text'),
     ('start_date', 'timestamp'),
     ('end_date', 'timestamp'),
     ('ifc_type', 'text'),
@@ -243,6 +246,15 @@ def simplifyGeom(geom):
 
     return geometry.mapping(simp)
 
+""" def existing_dates(table):
+    r = cartosql.getFields(['admin0', TIME_FIELD, 'ifc_type'], table, f='csv', post=True)
+    # turn the response into a list of dates
+    cols = r.text.split('\r\n')[1:-1]
+    # sort the dates from oldest to newest
+    dates.sort()
+    # turn the last (newest) date into a datetime object
+    most_recent_date = datetime.datetime.strptime(dates[-1], '%Y-%m-%d %H:%M:%S')
+    return most_recent_date) """
 
 def processNewData(existing_ids):
     '''
@@ -252,6 +264,8 @@ def processNewData(existing_ids):
     '''
     # create an empty list to store unique ids of new data we will be sending to Carto table
     new_ids = []
+
+    cur_data = existing_dates(CARTO_TABLE)
 
     # Retrieve and process new data; continue until the current date is 
     # older than the oldest date allowed in the table, set by the MAX_AGE variable
@@ -331,6 +345,10 @@ def processNewData(existing_ids):
                                     elif field == UID_FIELD:
                                         # add the unique id to the list of data from this row
                                         row.append(uid)
+                                    elif field == 'admin0':
+                                        row.append(obs['properties']['ADMIN0'])
+                                    elif field == 'admin1':
+                                        row.append(obs['properties']['ADMIN1'])
                                     # if we are fetching data for time period column
                                     elif field == 'ifc_type':
                                         # add the time period to the list of data from this row
@@ -361,7 +379,12 @@ def processNewData(existing_ids):
             except Exception as e:
                 logging.info('Data for {} during {} not available'.format(country, datestr))
                 # skip dates that don't work
-                continue
+                # if the data request didn't return any results and we have already searched through the minimum number
+                # of months specified by the MINDATES variables, break
+                if date < datetime.date.today() - relativedelta(months=MINDATES):
+                    break
+                else:
+                    continue
 
             # find the length (number of rows) of new_data 
             new_count = len(rows)
@@ -371,11 +394,23 @@ def processNewData(existing_ids):
                 # insert new data into the carto table
                 cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
                                 CARTO_SCHEMA.values(), rows, user=CARTO_USER, key=CARTO_KEY)
+
     # length (number of rows) of new_data 
     num_new = len(new_ids)
 
     return num_new
 
+def existing_dates(table):
+    sql = "SELECT DISTINCT admin0, start_date FROM {} WHERE ifc_type LIKE 'CS'".format(CARTO_TABLE)
+    r = cartosql.sendSql(sql, user=CARTO_USER, key=CARTO_KEY, f = 'csv', post=True)
+    data = r.text.split('\r\n')[1:-1]
+    if data:
+        cur_data = list(zip(r.text.split('\r\n')[1:-1][0], r.text.split('\r\n')[1:-1][0]))
+        return cur_data
+    else:
+        return None
+    
+    
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
     ''' 
     Delete rows that are older than a certain threshold and also bring count down to max_rows
