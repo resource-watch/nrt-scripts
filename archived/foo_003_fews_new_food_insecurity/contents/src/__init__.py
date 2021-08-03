@@ -84,6 +84,7 @@ DATASET_ID = 'ac6dcdb3-2beb-4c66-9f83-565c16c2c914'
 
 '''
 FUNCTIONS FOR ALL DATASETS
+
 The functions below must go in every near real-time script.
 Their format should not need to be changed.
 '''
@@ -116,6 +117,7 @@ def lastUpdateDate(dataset, date):
 
 '''
 FUNCTIONS FOR CARTO DATASETS
+
 The functions below must go in every near real-time script for a Carto dataset.
 Their format should not need to be changed.
 '''
@@ -155,6 +157,7 @@ def checkCreateTable(table, schema, id_field, time_field=''):
 
 '''
 FUNCTIONS FOR THIS DATASET
+
 The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
