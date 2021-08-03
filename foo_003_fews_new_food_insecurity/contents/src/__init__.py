@@ -4,8 +4,10 @@ import sys
 import urllib
 import zipfile
 import datetime
+import re
 from dateutil.relativedelta import relativedelta
 import fiona
+from bs4 import BeautifulSoup
 from collections import OrderedDict
 from shapely import geometry
 import cartosql
@@ -21,9 +23,15 @@ DATA_DIR = './data'
 CARTO_USER = os.getenv('CARTO_USER')
 CARTO_KEY = os.getenv('CARTO_KEY')
 
-# name of table in Carto where we will upload the data
-CARTO_TABLE = 'foo_003_fews_net_food_insecurity'
+#  Carto username and API key for account where we will fetch country info
+CARTO_WRI_USER = os.getenv('CARTO_WRI_RW_USER')
+CARTO_WRI_KEY = os.getenv('CARTO_WRI_RW_KEY')
 
+# name of table in Carto where we will upload the data
+CARTO_TABLE = 'foo_003_fews_net_food_insecurity_test'
+
+#
+COUNTRY_TABLE = 'wri_countries_a'
 # column of table that can be used as an unique ID (UID)
 UID_FIELD = '_uid'
 
@@ -46,23 +54,16 @@ CARTO_SCHEMA = OrderedDict([
 MAXROWS = 1000000
 
 # Format of date used in source files
-DATE_FORMAT = '%Y%m'
+DATE_FORMAT = "%Y-%m-%d"
 
 # format of dates in Carto table
 DATETIME_FORMAT = '%Y%m%dT00:00:00Z'
 
 # url for source data
-SOURCE_URL = 'http://shapefiles.fews.net.s3.amazonaws.com/HFIC/{region}/{target_file}'
-
-# Specify region and corresponding filename that will be used to construct source url
-REGIONS = {'WA':'west-africa{date}.zip',
-            'CA':'central-asia{date}.zip',
-            'EA':'east-africa{date}.zip',
-            'LAC':'caribbean-central-america{date}.zip',
-            'SA':'southern-africa{date}.zip'}
+SOURCE_URL = 'https://fdw.fews.net/api/ipcpackage/?country_code={}&collection_date={}'
 
 # oldest date that can be stored in the Carto table before we start deleting
-MAXAGE = datetime.datetime.today() - datetime.timedelta(days=365*5)
+MAXAGE = datetime.date.today() - datetime.timedelta(days=365*5)
 
 # these two variables are used as parameters for the shapely simplify function, which simplifies the geometry of the shapefiles
 # please read the documentation for further details:
@@ -80,7 +81,7 @@ MINDATES = 6
 # Important! Before testing this script:
 # Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
 # Failing to do so will overwrite the last update date on a different dataset on Resource Watch
-DATASET_ID = 'ac6dcdb3-2beb-4c66-9f83-565c16c2c914'
+#DATASET_ID = 'ac6dcdb3-2beb-4c66-9f83-565c16c2c914'
 
 '''
 FUNCTIONS FOR ALL DATASETS
@@ -174,6 +175,29 @@ def genUID(date, region, ifc_type, pos_in_shp):
     '''
     return str('{}_{}_{}_{}'.format(date, region, ifc_type, pos_in_shp))
 
+def findcountries():
+    url = 'https://fews.net/fews-data/333'
+    list_countries = []
+    with urllib.request.urlopen(url) as f:
+        # use BeautifulSoup to read the content as a nested data structure
+        soup = BeautifulSoup(f, features="lxml")
+        divs = soup.find_all("div", {"class": "countries-filter-container"})
+        for div in divs:
+            for string in div.strings:
+                if string not in ['Global', 'Central America and Caribbean', 'Central Asia', 'East Africa', 'Southern Africa', 'West Africa']:
+                    list_countries.append(string)
+    
+    return list_countries
+
+def build_link(country, datestr):
+    sql = "SELECT iso_a2 FROM {} WHERE name = '{}'".format(COUNTRY_TABLE, country)
+    # send the request to the Carto API to fetch the corresponding administrative area data
+    r = cartosql.sendSql(sql, user=CARTO_WRI_USER, key=CARTO_WRI_KEY, f = 'csv', post=True)
+    # convert the response to json a
+    ISO = r.text.split('\r\n')[1:-1][0]
+
+    return SOURCE_URL.format(ISO, datestr)
+
 def findShps(zfile):
     '''
     Check if the zipfile contains all the expected shapefiles and return them as a dictionary
@@ -229,130 +253,124 @@ def processNewData(existing_ids):
     # create an empty list to store unique ids of new data we will be sending to Carto table
     new_ids = []
 
-    # Get today's date and truncate to monthly resolution (this will show the date as the first of the current month)
-    date = datetime.datetime.strptime(
-        datetime.datetime.today().strftime(DATE_FORMAT), DATE_FORMAT)
-
     # Retrieve and process new data; continue until the current date is 
     # older than the oldest date allowed in the table, set by the MAX_AGE variable
-    while date > MAXAGE:
-        # iterate backwards 1 month at a time
-        date -= relativedelta(months=1)
-        # convert datetime object to string
-        datestr = date.strftime(DATE_FORMAT)
-        # create an empty list to store each row of new data
-        rows = []
 
-        logging.info('Fetching data for {}'.format(datestr))
-        # loop through the REGIONS dictionary to get
-        # each region and corresponding file name template
-        for region, fileTemplate in REGIONS.items():
-            # get the filename by formatting fileTemplate with date
-            filename = fileTemplate.format(date=datestr)
-            # generate url to pull the data
-            url = SOURCE_URL.format(region=region, target_file=filename)
-            # create file name to use to store the data from the source url
-            tmpfile = os.path.join(DATA_DIR, filename)
+    for country in findcountries():
+        # loop through each country
+
+        # Get today's date and truncate to monthly resolution (this will show the date as the first of the current month)
+        date = datetime.date.today().replace(day=1)
+
+        while date > MAXAGE:
+            # iterate backwards 1 month at a time
+            date -= relativedelta(months=1)
+            datestr = date.strftime(DATE_FORMAT)
+            rows = []
+
+            logging.info('Fetching data for {} on {}'.format(country, datestr))
+            # construct the url to fetch data for this country
+            url = build_link(country, datestr)
 
             try:
-                # pull data from url and save to tmpfile
+                # construct a filename for the data that will be downloaded 
+                filename = '{}_{}.zip'.format(country, datestr)
+                # contruct the path to the location of downloaded data 
+                tmpfile = os.path.join(DATA_DIR, filename)
+                # download the data 
                 urllib.request.urlretrieve(url, tmpfile)
+                # Parse fetched data and generate unique ids
+                logging.info('Parsing data for {}'.format(country))
+                # check if the tmpfile contains all the expected shapefiles
+                # store the names of the shapefiles for each time period (CS, ML1, ML2) in the dictionary 'shpfiles'
+                shpfiles = findShps(tmpfile)
+                    # process each shapefile
+                for ifc_type, shpfile in shpfiles.items():
+                    # format path for the shapefiles
+                    shpfile = '/{}'.format(shpfile)
+                    # format path for the zipfiles
+                    zfile = 'zip://{}'.format(tmpfile)
+                    # set start and end date as current date
+                    start_date = date
+                    end_date = date
+                    # if the shapefile is related to near-term projections
+                    if ifc_type == 'ML1':
+                        # set end date as four months from current date 
+                        end_date = date + relativedelta(months=4)
+                    # if the shapefile is related to medium-term projections
+                    elif ifc_type == 'ML2':
+                        # set start_date as four months from current date 
+                        start_date = date + relativedelta(months=4)
+                        # set end_date as eight months from current date 
+                        end_date = date + relativedelta(months=8)
+                    # open each shapefile as GeoJSON and process them
+                    with fiona.open(shpfile, 'r', vfs=zfile) as shp:
+                        logging.debug('Schema: {}'.format(shp.schema))
+                        # set the index for the feature position
+                        pos_in_shp = 0
+                        # loop through each features in the GeoJSON
+                        for obs in shp:
+                            # generate unique id by using date, region, time period and index of the feature
+                            uid = genUID(date.strftime('%Y%m'), country.lower().replace(' ', '_'), ifc_type, pos_in_shp)
+                            # if the id doesn't already exist in Carto table or 
+                            # isn't added to the list for sending to Carto yet 
+                            if uid not in existing_ids and uid not in new_ids:
+                                # append the id to the list for sending to Carto 
+                                new_ids.append(uid)
+                                # create an empty list to store data from this row
+                                row = []
+                                # go through each column in the Carto table
+                                for field in CARTO_SCHEMA.keys():
+                                    # if we are fetching data for geometry column
+                                    if field == 'the_geom':
+                                        # get geometry from the 'geometry' feature in GeoJSON,
+                                        # simplify complex polygons, and
+                                        # add geometry to the list of data from this row
+                                        row.append(simplifyGeom(obs['geometry']))
+                                    # if we are fetching data for unique id column
+                                    elif field == UID_FIELD:
+                                        # add the unique id to the list of data from this row
+                                        row.append(uid)
+                                    # if we are fetching data for time period column
+                                    elif field == 'ifc_type':
+                                        # add the time period to the list of data from this row
+                                        row.append(ifc_type)
+                                    # if we are fetching data for Food Insecurity Status column
+                                    elif field == 'ifc':
+                                        # get food insecurity status from ifc_type variable of 
+                                        # properties feature and add to list of data from this row
+                                        row.append(obs['properties'][ifc_type])
+                                    # if we are fetching data for start_date column
+                                    elif field == 'start_date':
+                                        # convert the datetime for start_date to string 
+                                        # add start_date to the list of data from this row
+                                        row.append(start_date.strftime(DATETIME_FORMAT))
+                                    # if we are fetching data for end_date column
+                                    elif field == 'end_date':
+                                        # convert the datetime for end_date to string 
+                                        # add end_date to the list of data from this row
+                                        row.append(end_date.strftime(DATETIME_FORMAT))
+                                # add the list of values from this row to the list of new data
+                                rows.append(row)
+                                # move to the next feature in the geojson
+                        pos_in_shp += 1
+
+                # Delete local files
+                os.remove(tmpfile)
+
             except Exception as e:
-                logging.info('Could not retrieve {}'.format(url))
+                logging.info('Data for {} during {} not available'.format(country, datestr))
                 # skip dates that don't work
                 continue
 
-            # Parse fetched data and generate unique ids
-            logging.info('Parsing data for {}'.format(region))
-            # check if the tmpfile contains all the expected shapefiles
-            # store the names of the shapefiles for each time period (CS, ML1, ML2) in the dictionary 'shpfiles'
-            shpfiles = findShps(tmpfile)
-            # process each shapefile
-            for ifc_type, shpfile in shpfiles.items():
-                # format path for the shapefiles
-                shpfile = '/{}'.format(shpfile)
-                # format path for the zipfiles
-                zfile = 'zip://{}'.format(tmpfile)
-                # set start and end date as current date
-                start_date = date
-                end_date = date
-                # if the shapefile is related to near-term projections
-                if ifc_type == 'ML1':
-                    # set end date as four months from current date 
-                    end_date = date + relativedelta(months=4)
-                # if the shapefile is related to medium-term projections
-                elif ifc_type == 'ML2':
-                    # set start_date as four months from current date 
-                    start_date = date + relativedelta(months=4)
-                    # set end_date as eight months from current date 
-                    end_date = date + relativedelta(months=8)
-                # open each shapefile as GeoJSON and process them
-                with fiona.open(shpfile, 'r', vfs=zfile) as shp:
-                    logging.debug('Schema: {}'.format(shp.schema))
-                    # set the index for the feature position
-                    pos_in_shp = 0
-                    # loop through each features in the GeoJSON
-                    for obs in shp:
-                        # generate unique id by using date, region, time period and index of the feature
-                        uid = genUID(datestr, region, ifc_type, pos_in_shp)
-                        # if the id doesn't already exist in Carto table or 
-                        # isn't added to the list for sending to Carto yet 
-                        if uid not in existing_ids and uid not in new_ids:
-                            # append the id to the list for sending to Carto 
-                            new_ids.append(uid)
-                            # create an empty list to store data from this row
-                            row = []
-                            # go through each column in the Carto table
-                            for field in CARTO_SCHEMA.keys():
-                                # if we are fetching data for geometry column
-                                if field == 'the_geom':
-                                    # get geometry from the 'geometry' feature in GeoJSON,
-                                    # simplify complex polygons, and
-                                    # add geometry to the list of data from this row
-                                    row.append(simplifyGeom(obs['geometry']))
-                                # if we are fetching data for unique id column
-                                elif field == UID_FIELD:
-                                    # add the unique id to the list of data from this row
-                                    row.append(uid)
-                                # if we are fetching data for time period column
-                                elif field == 'ifc_type':
-                                    # add the time period to the list of data from this row
-                                    row.append(ifc_type)
-                                # if we are fetching data for Food Insecurity Status column
-                                elif field == 'ifc':
-                                    # get food insecurity status from ifc_type variable of 
-                                    # properties feature and add to list of data from this row
-                                    row.append(obs['properties'][ifc_type])
-                                # if we are fetching data for start_date column
-                                elif field == 'start_date':
-                                    # convert the datetime for start_date to string 
-                                    # add start_date to the list of data from this row
-                                    row.append(start_date.strftime(DATETIME_FORMAT))
-                                # if we are fetching data for end_date column
-                                elif field == 'end_date':
-                                    # convert the datetime for end_date to string 
-                                    # add end_date to the list of data from this row
-                                    row.append(end_date.strftime(DATETIME_FORMAT))
-                            # add the list of values from this row to the list of new data
-                            rows.append(row)
-                            # move to the next feature in the geojson
-                            pos_in_shp += 1
-
-            # Delete local files
-            os.remove(tmpfile)
-
-        # find the length (number of rows) of new_data 
-        new_count = len(rows)
-        # check if new data is available
-        if new_count:
-            logging.info('Pushing {} new rows: {} for {}'.format(new_count, ifc_type, date))
-            # insert new data into the carto table
-            cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
+            # find the length (number of rows) of new_data 
+            new_count = len(rows)
+            # check if new data is available
+            if new_count:
+                logging.info('Pushing {} new rows: {} for {}'.format(new_count, country, date))
+                # insert new data into the carto table
+                cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
                                 CARTO_SCHEMA.values(), rows, user=CARTO_USER, key=CARTO_KEY)
-        # if the data request didn't return any results and we have already searched through the minimum number
-        # of months specified by the MINDATES variables, break
-        elif date < datetime.datetime.today() - relativedelta(months=MINDATES):
-            break
     # length (number of rows) of new_data 
     num_new = len(new_ids)
 
