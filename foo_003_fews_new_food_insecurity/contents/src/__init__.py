@@ -78,13 +78,12 @@ SIMPLIFICATION_TOLERANCE = .04
 PRESERVE_TOPOLOGY = True
 
 # minimum number of months we want to check back through for data
-MINDATES = 6
-
+MINDATES = 3
 # Resource Watch dataset API ID
 # Important! Before testing this script:
 # Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
 # Failing to do so will overwrite the last update date on a different dataset on Resource Watch
-#DATASET_ID = 'ac6dcdb3-2beb-4c66-9f83-565c16c2c914'
+DATASET_ID = 'ac6dcdb3-2beb-4c66-9f83-565c16c2c914'
 
 '''
 FUNCTIONS FOR ALL DATASETS
@@ -193,6 +192,10 @@ def findcountries():
     return list_countries
 
 def build_link(country, datestr):
+    country_dict = {"Tanzania": "United Republic of Tanzania",
+    "Democratic Republic of Congo": "Democratic Republic of the Congo"}
+    if country in country_dict.keys():
+        country = country_dict[country]
     sql = "SELECT iso_a2 FROM {} WHERE name = '{}'".format(COUNTRY_TABLE, country)
     # send the request to the Carto API to fetch the corresponding administrative area data
     r = cartosql.sendSql(sql, user=CARTO_WRI_USER, key=CARTO_WRI_KEY, f = 'csv', post=True)
@@ -243,6 +246,8 @@ def simplifyGeom(geom):
     shp = geometry.shape(geom)
     # simplify the geometry
     simp = shp.simplify(SIMPLIFICATION_TOLERANCE, PRESERVE_TOPOLOGY)
+    simplified = geometry.mapping(simp)
+
 
     return geometry.mapping(simp)
 
@@ -334,7 +339,7 @@ def processNewData(existing_ids):
                                         # get geometry from the 'geometry' feature in GeoJSON,
                                         # simplify complex polygons, and
                                         # add geometry to the list of data from this row
-                                        row.append(simplifyGeom(obs['geometry']))
+                                        row.append(obs['geometry'])
                                     # if we are fetching data for unique id column
                                     elif field == UID_FIELD:
                                         # add the unique id to the list of data from this row
@@ -365,7 +370,7 @@ def processNewData(existing_ids):
                                 # add the list of values from this row to the list of new data
                                 rows.append(row)
                                 # move to the next feature in the geojson
-                        pos_in_shp += 1
+                            pos_in_shp += 1
 
                 # Delete local files
                 os.remove(tmpfile)
@@ -388,6 +393,8 @@ def processNewData(existing_ids):
                 # insert new data into the carto table
                 cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(),
                                 CARTO_SCHEMA.values(), rows, user=CARTO_USER, key=CARTO_KEY)
+            elif date < datetime.date.today() - relativedelta(months=MINDATES):
+                break
 
     # length (number of rows) of new_data 
     num_new = len(new_ids)
