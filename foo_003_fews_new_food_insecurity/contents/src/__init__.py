@@ -56,7 +56,7 @@ CARTO_SCHEMA = OrderedDict([
 # how many rows can be stored in the Carto table before the oldest ones are deleted?
 MAXROWS = 1000000
 
-# Format of date used in source files
+# format of date used in source files
 DATE_FORMAT = "%Y-%m-%d"
 
 # format of dates in Carto table
@@ -154,10 +154,10 @@ They should all be checked because their format likely will need to be changed.
 '''
 
 # Generate UID
-def genUID(date, region, ifc_type, pos_in_shp):
+def genUID(date, country, ifc_type, pos_in_shp):
     '''Generate unique id using date, region, time period and feature index in retrieved GeoJSON
     INPUT   date: date for which we want to generate id (string)
-            region: region for which we are collecting data (string)
+            country: country for which we are collecting data (string)
             ifc_type: time period of the data. (string) 
                 ifc_type can be: 
                 CS = "current status",
@@ -166,9 +166,12 @@ def genUID(date, region, ifc_type, pos_in_shp):
             pos_in_shp: index of the feature in GeoJSON (integer)
     RETURN unique id for row (string)
     '''
-    return str('{}_{}_{}_{}'.format(date, region, ifc_type, pos_in_shp))
+    return str('{}_{}_{}_{}'.format(date, country, ifc_type, pos_in_shp))
 
 def findcountries():
+    '''Find the countries whose data is available
+    RETURN list of country names (list of strings)
+    '''
     url = 'https://fews.net/fews-data/333'
     list_countries = []
     with urllib.request.urlopen(url) as f:
@@ -177,20 +180,31 @@ def findcountries():
         divs = soup.find_all("div", {"class": "countries-filter-container"})
         for div in divs:
             for string in div.strings:
+                # if string is not within the list of regions 
                 if string not in ['Global', 'Central America and Caribbean', 'Central Asia', 'East Africa', 'Southern Africa', 'West Africa']:
+                    # append the string the list
                     list_countries.append(string)
     
     return list_countries
 
 def build_link(country, datestr):
+    '''Construct the links to download data via
+    INPUT country: the country for which to fetch data (string)
+          datestr: the formatted string of the date for which to fetch data (string)
+    RETURN the link (string)
+    '''
+    # there are several countries whose names do not match the names in the wri shapefile
     country_dict = {"Tanzania": "United Republic of Tanzania",
     "Democratic Republic of Congo": "Democratic Republic of the Congo"}
+    # if the country is one of them 
+    # look for the country code in the wri shapefile based on another name
     if country in country_dict.keys():
         country = country_dict[country]
+    # construct the sql query to find the country code of the country in the wri shapefile
     sql = "SELECT iso_a2 FROM {} WHERE name = '{}'".format(COUNTRY_TABLE, country)
-    # send the request to the Carto API to fetch the corresponding administrative area data
+    # send the request to the Carto API to fetch the corresponding country code
     r = cartosql.sendSql(sql, user=CARTO_WRI_USER, key=CARTO_WRI_KEY, f = 'csv', post=True)
-    # convert the response to json a
+    # extract the code from the response 
     ISO = r.text.split('\r\n')[1:-1][0]
 
     return SOURCE_URL.format(ISO, datestr)
@@ -235,6 +249,7 @@ def processNewData(existing_ids):
     # create an empty list to store unique ids of new data we will be sending to Carto table
     new_ids = []
 
+    # find the dates for which data is already within the carto table
     cur_data = existing_dates(CARTO_TABLE)
 
     # Retrieve and process new data; continue until the current date is 
@@ -252,8 +267,10 @@ def processNewData(existing_ids):
             datestr = date.strftime(DATE_FORMAT)
             rows = []
             
+            # construct the string for the python datetime object 
             cur_date_str = ','.join([country, date.strftime("%Y-%m-%d 00:00:00")])
-            if  cur_date_str in cur_data:
+            # check if the date is within the dates whose data already exists in the carto table
+            if cur_date_str in cur_data:
                 break
 
             logging.info('Fetching data for {} on {}'.format(country, datestr))
@@ -376,9 +393,15 @@ def processNewData(existing_ids):
 
     return num_new
 
-def existing_dates(table):
+def existing_dates():
+    '''Find the dates whose data is already in the carto table
+    RETURN list of dates (list of strings)
+    '''
+    # the sql query to find the date for each country whose data already exists in the table
     sql = "SELECT DISTINCT admin0, start_date FROM {} WHERE ifc_type LIKE 'CS'".format(CARTO_TABLE)
+    # send the sql request 
     r = cartosql.sendSql(sql, user=CARTO_USER, key=CARTO_KEY, f = 'csv', post=True)
+    # parse the response 
     cur_data = r.text.split('\r\n')[1:-1]
     return cur_data
     
