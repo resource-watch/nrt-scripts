@@ -250,7 +250,7 @@ def processNewData(existing_ids):
     new_ids = []
 
     # find the dates for which data is already within the carto table
-    cur_data = existing_dates(CARTO_TABLE)
+    cur_data = existing_dates()
 
     # Retrieve and process new data; continue until the current date is 
     # older than the oldest date allowed in the table, set by the MAX_AGE variable
