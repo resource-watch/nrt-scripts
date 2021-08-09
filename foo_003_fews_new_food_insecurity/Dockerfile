@@ -10,6 +10,8 @@ RUN apt-get update
 RUN pip install --upgrade pip
 
 # install application libraries
+RUN pip install pandas==0.24.2
+RUN pip install bs4
 RUN pip install fiona==1.8.13 shapely==1.6.4 python-dateutil==2.8.0 requests==2.22.0
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 
@@ -22,7 +24,7 @@ COPY time.cron .
 RUN groupadd -r $NAME && useradd -r -g $NAME $NAME
 RUN chown -R $NAME:$NAME /opt/$NAME
 USER $NAME
-VOLUME ./data
+VOLUME /opt/$NAME/data
 
 # Launch script
 CMD ["python", "main.py"]

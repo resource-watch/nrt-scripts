@@ -28,7 +28,7 @@ CARTO_WRI_USER = os.getenv('CARTO_WRI_RW_USER')
 CARTO_WRI_KEY = os.getenv('CARTO_WRI_RW_KEY')
 
 # name of table in Carto where we will upload the data
-CARTO_TABLE = 'foo_003_fews_net_food_insecurity_test'
+CARTO_TABLE = 'foo_003_fews_net_food_insecurity'
 
 # column of table that can be used as an unique ID (UID)
 UID_FIELD = '_uid'
@@ -67,15 +67,6 @@ SOURCE_URL = 'https://fdw.fews.net/api/ipcpackage/?country_code={}&collection_da
 
 # oldest date that can be stored in the Carto table before we start deleting
 MAXAGE = datetime.date.today() - datetime.timedelta(days=365*5)
-
-# these two variables are used as parameters for the shapely simplify function, which simplifies the geometry of the shapefiles
-# please read the documentation for further details:
-# https://shapely.readthedocs.io/en/stable/manual.html#object.simplify
-# all points in the simplified object will be within this tolerance level of difference from the original geometry
-SIMPLIFICATION_TOLERANCE = .04
-# decide whether to preserve topology of the geometry
-# a slower algorithm is used that preserves topology
-PRESERVE_TOPOLOGY = True
 
 # minimum number of months we want to check back through for data
 MINDATES = 3
@@ -182,7 +173,7 @@ def findcountries():
     list_countries = []
     with urllib.request.urlopen(url) as f:
         # use BeautifulSoup to read the content as a nested data structure
-        soup = BeautifulSoup(f, features="lxml")
+        soup = BeautifulSoup(f, 'html.parser')
         divs = soup.find_all("div", {"class": "countries-filter-container"})
         for div in divs:
             for string in div.strings:
@@ -234,22 +225,6 @@ def findShps(zfile):
         logging.info('There should be 3 shapefiles: CS, ML1, ML2')
 
     return files
-
-
-def simplifyGeom(geom):
-    '''
-    Return a simplified representation of the geometric object
-    INPUT   geom: geojson of current geometry (geojson)
-    RETURN  simplified geometry (geojson)
-    '''
-    # create a shapely geometry from the input geojson
-    shp = geometry.shape(geom)
-    # simplify the geometry
-    simp = shp.simplify(SIMPLIFICATION_TOLERANCE, PRESERVE_TOPOLOGY)
-    simplified = geometry.mapping(simp)
-
-
-    return geometry.mapping(simp)
 
 def processNewData(existing_ids):
     '''
