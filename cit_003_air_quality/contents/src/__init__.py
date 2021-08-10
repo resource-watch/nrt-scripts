@@ -16,13 +16,10 @@ logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 ### Constants
 DATA_DIR = 'data'
-
 # how long to wait before trying to get data again incase of failure
 WAIT_TIME = 30
-
 # asserting table structure rather than reading from input
 PARAMS = ('pm25', 'pm10', 'so2', 'no2', 'o3', 'co', 'bc')
-
 # the name of the seven carto tables to store the data 
 CARTO_TABLES = {
     'pm25':'cit_003a_air_quality_pm25',
@@ -161,9 +158,9 @@ def checkCreateTable(table, schema, id_field, time_field=''):
     INPUT   table: Carto table to check or create (string)
             schema: dictionary of column names and types, used if we are creating the table for the first time (dictionary)
             id_field: name of column that we want to use as a unique ID for this table; this will be used to compare the
-                    source data to the our table each time we run the script so that we only have to pull data we
-                    haven't previously uploaded (string)
-            time_field:  optional, name of column that will store datetime information (string)
+                      source data to the our table each time we run the script so that we only have to pull data we
+                      haven't previously uploaded (string)
+            time_field: optional, name of column that will store datetime information (string)
     RETURN  list of existing IDs in the table, pulled from the id_field column (list of strings)
     '''
     # check it the table already exists in Carto
@@ -195,7 +192,11 @@ They should all be checked because their format likely will need to be changed.
 '''
 def convert(param, unit, value):
     '''
-    Conversion
+    Unit conversion
+    INPUT  param: observation parameter
+           unit: observation unit
+           value: observation value for conversion
+    OUTPUT new value in ppm 
     '''
     if param in MOL_WEIGHTS.keys() and unit in UGM3:
         return convert_ugm3_ppm(value, MOL_WEIGHTS[param])
@@ -204,6 +205,11 @@ def convert(param, unit, value):
 def convert_ugm3_ppm(ugm3, mol, T=0, P=101.325):
     '''
     Ideal gas conversion
+    INPUT  ugm3: value in ug/m3
+           mol: molar mass parameter
+           T: temperature constant
+           P: pressure constant
+    OUTPUT new value in ppm
     '''
     K = 273.15    # 0C
     Atm = 101.325 # kPa
@@ -220,13 +226,15 @@ def genUID(obs):
 def genLocID(obs):
     '''
     Generate UID for location
+    INPUT  obs: observation in requested json
+    OUTPUT unique ID for location
     '''
     return hashlib.md5(obs['location'].encode('utf8')).hexdigest()
 
 def parseFields(obs, uid, fields):
     '''
     Parse OpenAQ fields
-    INPUT   obj: object in requested json
+    INPUT   obs: observation in requested json
             uid: Unique ID (UID)
             fields: column names for data table
     OUTPUT  data saved as Carto table rows
@@ -312,6 +320,7 @@ def get_most_recent_date(param):
 def create_headers():
     '''
     Create headers to perform authorized actions on API
+    OUTPUT headers
     '''
     return {
         'Content-Type': "application/json",
@@ -322,7 +331,7 @@ def pull_layers_from_API(dataset_id):
     '''
     Pull dictionary of current layers from API
     INPUT   dataset_id: Resource Watch API dataset ID (string)
-    RETURN  layer_dict: dictionary of layers (dictionary of strings)
+    OUTPUT  layer_dict: dictionary of layers (dictionary of strings)
     '''
     # generate url to access layer configs for this dataset in back office
     rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer?page[size]=100'.format(dataset_id)
