@@ -8,7 +8,7 @@ This file describes the near real-time script that retrieves and processes the [
 * [Air Quality: Carbon Monoxide (CO) Station Measurements](https://resourcewatch.org/data/explore/cit003fnrt-Air-Quality-Measurements-CO)
 * [Air Quality: Black Carbon Station Measurements](https://resourcewatch.org/data/explore/cit003gnrt-Air-Quality-Measurements-BC_1)
 
-This dataset was provided by the source as JSON dumps within a [Amazon Simple Storage Service(AWS S3)](https://openaq-fetches.s3.amazonaws.com/index.html). Unique locations of the obsertaions  were stored in a seperate Carto table. All chemicals were converted units and seperated before we uploaded it to Carto.
+This dataset was provided by the source as JSON dumps within an [Amazon Simple Storage Service (AWS S3)](https://openaq-fetches.s3.amazonaws.com/index.html). Unique locations of the observations were stored in a separate Carto table. All chemicals were converted units and separated before we uploaded them to Carto tables.
 
 Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/cit_003_air_quality/contents/src/__init__.py) for more details on this processing.
 
