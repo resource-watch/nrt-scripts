@@ -8,14 +8,10 @@ This file describes the near real-time script that retrieves and processes the [
 * [Air Quality: Carbon Monoxide (CO) Station Measurements](https://resourcewatch.org/data/explore/cit003fnrt-Air-Quality-Measurements-CO)
 * [Air Quality: Black Carbon Station Measurements](https://resourcewatch.org/data/explore/cit003gnrt-Air-Quality-Measurements-BC_1)
 
-{Describe how the original data came from the source.}
-
-{Describe the steps used to process the data, e.g., "convert variable X from the original netcdf file to a tif to upload to Google Earth Engine."}
-
 Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/cit_003_air_quality/contents/src/__init__.py) for more details on this processing.
 
 **Schedule**
 
-This script is run twice daily. The exact time that the script is run to update the dataset can be found in the the `time.cron` file. This time is in Coordinated Universal Time (UTC), expressed in cron format.
+This script is run once daily. The exact time that the script is run to update the dataset can be found in the the `time.cron` file. This time is in Coordinated Universal Time (UTC), expressed in cron format.
 
-###### Note: This script was originally written by [Francis Gassert](https://www.wri.org/profile/francis-gassert), and is currently maintained by [Amelia Snyder](https://www.wri.org/profile/amelia-snyder).
+###### Note: This script was originally written by [Francis Gassert](https://www.wri.org/profile/francis-gassert), and is currently maintained by [Weiqi Zhou](https://www.wri.org/profile/weiqi-zhou).

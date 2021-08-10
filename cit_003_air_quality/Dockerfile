@@ -1,5 +1,5 @@
 FROM python:3.6-alpine
-MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
+MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 #Note this script was originally developed by Francis Gassert <fgassert@wri.org>
 
 # install core libraries
@@ -9,6 +9,7 @@ RUN apk add git
 # install application libraries
 RUN pip install requests==2.22.0
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
+RUN pip install boto3
 
 # set name
 ARG NAME=nrt-script
@@ -20,8 +21,9 @@ WORKDIR /opt/$NAME/
 COPY contents/ .
 VOLUME ./data
 
+# Set user for container security
 RUN adduser -D $NAME
-RUN chown $NAME:$NAME .
+RUN chown -R $NAME:$NAME .
 USER $NAME
 
 CMD ["python", "main.py"]
