@@ -227,6 +227,7 @@ def delete_carto_entries(id_list):
     '''
     Delete entries in Carto table based on values in a specified column
     INPUT   id_list: list of column values for which you want to delete entries in table (list of strings)
+    RETURN  number of ids deleted (number)
     '''
     # generate empty variable to store WHERE clause of SQL query we will send
     where = None
@@ -249,6 +250,8 @@ def delete_carto_entries(id_list):
             # after we have deleted a set of rows, start over with a blank WHERE clause for the SQL query so we don't
             # try to delete rows we have already deleted
             where = None
+    
+    return len(id_list)
 
 def convert_geometry(geom):
     '''
@@ -457,16 +460,24 @@ def main():
     # fetch the existing ids in the carto table 
     existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD)
 
+    # number of rows deleted
+    deleted_ids = 0
     # clear the table before starting, if specified
     if CLEAR_TABLE_FIRST:
         logging.info('Clearing Table')
         # if the table exists
         if cartosql.tableExists(CARTO_TABLE, user=CARTO_USER, key=CARTO_KEY):
             with ThreadPoolExecutor(max_workers=10) as executor:
+                futures = []
                 for i in range(0, len(existing_ids), 500):
                     # loop through the existing ids to remove all rows from the table in chunks of size 500 
-                    executor.submit(delete_carto_entries, existing_ids[i: i + 500])
-            logging.info('{} rows of old records removed!'.format(len(existing_ids)))
+                    futures.append(
+                        executor.submit(delete_carto_entries, existing_ids[i: i + 500])
+                    )
+                for future in as_completed(futures):
+                    deleted_ids += future.result()
+
+            logging.info('{} rows of old records removed!'.format(deleted_ids))
             # note: we do not delete the entire table because this will cause the dataset visualization on Resource Watch
             # to disappear until we log into Carto and open the table again. If we simply delete all the rows, this
             # problem does not occur
