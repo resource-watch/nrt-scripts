@@ -8,12 +8,16 @@ This file describes the near real-time script that retrieves and processes the [
 * [Air Quality: Carbon Monoxide (CO) Station Measurements](https://resourcewatch.org/data/explore/cit003fnrt-Air-Quality-Measurements-CO)
 * [Air Quality: Black Carbon Station Measurements](https://resourcewatch.org/data/explore/cit003gnrt-Air-Quality-Measurements-BC_1)
 
-This dataset was provided by the source as JSON dumps within an [Amazon Simple Storage Service (AWS S3)](https://openaq-fetches.s3.amazonaws.com/index.html). Unique locations of the observations were stored in a separate Carto table. All chemicals were converted units and separated before we uploaded them to Carto tables.
+{Describe how the original data came from the source.}
+
+{Describe the steps used to process the data, e.g., "convert variable X from the original netcdf file to a tif to upload to Google Earth Engine."}
 
 Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/cit_003_air_quality/contents/src/__init__.py) for more details on this processing.
 
 **Schedule**
 
-This script is run once daily. The exact time that the script is run to update the dataset can be found in the the `time.cron` file. This time is in Coordinated Universal Time (UTC), expressed in cron format.
+This script is run twice daily. The exact time that the script is run to update the dataset can be found in the the `time.cron` file. This time is in Coordinated Universal Time (UTC), expressed in cron format.
 
-###### Note: This script was originally written by [Francis Gassert](https://www.wri.org/profile/francis-gassert), and is currently maintained by [Weiqi Zhou](https://www.wri.org/profile/weiqi-zhou).
+This script has been archived since we are no longer fetching data using OpenAQ API. We are using the [Realtime JSON dumps](https://openaq-fetches.s3.amazonaws.com/index.html).
+
+###### Note: This script was originally written by [Francis Gassert](https://www.wri.org/profile/francis-gassert), and is currently maintained by [Amelia Snyder](https://www.wri.org/profile/amelia-snyder).

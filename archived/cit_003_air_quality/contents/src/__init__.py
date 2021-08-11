@@ -8,18 +8,25 @@ import hashlib
 import requests
 import time 
 import json
-import boto3
-import shutil
 
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 ### Constants
 DATA_DIR = 'data'
+# url at which the data can be downloaded
+DATA_URL = 'https://u50g7n0cbj.execute-api.us-east-1.amazonaws.com/v2/measurements?date_from={date_from}T{hour}%3A{minute}%3A{second}&date_to={date_to}T{hour}%3A{minute}%3A{second}&limit=3000&page={page}&sort=desc&has_geo=true&parameter={parameter}&order_by=datetime&sensorType=reference%20grade'
+# always check first 20 pages
+MIN_PAGES = 15
+# max page size = 100
+MAX_PAGES = 100
+
 # how long to wait before trying to get data again incase of failure
 WAIT_TIME = 30
+
 # asserting table structure rather than reading from input
 PARAMS = ('pm25', 'pm10', 'so2', 'no2', 'o3', 'co', 'bc')
+
 # the name of the seven carto tables to store the data 
 CARTO_TABLES = {
     'pm25':'cit_003a_air_quality_pm25',
@@ -66,12 +73,8 @@ TIME_FIELD = 'utc'
 CARTO_USER = os.environ.get('CARTO_USER')
 CARTO_KEY = os.environ.get('CARTO_KEY')
 
-# AWS S3 access key and secret key
-AWS_ACCESS_KEY_ID = os.environ.get('aws_access_key_id')
-AWS_SECRET_ACCESS_KEY = os.environ.get('aws_secret_access_key')
-
-# limit to 600000 rows / 30 days
-MAXROWS = 600000
+# limit to 500000 rows / 30 days
+MAXROWS = 500000
 MAXAGE = datetime.datetime.now() - datetime.timedelta(days=30)
 
 # conversion units and parameters
@@ -99,7 +102,6 @@ DATASET_ID = {
 
 '''
 FUNCTIONS FOR ALL DATASETS
-
 The functions below must go in every near real-time script.
 Their format should not need to be changed.
 '''
@@ -148,7 +150,6 @@ def delete_local():
 
 '''
 FUNCTIONS FOR CARTO DATASETS
-
 The functions below must go in every near real-time script for a Carto dataset.
 Their format should not need to be changed.
 '''
@@ -156,11 +157,11 @@ def checkCreateTable(table, schema, id_field, time_field=''):
     '''
     Create the table if it does not exist, and pull list of IDs already in the table if it does
     INPUT   table: Carto table to check or create (string)
-            schema: dictionary of column names and types, used if we are creating the table for the first time (dictionary of strings)
+            schema: dictionary of column names and types, used if we are creating the table for the first time (dictionary)
             id_field: name of column that we want to use as a unique ID for this table; this will be used to compare the
-                      source data to the our table each time we run the script so that we only have to pull data we
-                      haven't previously uploaded (string)
-            time_field: optional, name of column that will store datetime information (string)
+                    source data to the our table each time we run the script so that we only have to pull data we
+                    haven't previously uploaded (string)
+            time_field:  optional, name of column that will store datetime information (string)
     RETURN  list of existing IDs in the table, pulled from the id_field column (list of strings)
     '''
     # check it the table already exists in Carto
@@ -186,17 +187,12 @@ def checkCreateTable(table, schema, id_field, time_field=''):
 
 '''
 FUNCTIONS FOR THIS DATASET
-
 The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
 def convert(param, unit, value):
     '''
-    Unit conversion
-    INPUT  param: observation parameter (string)
-           unit: observation unit (string)
-           value: observation value for conversion (number)
-    OUTPUT new value in ppm (number)
+    Conversion
     '''
     if param in MOL_WEIGHTS.keys() and unit in UGM3:
         return convert_ugm3_ppm(value, MOL_WEIGHTS[param])
@@ -205,11 +201,6 @@ def convert(param, unit, value):
 def convert_ugm3_ppm(ugm3, mol, T=0, P=101.325):
     '''
     Ideal gas conversion
-    INPUT  ugm3: value in ug/m3 (number)
-           mol: molar mass parameter (number)
-           T: temperature constant (number)
-           P: pressure constant (number)
-    OUTPUT new value in ppm (number)
     '''
     K = 273.15    # 0C
     Atm = 101.325 # kPa
@@ -217,9 +208,7 @@ def convert_ugm3_ppm(ugm3, mol, T=0, P=101.325):
 
 def genUID(obs):
     '''
-    Generate unique ID (UID)
-    INPUT  obs: observation in requested json (dictionary of strings)
-    OUTPUT unique ID for observation (string)   
+    Generate UID
     '''
     # location should be unique, plus measurement timestamp
     id_str = '{}_{}'.format(obs['location'], obs['date']['utc'])
@@ -227,19 +216,17 @@ def genUID(obs):
 
 def genLocID(obs):
     '''
-    Generate unique ID (UID) for location
-    INPUT  obs: observation in requested json (dictionary of strings)
-    OUTPUT unique ID for location (string)
+    Generate UID for location
     '''
     return hashlib.md5(obs['location'].encode('utf8')).hexdigest()
 
 def parseFields(obs, uid, fields):
     '''
     Parse OpenAQ fields
-    INPUT   obs: observation in requested json (dictionary of strings)
-            uid: Unique ID (UID) (string)
-            fields: column names for data table (list of strings)
-    OUTPUT  data saved as Carto table rows (list of strings)
+    INPUT   obj: object in requested json
+            uid: Unique ID (UID)
+            fields: column names for data table
+    OUTPUT  data saved as Carto table rows
     '''
     row = []
     for field in fields:
@@ -278,10 +265,10 @@ def parseFields(obs, uid, fields):
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
     '''
     Delete excess rows by age or count
-    INPUT   table: Carto table to check (string)
-            max_rows: row limitation (number)
-            time_field: column of table that can be used as a timestamp (string)
-            max_age: age limitation (datetime)
+    INPUT   table: Carto table to check
+            max_rows: row limitation
+            time_field: column of table that can be used as a timestamp
+            max_age: age limitation
     '''
     num_dropped = 0
     if isinstance(max_age, datetime.datetime):
@@ -307,8 +294,8 @@ def deleteExcessRows(table, max_rows, time_field, max_age=''):
 def get_most_recent_date(param):
     '''
     Get the most recent date of records in the Carto table
-    INPUT   param: parameter to choose the Carto table (string)
-    OUTPUT  most_recent_date: get the most recent date (datetime)
+    INPUT   param: parameter to choose the Carto table
+    OUTPUT  most_recent_date: get the most recent date
     '''
     r = cartosql.getFields(TIME_FIELD, CARTO_TABLES[param], f='csv', post=True)
     dates = r.text.split('\r\n')[1:-1]
@@ -322,7 +309,6 @@ def get_most_recent_date(param):
 def create_headers():
     '''
     Create headers to perform authorized actions on API
-    OUTPUT headers (dictionary of strings)
     '''
     return {
         'Content-Type': "application/json",
@@ -333,7 +319,7 @@ def pull_layers_from_API(dataset_id):
     '''
     Pull dictionary of current layers from API
     INPUT   dataset_id: Resource Watch API dataset ID (string)
-    OUTPUT  layer_dict: dictionary of layers (dictionary of strings)
+    RETURN  layer_dict: dictionary of layers (dictionary of strings)
     '''
     # generate url to access layer configs for this dataset in back office
     rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer?page[size]=100'.format(dataset_id)
@@ -365,12 +351,12 @@ def update_layer(layer):
     # get current date in utc
     current_date = datetime.datetime.utcnow()
     # get text for new date end which will be the current date
-    new_date_end = current_date.strftime("%B %d, %Y")
+    new_date_end = current_date.strftime("%B %d, %Y, %H%M")
     # get most recent starting date, 24 hours ago
     new_date_start = (current_date - datetime.timedelta(hours=24))
-    new_date_start = datetime.datetime.strftime(new_date_start, "%B %d, %Y")
+    new_date_start = datetime.datetime.strftime(new_date_start, "%B %d, %Y, %H%M")
     # construct new date range by joining new start date and new end date
-    new_date_text = new_date_start + ' 00:00 UTC' + ' and ' + new_date_end + ' 00:00 UTC'
+    new_date_text = new_date_start + ' UTC' + ' and ' + new_date_end + ' UTC'
 
     # replace date in layer's description with new date
     layer['attributes']['description'] = layer['attributes']['description'].replace(old_date_text, new_date_text)
@@ -393,7 +379,7 @@ def update_layer(layer):
         logging.info('Layer replaced: {}'.format(layer['id']))
     else:
         logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
-
+        
 def main():
     logging.info('BEGIN')
 
@@ -409,79 +395,86 @@ def main():
     # 2. Iterively fetch, parse and post new data
     new_counts = dict(((param, 0) for param in PARAMS))
 
-    # set date_from to 24 hours ago
-    date_from = (datetime.datetime.utcnow()-datetime.timedelta(hours=24)).strftime("%Y-%m-%d")
+    for param in PARAMS:
+        page = 1
+        retries = 0
+        # set date_from to 24 hours ago
+        date_from = (datetime.datetime.utcnow()-datetime.timedelta(hours=24)).strftime("%Y-%m-%d")
+        # set date_to to current date
+        date_to = datetime.datetime.utcnow().strftime("%Y-%m-%d")
+        # get current hour, minute, and second
+        hour = datetime.datetime.utcnow().hour
+        minute = datetime.datetime.utcnow().minute
+        second = datetime.datetime.utcnow().second
 
-    # set up AWS S3 for downloading
-    s3 = boto3.client('s3', 'us-east-1', aws_access_key_id = AWS_ACCESS_KEY_ID, aws_secret_access_key = AWS_SECRET_ACCESS_KEY)
-    
-    raw_data_files=[]
-    # download all the json file in the date folder
-    for key in s3.list_objects(Bucket='openaq-fetches', Prefix = f'realtime/{date_from}')['Contents']:
-        # download to local location
-        dest_pathname = os.path.join(DATA_DIR, "".join((key['Key'].split("/")[2]).partition("ndjson")[0:2]))
-        # save raw file locations
-        raw_data_files.append(dest_pathname)
-        if not os.path.exists(DATA_DIR):
-            os.makedirs(DATA_DIR)
-        # download the file
-        s3.download_file('openaq-fetches', key['Key'], dest_pathname)
-    
-    results=[]
-    # loop through all the json files
-    for idx, raw_data_file in enumerate(raw_data_files):
-        with open(raw_data_file) as f:
-           results = [json.loads(line) for line in f] 
-        # results = results + j_content
-        logging.info("Fetching {}/{} data on {}".format((idx+1), len(raw_data_files), date_from))
-
-        for param in PARAMS:
+        while page <= MIN_PAGES or new_count and page < MAX_PAGES:
+            logging.info("Fetching page {}".format(page))
+            url = (DATA_URL.format(page = page, date_from = date_from, date_to = date_to, parameter = param, hour = hour, minute = minute, second = second))
+            page += 1
+            new_count = 0
+            
             # separate row lists per param
             rows = dict(((param, []) for param in PARAMS))
             loc_rows = []
 
             # 2.1 parse data excluding existing observations
-            filtered = [d for d in results if d['parameter'] == param]
-            for obs in filtered:
-                uid = genUID(obs)
-                if uid not in existing_ids[param]:
-                    existing_ids[param].append(uid)
-                    rows[param].append(parseFields(obs, uid, CARTO_SCHEMA.keys()))
+            try:
+                r = requests.get(url)
+                logging.info(r.url)
+                results = r.json()['results']
+                for obs in results:
+                    param = obs['parameter']
+                    uid = genUID(obs)
+                    if uid not in existing_ids[param]:
+                        existing_ids[param].append(uid)
+                        rows[param].append(parseFields(obs, uid, CARTO_SCHEMA.keys()))
 
-                    # 2.2 Check if new locations
-                    loc_id = genLocID(obs)
-                    if loc_id not in loc_ids and 'coordinates' in obs:
-                        loc_ids.append(loc_id)
-                        loc_rows.append(parseFields(obs, loc_id, CARTO_GEOM_SCHEMA.keys()))
+                        # 2.2 Check if new locations
+                        loc_id = genLocID(obs)
+                        if loc_id not in loc_ids and 'coordinates' in obs:
+                            loc_ids.append(loc_id)
+                            loc_rows.append(parseFields(obs, loc_id,
+                                                        CARTO_GEOM_SCHEMA.keys()))
 
-            # 2.3 insert new locations
-            if len(loc_rows):
-                logging.info('Pushing {} new locations'.format(len(loc_rows)))
-                cartosql.insertRows(CARTO_GEOM_TABLE, CARTO_GEOM_SCHEMA.keys(),
-                                    CARTO_GEOM_SCHEMA.values(), loc_rows)
+                # 2.3 insert new locations
+                if len(loc_rows):
+                    logging.info('Pushing {} new locations'.format(len(loc_rows)))
+                    cartosql.insertRows(CARTO_GEOM_TABLE, CARTO_GEOM_SCHEMA.keys(),
+                                        CARTO_GEOM_SCHEMA.values(), loc_rows)
 
-            # 2.4 insert new rows
-            count = len(rows[param])
-            if count:
-                try_num = 1
-                while try_num <= 3:
-                    try:
-                        logging.info('Try {}: Pushing {} new {} rows'.format(try_num, count, param))
-                        cartosql.insertRows(CARTO_TABLES[param], CARTO_SCHEMA.keys(),
-                                            CARTO_SCHEMA.values(), rows[param], blocksize=500)
-                        logging.info('Successfully pushed {} new {} rows.'.format(count, param))
-                        break
-                    except:
-                        logging.info('Waiting for {} seconds before trying again.'.format(WAIT_TIME))
-                        time.sleep(WAIT_TIME)
-                        try_num += 1
-            new_counts[param] += count
+                # 2.4 insert new rows
+                count = len(rows[param])
+                if count:
+                    try_num = 1
+                    while try_num <= 3:
+                        try:
+                            logging.info('Try {}: Pushing {} new {} rows'.format(try_num, count, param))
+                            cartosql.insertRows(CARTO_TABLES[param], CARTO_SCHEMA.keys(),
+                                                CARTO_SCHEMA.values(), rows[param], blocksize=500)
+                            logging.info('Successfully pushed {} new {} rows.'.format(count, param))
+                            break
+                        except:
+                            logging.info('Waiting for {} seconds before trying again.'.format(WAIT_TIME))
+                            time.sleep(WAIT_TIME)
+                            try_num += 1
+                    new_count += count
+                new_counts[param] += count
 
-            logging.info('Total rows: {}, New: {}, Max: {}'.format(
-                len(existing_ids[param]), new_counts[param], MAXROWS))
+                retries = 0
+            # failed to read ['results']
+            except Exception as e:
+                logging.info('Failed to read results. Waiting for {} seconds before trying again.'.format(WAIT_TIME))
+                time.sleep(WAIT_TIME)
+                retries += 1
+                page -= 1
+                # maximum attempts to make
+                if retries > 5:
+                    # break
+                    raise(e)
 
-    for param in PARAMS:            
-        # remove old observations
+        # 3. Remove old observations
+        logging.info('Total rows: {}, New: {}, Max: {}'.format(
+            len(existing_ids[param]), new_counts[param], MAXROWS))
         deleteExcessRows(CARTO_TABLES[param], MAXROWS, TIME_FIELD, MAXAGE)
 
         # update layers
