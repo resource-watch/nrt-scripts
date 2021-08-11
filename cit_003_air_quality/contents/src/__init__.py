@@ -156,7 +156,7 @@ def checkCreateTable(table, schema, id_field, time_field=''):
     '''
     Create the table if it does not exist, and pull list of IDs already in the table if it does
     INPUT   table: Carto table to check or create (string)
-            schema: dictionary of column names and types, used if we are creating the table for the first time (dictionary)
+            schema: dictionary of column names and types, used if we are creating the table for the first time (dictionary of strings)
             id_field: name of column that we want to use as a unique ID for this table; this will be used to compare the
                       source data to the our table each time we run the script so that we only have to pull data we
                       haven't previously uploaded (string)
@@ -193,10 +193,10 @@ They should all be checked because their format likely will need to be changed.
 def convert(param, unit, value):
     '''
     Unit conversion
-    INPUT  param: observation parameter
-           unit: observation unit
-           value: observation value for conversion
-    OUTPUT new value in ppm 
+    INPUT  param: observation parameter (string)
+           unit: observation unit (string)
+           value: observation value for conversion (number)
+    OUTPUT new value in ppm (number)
     '''
     if param in MOL_WEIGHTS.keys() and unit in UGM3:
         return convert_ugm3_ppm(value, MOL_WEIGHTS[param])
@@ -205,11 +205,11 @@ def convert(param, unit, value):
 def convert_ugm3_ppm(ugm3, mol, T=0, P=101.325):
     '''
     Ideal gas conversion
-    INPUT  ugm3: value in ug/m3
-           mol: molar mass parameter
-           T: temperature constant
-           P: pressure constant
-    OUTPUT new value in ppm
+    INPUT  ugm3: value in ug/m3 (number)
+           mol: molar mass parameter (number)
+           T: temperature constant (number)
+           P: pressure constant (number)
+    OUTPUT new value in ppm (number)
     '''
     K = 273.15    # 0C
     Atm = 101.325 # kPa
@@ -217,7 +217,9 @@ def convert_ugm3_ppm(ugm3, mol, T=0, P=101.325):
 
 def genUID(obs):
     '''
-    Generate UID
+    Generate unique ID (UID)
+    INPUT  obs: observation in requested json (dictionary of strings)
+    OUTPUT unique ID for observation (string)   
     '''
     # location should be unique, plus measurement timestamp
     id_str = '{}_{}'.format(obs['location'], obs['date']['utc'])
@@ -225,19 +227,19 @@ def genUID(obs):
 
 def genLocID(obs):
     '''
-    Generate UID for location
-    INPUT  obs: observation in requested json
-    OUTPUT unique ID for location
+    Generate unique ID (UID) for location
+    INPUT  obs: observation in requested json (dictionary of strings)
+    OUTPUT unique ID for location (string)
     '''
     return hashlib.md5(obs['location'].encode('utf8')).hexdigest()
 
 def parseFields(obs, uid, fields):
     '''
     Parse OpenAQ fields
-    INPUT   obs: observation in requested json
-            uid: Unique ID (UID)
-            fields: column names for data table
-    OUTPUT  data saved as Carto table rows
+    INPUT   obs: observation in requested json (dictionary of strings)
+            uid: Unique ID (UID) (string)
+            fields: column names for data table (list of strings)
+    OUTPUT  data saved as Carto table rows (list of strings)
     '''
     row = []
     for field in fields:
@@ -276,10 +278,10 @@ def parseFields(obs, uid, fields):
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
     '''
     Delete excess rows by age or count
-    INPUT   table: Carto table to check
-            max_rows: row limitation
-            time_field: column of table that can be used as a timestamp
-            max_age: age limitation
+    INPUT   table: Carto table to check (string)
+            max_rows: row limitation (number)
+            time_field: column of table that can be used as a timestamp (string)
+            max_age: age limitation (datetime)
     '''
     num_dropped = 0
     if isinstance(max_age, datetime.datetime):
@@ -305,8 +307,8 @@ def deleteExcessRows(table, max_rows, time_field, max_age=''):
 def get_most_recent_date(param):
     '''
     Get the most recent date of records in the Carto table
-    INPUT   param: parameter to choose the Carto table
-    OUTPUT  most_recent_date: get the most recent date
+    INPUT   param: parameter to choose the Carto table (string)
+    OUTPUT  most_recent_date: get the most recent date (datetime)
     '''
     r = cartosql.getFields(TIME_FIELD, CARTO_TABLES[param], f='csv', post=True)
     dates = r.text.split('\r\n')[1:-1]
@@ -320,7 +322,7 @@ def get_most_recent_date(param):
 def create_headers():
     '''
     Create headers to perform authorized actions on API
-    OUTPUT headers
+    OUTPUT headers (dictionary of strings)
     '''
     return {
         'Content-Type': "application/json",
