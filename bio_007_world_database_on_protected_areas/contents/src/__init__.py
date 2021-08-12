@@ -474,6 +474,7 @@ def main():
                     futures.append(
                         executor.submit(delete_carto_entries, existing_ids[i: i + 500])
                     )
+                # sum the numbers of rows deleted
                 for future in as_completed(futures):
                     deleted_ids += future.result()
 
