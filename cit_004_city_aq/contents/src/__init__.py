@@ -306,6 +306,7 @@ def processNewData(src_url, existing_ids, existing_stations):
             logging.info('Uh-oh. Attempt number {} failed, trying again'.format(i))
             # Erase incomplete file before trying to fetch data again
             delete_local()
+            time.sleep(300)
         
         else:
              break
