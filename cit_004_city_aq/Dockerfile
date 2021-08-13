@@ -21,10 +21,10 @@ ENV NAME ${NAME}
 RUN mkdir -p /opt/$NAME/data
 WORKDIR /opt/$NAME/
 COPY contents .
-VOLUME /opt/$NAME/data
+VOLUME ./data
 
 RUN useradd $NAME
-RUN chown -R $NAME:$NAME /opt/$NAME
+RUN chown -R $NAME:$NAME .
 USER $NAME
 
 CMD ["python", "main.py"]
