@@ -136,6 +136,23 @@ def lastUpdateDate(dataset, date):
     except Exception as e:
         logging.error('[lastUpdated]: '+str(e))
 
+def delete_local():
+    '''
+    Delete all files and folders in Docker container's data directory
+    '''
+    try:
+        # for each object in the data directory
+        for f in os.listdir(DATA_DIR):
+            # try to remove it as a file
+            try:
+                logging.info('Removing {}'.format(f))
+                os.remove(DATA_DIR+'/'+f)
+            # if it is not a file, remove it as a folder
+            except:
+                shutil.rmtree(f, ignore_errors=True)
+    except NameError:
+        logging.info('No local files to clean.')
+
 '''
 FUNCTIONS FOR CARTO DATASETS
 
@@ -265,23 +282,37 @@ def processStnData(stn_data):
 def processNewData(src_url, existing_ids, existing_stations):
     '''
     Fetch, process and upload new data
+    Due to the size of requested data, the API response is being processed in batches
+    that are later written to a temporary json file
     INPUT   src_url: url where you can find the source data (string)
             existing_ids: list of unique IDs that we already have in our Carto table (list of strings)
             existing_stations: list of station IDs that we already have in our Carto table (list of strings)
     RETURN  new_ids: list of unique ids of new data sent to Carto table (list of strings)
     '''
-    tries = 0
-    while tries < 3:
-        logging.info('Attempting to fetch forecast data: try {}'.format(tries))
-        # get data from source url
-        r = requests.get(src_url)
-        if r.ok:
-            break
-        else:
+    n_tries = 3
+    fetch_exception = None
+    for i in range(0, n_tries):
+        try:
+            # Create path to json file where we're writing the API response
+            raw_data_file = os.path.join(DATA_DIR, 'data.json')
+            logging.info('Requesting data from API')
+            # Read  and write request in chunks to avoid memory crash 
+            with requests.get(SOURCE_URL, stream=True) as r:
+                with open(raw_data_file, 'wb') as f_out:
+                    for chunk in r.iter_content(chunk_size=1024 * 1024):
+                        f_out.write(chunk)
+        except Exception as e:
+            fetch_exception = e
+            logging.info('Uh-oh. Attempt number {} failed, trying again'.format(i))
+            # Erase incomplete file before trying to fetch data again
+            delete_local()
             time.sleep(300)
-            tries += 1
-    if tries==3:
-        logging.error('Could not fetch forecast data')
+        
+        else:
+             break
+    else:
+        logging.info('Failed to fetch data.')
+        raise fetch_exception
    
     # create an empty list to store unique ids of new data we will be sending to Carto table
     logging.info('Creating list to store unique ids')
@@ -290,8 +321,14 @@ def processNewData(src_url, existing_ids, existing_stations):
     logging.info('Creating list to store new rows')
     new_rows = []
     # pull data from request response json
-    logging.info('Pulling data to json')
-    data = r.json()
+    logging.info('Open Json file')
+    f = open(raw_data_file)
+    logging.info('Pull json data')
+    data = json.load(f)
+    # Closing file and removing it from container
+    logging.info('Close and remove Json file')
+    f.close()
+    delete_local()
     # sort data by oldest date and 
     # reverse the order so we start with the newest data
     logging.info('Ordering json by creation date')

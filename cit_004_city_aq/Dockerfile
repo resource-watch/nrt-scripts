@@ -24,7 +24,7 @@ COPY contents .
 VOLUME /opt/$NAME/data
 
 RUN useradd $NAME
-RUN chown $NAME:$NAME .
+RUN chown -R $NAME:$NAME /opt/$NAME
 USER $NAME
 
 CMD ["python", "main.py"]
