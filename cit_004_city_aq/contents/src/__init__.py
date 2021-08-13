@@ -293,8 +293,10 @@ def processNewData(src_url, existing_ids, existing_stations):
     fetch_exception = None
     for i in range(0, n_tries):
         try:
+            # Create path to json file where we're writing the API response
             raw_data_file = os.path.join(DATA_DIR, 'data.json')
             logging.info('Requesting data from API')
+            # Read  and write request in chunks to avoid memory crash 
             with requests.get(SOURCE_URL, stream=True) as r:
                 with open(raw_data_file, 'wb') as f_out:
                     for chunk in r.iter_content(chunk_size=1024 * 1024):
@@ -302,6 +304,7 @@ def processNewData(src_url, existing_ids, existing_stations):
         except Exception as e:
             fetch_exception = e
             logging.info('Uh-oh. Attempt number {} failed, trying again'.format(i))
+            # Erase incomplete file before trying to fetch data again
             delete_local()
         
         else:
