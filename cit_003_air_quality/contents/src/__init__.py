@@ -10,6 +10,8 @@ import time
 import json
 import boto3
 import shutil
+from concurrent.futures import ThreadPoolExecutor
+import ndjson
 
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
@@ -67,11 +69,11 @@ CARTO_USER = os.environ.get('CARTO_USER')
 CARTO_KEY = os.environ.get('CARTO_KEY')
 
 # AWS S3 access key and secret key
-AWS_ACCESS_KEY_ID = os.environ.get('aws_access_key_id')
-AWS_SECRET_ACCESS_KEY = os.environ.get('aws_secret_access_key')
+AWS_ACCESS_KEY_ID = os.environ.get('S3_ACCESS_KEY')
+AWS_SECRET_ACCESS_KEY = os.environ.get('S3_SECRET_KEY')
 
-# limit to 600000 rows / 30 days
-MAXROWS = 600000
+# limit to 500000 rows / 30 days
+MAXROWS = 500000
 MAXAGE = datetime.datetime.now() - datetime.timedelta(days=30)
 
 # conversion units and parameters
@@ -351,10 +353,11 @@ def pull_layers_from_API(dataset_id):
             try_num += 1
     return layer_dict
 
-def update_layer(layer):
+def update_layer(layer, param):
     '''
     Update layers in Resource Watch back office.
     INPUT   layer: layer that will be updated (string)
+            param: observation parameter (string)
     '''
     # get current layer description
     lyr_description = layer['attributes']['description']
@@ -362,13 +365,12 @@ def update_layer(layer):
     # get current date being used from description by string manupulation
     old_date_text =lyr_description.split('between ')[1].split('.')[0]
 
-    # get current date in utc
-    current_date = datetime.datetime.utcnow()
-    # get text for new date end which will be the current date
-    new_date_end = current_date.strftime("%B %d, %Y")
-    # get most recent starting date, 24 hours ago
-    new_date_start = (current_date - datetime.timedelta(hours=24))
-    new_date_start = datetime.datetime.strftime(new_date_start, "%B %d, %Y")
+    # get most recent date in Carto table
+    most_recent_date = get_most_recent_date(param)
+    # get text for new date start which will be the most recent date
+    new_date_start = most_recent_date.strftime("%B %d, %Y")
+    # get new end date, 24 hours after the start date
+    new_date_end = (most_recent_date + datetime.timedelta(hours=24)).strftime("%B %d, %Y")
     # construct new date range by joining new start date and new end date
     new_date_text = new_date_start + ' 00:00 UTC' + ' and ' + new_date_end + ' 00:00 UTC'
 
@@ -411,6 +413,8 @@ def main():
 
     # set date_from to 24 hours ago
     date_from = (datetime.datetime.utcnow()-datetime.timedelta(hours=24)).strftime("%Y-%m-%d")
+    # date_from in datetime format
+    date_from_datetime = datetime.datetime.strptime(date_from, '%Y-%m-%d')
 
     # set up AWS S3 for downloading
     s3 = boto3.client('s3', 'us-east-1', aws_access_key_id = AWS_ACCESS_KEY_ID, aws_secret_access_key = AWS_SECRET_ACCESS_KEY)
@@ -430,36 +434,39 @@ def main():
     results=[]
     # loop through all the json files
     for idx, raw_data_file in enumerate(raw_data_files):
-        with open(raw_data_file) as f:
-           results = [json.loads(line) for line in f] 
-        # results = results + j_content
         logging.info("Fetching {}/{} data on {}".format((idx+1), len(raw_data_files), date_from))
+        
+        with open(raw_data_file) as f:
+            results = ndjson.load(f)
+        
+        # separate row lists per param
+        rows = dict(((param, []) for param in PARAMS))
+        loc_rows = []
 
-        for param in PARAMS:
-            # separate row lists per param
-            rows = dict(((param, []) for param in PARAMS))
-            loc_rows = []
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            for obs in results:
+                if datetime.datetime.strptime(obs['date']['utc'],'%Y-%m-%dT%H:%M:%S.000Z') > date_from_datetime:
+                    uid = executor.submit(genUID, obs).result()
+                    param = obs['parameter']
+                    # 2.1 parse data excluding existing observations
+                    if uid not in existing_ids[param]:
+                        existing_ids[param].append(uid)
+                        rows[param].append(executor.submit(parseFields,obs, uid, CARTO_SCHEMA.keys()).result())
 
-            # 2.1 parse data excluding existing observations
-            filtered = [d for d in results if d['parameter'] == param]
-            for obs in filtered:
-                uid = genUID(obs)
-                if uid not in existing_ids[param]:
-                    existing_ids[param].append(uid)
-                    rows[param].append(parseFields(obs, uid, CARTO_SCHEMA.keys()))
+                        # 2.2 Check if new locations
+                        loc_id = executor.submit(genLocID, obs).result()
+                        if loc_id not in loc_ids and 'coordinates' in obs:
+                            loc_ids.append(loc_id)
+                            loc_rows.append(executor.submit(parseFields,obs, loc_id, CARTO_GEOM_SCHEMA.keys()).result())
+            
+        # 2.3 insert new locations
+        if len(loc_rows):
+            logging.info('Pushing {} new locations'.format(len(loc_rows)))
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                executor.submit(cartosql.insertRows, [CARTO_GEOM_TABLE, CARTO_GEOM_SCHEMA.keys(),
+                                CARTO_GEOM_SCHEMA.values(), loc_rows])
 
-                    # 2.2 Check if new locations
-                    loc_id = genLocID(obs)
-                    if loc_id not in loc_ids and 'coordinates' in obs:
-                        loc_ids.append(loc_id)
-                        loc_rows.append(parseFields(obs, loc_id, CARTO_GEOM_SCHEMA.keys()))
-
-            # 2.3 insert new locations
-            if len(loc_rows):
-                logging.info('Pushing {} new locations'.format(len(loc_rows)))
-                cartosql.insertRows(CARTO_GEOM_TABLE, CARTO_GEOM_SCHEMA.keys(),
-                                    CARTO_GEOM_SCHEMA.values(), loc_rows)
-
+        for param in PARAMS: 
             # 2.4 insert new rows
             count = len(rows[param])
             if count:
@@ -467,8 +474,11 @@ def main():
                 while try_num <= 3:
                     try:
                         logging.info('Try {}: Pushing {} new {} rows'.format(try_num, count, param))
-                        cartosql.insertRows(CARTO_TABLES[param], CARTO_SCHEMA.keys(),
-                                            CARTO_SCHEMA.values(), rows[param], blocksize=500)
+                        with ThreadPoolExecutor(max_workers=10) as executor:
+                            executor.submit(cartosql.insertRows, [CARTO_TABLES[param], CARTO_SCHEMA.keys(),
+                                            CARTO_SCHEMA.values(), rows[param]])
+                        # cartosql.insertRows(CARTO_TABLES[param], CARTO_SCHEMA.keys(),
+                        #                     CARTO_SCHEMA.values(), rows[param], blocksize=500)
                         logging.info('Successfully pushed {} new {} rows.'.format(count, param))
                         break
                     except:
@@ -477,15 +487,14 @@ def main():
                         try_num += 1
             new_counts[param] += count
 
-            logging.info('Total rows: {}, New: {}, Max: {}'.format(
-                len(existing_ids[param]), new_counts[param], MAXROWS))
-
     for param in PARAMS:            
         # remove old observations
+        logging.info('Total rows: {}, New: {}, Max: {}'.format(len(existing_ids[param]), new_counts[param], MAXROWS))
         deleteExcessRows(CARTO_TABLES[param], MAXROWS, TIME_FIELD, MAXAGE)
 
         # update layers
         dataset = DATASET_ID[param]
+        # get most recent date in Carto table
         most_recent_date = get_most_recent_date(param)
         lastUpdateDate(dataset, most_recent_date)
         # Update the dates on layer description
@@ -495,7 +504,7 @@ def main():
         # go through each layer, pull the definition and update
         for layer in layer_dict:
             # replace layer description with new dates
-            update_layer(layer)
+            update_layer(layer, param)
     
     # Delete local files in Docker container
     delete_local()

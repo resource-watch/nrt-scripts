@@ -10,6 +10,7 @@ RUN apk add git
 RUN pip install requests==2.22.0
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 RUN pip install boto3
+RUN pip install ndjson==0.3.1
 
 # set name
 ARG NAME=nrt-script
