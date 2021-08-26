@@ -74,7 +74,7 @@ AWS_SECRET_ACCESS_KEY = os.environ.get('S3_SECRET_KEY')
 
 # limit to 500000 rows / 30 days
 MAXROWS = 500000
-MAXAGE = datetime.datetime.now() - datetime.timedelta(days=30)
+MAXAGE = datetime.datetime.utcnow() - datetime.timedelta(days=30)
 
 # conversion units and parameters
 UGM3 = ["\u00b5g/m\u00b3", "ug/m3"]
@@ -463,8 +463,8 @@ def main():
         if len(loc_rows):
             logging.info('Pushing {} new locations'.format(len(loc_rows)))
             with ThreadPoolExecutor(max_workers=10) as executor:
-                executor.submit(cartosql.insertRows, [CARTO_GEOM_TABLE, CARTO_GEOM_SCHEMA.keys(),
-                                CARTO_GEOM_SCHEMA.values(), loc_rows])
+                executor.submit(cartosql.insertRows, CARTO_GEOM_TABLE, CARTO_GEOM_SCHEMA.keys(),
+                                CARTO_GEOM_SCHEMA.values(), loc_rows)
 
         for param in PARAMS: 
             # 2.4 insert new rows
@@ -475,8 +475,8 @@ def main():
                     try:
                         logging.info('Try {}: Pushing {} new {} rows'.format(try_num, count, param))
                         with ThreadPoolExecutor(max_workers=10) as executor:
-                            executor.submit(cartosql.insertRows, [CARTO_TABLES[param], CARTO_SCHEMA.keys(),
-                                            CARTO_SCHEMA.values(), rows[param]])
+                            executor.submit(cartosql.insertRows, CARTO_TABLES[param], CARTO_SCHEMA.keys(),
+                                            CARTO_SCHEMA.values(), rows[param])
                         # cartosql.insertRows(CARTO_TABLES[param], CARTO_SCHEMA.keys(),
                         #                     CARTO_SCHEMA.values(), rows[param], blocksize=500)
                         logging.info('Successfully pushed {} new {} rows.'.format(count, param))
