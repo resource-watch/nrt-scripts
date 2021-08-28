@@ -415,6 +415,8 @@ def main():
     date_from = (datetime.datetime.utcnow()-datetime.timedelta(hours=24)).strftime("%Y-%m-%d")
     # date_from in datetime format
     date_from_datetime = datetime.datetime.strptime(date_from, '%Y-%m-%d')
+    # date_to in datetime format
+    date_to_datetime = date_from_datetime + datetime.timedelta(hours=24)
 
     # set up AWS S3 for downloading
     s3 = boto3.client('s3', 'us-east-1', aws_access_key_id = AWS_ACCESS_KEY_ID, aws_secret_access_key = AWS_SECRET_ACCESS_KEY)
@@ -445,7 +447,7 @@ def main():
 
         with ThreadPoolExecutor(max_workers=10) as executor:
             for obs in results:
-                if datetime.datetime.strptime(obs['date']['utc'],'%Y-%m-%dT%H:%M:%S.000Z') > date_from_datetime:
+                if datetime.datetime.strptime(obs['date']['utc'],'%Y-%m-%dT%H:%M:%S.000Z') >= date_from_datetime and datetime.datetime.strptime(obs['date']['utc'],'%Y-%m-%dT%H:%M:%S.000Z') < date_to_datetime:
                     uid = executor.submit(genUID, obs).result()
                     param = obs['parameter']
                     # 2.1 parse data excluding existing observations
