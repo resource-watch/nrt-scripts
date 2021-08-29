@@ -400,12 +400,15 @@ def main():
     logging.info('BEGIN')
 
     # 1. Get existing uids, if none create tables
+    # 1.1 Get most recent date from each table 
     existing_ids = {}
+    most_recent_dates = {}
     for param in PARAMS:
         existing_ids[param] = checkCreateTable(CARTO_TABLES[param],
                                                CARTO_SCHEMA, UID_FIELD,
                                                TIME_FIELD)
-    # 1.1 Get separate location table uids
+        most_recent_dates[param] = get_most_recent_date(param)
+    # 1.2 Get separate location table uids
     loc_ids = checkCreateTable(CARTO_GEOM_TABLE, CARTO_GEOM_SCHEMA, UID_FIELD)
 
     # 2. Iterively fetch, parse and post new data
@@ -444,7 +447,6 @@ def main():
         # separate row lists per param
         rows = dict(((param, []) for param in PARAMS))
         loc_rows = []
-        futures = dict(((param, []) for param in PARAMS))
 
         with ThreadPoolExecutor() as executor:
             for obs in results:
@@ -452,18 +454,23 @@ def main():
                     uid = genUID(obs)
                     param = obs['parameter']
                     # 2.1 parse data excluding existing observations
-                    if uid not in existing_ids[param]:
+                    if datetime.datetime.strptime(obs['date']['utc'], '%Y-%m-%dT%H:%M:%S.000Z') > most_recent_dates[param]:
                         existing_ids[param].append(uid)
-                        futures[param].append(executor.submit(parseFields,obs, uid, CARTO_SCHEMA.keys()))
-
+                        rows[param].append(executor.submit(parseFields,obs, uid, CARTO_SCHEMA.keys()).result())
                         # 2.2 Check if new locations
                         loc_id = genLocID(obs)
                         if loc_id not in loc_ids and 'coordinates' in obs:
                             loc_ids.append(loc_id)
                             loc_rows.append(executor.submit(parseFields,obs, loc_id, CARTO_GEOM_SCHEMA.keys()).result())
-            for param in PARAMS:
-                for future in as_completed(futures[param]):
-                    rows[param].append(future.result())
+                    
+                    elif uid not in existing_ids[param]: 
+                        existing_ids[param].append(uid)
+                        rows[param].append(executor.submit(parseFields,obs, uid, CARTO_SCHEMA.keys()).result())
+                        # 2.2 Check if new locations
+                        loc_id = genLocID(obs)
+                        if loc_id not in loc_ids and 'coordinates' in obs:
+                            loc_ids.append(loc_id)
+                            loc_rows.append(executor.submit(parseFields,obs, loc_id, CARTO_GEOM_SCHEMA.keys()).result())
 
         # 2.3 insert new locations
         if len(loc_rows):
@@ -483,8 +490,6 @@ def main():
                         with ThreadPoolExecutor(max_workers=10) as executor:
                             executor.submit(cartosql.insertRows, CARTO_TABLES[param], CARTO_SCHEMA.keys(),
                                             CARTO_SCHEMA.values(), rows[param])
-                        # cartosql.insertRows(CARTO_TABLES[param], CARTO_SCHEMA.keys(),
-                        #                     CARTO_SCHEMA.values(), rows[param], blocksize=500)
                         logging.info('Successfully pushed {} new {} rows.'.format(count, param))
                         break
                     except:
