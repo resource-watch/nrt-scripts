@@ -1,3 +1,4 @@
+from concurrent import futures
 import os
 import logging
 import sys
@@ -10,7 +11,7 @@ import time
 import json
 import boto3
 import shutil
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import ndjson
 
 
@@ -437,30 +438,34 @@ def main():
     # loop through all the json files
     for idx, raw_data_file in enumerate(raw_data_files):
         logging.info("Fetching {}/{} data on {}".format((idx+1), len(raw_data_files), date_from))
-        
+
         with open(raw_data_file) as f:
             results = ndjson.load(f)
         
         # separate row lists per param
         rows = dict(((param, []) for param in PARAMS))
         loc_rows = []
+        futures = dict(((param, []) for param in PARAMS))
 
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        with ThreadPoolExecutor() as executor:
             for obs in results:
-                if datetime.datetime.strptime(obs['date']['utc'],'%Y-%m-%dT%H:%M:%S.000Z') >= date_from_datetime and datetime.datetime.strptime(obs['date']['utc'],'%Y-%m-%dT%H:%M:%S.000Z') < date_to_datetime:
-                    uid = executor.submit(genUID, obs).result()
+                if datetime.datetime.strptime(obs['date']['utc'], '%Y-%m-%dT%H:%M:%S.000Z') >= date_from_datetime and datetime.datetime.strptime(obs['date']['utc'], '%Y-%m-%dT%H:%M:%S.000Z') < date_to_datetime and 'coordinates' in obs and obs['value'] >= 0:
+                    uid = genUID(obs)
                     param = obs['parameter']
                     # 2.1 parse data excluding existing observations
                     if uid not in existing_ids[param]:
                         existing_ids[param].append(uid)
-                        rows[param].append(executor.submit(parseFields,obs, uid, CARTO_SCHEMA.keys()).result())
+                        futures[param].append(executor.submit(parseFields,obs, uid, CARTO_SCHEMA.keys()))
 
                         # 2.2 Check if new locations
-                        loc_id = executor.submit(genLocID, obs).result()
+                        loc_id = genLocID(obs)
                         if loc_id not in loc_ids and 'coordinates' in obs:
                             loc_ids.append(loc_id)
                             loc_rows.append(executor.submit(parseFields,obs, loc_id, CARTO_GEOM_SCHEMA.keys()).result())
-            
+            for param in PARAMS:
+                for future in as_completed(futures[param]):
+                    rows[param].append(future.result())
+
         # 2.3 insert new locations
         if len(loc_rows):
             logging.info('Pushing {} new locations'.format(len(loc_rows)))
