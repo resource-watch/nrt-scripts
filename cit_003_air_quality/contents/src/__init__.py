@@ -399,16 +399,14 @@ def update_layer(layer, param):
 def main():
     logging.info('BEGIN')
 
-    # 1. Get existing uids, if none create tables
-    # 1.1 Get most recent date from each table 
+    # 1. Get existing uids, if none create tables 
     existing_ids = {}
-    most_recent_dates = {}
     for param in PARAMS:
         existing_ids[param] = checkCreateTable(CARTO_TABLES[param],
                                                CARTO_SCHEMA, UID_FIELD,
                                                TIME_FIELD)
-        most_recent_dates[param] = get_most_recent_date(param)
-    # 1.2 Get separate location table uids
+        
+    # 1.1 Get separate location table uids
     loc_ids = checkCreateTable(CARTO_GEOM_TABLE, CARTO_GEOM_SCHEMA, UID_FIELD)
 
     # 2. Iterively fetch, parse and post new data
@@ -437,6 +435,7 @@ def main():
         s3.download_file('openaq-fetches', key['Key'], dest_pathname)
     
     results=[]
+    most_recent_dates = {}
     # loop through all the json files
     for idx, raw_data_file in enumerate(raw_data_files):
         logging.info("Fetching {}/{} data on {}".format((idx+1), len(raw_data_files), date_from))
@@ -444,6 +443,9 @@ def main():
         with open(raw_data_file) as f:
             results = ndjson.load(f)
         
+        # get most recent date from each table
+        most_recent_dates[param] = get_most_recent_date(param)
+
         # separate row lists per param
         rows = dict(((param, []) for param in PARAMS))
         loc_rows = []
