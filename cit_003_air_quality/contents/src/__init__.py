@@ -10,7 +10,6 @@ import time
 import json
 import boto3
 import shutil
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import ndjson
 
 
@@ -444,42 +443,40 @@ def main():
             results = ndjson.load(f)
         
         # get most recent date from each table
-        most_recent_dates[param] = get_most_recent_date(param)
+        for param in PARAMS:
+            most_recent_dates[param] = get_most_recent_date(param)
 
         # separate row lists per param
         rows = dict(((param, []) for param in PARAMS))
         loc_rows = []
 
-        with ThreadPoolExecutor() as executor:
-            for obs in results:
-                if datetime.datetime.strptime(obs['date']['utc'], '%Y-%m-%dT%H:%M:%S.000Z') >= date_from_datetime and datetime.datetime.strptime(obs['date']['utc'], '%Y-%m-%dT%H:%M:%S.000Z') < date_to_datetime and 'coordinates' in obs and obs['value'] >= 0:
-                    uid = genUID(obs)
-                    param = obs['parameter']
-                    # 2.1 parse data excluding existing observations
-                    if datetime.datetime.strptime(obs['date']['utc'], '%Y-%m-%dT%H:%M:%S.000Z') > most_recent_dates[param]:
-                        existing_ids[param].append(uid)
-                        rows[param].append(executor.submit(parseFields,obs, uid, CARTO_SCHEMA.keys()).result())
-                        # 2.2 Check if new locations
-                        loc_id = genLocID(obs)
-                        if loc_id not in loc_ids and 'coordinates' in obs:
-                            loc_ids.append(loc_id)
-                            loc_rows.append(executor.submit(parseFields,obs, loc_id, CARTO_GEOM_SCHEMA.keys()).result())
-                    
-                    elif uid not in existing_ids[param]: 
-                        existing_ids[param].append(uid)
-                        rows[param].append(executor.submit(parseFields,obs, uid, CARTO_SCHEMA.keys()).result())
-                        # 2.2 Check if new locations
-                        loc_id = genLocID(obs)
-                        if loc_id not in loc_ids and 'coordinates' in obs:
-                            loc_ids.append(loc_id)
-                            loc_rows.append(executor.submit(parseFields,obs, loc_id, CARTO_GEOM_SCHEMA.keys()).result())
+        for obs in results:
+            if datetime.datetime.strptime(obs['date']['utc'], '%Y-%m-%dT%H:%M:%S.000Z') >= date_from_datetime and datetime.datetime.strptime(obs['date']['utc'], '%Y-%m-%dT%H:%M:%S.000Z') < date_to_datetime and 'coordinates' in obs and obs['value'] >= 0:
+                uid = genUID(obs)
+                param = obs['parameter']
+                # 2.1 parse data excluding existing observations
+                if datetime.datetime.strptime(obs['date']['utc'], '%Y-%m-%dT%H:%M:%S.000Z') > most_recent_dates[param]:
+                    existing_ids[param].append(uid)
+                    rows[param].append(parseFields(obs, uid, CARTO_SCHEMA.keys()))
+                    # 2.2 Check if new locations
+                    loc_id = genLocID(obs)
+                    if loc_id not in loc_ids and 'coordinates' in obs:
+                        loc_ids.append(loc_id)
+                        loc_rows.append(parseFields(obs, loc_id, CARTO_GEOM_SCHEMA.keys()))
+                
+                elif uid not in existing_ids[param]: 
+                    existing_ids[param].append(uid)
+                    rows[param].append(parseFields(obs, uid, CARTO_SCHEMA.keys()))
+                    # 2.2 Check if new locations
+                    loc_id = genLocID(obs)
+                    if loc_id not in loc_ids and 'coordinates' in obs:
+                        loc_ids.append(loc_id)
+                        loc_rows.append(parseFields(obs, loc_id, CARTO_GEOM_SCHEMA.keys()))
 
         # 2.3 insert new locations
         if len(loc_rows):
             logging.info('Pushing {} new locations'.format(len(loc_rows)))
-            with ThreadPoolExecutor(max_workers=10) as executor:
-                executor.submit(cartosql.insertRows, CARTO_GEOM_TABLE, CARTO_GEOM_SCHEMA.keys(),
-                                CARTO_GEOM_SCHEMA.values(), loc_rows)
+            cartosql.insertRows(CARTO_GEOM_TABLE, CARTO_GEOM_SCHEMA.keys(),CARTO_GEOM_SCHEMA.values(), loc_rows)
 
         for param in PARAMS: 
             # 2.4 insert new rows
@@ -489,9 +486,7 @@ def main():
                 while try_num <= 3:
                     try:
                         logging.info('Try {}: Pushing {} new {} rows'.format(try_num, count, param))
-                        with ThreadPoolExecutor(max_workers=10) as executor:
-                            executor.submit(cartosql.insertRows, CARTO_TABLES[param], CARTO_SCHEMA.keys(),
-                                            CARTO_SCHEMA.values(), rows[param])
+                        cartosql.insertRows(CARTO_TABLES[param], CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), rows[param])
                         logging.info('Successfully pushed {} new {} rows.'.format(count, param))
                         break
                     except:
