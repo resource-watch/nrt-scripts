@@ -27,3 +27,4 @@ soc.090,Population Growth Rates,Yes,5bc62559-3ae3-472c-9517-823437539a3f,soc_090
 soc.101,Population in Poverty ($3.20/day),Yes,8711d841-8421-4fcb-8ee2-881e573856e0,soc_101_poverty320_edit,yr_data,SI.POV.LMIC,% of population
 soc.102,Inflation of Consumer Prices,Yes,4996cdb1-6169-46b7-9a74-0adf0e2ef1ce,soc_102_inflation_edit,yr_data,FP.CPI.TOTL.ZG,annual %
 wat.005a;wat.005b;wat.005c,Access to an Improved Water Source (National);Access to an Improved Water Source (Urban);Access to an Improved Water Source (Rural),Yes,e32bdaba-5a72-487c-b640-668adaea2976;c29473e4-6606-49c9-a248-df1f2b21c2b5;3598f43d-0ae9-445b-a8da-e59ff2cf43d9,wat_005a_improved_water_access_edit,total;urban;rural,SH.H2O.SMDW.ZS;SH.H2O.SMDW.UR.ZS;SH.H2O.SMDW.RU.ZS,% of population;% of urban pop;% of rural pop
+ene.036.rw0,Pump Price for Diesel Fuel,Yes,,ene_036_rw0_pump_price_for_diesel_fuel_edit,yr_data,EP.PMP.DESL.CD,US$ per litter
