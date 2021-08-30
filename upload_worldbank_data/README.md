@@ -12,7 +12,7 @@ Below, we describe the steps used to process the data from the World Bank API.
 
 Each time this script is run, it updates all Carto tables for these datasets and also makes new layers on Resource Watch, if any new years of data have been added. Layers on Resource Watch are not created for years that have fewer than 10 data points and are also more than ten years old. For datasets that are not "timelines" and instead show a single year of data with layers for multiple indicators, the existing layers on Resource Watch are updated to the latest year of data available.
 
-Please see the [Python script](https://github.com/resource-watch/data-pre-processing/blob/master/upload_worldbank_data/contents/main.py) for more details on this processing.
+Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/upload_worldbank_data/contents/main.py) for more details on this processing.
 
 **Adding new World Bank datasets to Resource Watch**
 Any time a new World Bank dataset is added to Resource Watch, it should be added using this script, if at all possible. To add a new dataset to this script, you can follow these steps:
