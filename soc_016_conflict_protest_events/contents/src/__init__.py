@@ -4,7 +4,6 @@ import sys
 from collections import OrderedDict
 import datetime
 from dateutil.relativedelta import relativedelta
-from numpy.lib.arraysetops import unique
 import pandas as pd
 import cartosql
 import requests
@@ -584,4 +583,4 @@ def main():
     # Update Resource Watch
     updateResourceWatch(num_new)
 
-    logging.info('SUCCESS')  
+    logging.info('SUCCESS')
