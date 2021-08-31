@@ -164,6 +164,7 @@ def checkCreateTable(table, schema, id_field, time_field=''):
             time_field: optional, name of column that will store datetime information (string)
     RETURN  list of existing IDs in the table, pulled from the id_field column (list of strings)
     '''
+    # check it the table already exists in Carto
     if cartosql.tableExists(table):
         # if the table does exist, get a list of all the values in the id_field column
         logging.info('Fetching existing IDs')
