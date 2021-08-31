@@ -164,18 +164,6 @@ def checkCreateTable(table, schema, id_field, time_field=''):
             time_field: optional, name of column that will store datetime information (string)
     RETURN  list of existing IDs in the table, pulled from the id_field column (list of strings)
     '''
-    # table = CARTO_TABLES['pm25']
-    # schema = CARTO_SCHEMA
-    # id_field = '_uid'
-    # time_field = 'utc'
-    # url = 'https://rw-nrt.carto.com/api/v2/sql'
-    # payload = {
-    #     'api_key': CARTO_KEY,
-    #     'q': 'SELECT * FROM CDB_UserTables()',
-    #     'format': 'csv'
-    # }
-    # requests.get(url, params=payload)
-    # check it the table already exists in Carto
     if cartosql.tableExists(table):
         # if the table does exist, get a list of all the values in the id_field column
         logging.info('Fetching existing IDs')
@@ -488,7 +476,7 @@ def main():
                     try:
                         logging.info('Try {}: Pushing {} new {} rows'.format(try_num, count, param))
                         with ThreadPoolExecutor(max_workers=10) as executor:
-                            executor.submit(cartosql.insertRows,CARTO_TABLES[param], CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), rows[param])
+                            executor.submit(cartosql.insertRows, CARTO_TABLES[param], CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), rows[param])
                         logging.info('Successfully pushed {} new {} rows.'.format(count, param))
                         break
                     except:
