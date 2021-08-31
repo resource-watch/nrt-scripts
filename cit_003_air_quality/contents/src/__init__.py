@@ -11,7 +11,7 @@ import json
 import boto3
 import shutil
 import ndjson
-
+from concurrent.futures import ThreadPoolExecutor
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
@@ -399,13 +399,14 @@ def main():
     logging.info('BEGIN')
 
     # 1. Get existing uids, if none create tables 
+    # 1.1 Get most recent dates
     existing_ids = {}
+    most_recent_dates = {}
     for param in PARAMS:
-        existing_ids[param] = checkCreateTable(CARTO_TABLES[param],
-                                               CARTO_SCHEMA, UID_FIELD,
-                                               TIME_FIELD)
-        
-    # 1.1 Get separate location table uids
+        existing_ids[param] = checkCreateTable(CARTO_TABLES[param],CARTO_SCHEMA, UID_FIELD,TIME_FIELD)
+        most_recent_dates[param] = get_most_recent_date(param)
+
+    # 1.2 Get separate location table uids
     loc_ids = checkCreateTable(CARTO_GEOM_TABLE, CARTO_GEOM_SCHEMA, UID_FIELD)
 
     # 2. Iterively fetch, parse and post new data
@@ -434,17 +435,14 @@ def main():
         s3.download_file('openaq-fetches', key['Key'], dest_pathname)
     
     results=[]
-    most_recent_dates = {}
+    new_ids = dict(((param, []) for param in PARAMS))
+
     # loop through all the json files
     for idx, raw_data_file in enumerate(raw_data_files):
         logging.info("Fetching {}/{} data on {}".format((idx+1), len(raw_data_files), date_from))
 
         with open(raw_data_file) as f:
             results = ndjson.load(f)
-        
-        # get most recent date from each table
-        for param in PARAMS:
-            most_recent_dates[param] = get_most_recent_date(param)
 
         # separate row lists per param
         rows = dict(((param, []) for param in PARAMS))
@@ -456,22 +454,14 @@ def main():
                 param = obs['parameter']
                 # 2.1 parse data excluding existing observations
                 if datetime.datetime.strptime(obs['date']['utc'], '%Y-%m-%dT%H:%M:%S.000Z') > most_recent_dates[param]:
-                    existing_ids[param].append(uid)
-                    rows[param].append(parseFields(obs, uid, CARTO_SCHEMA.keys()))
-                    # 2.2 Check if new locations
-                    loc_id = genLocID(obs)
-                    if loc_id not in loc_ids and 'coordinates' in obs:
-                        loc_ids.append(loc_id)
-                        loc_rows.append(parseFields(obs, loc_id, CARTO_GEOM_SCHEMA.keys()))
-                
-                elif uid not in existing_ids[param]: 
-                    existing_ids[param].append(uid)
-                    rows[param].append(parseFields(obs, uid, CARTO_SCHEMA.keys()))
-                    # 2.2 Check if new locations
-                    loc_id = genLocID(obs)
-                    if loc_id not in loc_ids and 'coordinates' in obs:
-                        loc_ids.append(loc_id)
-                        loc_rows.append(parseFields(obs, loc_id, CARTO_GEOM_SCHEMA.keys()))
+                    if uid not in new_ids[param]: 
+                        new_ids[param].append(uid)
+                        rows[param].append(parseFields(obs, uid, CARTO_SCHEMA.keys()))
+                        # 2.2 Check if new locations
+                        loc_id = genLocID(obs)
+                        if loc_id not in loc_ids and 'coordinates' in obs:
+                            loc_ids.append(loc_id)
+                            loc_rows.append(parseFields(obs, loc_id, CARTO_GEOM_SCHEMA.keys()))
 
         # 2.3 insert new locations
         if len(loc_rows):
@@ -486,7 +476,8 @@ def main():
                 while try_num <= 3:
                     try:
                         logging.info('Try {}: Pushing {} new {} rows'.format(try_num, count, param))
-                        cartosql.insertRows(CARTO_TABLES[param], CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), rows[param])
+                        with ThreadPoolExecutor(max_workers=10) as executor:
+                            executor.submit(cartosql.insertRows, CARTO_TABLES[param], CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(), rows[param])
                         logging.info('Successfully pushed {} new {} rows.'.format(count, param))
                         break
                     except:
@@ -497,7 +488,7 @@ def main():
 
     for param in PARAMS:            
         # remove old observations
-        logging.info('Total rows: {}, New: {}, Max: {}'.format(len(existing_ids[param]), new_counts[param], MAXROWS))
+        logging.info('Total rows: {}, New: {}, Max: {}'.format(len(existing_ids[param])+len(new_ids[param]), new_counts[param], MAXROWS))
         deleteExcessRows(CARTO_TABLES[param], MAXROWS, TIME_FIELD, MAXAGE)
 
         # update layers
