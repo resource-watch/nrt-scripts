@@ -7,7 +7,6 @@ from dateutil.relativedelta import relativedelta
 import pandas as pd
 import cartosql
 import requests
-import rtree
 import json
 import time
 import geopandas as gpd
@@ -165,6 +164,7 @@ def fetch_data(src_url):
     INPUT   src_url: the url to fetch data from (string)
     RETURN  data_gdf: ACLED data during the past 12 months (geopandas dataframe)
     '''
+    src_url = SOURCE_URL
     # the dates between which we want the data 
     date_start = get_date_range()[0].strftime("%Y-%m-%d")
     date_end = get_date_range()[1].strftime("%Y-%m-%d")
@@ -196,28 +196,26 @@ def fetch_data(src_url):
             """  cols = ["data_id", "event_date", "year", "time_precision", "event_type", "sub_event_type", "actor1", "assoc_actor_1", "inter1", 
             "actor2", "assoc_actor_2", "inter2", "interaction", "country", "iso3", "region", "admin1", "admin2", "admin3", "location", 
             "geo_precision", "time_precision", "source", "source_scale", "notes", "fatalities", "latitude", "longitude"] """
-            cols = ['event_type', 'latitude', 'longitude']
+            cols = ['data_id','event_type', 'latitude', 'longitude']
 
             # pull data from request response json
             for obs in r.json()['data']:
-                # if the id hasn't been added to the list for storing acled ids
-                if obs['data_id'] not in new_ids:
-                    # append the id to the list for sending to Carto 
-                    new_ids.append(obs['data_id'])
-                    # create an empty list to store data from this row
-                    row = []
-                    # go through each column in the Carto table
-                    for col in cols:
-                        try:
-                            # add data for remaining fields to the list of data from this row
-                            row.append(obs[col])
-                        except:
-                            logging.debug('{} not available for this row'.format(col))
-                            # if the column we are trying to retrieve doesn't exist in the source data, store blank
-                            row.append('')
+                # append the id to the list for sending to Carto 
+                new_ids.append(obs['data_id'])
+                # create an empty list to store data from this row
+                row = []
+                # go through each column in the Carto table
+                for col in cols:
+                    try:
+                        # add data for remaining fields to the list of data from this row
+                        row.append(obs[col])
+                    except:
+                        logging.debug('{} not available for this row'.format(col))
+                        # if the column we are trying to retrieve doesn't exist in the source data, store blank
+                        row.append('')
 
-                    # add the list of values from this row to the list of new data
-                    new_rows.append(row)
+                # add the list of values from this row to the list of new data
+                new_rows.append(row)
             
             # number of new rows added in this page 
             new_count = len(new_rows)
@@ -226,6 +224,8 @@ def fetch_data(src_url):
 
         except:
             logging.error('Could not fetch or process page {}'.format(page))
+    # drop duplicate records by data_id
+    data_df = data_df.drop_duplicates(['data_id']).iloc[:, 1:]
 
     # convert the pandas dataframe to a geopandas dataframe
     data_gdf = gpd.GeoDataFrame(data_df, geometry=gpd.points_from_xy(data_df.longitude, data_df.latitude))
@@ -268,7 +268,7 @@ def processNewData(data_gdf):
         # convert the geometry column to geojson 
         joined['geometry'] = [convert_geometry(geom) for geom in joined.geometry]
         
-        with ThreadPoolExecutor(max_workers=1) as executor:
+        with ThreadPoolExecutor(max_workers=10) as executor:
             futures = []
             for index, row in joined.iterrows():
                 # for each polygon in the geopandas dataframe
