@@ -15,9 +15,6 @@ RUN pip install bs4==0.0.1
 RUN pip install Cython==0.29.15
 RUN pip install netCDF4==1.5.3
 
-#install
-RUN apt-get -y install python-gdal
-
 # set name
 ARG NAME=nrt-script
 ENV NAME ${NAME}
