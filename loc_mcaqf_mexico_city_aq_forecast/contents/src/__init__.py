@@ -473,6 +473,7 @@ def checkCreateCollection(vars):
             # create a collection for this variable
             logging.info('{} does not exist, creating'.format(collection))
             eeUtil.createFolder(collection, True)
+    return existing_dates, existing_dates_by_var
 
     '''
      We want make sure all variables correctly uploaded the data on the last run. To do this, we will
@@ -516,7 +517,16 @@ def deleteExcessAssets(dates, max_dates):
                 logging.info('Deleting old assets from GEE')
                 for date_ix in range(NUM_TIMESTEPS):
                     asset = getAssetName(getFilename(date, compound).split('.')[0]+'_' +str(date_ix).zfill(2))
-                    eeUtil.removeAsset(asset)
+                    if eeUtil.exists(asset):
+                        try_num = 1
+                        while try_num <=3:
+                            try:
+                                eeUtil.removeAsset(asset)
+                                break
+                            except:
+                                logging.info("Failed to delete assets. Trying again after 30 seconds.")
+                                time.sleep(30)
+                                try_num += 1
 
 def create_headers():
     '''
