@@ -291,169 +291,195 @@ def processNewData(src_url, existing_ids, existing_stations):
     '''
     n_tries = 3
     fetch_exception = None
+    # Using indx to iterate move over the number of json files
+    indx = 0
+    # Limit for each of the json files 
+    file_size = 104857600
     for i in range(0, n_tries):
-        try:
+        try: 
             # Create path to json file where we're writing the API response
-            raw_data_file = os.path.join(DATA_DIR, 'data.json')
+            raw_data_file = os.path.join(DATA_DIR, 'data_{}.json'.format(indx))
             logging.info('Requesting data from API')
             # Read  and write request in chunks to avoid memory crash 
             with requests.get(SOURCE_URL, stream=True) as r:
-                with open(raw_data_file, 'wb') as f_out:
-                    for chunk in r.iter_content(chunk_size=1024 * 1024):
-                        f_out.write(chunk)
+                 with open(raw_data_file, 'wb') as f_out:
+                     for chunk in r.iter_content(chunk_size=1024 * 1024):
+                         f_out.write(chunk)
+                         # Check if json file is larger than limit, if so create a new one                
+                         if int(os.path.getsize(raw_data_file)) > file_size:
+                             f_out.close()
+                             indx += 1
+                             raw_data_file = os.path.join(DATA_DIR, 'data_{}.json'.format(indx))
+                             f_out = open(raw_data_file, "wb")
+                             logging.info('Moving to next batch!')
         except Exception as e:
             fetch_exception = e
             logging.info('Uh-oh. Attempt number {} failed, trying again'.format(i))
+            # In case API request failed reset indx value
+            indx = 0
             # Erase incomplete file before trying to fetch data again
             delete_local()
             time.sleep(300)
         
         else:
-             break
+            break
+            f_out.close()
     else:
         logging.info('Failed to fetch data.')
         raise fetch_exception
    
+    
     # create an empty list to store unique ids of new data we will be sending to Carto table
     logging.info('Creating list to store unique ids')
     new_ids = []
     # create an empty list to store each row of new data
     logging.info('Creating list to store new rows')
     new_rows = []
-    # pull data from request response json
-    logging.info('Open Json file')
-    f = open(raw_data_file)
-    logging.info('Pull json data')
-    data = json.load(f)
-    # Closing file and removing it from container
-    logging.info('Close and remove Json file')
-    f.close()
-    delete_local()
-    # sort data by oldest date and 
-    # reverse the order so we start with the newest data
-    logging.info('Ordering json by creation date')
-    data = sorted(data, key = lambda x: datetime.datetime.strptime(x["created"],"%Y-%m-%dT%H:%M:%S.%fZ"))
-    logging.info('Reversing data')
-    data.reverse()
+    # List containing the json files where the API response will be stored
+    logging.info('Creating list with json file paths')
+    raw_files = os.listdir(DATA_DIR)
     # get most updated list of station information
     logging.info('Getting station table')
     station_df = cartoframes.read_carto('cit_004_city_aq_stations', credentials=AUTH)
+    # Iterating over the json files
+    for index_num,element in enumerate(raw_files):
+        with open(os.path.join(DATA_DIR,raw_files[index_num])) as f:
+            # Reading json file contents as a list of strings
+            json_data = f.read()
+        # Spliting elements in list as different lines
+        all_json = json_data.split('\n')
+        # Removing unnecesary commas at the end of strings
+        all_json = [x[:-1] for x in all_json]
+        # Removing corrupted first line
+        all_json = all_json[1:]
+        # Removing corrupted last line 
+        all_json = all_json[:-1]
+        # Sending clean data to a json object
+        data = [json.loads(i) for i in all_json if i] 
+        # Order json data by date
+        logging.info('Ordering json by creation date')
+        data = sorted(data, key = lambda x: datetime.datetime.strptime(x["created"],"%Y-%m-%dT%H:%M:%S.%fZ"))
+        logging.info('Reversing data')
+        data.reverse()    
 
-    logging.info('Processing new data')
-    # loop until no new observations
-    for obs in data:
-        # get the forecast creation date
-        created = obs['created']
-        # if there are existing IDs in the table, make sure the obs isn't older than the oldest
-        if existing_ids:
-            # get the oldest forecast creation date in the current Carto table:
-            oldest_forecast_dt = getForecastCreationDT(existing_ids, old_or_new='oldest')
-            # if the forecast creation date of the current observation is older than 
-            # the oldest in the table, skip this observation
-            if datetime.datetime.strptime(created, DATETIME_FORMAT) < oldest_forecast_dt:
-                continue
-        # get the date from date feature 
-        dt = obs['date']
-        # get the station number from 'station' feature
-        stn = obs['station']
-        # generate unique id by using the date and station number
-        uid = genUID(created, dt, stn)
-        # if the id doesn't already exist in Carto table or 
-        # isn't added to the list for sending to Carto yet 
-        if uid not in existing_ids + new_ids:
-            # if we don't already have the station information for this station, add it to the table
-            if str(stn) not in existing_stations:
-                # generate url to get details of the station being processed
-                stn_url = STATION_URL.format(station = stn)
-                tries = 0
-                while tries < 3:
-                    # get data from station url
-                    stn_r = requests.get(stn_url)
-                    if r.ok:
-                        # pull data from request response json
-                        stn_data = stn_r.json()
-                        # process station data and send to Carto
-                        processStnData(stn_data)
-                        # add station to list of existing stations
-                        existing_stations.append(str(stn_data['id']))
-                        # get most updated list of station information
-                        station_df = cartoframes.read_carto('cit_004_city_aq_stations', credentials=AUTH)
-                        break
+        # Start processing batch of data 
+        logging.info('Processing batch of data')
+        # loop until no new observations
+        for obs in data:
+            # get the forecast creation date
+            created = obs['created']
+            # if there are existing IDs in the table, make sure the obs isn't older than the oldest
+            if existing_ids:
+                # get the oldest forecast creation date in the current Carto table:
+                oldest_forecast_dt = getForecastCreationDT(existing_ids, old_or_new='oldest')
+                # if the forecast creation date of the current observation is older than 
+                # the oldest in the table, skip this observation
+                if datetime.datetime.strptime(created, DATETIME_FORMAT) < oldest_forecast_dt:
+                    continue
+            # get the date from date feature 
+            dt = obs['date']
+            # get the station number from 'station' feature
+            stn = obs['station']
+            # generate unique id by using the date and station number
+            uid = genUID(created, dt, stn)
+            # if the id doesn't already exist in Carto table or 
+            # isn't added to the list for sending to Carto yet 
+            if uid not in existing_ids + new_ids:
+                # if we don't already have the station information for this station, add it to the table
+                if str(stn) not in existing_stations:
+                    # generate url to get details of the station being processed
+                    stn_url = STATION_URL.format(station = stn)
+                    tries = 0
+                    while tries < 3:
+                        # get data from station url
+                        stn_r = requests.get(stn_url)
+                        if r.ok:
+                            # pull data from request response json
+                            stn_data = stn_r.json()
+                            # process station data and send to Carto
+                            processStnData(stn_data)
+                            # add station to list of existing stations
+                            existing_stations.append(str(stn_data['id']))
+                            # get most updated list of station information
+                            station_df = cartoframes.read_carto('cit_004_city_aq_stations', credentials=AUTH)
+                            break
+                        else:
+                            logging.error('Could not fetch station data for uid: {}, trying again'.format(uid))
+                            time.sleep(100)
+                            tries += 1
+                    if tries==3:
+                        logging.error('Could not fetch station data for uid: {}, aborting'.format(uid))
+                # append the id to the list for sending to Carto 
+                new_ids.append(uid)
+                # create an empty list to store data from this row
+                row = []
+                # get station data from Carto table
+                station_row = station_df[station_df['id']==str(stn)].iloc[0]
+                # go through each column in the Carto table
+                for field in CARTO_SCHEMA.keys():
+                    # if we are fetching data for geometry column
+                    if field == 'the_geom':
+                        # construct geojson geometry
+                        geom = mapping(station_row['the_geom'])
+                        # add geojson geometry to the list of data from this row
+                        row.append(geom)
+                    # if we are fetching data for unique id column
+                    elif field == 'uid':
+                        # add already generated unique id to the list of data from this row
+                        row.append(uid)
+                    # if we are fetching data for station name
+                    elif field == 'name':
+                        # get station name from the dictionary
+                        name = station_row["name"]
+                        # add text to the list of data from this row
+                        row.append(name)
+                    # if we are fetching data for date of forecast creation column
+                    elif field == 'created':
+                        # turn already generated creation date into a datetime
+                        created = datetime.datetime.strptime(created, DATETIME_FORMAT)
+                        # add date to the list of data from this row
+                        row.append(created)
+                    # if we are fetching data for date column
+                    elif field == 'date':
+                        # turn already generated date into a datetime
+                        date = datetime.datetime.strptime(dt, DATETIME_FORMAT)
+                        # add date to the list of data from this row
+                        row.append(date)
+                    # remaining fields to process are the different air quality variables
                     else:
-                        logging.error('Could not fetch station data for uid: {}, trying again'.format(uid))
-                        time.sleep(100)
-                        tries += 1
-                if tries==3:
-                    logging.error('Could not fetch station data for uid: {}, aborting'.format(uid))
-            # append the id to the list for sending to Carto 
-            new_ids.append(uid)
-            # create an empty list to store data from this row
-            row = []
-            # get station data from Carto table
-            station_row = station_df[station_df['id']==str(stn)].iloc[0]
-            # go through each column in the Carto table
-            for field in CARTO_SCHEMA.keys():
-                # if we are fetching data for geometry column
-                if field == 'the_geom':
-                    # construct geojson geometry
-                    geom = mapping(station_row['the_geom'])
-                    # add geojson geometry to the list of data from this row
-                    row.append(geom)
-                # if we are fetching data for unique id column
-                elif field == 'uid':
-                    # add already generated unique id to the list of data from this row
-                    row.append(uid)
-                # if we are fetching data for station name
-                elif field == 'name':
-                    # get station name from the dictionary
-                    name = station_row["name"]
-                    # add text to the list of data from this row
-                    row.append(name)
-                # if we are fetching data for date of forecast creation column
-                elif field == 'created':
-                    # turn already generated creation date into a datetime
-                    created = datetime.datetime.strptime(created, DATETIME_FORMAT)
-                    # add date to the list of data from this row
-                    row.append(created)
-                # if we are fetching data for date column
-                elif field == 'date':
-                    # turn already generated date into a datetime
-                    date = datetime.datetime.strptime(dt, DATETIME_FORMAT)
-                    # add date to the list of data from this row
-                    row.append(date)
-                # remaining fields to process are the different air quality variables
-                else:
-                    # get unit for column we are processing
-                    unit = field.rsplit('_', 1)[1]
-                    # get gas for column we are processing
-                    gas = field.rsplit('_', 1)[0]
-                    # get concentratiion
-                    conc = obs['gas'].get(gas)
-                    # the API returns data in units of µg/m3, so no conversion is necessary for this column
-                    # add the data to the row
-                    if unit == 'ugm3':
-                        row.append(conc)
-                    # if we are processing a ppm column, convert units from µg/m3 and add the data to the row
-                    if unit == 'ppm':
-                        if conc is not None:
-                            row.append(conc/getConversion_ugm3_ppb(gas)/1000)
-                        else:
-                            row.append(None)
-                    # if we are processing a ppb column, convert units from µg/m3 and add the data to the row
-                    if unit == 'ppb':
-                        if conc is not None:
-                            row.append(conc/getConversion_ugm3_ppb(gas))
-                        else:
-                            row.append(None)
-            # add the list of values from this row to the list of new data
-            new_rows.append(row)
-        # once we reach an observation we have already uploaded to Carto
-        # stop processing the old data
-        else:
-            logging.info('All new data processed.')
-            break
+                        # get unit for column we are processing
+                        unit = field.rsplit('_', 1)[1]
+                        # get gas for column we are processing
+                        gas = field.rsplit('_', 1)[0]
+                        # get concentratiion
+                        conc = obs['gas'].get(gas)
+                        # the API returns data in units of µg/m3, so no conversion is necessary for this column
+                        # add the data to the row
+                        if unit == 'ugm3':
+                            row.append(conc)
+                        # if we are processing a ppm column, convert units from µg/m3 and add the data to the row
+                        if unit == 'ppm':
+                            if conc is not None:
+                                row.append(conc/getConversion_ugm3_ppb(gas)/1000)
+                            else:
+                                row.append(None)
+                        # if we are processing a ppb column, convert units from µg/m3 and add the data to the row
+                        if unit == 'ppb':
+                            if conc is not None:
+                                row.append(conc/getConversion_ugm3_ppb(gas))
+                            else:
+                                row.append(None)
+                # add the list of values from this row to the list of new data
+                new_rows.append(row)
+            # once we reach an observation we have already uploaded to Carto
+            # stop processing the old data
+            else:
+                logging.info('Batch of data processed, moving to next batch.')
+                break
     # find the length (number of rows) of new_data 
     new_count = len(new_rows)
+    # Delete local files created during process
+    delete_local()
     # check if new data is available
     if new_count:
         logging.info('Sending new data to Carto')
