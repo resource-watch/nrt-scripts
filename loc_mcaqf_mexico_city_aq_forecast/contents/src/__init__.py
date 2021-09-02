@@ -15,6 +15,7 @@ from netCDF4 import Dataset
 import numpy as np
 import copy
 import json
+import shutil
 
 # set up boto3 client with AWS credentials
 S3 = boto3.client('s3', aws_access_key_id=os.getenv('S3_ACCESS_KEY'), aws_secret_access_key=os.getenv('S3_SECRET_KEY'))
@@ -106,6 +107,23 @@ def lastUpdateDate(dataset, date):
     except Exception as e:
         logging.error('[lastUpdated]: '+str(e))
 
+def delete_local():
+    '''
+    Delete all files and folders in Docker container's data directory
+    '''
+    try:
+        # for each object in the data directory
+        for f in os.listdir(DATA_DIR):
+            # try to remove it as a file
+            try:
+                logging.info('Removing {}'.format(f))
+                os.remove(DATA_DIR+'/'+f)
+            # if it is not a file, remove it as a folder
+            except:
+                shutil.rmtree(f, ignore_errors=True)
+    except NameError:
+        logging.info('No local files to clean.')
+
 '''
 FUNCTIONS FOR RASTER DATASETS
 
@@ -179,8 +197,6 @@ def flushTileCache(layer_id):
         r = requests.delete(url = apiUrl, headers = headers, timeout=1)
     except:
         pass
-
-
 
 '''
 FUNCTIONS FOR THIS DATASET
@@ -382,8 +398,7 @@ def fetch(dates, var):
                 logging.info('Could not fetch {} file out of range'.format(s3_filename))
     return files
 
-
-def processNewData(existing_dates):
+def processNewData(existing_dates, existing_assets_by_var):
     '''
     fetch, process, upload, and clean new data
     INPUT   existing_dates: list of dates we already have in GEE, in the format of the DATE_FORMAT variable (list of strings)
@@ -397,12 +412,15 @@ def processNewData(existing_dates):
         # Fetch new files
         logging.info('Fetching files')
         files = fetch(new_dates, var)
-    
+
+        existing_assets_by_var[var] = [os.path.join(DATA_DIR, assets_id+'.tif') for assets_id in existing_assets_by_var[var]]
+
         # If we have successfully been able to fetch new data files
         if files:
             # Convert new files from netcdf to tif files
             logging.info('Converting files to tifs')
             tifs = convert(files)
+            tifs = [tif for tif in tifs if tif not in existing_assets_by_var[var]]
     
             logging.info('Uploading files')
             # Get a list of the dates we have to upload from the tif file names
@@ -421,12 +439,6 @@ def processNewData(existing_dates):
                 pass
             # add uploaded assets to final list of assets uploaded
             new_assets_all_var += new_assets
-            # Delete local files
-            logging.info('Cleaning local files')
-            for tif in tifs:
-                os.remove(tif)
-            for f in files:
-                os.remove(f)
     return new_assets_all_var
 
 def checkCreateCollection(vars):
@@ -441,6 +453,8 @@ def checkCreateCollection(vars):
     # create an empty list to store the dates that we currently have for each AQ variable
     # will be used in case the previous script run crashed before completing the data upload for every variable.
     existing_dates_by_var = []
+     # create an empty list to store the assets that we currently have for each AQ variable
+    existing_assets_by_var = dict(((var, []) for var in vars))
     # loop through each variables that we want to pull
     for var in vars:
         # For one of the variables, get the date of the most recent dataset
@@ -461,6 +475,8 @@ def checkCreateCollection(vars):
             dates = [getDate(a).split('_')[-2] for a in existing_assets]
             # append this list of dates to our list of dates by variable
             existing_dates_by_var.append(dates)
+            # append this list of assets to our list of assets by variable
+            existing_assets_by_var[var] = existing_assets
 
             # for each of the dates that we have for this variable, append the date to the master
             # list of which dates we already have data for (if it isn't already in the list)
@@ -470,11 +486,10 @@ def checkCreateCollection(vars):
         # If the GEE collection does not exist, append an empty list to our list of dates by variable
         else:
             existing_dates_by_var.append([])
+            existing_assets_by_var[var] = []
             # create a collection for this variable
             logging.info('{} does not exist, creating'.format(collection))
             eeUtil.createFolder(collection, True)
-    return existing_dates, existing_dates_by_var
-
     '''
      We want make sure all variables correctly uploaded the data on the last run. To do this, we will
      check that we have the correct number of appearances of the data in our GEE collection. If we do
@@ -493,7 +508,7 @@ def checkCreateCollection(vars):
         if count < len(vars):
             # remove this from the list of existing dates for all variables
             existing_dates_all_vars.remove(date)
-    return existing_dates_all_vars, existing_dates_by_var
+    return existing_dates_all_vars, existing_dates_by_var, existing_assets_by_var
 
 def deleteExcessAssets(dates, max_dates):
     '''
@@ -613,7 +628,7 @@ def get_most_recent_date(var):
     RETURN  most_recent_date: most recent date in GEE collection (datetime)
     '''
     # get a list of strings of dates in the collection
-    existing_dates, existing_dates_by_var = checkCreateCollection(DATASET_IDS.keys())
+    existing_dates, existing_dates_by_var, existing_assets_by_var = checkCreateCollection(DATASET_IDS.keys())
     # get a list of the dates availale for input variable
     existing_dates_current_var = np.unique(existing_dates_by_var[list(DATASET_IDS.keys()).index(var)])
     # sort these dates oldest to newest
@@ -685,22 +700,26 @@ def main():
     # as well as a list of which dates exist for each individual variable (existing_dates_by_var).
     # The latter will be used in case the previous script run crashed before completing the data upload for every variable.
     logging.info('Getting existing dates.')
-    existing_dates, existing_dates_by_var = checkCreateCollection(DATASET_IDS.keys())
+    existing_dates, existing_dates_by_var, existing_assets_by_var = checkCreateCollection(DATASET_IDS.keys())
 
     # Fetch, process, and upload the new data
-    new_assets = processNewData(existing_dates)
+    new_assets = processNewData(existing_dates, existing_assets_by_var)
     # Get the dates of the new data we have added
     new_dates = list(np.unique([getDate(a).split('_')[0] for a in new_assets]))
 
     logging.info('Previous assets: {}, new: {}'.format(
         len(existing_dates), len(new_dates)))
-
-    # Delete excess assets and files from S3
-    deleteExcessAssets(existing_dates+new_dates, MAX_DATES)
     logging.info(new_assets)
     logging.info(new_dates)
+
     # Update Resource Watch
     if len(new_dates):
         updateResourceWatch(new_dates)
 
+    # Delete excess assets and files from S3
+    deleteExcessAssets(existing_dates+new_dates, MAX_DATES)
+    # Delete local files
+    logging.info('Cleaning local files')
+    delete_local()
+    
     logging.info('SUCCESS')
