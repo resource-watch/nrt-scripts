@@ -7,12 +7,10 @@ import requests
 import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
-import json
 import rapidjson
 import urllib
 import zipfile
 import geopandas as gpd
-import pandas as pd
 import shutil
 import glob
 import warnings
@@ -170,7 +168,7 @@ def delete_local():
                 os.remove(DATA_DIR+'/'+f)
             # if it is not a file, remove it as a folder
             except:
-                shutil.rmtree(f, ignore_errors=True)
+                shutil.rmtree(DATA_DIR+'/'+f, ignore_errors=True)
     except NameError:
         logging.info('No local files to clean.')
 
@@ -340,7 +338,8 @@ def upload_to_carto(row):
             r.raise_for_status()
         except Exception as e: # if there's an exception do this
             insert_exception = e
-            logging.error(r.content)
+            if r.status_code != 429:
+                logging.error(r.content)
             logging.warning('Attempt #{} to upload row #{} unsuccessful. Trying again after {} seconds'.format(i, row['WDPA_PID'], retry_wait_time))
             logging.debug('Exception encountered during upload attempt: '+ str(e))
             time.sleep(retry_wait_time)
@@ -400,7 +399,7 @@ def processData():
 
         # create an empty list to store the ids of large polygons
         large_ids = []
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        with ThreadPoolExecutor(max_workers = 8) as executor:
             futures = []
             for index, row in gdf.iterrows():
                 # for each row in the geopandas dataframe, submit a task to the executor to upload it to carto 
