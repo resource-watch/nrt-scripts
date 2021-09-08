@@ -715,6 +715,8 @@ def main():
     # Update Resource Watch
     if len(new_dates):
         updateResourceWatch(new_dates)
+    else:
+        updateResourceWatch(existing_dates)
 
     # Delete excess assets and files from S3
     deleteExcessAssets(existing_dates+new_dates, MAX_DATES)
