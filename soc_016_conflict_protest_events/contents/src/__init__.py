@@ -268,7 +268,7 @@ def processNewData(data_gdf):
         # convert the geometry column to geojson 
         joined['geometry'] = [convert_geometry(geom) for geom in joined.geometry]
         
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        with ThreadPoolExecutor(max_workers = 8) as executor:
             futures = []
             for index, row in joined.iterrows():
                 # for each polygon in the geopandas dataframe
@@ -339,10 +339,11 @@ def upload_to_carto(row):
             r.raise_for_status()
         except Exception as e: # if there's an exception do this
             insert_exception = e
-            try:
-                logging.error(r.content)
-            except:
-                pass
+            if r.status_code != 429:
+                try:
+                    logging.error(r.content)
+                except:
+                    pass
             logging.warning('Attempt #{} to upload row #{} unsuccessful. Trying again after {} seconds'.format(i, row['objectid'], retry_wait_time))
             logging.debug('Exception encountered during upload attempt: '+ str(e))
             time.sleep(retry_wait_time)
