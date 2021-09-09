@@ -143,7 +143,7 @@ def delete_local():
                 os.remove(DATA_DIR+'/'+f)
             # if it is not a file, remove it as a folder
             except:
-                shutil.rmtree(f, ignore_errors=True)
+                shutil.rmtree(DATA_DIR+'/'+f, ignore_errors=True)
     except NameError:
         logging.info('No local files to clean.')
 
@@ -442,7 +442,11 @@ def main():
         logging.info("Fetching {}/{} data on {}".format((idx+1), len(raw_data_files), date_from))
 
         with open(raw_data_file) as f:
-            results = ndjson.load(f)
+            for i in f:
+                try:
+                    results.append(ndjson.loads(i))
+                except:
+                    pass # skip the incomplete records
 
         # separate row lists per param
         rows = dict(((param, []) for param in PARAMS))
