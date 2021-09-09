@@ -344,18 +344,23 @@ def fetch(new_dates):
                # for each hdf file download
                url = os.path.join(url, hdf)
 
-               try:
-                    # try to download the data
-                    urllib.request.urlretrieve(url, f)
-                    # if successful, add the file to the list of files we have downloaded
-                    files.append(f)
-                    # if successful, log that the file was downloaded successfully
-                    logging.info('Successfully retrieved {}'.format(f))
+               try_num = 1
+               while try_num <= 5:
+                    try:
+                         # try to download the data
+                         urllib.request.urlretrieve(url, f)
+                         # if successful, add the file to the list of files we have downloaded
+                         files.append(f)
+                         # if successful, log that the file was downloaded successfully
+                         logging.info('Successfully retrieved {}'.format(f))
+                         break
 
-               except Exception as e:
-                    # if unsuccessful, log an error that the file was not downloaded
-                    logging.error('Unable to retrieve data from {}'.format(url))
-                    logging.debug(e)
+                    except Exception as e:
+                         # if unsuccessful, log an error that the file was not downloaded
+                         logging.error('Attempt #{}: Unable to retrieve data from {}'.format(try_num, url))
+                         logging.debug(e)
+                         time.sleep(30)
+                         try_num += 1
 
           except Exception as e:
                # if unsuccessful, log that no data were found for the input date
