@@ -441,12 +441,12 @@ def main():
     for idx, raw_data_file in enumerate(raw_data_files):
         logging.info("Fetching {}/{} data on {}".format((idx+1), len(raw_data_files), date_from))
 
-        with open(raw_data_file) as f:
-            for i in f:
-                try:
-                    results.append(ndjson.loads(i))
-                except:
-                    pass # skip the incomplete records
+        with open(raw_data_file) as f:  
+            # skip the incomplete ndjson files
+            try:
+                results = ndjson.load(f)
+            except:
+                results = []
 
         # separate row lists per param
         rows = dict(((param, []) for param in PARAMS))
