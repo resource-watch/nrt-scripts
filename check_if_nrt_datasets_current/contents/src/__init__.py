@@ -72,20 +72,23 @@ def main():
         if 'bio.002' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=30)
          # chlorophyll updates on the 19th of each month with the previous month's data
-        if 'bio.037' in r['data']['attributes']['name']:
+        elif 'bio.037' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=53)
         # allow for longer delay for TROPOMI data because it is slow to upload
-        if 'cit.035' in r['data']['attributes']['name']:
+        elif 'cit.035' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=45)
+        # the WACCM forecast often goes offline for a few days
+        elif 'cit.038' in r['data']['attributes']['name']:
+            allowed_time = datetime.timedelta(days=5)
+        # GTFS updates on the 1st of each month
+        elif 'cit.041a' in r['data']['attributes']['name']:
+            allowed_time = datetime.timedelta(days=32)
         # on the 1st of each month, Arctic/Antarctic Sea Ice Extent updates for the 1st of the previous month
         elif 'cli.005a' in r['data']['attributes']['name'] or 'cli.005b' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=70)
         # within the first few days of each month, Snow Cover updates for the 1st of the previous month
         elif 'cli.021' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=70)
-        # the WACCM forecast often goes offline for a few days
-        elif 'cit.038' in r['data']['attributes']['name']:
-            allowed_time = datetime.timedelta(days=5)
         # around the 15th of each month, Surface Temperature Change updates for the 15th of the PREVIOUS month
         elif 'cli.035' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=70)
@@ -107,6 +110,12 @@ def main():
         # NDC ratification status probably would only update once a year, after COP
         elif 'cli.047' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=400)
+        # Tsunamis
+        elif 'dis.009' in r['data']['attributes']['name']:
+            allowed_time = datetime.timedelta(days=20)
+        # Tropical Cyclones
+        elif 'dis.015' in r['data']['attributes']['name']:
+            allowed_time = datetime.timedelta(days=20)
         # oil spills data set doesn't always have events that occur every 10 days
         elif 'ene.008' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=20)
@@ -116,21 +125,16 @@ def main():
         # Vegetation Condition Index
         elif 'foo.051' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=12)
+        # GLAD Deforestation Alerts
+        elif 'for.003' in r['data']['attributes']['name']:
+            allowed_time = datetime.timedelta(days=10)
         # Fire Risk Index often goes offline for a few days
         elif 'for.012' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=10)
         # flood data set doesn't always have events that occur every 10 days
         elif 'wat.040' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=30)
-        # GLAD Deforestation Alerts
-        elif 'for.003' in r['data']['attributes']['name']:
-            allowed_time = datetime.timedelta(days=10)
-        # Tropical Cyclones
-        elif 'dis.015' in r['data']['attributes']['name']:
-            allowed_time = datetime.timedelta(days=20)
-        # Tsunamis
-        elif 'dis.009' in r['data']['attributes']['name']:
-            allowed_time = datetime.timedelta(days=20)
+        
 
         '''check if the time since last update surpasses the time we allow for this type of data set'''
         # if the dataset is out-of-date
@@ -169,7 +173,7 @@ def main():
                                                                                   public_title=dataset[
                                                                                       'Public Title']))
 
-    # prepare weekly reminder to check any data sets that have been investigated but are still outdated
+    # prepare bi-weekly reminder to check any data sets that have been investigated but are still outdated
     for idx, dataset in error_tracking_df.iterrows():
         # find when the dataset was last checked
         last_check = dataset['Last Check']
@@ -178,7 +182,6 @@ def main():
         today = datetime.datetime.utcnow()
         time_since_checking = today - last_check_dt
         days = time_since_checking.days
-        # if it has been more than a week, log an error
-        if days > 7:
-            logging.error('The status of {wri_id} has not been checked in {days} days.'.format(wri_id=dataset['WRI ID'],
-                                                                                               days=days))
+        # if it has been more than two weeks, log an error
+        if days > 14:
+            logging.error('The status of {wri_id} has not been checked in {days} days.'.format(wri_id=dataset['WRI ID'],days=days))
