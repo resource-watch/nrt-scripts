@@ -1,5 +1,5 @@
 FROM python:3.6
-MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
+MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 
 # install core libraries
 RUN apt-get update && pip install -U pip
