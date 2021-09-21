@@ -1,6 +1,6 @@
 ## Batch Upload of EIA Datasets
 
-This file describes the process used to upload datasets from the [EIA API](https://www.eia.gov/opendata/) to [Resource Watch](resourcewatch.org). On Resource Watch, we host numerous datasets from the EIA, which are all available through their API in a standard format. You can see some of the datasets available from the EIA [here](https://www.eia.gov/international/data/world). We use this script to update all of the datasets on Resource Watch that come from EIA datasets at once.
+This file describes the process used to upload datasets from the [EIA API](https://www.eia.gov/opendata/) to [Resource Watch](https://resourcewatch.org). On Resource Watch, we host numerous datasets from the EIA, which are all available through their API in a standard format. You can see some of the datasets available from the EIA [here](https://www.eia.gov/international/data/world). We use this script to update all of the datasets on Resource Watch that come from EIA datasets at once.
 
 The EIA data that are processed by this script can be found in the [EIA_RW_dataset_names_ids.csv](https://github.com/resource-watch/nrt-scripts/blob/master/upload_eia_data/EIA_RW_dataset_names_ids.csv), along with their corresponding Resource Watch API IDS and other infomation we use for the processing.
 
