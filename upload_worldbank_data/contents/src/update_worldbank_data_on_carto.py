@@ -13,12 +13,16 @@ from carto.auth import APIKeyAuthClient
 import boto3
 from botocore.exceptions import NoCredentialsError
 from zipfile import ZipFile
+import shutil
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 # Carto username and API key for account where we will store the data
 CARTO_USER = os.getenv('CARTO_WRI_RW_USER')
 CARTO_KEY = os.getenv('CARTO_WRI_RW_KEY')
+
+# name of data directory in Docker container
+DATA_DIR = 'data'
 
 # pull in sheet with information about each World Bank dataset and where it is stored on Carto and the RW API
 wb_rw_table = pd.read_csv(
@@ -31,7 +35,7 @@ wb_name_to_iso3_conversion = pd.read_csv(
     'WB_name')
 
 # get list of all current Carto table names
-carto_table_names = cartosql.getTables(user=CARTO_USER, key=CARTO_KEY)
+carto_table_names = cartosql.getTables(user = CARTO_USER, key = CARTO_KEY)
 
 def upload_to_aws(local_file, bucket, s3_file):
     '''
@@ -204,6 +208,23 @@ def fetch_wb_data(table):
 
     return all_world_bank_data
 
+def delete_local():
+    '''
+    Delete all files and folders in Docker container's data directory
+    '''
+    try:
+        # for each object in the data directory
+        for f in os.listdir(DATA_DIR):
+            # try to remove it as a file
+            try:
+                logging.info('Removing {}'.format(f))
+                os.remove(DATA_DIR + '/' + f)
+            # if it is not a file, remove it as a folder
+            except:
+                shutil.rmtree(f, ignore_errors = True)
+    except NameError:
+        logging.info('No local files to clean.')
+
 def main():
     logging.info('STARTING WORLD BANK CARTO UPDATE')
 
@@ -325,3 +346,8 @@ def main():
 
         # Upload processed data file to S3
         uploaded = upload_to_aws(processed_data_dir, 'wri-public-data', 'resourcewatch/' + os.path.basename(processed_data_dir))
+    
+    # Delete local files in Docker container
+    delete_local()
+
+    logging.info('SUCCESS')

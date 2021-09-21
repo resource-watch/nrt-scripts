@@ -308,3 +308,5 @@ def main():
                         logging.info(f'layers being updated for new year: {latest_carto_year}')
                         # update layer on RW to be latest year of data available
                         update_rw_layer_year(ds_id, rw_year, latest_carto_year)
+
+    logging.info('SUCCESS')
