@@ -1,5 +1,5 @@
 ## Batch Upload of World Bank Datasets
-This file describes the process used to upload datasets from the [World Bank API](https://data.worldbank.org/) to [Resource Watch](resourcewatch.org). On Resource Watch, we host numerous datasets from the World Bank, which are all available through their API in a standard format. You can see some of the datasets available from the World Bank [here](https://data.worldbank.org/indicator/). We use this script to update all of the datasets on Resource Watch that come from World Bank datasets at once.
+This file describes the process used to upload datasets from the [World Bank API](https://data.worldbank.org/) to [Resource Watch](https://resourcewatch.org). On Resource Watch, we host numerous datasets from the World Bank, which are all available through their API in a standard format. You can see some of the datasets available from the World Bank [here](https://data.worldbank.org/indicator/). We use this script to update all of the datasets on Resource Watch that come from World Bank datasets at once.
 
 The World Bank indicators that are processed by this script can be found in the [WB_RW_dataset_names_ids.csv](https://github.com/resource-watch/nrt-scripts/blob/master/upload_worldbank_data/WB_RW_dataset_names_ids.csv), along with their corresponding Resource Watch API IDS and other infomation we use for the processing.
 
