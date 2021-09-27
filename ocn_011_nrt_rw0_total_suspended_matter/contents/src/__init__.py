@@ -10,8 +10,6 @@ import requests
 import time
 import urllib
 import urllib.request
-import gdal
-import numpy as np
 from collections import OrderedDict 
 import json 
 import ftplib

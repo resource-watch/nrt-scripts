@@ -13,8 +13,6 @@ RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
 RUN pip install requests==2.22.0
 RUN pip install numpy==1.14.3
 RUN pip install Cython==0.29.15
-RUN pip install GDAL==2.4.2
-RUN apt-get -y install python-gdal
 
 # set name
 ARG NAME=ocn_011_total_suspended_matter
