@@ -1,4 +1,7 @@
 ﻿WRI ID,Public Title,Time Slider,Dataset ID,Carto Table,Carto Column,eia_category_id,eia_unit
+ene.033.rw0,Energy Consumption,Yes,67cf410f-4cdf-4437-aa09-187e5fa590ae,ene_033_rw0_energy_comsumption_edit,yr_data,2134804,quadrillion Btu
+ene.034.rw0,Electricity Consumption,Yes,eef10736-8d8b-4ac9-a715-ef0653a83196,ene_034_rw0_electricity_consumption_edit,yr_data,2134404,billion kilowatthours
+ene.035.rw0,Electricity Installed Capacity,Yes,683aa637-aa4f-46ab-8260-4441de896131,ene_035_rw0_electricity_installed_capacity_edit,yr_data,2134409,million kilowatts
 ene.038.rw0,Total Energy Production,Yes,3adc9857-7719-43ad-a9e3-f060f163dadf,ene_038_rw0_total_energy_production_edit,yr_data,2134803,quadrillion Btu
 ene.039.rw0,Energy consumption per GDP,Yes,7e846044-5afb-4571-84f9-c5ad7848475f,ene_039_rw0_energy_consumption_per_gdp_edit,yr_data,2632099,thousand Btu per USD at purchasing power parities
 ene.040.rw0,Electricity distribution losses,Yes,a36bf77b-4d10-4855-8ef6-aece72e23971,ene_040_rw0_electricity_distribution_losses_edit,yr_data,2134411,billion kilowatthours
