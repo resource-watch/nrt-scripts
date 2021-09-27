@@ -189,7 +189,10 @@ def main():
     # process each Carto table for EIA datasets one at a time
     for table_name, info in eia_rw_table.iterrows():
         # get the dataset name (table name without the '_edit' at the end of the table_name
-        dataset_name = table_name[:-5]
+        if table_name[-5:] == '_edit':
+            dataset_name = table_name[:-5]
+        else:
+            dataset_name = table_name
         logging.info('Next table to update: {}'.format(dataset_name))
 
         '''
