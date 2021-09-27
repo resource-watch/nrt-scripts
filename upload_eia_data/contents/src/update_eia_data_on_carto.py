@@ -153,6 +153,9 @@ def process_eia_data(df, table_name):
     # convert the data type of the column 'yr_data' to float
     df.yr_data = df.yr_data.astype(float)
 
+    # drop duplicate records
+    df.drop_duplicates(inplace = True)
+
     # save processed dataset to csv
     processed_data_file = os.path.join(DATA_DIR, table_name+'.csv')
     df.to_csv(processed_data_file, index=False)
