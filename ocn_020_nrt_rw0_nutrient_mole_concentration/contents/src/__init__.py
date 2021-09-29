@@ -528,34 +528,37 @@ def update_layer(layer, new_date, date_format, id):
 
     # find the asset id of the latest image 
     product = [key for key in list(DATA_DICT.keys()) if key in old_asset][0]
-    new_asset = [asset for asset in DATA_DICT[product]['asset'] if id in asset][0]
+    for asset in DATA_DICT[product]['asset']:
+        if id in asset:
+            new_asset = asset
+            # replace the asset id in the layer def with new asset id
+            layer['attributes']['layerConfig']['assetId'] = new_asset
 
-    # replace the asset id in the layer def with new asset id
-    layer['attributes']['layerConfig']['assetId'] = new_asset
+            # replace the asset id in the interaction config with new asset id
+            layer['attributes']['interactionConfig']['config']['url'] = layer['attributes']['interactionConfig']['config']['url'].replace(old_asset,new_asset)
 
-    # replace the asset id in the interaction config with new asset id
-    layer['attributes']['interactionConfig']['config']['url'] = layer['attributes']['interactionConfig']['config']['url'].replace(old_asset,new_asset)
-
-    # send patch to API to replace layers
-    # generate url to patch layer
-    rw_api_url_layer = "https://api.resourcewatch.org/v1/dataset/{dataset_id}/layer/{layer_id}".format(
-        dataset_id=layer['attributes']['dataset'], layer_id=layer['id'])
-    # create payload with new title and layer configuration
-    payload = {
-        'application': ['rw'],
-        'layerConfig': layer['attributes']['layerConfig'],
-        'name': layer['attributes']['name'],
-        'interactionConfig': layer['attributes']['interactionConfig']
-    }
-    # patch API with updates
-    r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
-    # check response
-    # if we get a 200, the layers have been replaced
-    # if we get a 504 (gateway timeout) - the layers are still being replaced, but it worked
-    if r.ok or r.status_code==504 or r.status_code==200:
-        logging.info('Layer replaced: {}'.format(layer['id']))
-    else:
-        logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
+            # send patch to API to replace layers
+            # generate url to patch layer
+            rw_api_url_layer = "https://api.resourcewatch.org/v1/dataset/{dataset_id}/layer/{layer_id}".format(
+                dataset_id=layer['attributes']['dataset'], layer_id=layer['id'])
+            # create payload with new title and layer configuration
+            payload = {
+                'application': ['rw'],
+                'layerConfig': layer['attributes']['layerConfig'],
+                'name': layer['attributes']['name'],
+                'interactionConfig': layer['attributes']['interactionConfig']
+            }
+            # patch API with updates
+            r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
+            # check response
+            # if we get a 200, the layers have been replaced
+            # if we get a 504 (gateway timeout) - the layers are still being replaced, but it worked
+            if r.ok or r.status_code==504 or r.status_code==200:
+                logging.info('Layer replaced: {}'.format(layer['id']))
+            else:
+                logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
+        else: 
+            logging.info('No new asset found')
 
 def updateResourceWatch():
     '''
@@ -571,31 +574,29 @@ def updateResourceWatch():
             most_recent_date = get_most_recent_date(val)
             # If the product is daily and the 'last update date' on the RW API is older than the most recent date of data on GEE, update it
             # If the product is montly and the 'last update date' on the RW API is the 15th of the month, update it (new monthly data is released on the 15th at 12 UTC)
-            if product == 'monthly' or current_date < most_recent_date:
-                logging.info(('Updating last update date for {} (dataset ID = {}) and flushing cache.').format(var, id)) 
-                # Update dataset's last update date on Resource Watch
-                lastUpdateDate(id, most_recent_date)
+            logging.info(('Updating last update date for {} (dataset ID = {}) and flushing cache.').format(var, id)) 
+            # Update dataset's last update date on Resource Watch
+            lastUpdateDate(id, most_recent_date)
        
-                # pull dictionary of current layers from API
-                layer_dict = pull_layers_from_API(id)
+            # pull dictionary of current layers from API
+            layer_dict = pull_layers_from_API(id)
 
-                # list of all layers in the dictionary
-                layer_product = [x for x in layer_dict if product in x['attributes']['layerConfig']['assetId']]
+            # list of all layers in the dictionary
+            layer_product = [x for x in layer_dict if product in x['attributes']['layerConfig']['assetId']]
                 
-                # new date of data
-                layer_date = val['latest date']
-
-                # go through each layer, pull the definition and update
-                for layer in layer_product:
-                    # update layer name, asset id, and interaction configuration 
-                    update_layer(layer, layer_date, val['date_format'],var)
+            # new date of data
+            layer_date = val['latest date']
+              # go through each layer, pull the definition and update
+            for layer in layer_product:
+                # update layer name, asset id, and interaction configuration 
+                update_layer(layer, layer_date, val['date_format'],var)
                 
-                # get layer ids and flush tile cache for each
-                layer_ids = getLayerIDs(id)
-                for layer_id in layer_ids:
-                    flushTileCache(layer_id)
-            else:
-                logging.info('Data on Resource Watch up to date!')
+            # get layer ids and flush tile cache for each
+            layer_ids = getLayerIDs(id)
+            for layer_id in layer_ids:
+                flushTileCache(layer_id)
+        else:
+            logging.info('Data on Resource Watch up to date!')
 
 
 def main():
