@@ -568,12 +568,9 @@ def updateResourceWatch():
     # Get the most recent date from the data in the GEE collection
     
     for var, id in DATASET_IDS.items():
-        # Get the current 'last update date' from the dataset on Resource Watch
-        current_date = getLastUpdate(id) 
         for product, val in DATA_DICT.items():
+            # Get most recent date of data on GEE
             most_recent_date = get_most_recent_date(val)
-            # If the product is daily and the 'last update date' on the RW API is older than the most recent date of data on GEE, update it
-            # If the product is montly and the 'last update date' on the RW API is the 15th of the month, update it (new monthly data is released on the 15th at 12 UTC)
             logging.info(('Updating last update date for {} (dataset ID = {}) and flushing cache.').format(var, id)) 
             # Update dataset's last update date on Resource Watch
             lastUpdateDate(id, most_recent_date)
