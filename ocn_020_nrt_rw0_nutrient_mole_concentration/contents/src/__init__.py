@@ -573,7 +573,8 @@ def updateResourceWatch():
             most_recent_date = get_most_recent_date(val)
             logging.info(('Updating last update date for {} (dataset ID = {}) and flushing cache.').format(var, id)) 
             # Update dataset's last update date on Resource Watch
-            lastUpdateDate(id, most_recent_date)
+            if product == 'daily':
+                lastUpdateDate(id, most_recent_date)
        
             # pull dictionary of current layers from API
             layer_dict = pull_layers_from_API(id)
