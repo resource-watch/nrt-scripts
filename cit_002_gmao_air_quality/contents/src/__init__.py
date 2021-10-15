@@ -441,8 +441,8 @@ def fetch(new_dates, unformatted_source_url, period):
             # Create a file name to store the netcdf in after download
             f = DATA_DIR+'/'+url.split('/')[-1]
             # try to download the data
-            tries = 0
-            while tries <3:
+            tries = 1
+            while tries <= 5:
                 try:
                     logging.info('Retrieving {}'.format(f))
                     # download files from url and put in specified file location (f)
@@ -454,9 +454,10 @@ def fetch(new_dates, unformatted_source_url, period):
                 # if unsuccessful, log that the file was not downloaded
                 except Exception as e:
                     logging.info('Unable to retrieve data from {}, trying again'.format(url))
-                    tries+=1
+                    tries += 1
+                    time.sleep(30)
                     logging.info('try {}'.format(tries))
-            if tries==3:
+            if tries == 6:
                 logging.error('Unable to retrieve data from {}'.format(url))
                 exit()
 
