@@ -95,21 +95,27 @@ def main():
         # SPEI
         elif 'cli.039' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=60)
-        # sea level rise data set updates at ~3 month delay
+        # sea level rise data set updates at ~4 month delay
         elif 'cli.040' in r['data']['attributes']['name']:
-            allowed_time = datetime.timedelta(days=120)
+            allowed_time = datetime.timedelta(days=150)
         # antarctic ice mass data set updates at 2-3 month delay
         elif 'cli.041' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=120)
         # greenland ice mass data set updates at 2-3 month delay
         elif 'cli.042' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=120)
+        # arctic sea ice extent data set updates at 2-3 month delay
+        elif 'cli.043' in r['data']['attributes']['name']:
+            allowed_time = datetime.timedelta(days=450)  
         # carbon dioxide concentration data set updates at 2-3 month delay
         elif 'cli.045' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=120)            
         # NDC ratification status probably would only update once a year, after COP
         elif 'cli.047' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=400)
+        # Disaster events data set doesn't always have events that occur everyday
+        elif 'dis.006' in r['data']['attributes']['name']:
+            allowed_time = datetime.timedelta(days=15)
         # Tsunamis
         elif 'dis.009' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=20)
