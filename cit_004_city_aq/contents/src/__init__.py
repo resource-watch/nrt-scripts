@@ -356,10 +356,8 @@ def processNewData(src_url, existing_ids, existing_stations):
         # Removing corrupted last line 
         all_json = all_json[:-1]
         # Sending clean data to a json object
-        logging.info('Pulling json data')
         data = [json.loads(i) for i in all_json if i] 
         # Order json data by date
-        logging.info('Ordering json by creation date')
         data = sorted(data, key = lambda x: datetime.datetime.strptime(x["created"],"%Y-%m-%dT%H:%M:%S.%fZ"))
         logging.info('Reversing data')
         data.reverse()    
