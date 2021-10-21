@@ -680,7 +680,7 @@ def updateResourceWatch(new_dates):
             logging.info('Flushing tile cache')
             for layer_id in layer_ids:
                 flushTileCache(layer_id)
-            time.sleep(40)
+            time.sleep(60)
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
