@@ -798,10 +798,10 @@ def main():
             logging.info('New assets for {}: {}'.format(var, len(new_assets)))
             logging.info('SUCCESS for {}'.format(var))
 
-    # Delete local netcdf files
-    delete_local()
-
     # Update Resource Watch
     updateResourceWatch()
+    
+    # Delete local netcdf files
+    delete_local()
 
     logging.info('SUCCESS')
