@@ -21,7 +21,7 @@ ENV NAME ${NAME}
 RUN mkdir -p /opt/$NAME/data
 WORKDIR /opt/$NAME/
 COPY contents .
-VOLUME ./data
+VOLUME /opt/$NAME/data
 
 RUN useradd $NAME
 RUN chown -R $NAME:$NAME .
