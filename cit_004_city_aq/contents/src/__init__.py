@@ -294,7 +294,7 @@ def processNewData(src_url, existing_ids, existing_stations):
     # Using indx to iterate move over the number of json files
     indx = 0
     # Limit for each of the json files 
-    file_size = 52428800
+    file_size = 47185920
     
     for i in range(0, n_tries):
         try: 
