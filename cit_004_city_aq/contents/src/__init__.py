@@ -472,7 +472,6 @@ def processNewData(src_url, existing_ids, existing_stations):
                             else:
                                 row.append(None)
                 # add the list of values from this row to the list of new data
-                logging.info('Appending new row')
                 new_rows.append(row)
             # once we reach an observation we have already uploaded to Carto
             # stop processing the old data
