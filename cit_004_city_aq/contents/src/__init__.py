@@ -294,7 +294,7 @@ def processNewData(src_url, existing_ids, existing_stations):
     # Using indx to iterate move over the number of json files
     indx = 0
     # Limit for each of the json files 
-    file_size = 47185920
+    file_size = 52428800
     
     for i in range(0, n_tries):
         try: 
@@ -472,6 +472,7 @@ def processNewData(src_url, existing_ids, existing_stations):
                             else:
                                 row.append(None)
                 # add the list of values from this row to the list of new data
+                logging.info('Appending new row')
                 new_rows.append(row)
             # once we reach an observation we have already uploaded to Carto
             # stop processing the old data
