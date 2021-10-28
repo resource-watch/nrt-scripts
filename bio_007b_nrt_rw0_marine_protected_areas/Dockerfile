@@ -7,7 +7,7 @@ RUN apt-get update
 RUN pip install --upgrade pip
 
 # install application libraries
-RUN pip install -e git+https://github.com/fgassert/cartosql.py.git#egg=cartosql
+RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 RUN pip install requests
 RUN pip install carto==1.11.1
 RUN pip install numpy
