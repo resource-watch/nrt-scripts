@@ -507,7 +507,7 @@ def processNewData(files, var_num, last_date):
         for asset in assets:
             logging.info(os.path.split(asset)[1])
         # Upload new files (tifs) to GEE
-        eeUtil.uploadAssets(tifs, assets, GS_FOLDER, datestamps)
+        eeUtil.uploadAssets(tifs, assets, GS_FOLDER, datestamps,timeout = 600)
 
         # Delete local tif files
         logging.info('Cleaning local TIFF files')
@@ -803,5 +803,3 @@ def main():
     
     # Delete local netcdf files
     delete_local()
-
-    logging.info('SUCCESS')
