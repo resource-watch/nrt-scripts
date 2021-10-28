@@ -261,7 +261,7 @@ def convert_geometry(geom):
     if geom.geom_type == 'Polygon':
         return geom.__geo_interface__
     # if it's a multipoint series containing only one point
-    elif (geom.geom_type == 'MultiPoint') & (len(geom) == 1):
+    elif (geom.geom_type == 'MultiPoint') & (len(geom.geoms) == 1):
         return geom[0].__geo_interface__
     else:
         return geom.__geo_interface__
