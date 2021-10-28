@@ -12,7 +12,7 @@ RUN pip install requests
 RUN pip install carto==1.11.1
 RUN pip install numpy
 RUN pip install pandas
-RUN pip install geopandas==0.8.1
+RUN pip install geopandas==0.9.0
 
 # set name
 ARG NAME=bio_007b

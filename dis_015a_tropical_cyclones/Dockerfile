@@ -13,7 +13,7 @@ RUN apt-get install -y cron
 # install application libraries
 RUN pip install --upgrade pip  
 RUN pip install pandas==0.25.3 numpy==1.18.1
-RUN pip install geopandas==0.8.0 \
+RUN pip install geopandas==0.9.0 \
 	glob2==0.7 \
     requests==2.22.0 fiona==1.8.13
 RUN pip install -U carto cartoframes==1.0.4
