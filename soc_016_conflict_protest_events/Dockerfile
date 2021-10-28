@@ -9,7 +9,7 @@ RUN pip install --upgrade pip
 # install application libraries
 RUN pip install requests==2.22.0
 RUN pip install python-dateutil==2.8.1
-RUN pip install geopandas==0.8.1
+RUN pip install geopandas==0.9.0
 RUN pip install Rtree
 
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
