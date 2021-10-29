@@ -269,7 +269,7 @@ def convert_geometry(geom):
         return geom.__geo_interface__
     # if it's a multipoint series containing only one point
     elif geom.geom_type == 'MultiPoint' and len(geom.geoms) == 1:
-        return geom[0].__geo_interface__
+        return geom.geoms[0].__geo_interface__
     else:
         return geom.__geo_interface__
         
