@@ -179,7 +179,7 @@ def getLayerIDs(dataset):
                     layerIDs.append(layer['id'])
         except Exception as e:
             fetch_exception = e
-            logging.info('Uh-oh. Attempt number {} to pull layers failed, trying again'.format(i))
+            logging.info('Uh-oh. Attempt number {} to get layers ids failed, trying again'.format(i))
             time.sleep(30)
         else:
             break
