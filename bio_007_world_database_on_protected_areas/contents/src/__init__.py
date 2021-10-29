@@ -262,7 +262,7 @@ def convert_geometry(geom):
         return geom.__geo_interface__
     # if it's a multipoint series containing only one point
     elif (geom.geom_type == 'MultiPoint') & (len(geom.geoms) == 1):
-        return geom[0].__geo_interface__
+        return geom.geoms[0].__geo_interface__
     else:
         return geom.__geo_interface__
 
@@ -370,26 +370,24 @@ def processData():
     end = None
     # create an empty list to store all the wdpa_pids 
     all_ids = []
-
-    # deal with the large geometries first 
-    gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(-69500, -69000))
-    if '555643543' in gdf['WDPA_PID'].to_list():
-        # isolate the large polygon
-        gdf_large = gdf.loc[gdf['WDPA_PID'] =='555643543']
-        # get rid of the \r\n in the wdpa_pid column 
-        gdf_large['WDPA_PID'] = [x.split('\r\n')[0] for x in gdf_large['WDPA_PID']]
-        # create a new column to store the status_yr column as timestamps
-        gdf_large.insert(19, "legal_status_updated_at", [None if x == 0 else datetime.datetime(x, 1, 1) for x in gdf_large['STATUS_YR']])
-        gdf_large["legal_status_updated_at"] = gdf_large["legal_status_updated_at"].astype(object)
-       
-        # first upload the polygon to carto
-        upload_to_carto(gdf_large.iloc[0])
-        logging.info('Large geometry upload completed!')
-        all_ids.append('555643543')
         
     for i in range(0, 100000000):
         # import a slice of the geopandas dataframe 
         gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(start, end))
+        # deal with the large geometries first 
+        if '555643543' in gdf['WDPA_PID'].to_list():
+            # isolate the large polygon
+            gdf_large = gdf.loc[gdf['WDPA_PID'] =='555643543']
+            # get rid of the \r\n in the wdpa_pid column 
+            gdf_large['WDPA_PID'] = [x.split('\r\n')[0] for x in gdf_large['WDPA_PID']]
+            # create a new column to store the status_yr column as timestamps
+            gdf_large.insert(19, "legal_status_updated_at", [None if x == 0 else datetime.datetime(x, 1, 1) for x in gdf_large['STATUS_YR']])
+            gdf_large["legal_status_updated_at"] = gdf_large["legal_status_updated_at"].astype(object)
+        
+            # first upload the polygon to carto
+            upload_to_carto(gdf_large.iloc[0])
+            logging.info('Large geometry upload completed!')
+            all_ids.append('555643543')
         # get rid of the \r\n in the wdpa_pid column 
         gdf['WDPA_PID'] = [x.split('\r\n')[0] for x in gdf['WDPA_PID']]
         # create a new column to store the status_yr column as timestamps
