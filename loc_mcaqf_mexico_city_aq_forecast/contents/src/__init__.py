@@ -161,19 +161,32 @@ def getLayerIDs(dataset):
     INPUT   dataset: Resource Watch API dataset ID (string)
     RETURN  layerIDs: Resource Watch API layer IDs for the input dataset (list of strings)
     '''
-    # generate the API url for this dataset - this must include the layers
-    apiUrl = f'http://api.resourcewatch.org/v1/dataset/{dataset}?includes=layer'
-    # pull the dataset from the API
-    r = requests.get(apiUrl)
-    #get a list of all the layers
-    layers = r.json()['data']['attributes']['layer']
-    # create an empty list to store the layer IDs
-    layerIDs =[]
-    # go through each layer and add its ID to the list
-    for layer in layers:
-        # only add layers that have Resource Watch listed as its application
-        if layer['attributes']['application']==['rw']:
-            layerIDs.append(layer['id'])
+    n_tries = 3
+    for i in range(0, n_tries):
+        try:
+            # generate the API url for this dataset - this must include the layers
+            apiUrl = f'http://api.resourcewatch.org/v1/dataset/{dataset}?includes=layer'
+            # pull the dataset from the API
+            r = requests.get(apiUrl)
+            #get a list of all the layers
+            layers = r.json()['data']['attributes']['layer']
+            # create an empty list to store the layer IDs
+            layerIDs =[]
+            # go through each layer and add its ID to the list
+            for layer in layers:
+                # only add layers that have Resource Watch listed as its application
+                if layer['attributes']['application']==['rw']:
+                    layerIDs.append(layer['id'])
+        except Exception as e:
+            fetch_exception = e
+            logging.info('Uh-oh. Attempt number {} to pull layers failed, trying again'.format(i))
+            time.sleep(30)
+        else:
+            break
+    else:
+        logging.info('Failed to pull layers from RW API.')
+        raise fetch_exception
+        
     return layerIDs
 
 def flushTileCache(layer_id):
@@ -558,12 +571,25 @@ def pull_layers_from_API(dataset_id):
     INPUT   dataset_id: Resource Watch API dataset ID (string)
     RETURN  layer_dict: dictionary of layers (dictionary of strings)
     '''
-    # generate url to access layer configs for this dataset in back office
-    rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer?page[size]=100'.format(dataset_id)
-    # request data
-    r = requests.get(rw_api_url)
-    # convert response into json and make dictionary of layers
-    layer_dict = json.loads(r.content.decode('utf-8'))['data']
+    n_tries = 3
+    for i in range(0, n_tries):
+        try:
+            # generate url to access layer configs for this dataset in back office
+            rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer?page[size]=100'.format(dataset_id)
+            # request data
+            r = requests.get(rw_api_url)
+            # convert response into json and make dictionary of layers
+            layer_dict = json.loads(r.content.decode('utf-8'))['data']
+        except Exception as e:
+            fetch_exception = e
+            logging.info('Uh-oh. Attempt number {} to pull layers failed, trying again'.format(i))
+            time.sleep(30)
+        else:
+            break
+    else:
+        logging.info('Failed to pull layers from RW API.')
+        raise fetch_exception
+        
     return layer_dict
 
 def update_layer(var, layer, most_recent_date):
@@ -680,7 +706,7 @@ def updateResourceWatch(new_dates):
             logging.info('Flushing tile cache')
             for layer_id in layer_ids:
                 flushTileCache(layer_id)
-            time.sleep(60)
+            time.sleep(40)
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
