@@ -9,6 +9,9 @@ import ee
 import time
 import requests
 import json
+import boto3
+from google.cloud import storage
+import shutil
 
 # url for air quality data
 SOURCE_URL = 'COPERNICUS/S5P/OFFL/L3_{var}'
@@ -100,6 +103,23 @@ def lastUpdateDate(dataset, date):
     except Exception as e:
         logging.error('[lastUpdated]: '+str(e))
 
+def delete_local():
+    '''
+    Delete all files and folders in Docker container's data directory
+    '''
+    try:
+        # for each object in the data directory
+        for f in os.listdir(DATA_DIR):
+            # try to remove it as a file
+            try:
+                logging.info('Removing {}'.format(f))
+                os.remove(DATA_DIR + '/' + f)
+            # if it is not a file, remove it as a folder
+            except:
+                shutil.rmtree(DATA_DIR + '/' + f, ignore_errors = True)
+    except NameError:
+        logging.info('No local files to clean.')
+
 '''
 FUNCTIONS FOR RASTER DATASETS
 
@@ -127,7 +147,7 @@ def getLastUpdate(dataset):
     # generate a datetime object
     nofrag_dt = datetime.datetime.strptime(nofrag, "%Y-%m-%dT%H:%M:%S")
     # add back the microseconds to the datetime
-    lastUpdateDT = nofrag_dt.replace(microsecond=int(frag[:-1])*1000)
+    lastUpdateDT = nofrag_dt.replace(microsecond = int(frag[:-1])*1000)
     return lastUpdateDT
 
 def getLayerIDs(dataset):
@@ -171,21 +191,21 @@ def flushTileCache(layer_id):
     # sometimetimes this fails, so we will try multiple times, if it does
 
     # specify that we are on the first try
-    try_num=1
+    try_num = 1
     tries = 4
-    while try_num<tries:
+    while try_num < tries:
         try:
             # try to delete the cache
-            r = requests.delete(url = apiUrl, headers = headers, timeout=1000)
+            r = requests.delete(url = apiUrl, headers = headers, timeout = 1000)
             # if we get a 200, the cache has been deleted
             # if we get a 504 (gateway timeout) - the tiles are still being deleted, but it worked
-            if r.ok or r.status_code==504:
+            if r.ok or r.status_code == 504:
                 logging.info('[Cache tiles deleted] for {}: status code {}'.format(layer_id, r.status_code))
                 return r.status_code
             # if we don't get a 200 or 504:
             else:
                 # if we are not on our last try, wait 60 seconds and try to clear the cache again
-                if try_num < (tries-1):
+                if try_num < (tries - 1):
                     logging.info('Cache failed to flush: status code {}'.format(r.status_code))
                     time.sleep(60)
                     logging.info('Trying again.')
@@ -398,6 +418,74 @@ def processNewData(var, existing_dates):
                     state = status
                     logging.error(task.status()['error_message'])
                     logging.debug(task.status())
+
+            # upload NO2 data to Amazon S3 storage for GFW data API
+            if var == 'NO2':
+                # set up Google Cloud Storage project and bucket objects
+                gcsClient = storage.Client(os.environ.get("CLOUDSDK_CORE_PROJECT"))
+                gcsBucket = gcsClient.bucket(os.environ.get("GEE_STAGING_BUCKET"))
+                logging.info('Exporting ' + dates[i] + ' ' + var + ' data to Google Cloud Storage')
+                # export the averaged image to a Google Cloud Storage
+                task = ee.batch.Export.image.toCloudStorage(image = images[i],
+                                                            description = 'imageToCloudExample',
+                                                            bucket = os.environ.get("GEE_STAGING_BUCKET"),
+                                                            fileNamePrefix = 'tropomi_nitrogen_dioxide_latest_month',
+                                                            scale = scale,
+                                                            region = geometry,
+                                                            maxPixels = 1e13)
+                task.start()
+                # set the state to 'RUNNING' because we have started the task
+                state = 'RUNNING'
+                # set a start time to track the time it takes to upload the image
+                start = time.time()
+                # wait for task to complete, but quit if it takes more than 5000 seconds
+                while state == 'RUNNING' and (time.time() - start) < 5000:
+                    # wait for a minute before checking the state
+                    time.sleep(60)
+                    # check the status of the upload
+                    status = task.status()['state']
+                    logging.info('Current Status: ' + status +', run time (min): ' + str((time.time() - start)/60))
+                    # log if the task is completed and change the state
+                    if status == 'COMPLETED':
+                        state = status
+                        logging.info(status)
+                    # log an error if the task fails and change the state
+                    elif status == 'FAILED':
+                        state = status
+                        logging.error(task.status()['error_message'])
+                        logging.debug(task.status())
+
+                # download data from Google Cloud Storage to local
+                logging.info('Downloading ' + dates[i] + ' ' + var + ' data from Google Cloud Storage')
+                source_blob_name = 'tropomi_nitrogen_dioxide_latest_month.tif'
+                raw_data_dir = os.path.join(DATA_DIR, source_blob_name)
+                blob = gcsBucket.blob(source_blob_name)
+                blob.download_to_filename(raw_data_dir)
+                logging.info("Downloaded storage object {} from bucket {} to local file {}.".format(source_blob_name, os.environ.get("GEE_STAGING_BUCKET"), raw_data_dir))
+                # delete file on Google Cloud Storage
+                gcsBucket.delete_blob(source_blob_name)
+                logging.info("Deleted storage object {}.".format(source_blob_name))
+                # upload local data to Amazon S3 storage
+                logging.info('Uploading ' + dates[i] + ' ' + var + ' data to AWS Bucket')
+                # set up Amazon S3 storage and bucket object
+                aws_bucket = 'wri-public-data'
+                s3_prefix = 'resourcewatch/gfw_data_api_rw_datasets/tropomi_nitrogen_dioxide_latest_month/v{}/raw/'.format(datetime.datetime.strptime(dates[i], '%Y-%m-%d').date().strftime('%Y%m%d'))
+                s3 = boto3.client('s3', aws_access_key_id = os.getenv('aws_access_key_id'), aws_secret_access_key = os.getenv('aws_secret_access_key'))
+                # upload raw data file to Amazon S3 storage
+                s3.upload_file(raw_data_dir, aws_bucket, s3_prefix + os.path.basename(raw_data_dir))
+                # remove old files in the bucket
+                version_list = []
+                remove_list = []
+                for key in reversed(s3.list_objects(Bucket = aws_bucket, Prefix = 'resourcewatch/gfw_data_api_rw_datasets/tropomi_nitrogen_dioxide_latest_month')['Contents']):
+                    if len(version_list) < MAX_ASSETS:
+                        if key['Key'][77:86] not in version_list:
+                            version_list.append(key['Key'][77:86])
+                    else:
+                        if key['Key'][77:86] != '.DS_Store' and key['Key'][77:86] != 'v20211015':
+                            s3.delete_object(Bucket = aws_bucket, Key = key['Key'])
+                            if key['Key'][77:86] not in remove_list:
+                                remove_list.append(key['Key'][77:86])   
+                logging.info('Remove data version in AWS S3: {} '.format(remove_list))
     # if no new assets, return empty list
     else:
         assets = []
@@ -632,7 +720,7 @@ def main():
 
     # Process data, one variable at a time
     for var, ds_id in DATASET_IDS.items():
-        logging.info('STARTING {var}'.format(var=var))
+        logging.info('STARTING {var}'.format(var = var))
 
         # Check if collection exists, create it if it does not
         # If it exists return the list of assets currently in the collection
@@ -648,10 +736,13 @@ def main():
             len(existing_dates), len(new_dates), MAX_ASSETS))
 
         # Delete excess assets
-        deleteExcessAssets(var, existing_dates+new_dates, MAX_ASSETS)
-        logging.info('SUCCESS for {var}'.format(var=var))
+        deleteExcessAssets(var, existing_dates + new_dates, MAX_ASSETS)
+        logging.info('SUCCESS for {var}'.format(var = var))
 
         # Update Resource Watch
-        updateResourceWatch(new_dates, var, ds_id)
+        # updateResourceWatch(new_dates, var, ds_id)
+
+        # delete local files
+        delete_local()
 
     logging.info('SUCCESS')

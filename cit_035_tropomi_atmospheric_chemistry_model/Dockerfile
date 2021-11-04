@@ -10,6 +10,7 @@ RUN pip install -U pip
 RUN pip install oauth2client==4.1.3
 RUN pip install google-api-python-client==1.12.8
 RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
+RUN pip install boto3
 
 # set name
 ARG NAME=nrt-script
