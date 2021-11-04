@@ -470,7 +470,7 @@ def processNewData(var, existing_dates):
                 # set up Amazon S3 storage and bucket object
                 aws_bucket = 'wri-public-data'
                 s3_prefix = 'resourcewatch/gfw_data_api_rw_datasets/tropomi_nitrogen_dioxide_latest_month/v{}/raw/'.format(datetime.datetime.strptime(dates[i], '%Y-%m-%d').date().strftime('%Y%m%d'))
-                s3 = boto3.client('s3', aws_access_key_id = os.getenv('aws_access_key_id'), aws_secret_access_key = os.getenv('aws_secret_access_key'))
+                s3 = boto3.client('s3', aws_access_key_id = os.getenv('S3_ACCESS_KEY'), aws_secret_access_key = os.getenv('S3_SECRET_KEY'))
                 # upload raw data file to Amazon S3 storage
                 s3.upload_file(raw_data_dir, aws_bucket, s3_prefix + os.path.basename(raw_data_dir))
                 # remove old files in the bucket
