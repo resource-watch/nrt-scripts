@@ -740,7 +740,7 @@ def main():
         logging.info('SUCCESS for {var}'.format(var = var))
 
         # Update Resource Watch
-        # updateResourceWatch(new_dates, var, ds_id)
+        updateResourceWatch(new_dates, var, ds_id)
 
         # delete local files
         delete_local()
