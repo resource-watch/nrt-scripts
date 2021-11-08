@@ -296,7 +296,7 @@ def update_layer(collection_name, layer, new_date):
         old_date_text, new_date_text = get_date_hppt(cur_title, new_date)
     elif collection_name == 'MODIS/006/MCD64A1':
         old_date_text, new_date_text = get_date_burn(cur_title, new_date)
-    elif collection_name == 'vnp14imgtdl_nrt_global_7d':
+    elif collection_name == 'suomi_viirs_c2_global_7d':
         old_date_text, new_date_text = get_date_global_7d(cur_title, new_date)
 
     # replace date in layer's title with new date
@@ -465,7 +465,7 @@ def main():
     update last update dates on RW for datasets on RW-NRT Carto account
     '''
     # make dictionary associating Carto tables with RW dataset IDs
-    RWNRT_DATASETS = {'vnp14imgtdl_nrt_global_7d': '64c948a6-5e34-4ef2-bb69-6a6535967bd5'}
+    RWNRT_DATASETS = {'suomi_viirs_c2_global_7d': '64c948a6-5e34-4ef2-bb69-6a6535967bd5'}
 
     # pull the latest information about dataset syncs from RW-NRT Carto account
     url = "https://{account}.carto.com/api/v1/synchronizations/?api_key={API_key}".format(
