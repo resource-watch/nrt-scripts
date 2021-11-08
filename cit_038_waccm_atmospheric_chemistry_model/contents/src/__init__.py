@@ -11,7 +11,6 @@ import urllib.request
 import requests
 from bs4 import BeautifulSoup
 import copy
-import numpy as np
 import ee
 import time
 import json
