@@ -215,7 +215,7 @@ def flushTileCache(layer_id):
     while try_num<tries:
         try:
             # try to delete the cache
-            r = requests.delete(url = apiUrl, headers = headers, timeout=1000)
+            r = requests.delete(url = apiUrl, headers = headers, timeout = 1000)
             # if we get a 200, the cache has been deleted
             # if we get a 504 (gateway timeout) - the tiles are still being deleted, but it worked
             if r.ok or r.status_code==504:
@@ -507,7 +507,7 @@ def processNewData(files, var_num, last_date):
         for asset in assets:
             logging.info(os.path.split(asset)[1])
         # Upload new files (tifs) to GEE
-        eeUtil.uploadAssets(tifs, assets, GS_FOLDER, datestamps,timeout = 600)
+        eeUtil.uploadAssets(tifs, assets, GS_FOLDER, datestamps, timeout = 1000)
 
         # Delete local tif files
         logging.info('Cleaning local TIFF files')
@@ -803,3 +803,5 @@ def main():
     
     # Delete local netcdf files
     delete_local()
+
+    logging.info('SUCCESS')
