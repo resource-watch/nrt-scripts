@@ -447,7 +447,7 @@ def processNewData(existing_dates, existing_assets_by_var):
             # data still uploads correctly
             try:
                 # Upload new files (tifs) to GEE
-                eeUtil.uploadAssets(tifs, new_assets, GS_FOLDER, datestamps, timeout=600)
+                eeUtil.uploadAssets(tifs, new_assets, GS_FOLDER, datestamps, timeout = 1500)
             except:
                 pass
             # add uploaded assets to final list of assets uploaded
