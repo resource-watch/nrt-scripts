@@ -5,10 +5,11 @@ import csv
 from collections import OrderedDict
 import datetime
 import cartosql
-import pandas as pd
 import os
-import wget
+import shutil
 import json
+import pandas as pd
+import urllib
 
 '''
 ---------------------------------Important Note--------------------------------------------------
@@ -18,6 +19,8 @@ import json
 ---------------------------------Important Note--------------------------------------------------
 '''
 REGION_NAMES = ['Region', 'Region of Incident']
+
+DATA_DIR = 'data'
 
 # do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = False
@@ -35,19 +38,19 @@ CARTO_TABLE = 'soc_018_missing_migrants'
 CARTO_SCHEMA = OrderedDict([
     ('the_geom', 'geometry'),
     ('uid', 'text'),
-    ('Reported_Date', 'timestamp'),
+    ('Incident_Date', 'timestamp'),
     ('Region', 'text'),
     ('Number_Dead', 'numeric'),
     ('Minimum_Estimated_Number_of_Missing', 'numeric'),
-    ('Total_Dead_and_Missing', 'numeric'),
+    ('Total_Number_of_Dead_and_Missing', 'numeric'),
     ('Number_of_Survivors', 'numeric'),
     ('Number_of_Females', 'numeric'),
     ('Number_of_Males', 'numeric'),
     ('Number_of_Children', 'numeric'),
     ('Cause_of_Death', 'text'),
-    ('Location_Description', 'text'),
+    ('Location_of_death', 'text'),
     ('Information_Source', 'text'),
-    ('Migration_Route', 'text'),
+    ('Migrantion_route', 'text'),
     ('URL', 'text'),
     ('UNSD_Geographical_Grouping', 'text'),
     ('Source_Quality', 'text')
@@ -57,7 +60,7 @@ CARTO_SCHEMA = OrderedDict([
 UID_FIELD = 'uid'
 
 # column that stores datetime information
-TIME_FIELD = 'Reported_Date'
+TIME_FIELD = 'Incident_Date'
 
 # how many rows can be stored in the Carto table before the oldest ones are deleted?
 MAX_ROWS = 500000
@@ -67,10 +70,10 @@ MAX_YEARS = 6
 MAX_AGE = datetime.datetime.today() - datetime.timedelta(days=365*MAX_YEARS)
 
 # url for Missing Migrants data
-SOURCE_URL = "https://missingmigrants.iom.int/global-figures/{year}/csv"
+SOURCE_URL = "https://missingmigrants.iom.int/global-figures/{year}/xls"
 
 # format of dates in source csv file
-INPUT_DATE_FORMAT = '%B %d, %Y'
+INPUT_DATE_FORMAT = '%a, %m/%d/%Y - %H:%M'
 
 # format of dates in Carto table
 DATE_FORMAT = '%Y-%m-%d'
@@ -114,6 +117,22 @@ def lastUpdateDate(dataset, date):
     except Exception as e:
         logging.error('[lastUpdated]: '+str(e))
 
+def delete_local():
+    '''
+    Delete all files and folders in Docker container's data directory
+    '''
+    try:
+        # for each object in the data directory
+        for f in os.listdir(DATA_DIR):
+            # try to remove it as a file
+            try:
+                logging.info('Removing {}'.format(f))
+                os.remove(DATA_DIR+'/'+f)
+            # if it is not a file, remove it as a folder
+            except:
+                shutil.rmtree(DATA_DIR+'/'+f, ignore_errors=True)
+    except NameError:
+        logging.info('No local files to clean.')
 '''
 FUNCTIONS FOR CARTO DATASETS
 
@@ -179,97 +198,99 @@ def processData(src_url, existing_ids):
     # Retrieve and process new data; continue until the current year is 
     # older than the oldest year allowed in the table, set by the MAX_AGE variable
     while year > MAX_AGE.year:
-        logging.info("Fetching data for {} from {}".format(year, src_url.format(year=year)))
+        logging.info("Fetching data for {} from {}".format(year, src_url.format(year = year)))
         # generate the url and pull data for the selected year
-        res = requests.get(src_url.format(year=year))
-        # read the contents of the url as a csv file
-        # return a reader object which will iterate over lines in the given csvfile
-        csv_reader = csv.reader(res.iter_lines(decode_unicode=True))
-        # Get headers as {'key':column#, ...} replacing spaces with underscores
-        # get headers from the csv file
-        headers = next(csv_reader, None)
-        # create an empty dictionary to store column names and their column index in the csv
-        idx = {}
-        # loop through each column
-        for v, k in enumerate(headers):
-            # log the column names
-            logging.info('column:{}'.format(k))
+        urllib.request.urlretrieve(src_url.format(year = year), os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}.xlsx'))
+        # convert excel file to csv
+        read_file = pd.read_excel(os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}.xlsx'), sheet_name='Worksheet', engine = 'openpyxl')
+        read_file.to_csv(os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}.csv'), index = None, header=True)
+        with open(os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}.csv'), 'r') as file:
+            csv_reader = csv.reader(file)
+            # Get headers as {'key':column#, ...} replacing spaces with underscores
+            # get headers from the csv file
+            headers = next(csv_reader, None)
+            # create an empty dictionary to store column names and their column index in the csv
+            idx = {}
+            # loop through each column
+            for v, k in enumerate(headers):
+                # log the column names
+                logging.info('column:{}'.format(k))
 
-            # replace spaces in column names with underscores
-            # if the column is for the region name (for which the column name regularly alternates),
-            # add both possible names for the column, pointing to the same column index number
-            if k in REGION_NAMES:
-                for name in REGION_NAMES:
-                    idx[name.replace(' ', '_')] = v
-            else:
-                idx[k.replace(' ', '_')] = v
-                logging.info('updated column name:{}'.format(k.replace(' ', '_')))
-        # create an empty list to store each row of new data
-        new_rows = []
-        # iterate over each line in the reader object
-        for row in csv_reader:
-            # break if there is no data (0 rows)
-            if not len(row):
-                break
-            # break if there is no data for Location_Coordinates
-            if not len(row[idx['Location_Coordinates']]):
-                break
-            # generate unique id from the 'Web_ID' column
-            uid = row[idx['Web_ID']]
-            # if the id doesn't already exist in Carto table or 
-            # isn't added to the list for sending to Carto yet 
-            if uid not in existing_ids and uid not in new_ids:
-                # append the id to the list for sending to Carto 
-                new_ids.append(uid)
-                # create an empty list to store data from this row
-                new_row = []
-                # go through each column in the Carto table
-                for field in CARTO_SCHEMA:
-                    # if we are fetching data for unique id column
-                    if field == UID_FIELD:
-                        # add the unique id to the list of data from this row
-                        new_row.append(uid)
-                    # if we are fetching data for datetime column
-                    elif field == TIME_FIELD:
-                        # get time from the 'Reported_Date' column set by TIME_FIELD variable
-                        date = row[idx[TIME_FIELD]]
-                        # create a datetime object from the date string and then
-                        # convert the datetime to string in the format set by DATE_FORMAT variable
-                        date = datetime.datetime.strptime(date, INPUT_DATE_FORMAT).strftime(DATE_FORMAT)
-                        # add datetime information to the list of data from this row
-                        new_row.append(date)
-                    # if we are fetching data for geometry column
-                    elif field == 'the_geom':
-                        # get the value from the column 'Location_Coordinates'
-                        # coordinates are stored as 19.456996117519, 5.764623476008
-                        # remove the space between the values
-                        # split the values using comma to get longitude and latitude
-                        lon, lat = row[idx['Location_Coordinates']]\
-                            .replace(' ', '').split(',')
-                        # construct geojson geometry
-                        geometry = {
-                            'type': 'Point',
-                            'coordinates': [float(lon), float(lat)]
-                        }
-                        # add geojson geometry to the list of data from this row
-                        new_row.append(geometry)
-                    else:
-                        # for all other columns, we can fetch the data using our column name in Carto
-                        # if the column we are trying to retrieve doesn't exist in the source data, store None
-                        v = None if row[idx[field]] == '' else row[idx[field]]
-                        new_row.append(v)
-                # add the list of values from this row to the list of new data
-                new_rows.append(new_row)
-        # find the length (number of rows) of new_data 
-        num_new = len(new_rows)
-        # check if new data is available
-        if num_new:
-            logging.info("Inserting {} new rows".format(num_new))
-            # insert new data into the carto table
-            cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(),
-                                 new_rows, user=CARTO_USER, key=CARTO_KEY)
-        year -= 1
-    return new_ids
+                # replace spaces in column names with underscores
+                # if the column is for the region name (for which the column name regularly alternates),
+                # add both possible names for the column, pointing to the same column index number
+                if k in REGION_NAMES:
+                    for name in REGION_NAMES:
+                        idx[name.replace(' ', '_')] = v
+                else:
+                    idx[k.replace(' ', '_')] = v
+                    logging.info('updated column name:{}'.format(k.replace(' ', '_')))
+            # create an empty list to store each row of new data
+            new_rows = []
+            # iterate over each line in the reader object
+            for row in csv_reader:
+                # break if there is no data (0 rows)
+                if not len(row):
+                    break
+                # break if there is no data for Coordinates
+                if not len(row[idx['Coordinates']]):
+                    break
+                # generate unique id from the 'URL' column
+                uid = row[idx['URL']]
+                # if the id doesn't already exist in Carto table or 
+                # isn't added to the list for sending to Carto yet 
+                if uid not in existing_ids and uid not in new_ids:
+                    # append the id to the list for sending to Carto 
+                    new_ids.append(uid)
+                    # create an empty list to store data from this row
+                    new_row = []
+                    # go through each column in the Carto table
+                    for field in CARTO_SCHEMA:
+                        # if we are fetching data for unique id column
+                        if field == UID_FIELD:
+                            # add the unique id to the list of data from this row
+                            new_row.append(uid)
+                        # if we are fetching data for datetime column
+                        elif field == TIME_FIELD:
+                            # get time from the 'Reported_Date' column set by TIME_FIELD variable
+                            date = row[idx[TIME_FIELD]]
+                            # create a datetime object from the date string and then
+                            # convert the datetime to string in the format set by DATE_FORMAT variable
+                            date = datetime.datetime.strptime(date, INPUT_DATE_FORMAT).strftime(DATE_FORMAT)
+                            # add datetime information to the list of data from this row
+                            new_row.append(date)
+                        # if we are fetching data for geometry column
+                        elif field == 'the_geom':
+                            # get the value from the column 'Coordinates'
+                            # coordinates are stored as 19.456996117519, 5.764623476008
+                            # remove the space between the values
+                            # split the values using comma to get longitude and latitude
+                            lon, lat = row[idx['Coordinates']]\
+                                .replace(' ', '').split(',')
+                            # construct geojson geometry
+                            geometry = {
+                                'type': 'Point',
+                                'coordinates': [float(lon), float(lat)]
+                            }
+                            # add geojson geometry to the list of data from this row
+                            new_row.append(geometry)
+                        else:
+                            # for all other columns, we can fetch the data using our column name in Carto
+                            # if the column we are trying to retrieve doesn't exist in the source data, store None
+                            v = None if row[idx[field]] == '' else row[idx[field]]
+                            new_row.append(v)
+                    # add the list of values from this row to the list of new data
+                    new_rows.append(new_row)
+            # find the length (number of rows) of new_data 
+            num_new = len(new_rows)
+            # check if new data is available
+            if num_new:
+                logging.info("Inserting {} new rows".format(num_new))
+                # insert new data into the carto table
+                cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(),
+                                    new_rows, user=CARTO_USER, key=CARTO_KEY)
+            year -= 1
+        return new_ids
 
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
     ''' 
@@ -421,6 +442,10 @@ def main():
             # to disappear until we log into Carto and open the table again. If we simply delete all the rows, this
             # problem does not occur
 
+    # set data directory
+    if not os.path.exists(DATA_DIR):
+        os.makedirs(DATA_DIR)
+
     # Check if table exists, create it if it does not
     logging.info('Checking if table exists and getting existing IDs.')
     existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD, TIME_FIELD)
@@ -435,5 +460,8 @@ def main():
 
     # Update Resource Watch
     updateResourceWatch(num_new)
+
+    # Delete local files
+    delete_local()
 
     logging.info('SUCCESS')

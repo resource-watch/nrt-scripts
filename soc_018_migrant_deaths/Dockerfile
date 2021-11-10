@@ -1,5 +1,5 @@
 FROM python:3.6
-MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
+MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 #Note this script was originally developed by Nathan Suberi <nathan.suberi@wri.org>
 
 ARG NAME=soc_018
@@ -11,8 +11,8 @@ RUN apt-get update
 # install application libraries
 RUN pip install --upgrade pip && pip install requests==2.22.0
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
-RUN pip install pandas==0.25.3 \
-    wget==3.2 
+RUN pip install pandas==0.25.3
+RUN pip install openpyxl
 
 # Copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data

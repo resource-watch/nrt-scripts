@@ -31,4 +31,4 @@ After you have followed these steps, the dataset on Carto and Resource Watch wil
 
 This script is run weekly. The exact time that the script is run to update the dataset can be found in the the `time.cron` file. This time is in Coordinated Universal Time (UTC), expressed in cron format.
 
-###### Note: This dataset processing was done by [Weiqi Zhou](https://www.wri.org/profile/weiqi-zhou).
+###### Note: This dataset processing was done by [Weiqi Zhou](https://www.wri.org/profile/weiqi-zhou), and is currently maintained by [Weiqi Zhou](https://www.wri.org/profile/weiqi-zhou).
