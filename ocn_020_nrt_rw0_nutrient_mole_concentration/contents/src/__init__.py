@@ -456,7 +456,10 @@ def deleteExcessAssets(val, dates, max_assets):
         for date in dates[:-max_assets]:
             for i in range(len(val['sds'])):
                 name = getAssetName(i, val, date)
-                eeUtil.removeAsset(getAssetName(i, val, date))
+                try:
+                    eeUtil.removeAsset(getAssetName(i, val, date))
+                except:
+                    logging.info('Asset for {} does not exist'.format(getAssetName(i, val, date)))
 
 def get_most_recent_date(val):
     '''
