@@ -571,8 +571,8 @@ def pull_layers_from_API(dataset_id):
     INPUT   dataset_id: Resource Watch API dataset ID (string)
     RETURN  layer_dict: dictionary of layers (dictionary of strings)
     '''
-    n_tries = 3
-    for i in range(0, n_tries):
+    n_tries = 1
+    while n_tries <= 5:
         try:
             # generate url to access layer configs for this dataset in back office
             rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer?page[size]=100'.format(dataset_id)
@@ -580,12 +580,12 @@ def pull_layers_from_API(dataset_id):
             r = requests.get(rw_api_url)
             # convert response into json and make dictionary of layers
             layer_dict = json.loads(r.content.decode('utf-8'))['data']
+            break
         except Exception as e:
             fetch_exception = e
-            logging.info('Uh-oh. Attempt number {} to pull layers failed, trying again'.format(i))
+            logging.info('Uh-oh. Attempt number {} to pull layers failed, trying again'.format(n_tries))
             time.sleep(30)
-        else:
-            break
+            n_tries += 1
     else:
         logging.info('Failed to pull layers from RW API.')
         raise fetch_exception
