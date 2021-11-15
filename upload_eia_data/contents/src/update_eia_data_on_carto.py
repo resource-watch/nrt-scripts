@@ -247,24 +247,24 @@ def main():
         Upload original data and processed data to Amazon S3 storage
         '''
         logging.info('Uploading original data to S3.')
-        # Copy the raw data into a zipped file to upload to S3
+        # copy the raw data into a zipped file to upload to S3
         raw_data_dir = os.path.join(DATA_DIR, dataset_name + '.zip')
         with ZipFile(raw_data_dir, 'w') as zip:
             zip.write(raw_data_file, os.path.basename(raw_data_file), compress_type = zipfile.ZIP_DEFLATED)
 
-        # Upload raw data file to S3
+        # upload raw data file to S3
         upload_to_aws(raw_data_dir, 'wri-public-data', 'resourcewatch/' + os.path.basename(raw_data_dir))
 
         logging.info('Uploading processed data to S3.')
-        # Copy the processed data into a zipped file to upload to S3
+        # copy the processed data into a zipped file to upload to S3
         processed_data_dir = os.path.join(DATA_DIR, dataset_name + '_edit.zip')
         with ZipFile(processed_data_dir, 'w') as zip:
             zip.write(processed_data_file, os.path.basename(processed_data_file), compress_type = zipfile.ZIP_DEFLATED)
 
-        # Upload processed data file to S3
+        # upload processed data file to S3
         upload_to_aws(processed_data_dir, 'wri-public-data', 'resourcewatch/' + os.path.basename(processed_data_dir))
 
-    # Delete local files in Docker container
+    # delete local files in Docker container
     delete_local()
 
     logging.info('SUCCESS')
