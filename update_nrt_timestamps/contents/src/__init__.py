@@ -426,8 +426,7 @@ def main():
     update last update dates on RW for datasets on GFW Carto account (WRI-01)
     '''
     # make dictionary associating Carto tables with RW dataset IDs
-    GFW_DATASETS = {'gfw_oil_palm': '6e05a9e8-ba07-4e6f-8337-31c5362d07fe',
-                    'gfw_wood_fiber': '83de627f-524b-4162-a10c-384dc3e8107a',
+    GFW_DATASETS = {'gfw_wood_fiber': '83de627f-524b-4162-a10c-384dc3e8107a',
                     'forma_activity': 'e1b40fdd-04f9-43ab-b4f1-d3ceee39fea1',
                     'biodiversity_hotspots': '4458eb12-8572-45d1-bf07-d5a3ee097021'}
 
@@ -465,7 +464,8 @@ def main():
     update last update dates on RW for datasets on RW-NRT Carto account
     '''
     # make dictionary associating Carto tables with RW dataset IDs
-    RWNRT_DATASETS = {'suomi_viirs_c2_global_7d': '64c948a6-5e34-4ef2-bb69-6a6535967bd5'}
+    RWNRT_DATASETS = {'oil_palm_concessions': '6e05a9e8-ba07-4e6f-8337-31c5362d07fe',
+                      'suomi_viirs_c2_global_7d': '64c948a6-5e34-4ef2-bb69-6a6535967bd5'}
 
     # pull the latest information about dataset syncs from RW-NRT Carto account
     url = "https://{account}.carto.com/api/v1/synchronizations/?api_key={API_key}".format(
