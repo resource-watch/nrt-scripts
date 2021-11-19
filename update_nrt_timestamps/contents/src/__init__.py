@@ -496,10 +496,11 @@ def main():
         logging.info('Updating {}'.format(table_name))
         # pull dictionary of current layers from API
         layer_dict = pull_layers_from_API(id)
-        # go through each layer, pull the definition and update
-        for layer in layer_dict:
-            # replace layer title with new dates
-            update_layer(table_name, layer, last_update_time)
+        if table_name == 'suomi_viirs_c2_global_7d':
+            # go through each layer, pull the definition and update
+            for layer in layer_dict:
+                # replace layer title with new dates
+                update_layer(table_name, layer, last_update_time)
         # update the last update date on RW, if needed
         if current_date!=last_update_time:
             logging.info('Updating ' + table_name)
