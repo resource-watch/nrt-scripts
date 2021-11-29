@@ -8,6 +8,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 import datetime
 from bs4 import BeautifulSoup
+import pandas as pd
 
 # do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = False
@@ -179,7 +180,7 @@ def fetchDataFileName(url):
     # loop through each link to find the link for arctic sea ice minimum data
     for item in links:
         # if one of the links available to download is a text file & contains the word 'Arctic_data'
-        if item['href'].endswith(".csv") and '_extent' in item['href']:
+        if item['href'].endswith(".xlsx") and '_extent' in item['href']:
             if already_found:
                 logging.warning("There are multiple links which match criteria, passing most recent")
             # get the link   
@@ -213,10 +214,8 @@ def tryRetrieveData(resource_location, timeout=300, encoding='utf-8'):
         # measures the elapsed time since start
         elapsed = time.time() - start
         try:
-            with requests.get('https://climate.nasa.gov' + resource_location, stream=True) as f:
-                # split the lines at line boundaries and get the original string from the encoded string
-                res_rows = f.content.decode(encoding).splitlines()
-                return(res_rows)
+            res_rows = pd.read_excel('https://climate.nasa.gov' + resource_location, index_col = 0)
+            return(res_rows)
         except:
             logging.error("Unable to retrieve resource on this attempt.")
             # if the request fails, wait 5 seconds before moving on to the next attempt to fetch the data
@@ -264,31 +263,31 @@ def processData(url, existing_ids, date_format='%Y-%m-%d %H:%M:%S'):
     # create an empty dictionary to store new data (data that's not already in our Carto table)
     new_data = {}
     # go through each line of content retrieved from source
-    for row in res_rows:
+    for index, row in res_rows.iterrows():
         # get dates, extent, area by processing lines that come after the header (header line start with "year")
-        if not (row.startswith("year")):
-            # split line by space to get each columns as separate elements
-            row = row.split(',')
-            logging.debug("Processing row: {}".format(row))
-            # get area by accessing the last column 
-            # convert the unit from million sq-km to sq-km, round to 3 significant figure
-            area = round(float(row[-1])*1000000, 3)
-            # get extent by accessing the second last column
-            # convert the unit from million sq-km to sq-km, round to 3 significant figure
-            extent = round(float(row[-2])*1000000, 3)
-            # get year from first column
-            year = int(row[0])
-            # get month from second column
-            month = int(row[1])
-            # construct date using year, month and first day of the month as day
-            date = datetime.datetime(year, month, 1)
-            # convert datetime object to string formatted according to date_pattern
-            date = date.strftime(date_format)
-            # store all the variables into a list
-            values = [year, month, date, extent, area]
-            # For new date, check whether this is already in our table. 
-            # If not, add it to the queue for processing
-            new_data = insertIfNew(date, values, existing_ids, new_data)
+        # if not (row.startswith("year")):
+        #     # split line by space to get each columns as separate elements
+        #     row = row.split(',')
+        logging.debug("Processing row: {}".format(row))
+        # get area by accessing the last column 
+        # convert the unit from million sq-km to sq-km, round to 3 significant figure
+        area = round(float(row.area)*1000000, 3)
+        # get extent by accessing the second last column
+        # convert the unit from million sq-km to sq-km, round to 3 significant figure
+        extent = round(float(row.extent)*1000000, 3)
+        # get year from first column
+        year = int(row.year)
+        # get month from second column
+        month = int(row.month)
+        # construct date using year, month and first day of the month as day
+        date = datetime.datetime(year, month, 1)
+        # convert datetime object to string formatted according to date_pattern
+        date = date.strftime(date_format)
+        # store all the variables into a list
+        values = [year, month, date, extent, area]
+        # For new date, check whether this is already in our table. 
+        # If not, add it to the queue for processing
+        new_data = insertIfNew(date, values, existing_ids, new_data)
 
     # if we have found new dates to process
     if len(new_data):
