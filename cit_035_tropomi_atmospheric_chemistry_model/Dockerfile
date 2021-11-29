@@ -1,6 +1,6 @@
 FROM python:3.6
-MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
-#Note this script was originally developed by Amelia Snyder <amelia.snyder@wri.org>
+MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
+# Note this script was originally developed by Amelia Snyder <amelia.snyder@wri.org>
 
 # install core libraries
 RUN apt-get update
