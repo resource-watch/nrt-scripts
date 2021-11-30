@@ -1,6 +1,6 @@
 FROM python:3.6
 MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
-#Note this script was originally developed by Taufiq Rashid <taufiq.rashid@wri.org>
+# Note this script was originally developed by Taufiq Rashid <taufiq.rashid@wri.org>
 
 ARG NAME=cli_043_arctic_ice
 ENV NAME ${NAME}
