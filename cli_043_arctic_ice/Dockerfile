@@ -5,11 +5,11 @@ MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 ARG NAME=cli_043_arctic_ice
 ENV NAME ${NAME}
 
-# install core libraries
+# Install core libraries
 RUN apt-get update
 RUN apt-get install -y cron
 
-# install application libraries
+# Install application libraries
 RUN pip install --upgrade pip
 RUN pip install requests==2.22.0 \
     python-dateutil==2.6.1 \
