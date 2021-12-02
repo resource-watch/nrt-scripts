@@ -16,6 +16,7 @@ RUN pip install requests==2.22.0 \
     pytz==2017.3 \
     bs4==0.0.1
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
+RUN pip install pandas
 
 # Copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data
