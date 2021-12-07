@@ -363,30 +363,42 @@ def processData():
     # whether we have reached the last slice 
     last_slice = False
     # the index of the first row we want to import from the geodatabase
-    start = -100
+    start = -500
     # the number of rows we want to fetch and process each time 
-    step = 100
+    step = 500
     # the row after the last one we want to fetch and process
     end = None
     # create an empty list to store all the wdpa_pids 
     all_ids = []
 
-    gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(-75000, -74500))
     # deal with the large geometries first 
-    if '555643543' in gdf['WDPA_PID'].to_list():
-        # isolate the large polygon
-        gdf_large = gdf.loc[gdf['WDPA_PID'] =='555643543']
-        # get rid of the \r\n in the wdpa_pid column 
-        gdf_large['WDPA_PID'] = [x.split('\r\n')[0] for x in gdf_large['WDPA_PID']]
-        # create a new column to store the status_yr column as timestamps
-        gdf_large.insert(19, "legal_status_updated_at", [None if x == 0 else datetime.datetime(x, 1, 1) for x in gdf_large['STATUS_YR']])
-        gdf_large["legal_status_updated_at"] = gdf_large["legal_status_updated_at"].astype(object)
-    
-        # first upload the polygon to carto
-        upload_to_carto(gdf_large.iloc[0])
-        logging.info('Large geometry upload completed!')
-        all_ids.append('555643543')
+    for i in range(0, 100000000):
+        # import a slice of the geopandas dataframe 
+        gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(start, end))
+        if '555643543' in gdf['WDPA_PID'].to_list():
+            # isolate the large polygon
+            gdf_large = gdf.loc[gdf['WDPA_PID'] =='555643543']
+            # get rid of the \r\n in the wdpa_pid column 
+            gdf_large['WDPA_PID'] = [x.split('\r\n')[0] for x in gdf_large['WDPA_PID']]
+            # create a new column to store the status_yr column as timestamps
+            gdf_large.insert(19, "legal_status_updated_at", [None if x == 0 else datetime.datetime(x, 1, 1) for x in gdf_large['STATUS_YR']])
+            gdf_large["legal_status_updated_at"] = gdf_large["legal_status_updated_at"].astype(object)
         
+            # first upload the polygon to carto
+            upload_to_carto(gdf_large.iloc[0])
+            logging.info('Large geometry upload completed!')
+            all_ids.append('555643543')
+            break
+        else:
+            end = start 
+            start -= step
+
+    # the index of the first row we want to import from the geodatabase
+    start = -100
+    # the number of rows we want to fetch and process each time 
+    step = 100
+    # the row after the last one we want to fetch and process
+    end = None    
     for i in range(0, 100000000):
         # import a slice of the geopandas dataframe 
         gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(start, end))
