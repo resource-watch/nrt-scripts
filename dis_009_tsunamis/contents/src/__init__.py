@@ -1,13 +1,14 @@
 import logging
 import sys
 import os
-import requests as req
 import datetime
 import pandas as pd
 import cartoframes
 import requests
 import numpy as np
 import json
+from geopandas import GeoDataFrame, points_from_xy
+from cartoframes.auth import set_default_credentials
 
 # Carto username and API key for account where we will store the data
 CARTO_USER = os.getenv('CARTO_USER')
@@ -17,7 +18,7 @@ CARTO_KEY = os.getenv('CARTO_KEY')
 CARTO_TABLE = 'dis_009_tsunamis'
 
 # url for tsunami data
-SOURCE_URL = "https://ngdc.noaa.gov/nndc/struts/results?type_0=Exact&query_0=$ID&t=101650&s=69&d=59&dfn=tsevent.txt"
+SOURCE_URL = "https://www.ngdc.noaa.gov/hazel/hazard-service/api/v1/tsunamis/events"
 
 # Resource Watch dataset API ID
 # Important! Before testing this script:
@@ -31,7 +32,6 @@ FUNCTIONS FOR ALL DATASETS
 The functions below must go in every near real-time script.
 Their format should not need to be changed.
 '''
-
 def lastUpdateDate(dataset, date):
     '''
     Given a Resource Watch dataset's API ID and a datetime,
@@ -64,62 +64,31 @@ FUNCTIONS FOR THIS DATASET
 The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
-
-def create_geom(lat, lon):
-    ''' 
-    Create geometry using latitude and longitude information from source data
-    INPUT   lat: latitude of the tsunami event (string)
-            lon: longitude of the tsunami event (string)
-    RETURN  geom: geometry of the tsunami event (geojson)
-    ''' 
-    # check if there is input data for latitude
-    if lat:
-        # create geometry using latitude and longitude information
-        geom = {
-            "type": "Point",
-            "coordinates": [
-                lon,
-                lat
-            ]
-        }
-        return geom
-    else:
-        return None
-
 def processData():
     """
     Retrive data from source url, create a dataframe, and return the processed dataframe
     RETURN  df: dataframe with data (dataframe object)
     """
-
     # get data from source url through a request response JSON
-    data = req.get(SOURCE_URL).text
-    # split data based on new lines to get each rows as a separate value
-    data = data.split('\n')
-    # split each rows using tab character to separate out the columns
-    lines = [line.split('\t') for line in data]
-    # get header from first row
-    header = lines[0]
-    # get all rows of data (all rows that come after the header)
-    rows = lines[1:]
-    # create a pandas dataframe using the data
-    df = pd.DataFrame(rows)
-    # specify column names for the dataframe using header
-    df.columns = header
-    # create the geomtery for each data point using 'LATITUDE' and 'LONGITUDE' columns from source data
-    # add the geometry to a new column in pandas dataframe
-    df['the_geom'] = list(map(lambda coords: create_geom(*coords), zip(df['LATITUDE'],df['LONGITUDE'])))
+    data = requests.get(SOURCE_URL)
+    json_dict = json.loads(data.text)
+    # convert to a pandas datafrome
+    df = pd.DataFrame.from_dict(json_dict['items'])
     # specify column names for columns containing string data
-    text_cols = ['the_geom', 'COUNTRY', 'STATE', 'LOCATION_NAME']
+    text_cols = ['country', 'locationName', 'publish', 'area']
     # find numeric columns (all columns that are not in the text_cols list)
     number_cols = [x for x in df.columns if x not in text_cols]
     # check if there are any empty entries; replace them with NAN
-    df = df.replace(r'^\s*$', np.nan, regex=True)
+    df = df.replace(r'^\s*$', np.nan, regex = True)
     # loop through each numeric columns
     for col in number_cols:
         # convert those columns in dataframe to numeric type
-        # invalid parsing will be set as NaN
-        df[col] =  pd.to_numeric(df[col], errors='coerce')
+        df[col] =  df[col].astype(float)
+    # drop rows without latitude or longitude
+    df = df.loc[df['latitude'].notnull(),]
+    df = df.loc[df['longitude'].notnull(),]
+    # convert column names to lower case
+    df.columns = [x.lower() for x in df.columns]
 
     return(df)
 
@@ -128,19 +97,19 @@ def get_most_recent_date(table):
     Find the most recent date of data in the Carto table using the parsed dataframe
     INPUT   table: dataframe that was written to the Carto table (dataframe object)
     RETURN  most_recent_date: most recent date of data in the Carto table, 
-            found using the 'YEAR', 'MONTH' and 'DAY' column of the dataframe (datetime object)
+            found using the 'year', 'month' and 'day' column of the dataframe (datetime object)
     '''
     #convert columns associated with date values to numeric for sorting
-    table.YEAR = pd.to_numeric(table.YEAR, errors='coerce')
-    table.MONTH = pd.to_numeric(table.MONTH, errors='coerce')
-    table.DAY = pd.to_numeric(table.DAY, errors='coerce')
-    # sort the table by the 'YEAR', 'MONTH' and 'DAY' column
-    sorted_table = table.sort_values(by=['YEAR', 'MONTH', 'DAY'], ascending=False).reset_index()
-    # get the first value from 'YEAR', 'MONTH' and 'DAY' column
+    table.year = pd.to_numeric(table.year, errors = 'coerce')
+    table.month = pd.to_numeric(table.month, errors = 'coerce')
+    table.day = pd.to_numeric(table.day, errors = 'coerce')
+    # sort the table by the 'year', 'month' and 'day' column
+    sorted_table = table.sort_values(by = ['year', 'month', 'day'], ascending = False).reset_index()
+    # get the first value from 'year', 'month' and 'day' column
     # those will represent the most recent year, month, day
-    year = int(sorted_table['YEAR'][0])
-    month = int(sorted_table['MONTH'][0])
-    day = int(sorted_table['DAY'][0])
+    year = int(sorted_table['year'][0])
+    month = int(sorted_table['month'][0])
+    day = int(sorted_table['day'][0])
     # create a datetime object using the most recent year, month, day
     most_recent_date = datetime.date(year, month, day)
 
@@ -184,7 +153,7 @@ def update_layer(layer, title):
     # get text for new date end which will be the current date
     new_date_end = current_date.strftime("%B %d, %Y")
     # get most recent starting date, 365 days ago
-    new_date_start = (current_date - datetime.timedelta(days=365))
+    new_date_start = (current_date - datetime.timedelta(days = 365))
     new_date_start = datetime.datetime.strftime(new_date_start, "%B %d, %Y")
     # construct new date range by joining new start date and new end date
     new_date_text = new_date_start + ' - ' + new_date_end
@@ -237,18 +206,22 @@ def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
 
-    # create a CartoContext object that is authenticated against our CARTO account
+    # set Carto credentials
     # it will be used to write dataframe to Carto table
-    cc = cartoframes.CartoContext(base_url='https://{}.carto.com/'.format(CARTO_USER),
-                                  api_key=CARTO_KEY)
+    set_default_credentials(username = CARTO_USER, base_url = "https://{user}.carto.com/".format(user = CARTO_USER), api_key = CARTO_KEY)
 
     # fetch data from FTP, dedupe, process
     df = processData()
+    # convert dataframe to geodataframe and set geomtry attribute
+    gdf = GeoDataFrame(df, geometry = points_from_xy(df.longitude, df.latitude))
 
     # get the number of rows in the dataframe
     num_rows = df.shape[0]
+    
     # write the dataframe to the Carto table, overwriting existing data
-    cc.write(df, CARTO_TABLE, overwrite=True, privacy='public')
+    cartoframes.to_carto(df, CARTO_TABLE, if_exists = 'replace', geom_col = 'geomtry')
+    # update privacy settings
+    cartoframes.update_privacy_table(CARTO_TABLE, 'link')
 
     # Update Resource Watch
     updateResourceWatch(df)
