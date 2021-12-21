@@ -1,5 +1,5 @@
 FROM python:3.6
-MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
+MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 #Note this script was originally developed by Nathan Suberi <nathan.suberi@wri.org>
 
 ARG NAME=dis_003
@@ -12,8 +12,9 @@ RUN apt-get install -y cron
 # install application libraries
 RUN pip install --upgrade pip && pip install \
     requests==2.22.0
-RUN pip install cartoframes==0.9.2
+RUN pip install cartoframes
 RUN pip install numpy==1.18.1
+RUN pip install geopandas==0.9.0
 
 # Copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data
