@@ -321,7 +321,7 @@ def find_latest_date(val):
             ftp.cwd('/Core/GLOBAL_ANALYSIS_FORECAST_BIO_001_028/global-analysis-forecast-bio-001-028-{}/{}'.format(val['interval'], TODAY_YEAR))
         except:
             logging.info("No monthly data available for this year. Grabbing previous year")
-            ftp.cwd('/Core/GLOBAL_ANALYSIS_FORECAST_BIO_001_028/global-analysis-forecast-bio-001-028-{}/{}'.format(val['interval'], TODAY_YEAR-1))
+            ftp.cwd('/Core/GLOBAL_ANALYSIS_FORECAST_BIO_001_028/global-analysis-forecast-bio-001-028-{}/{}'.format(val['interval'], int(TODAY_YEAR)-1))
         # get list of the files within the folder
         list_files = list(ftp.nlst())
         # sort files and get the most recent
