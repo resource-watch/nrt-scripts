@@ -2,6 +2,8 @@ from __future__ import unicode_literals
 
 import os
 import sys
+print(sys.path)
+import sys
 import datetime
 import logging
 import subprocess
@@ -18,6 +20,8 @@ import ftplib
 from osgeo import gdal
 import shlex
 import re
+
+
 
 # Create an ordered data dictionary contianing sub dictionaries for each product: daily and monthly
     # sds: the subdatasets to be included in processed product (list)
@@ -313,7 +317,11 @@ def find_latest_date(val):
     
     # if the product is monthly, navigate to folder for the current year within the monthly folder
     if val['interval'] == 'monthly':
-        ftp.cwd('/Core/GLOBAL_ANALYSIS_FORECAST_BIO_001_028/global-analysis-forecast-bio-001-028-{}/{}'.format(val['interval'], TODAY_YEAR))
+        try: 
+            ftp.cwd('/Core/GLOBAL_ANALYSIS_FORECAST_BIO_001_028/global-analysis-forecast-bio-001-028-{}/{}'.format(val['interval'], TODAY_YEAR))
+        except:
+            logging.info("No monthly data available for this year. Grabbing previous year")
+            ftp.cwd('/Core/GLOBAL_ANALYSIS_FORECAST_BIO_001_028/global-analysis-forecast-bio-001-028-{}/{}'.format(val['interval'], int(TODAY_YEAR)-1))
         # get list of the files within the folder
         list_files = list(ftp.nlst())
         # sort files and get the most recent
