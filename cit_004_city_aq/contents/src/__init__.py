@@ -8,6 +8,7 @@ import requests
 import json
 import time
 import pandas as pd
+import numpy as np
 import cartoframes
 from shapely.geometry import mapping
 
