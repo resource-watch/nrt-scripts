@@ -377,7 +377,8 @@ def processNewData(src_url, existing_ids, existing_stations):
                 # if the forecast creation date of the current observation is older than 
                 # the oldest in the table, skip this observation
                 if datetime.datetime.strptime(created, DATETIME_FORMAT) < oldest_forecast_dt:
-                    continue
+                    logging.info('Observation older than oldest record in table, moving to next batch.')
+                    break
             # get the date from date feature 
             dt = obs['date']
             # get the station number from 'station' feature
@@ -678,12 +679,13 @@ def processMetrics(new_ids):
             # convert geometry column from string to json
             # replace nan with none
             if len(df)>0:
-                            df['uid'] = df.apply(lambda row: genUID(row['created'], row['date'], row['name']), axis=1)
-                            df['the_geom'] = df.apply(lambda row: json.loads(row['the_geom']), axis=1)
-                            df = df.where(pd.notnull(df), None)
-                            # upload data to carto
-                            cartosql.insertRows(METRICS_CARTO_TABLE, METRICS_CARTO_SCHEMA.keys(), METRICS_CARTO_SCHEMA.values(), df.values.tolist(), user=CARTO_USER, key=CARTO_KEY)
-            else: continue
+                df['uid'] = df.apply(lambda row: genUID(row['created'], row['date'], row['name']), axis=1)
+                df['the_geom'] = df.apply(lambda row: json.loads(row['the_geom']), axis=1)
+                df = df.where(pd.notnull(df), None)
+                # upload data to carto
+                cartosql.insertRows(METRICS_CARTO_TABLE, METRICS_CARTO_SCHEMA.keys(), METRICS_CARTO_SCHEMA.values(), df.values.tolist(), user=CARTO_USER, key=CARTO_KEY)
+            else:
+                continue
 
 
 
