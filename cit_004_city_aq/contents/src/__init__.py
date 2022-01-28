@@ -477,7 +477,7 @@ def processNewData(src_url, existing_ids, existing_stations):
             # once we reach an observation we have already uploaded to Carto
             # stop processing the old data
             else:
-                logging.info('Batch of data processed, moving to next batch.')
+                logging.info('Observation exists in table, moving to next batch.')
                 break
     # find the length (number of rows) of new_data 
     new_count = len(new_rows)
