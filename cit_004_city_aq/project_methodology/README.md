@@ -1,4 +1,4 @@
-## GMAO AQ Forecast Dataset Methodology
+## GMAO AQ Forecast Methodology
 Validated or raw station level measurement data is collected from either government sites or [OpenAQ](https://openaq.org/#/).
 Validated air quality observations of government sites were obtained from the air quality data portals of [Bogotá](http://rmcab.ambientebogota.gov.co/home/map) and [Sao Paulo](https://servicos.cetesb.sp.gov.br/qa/), or in the case of the Mexican cities of Monterrey, Guadalajara, Salamanca and León were shared directly by state governments. Near-real time, raw observations for the cities of Addis, Jakarta, as well as the following cities in the mexican state of Guanajuato: Guanajuato city, Irapuato, San Miguel de Allende, Silao, Celaya, San Luis de la Paz and Abasolo were retrieved from OpenAQ. For station-level data to be included in OpenAQ’s catalogue, it must meet the minimum data requirements as described by [OpenAQ](https://github.com/openaq/openaq-fetch/blob/master/README.md).  
  
