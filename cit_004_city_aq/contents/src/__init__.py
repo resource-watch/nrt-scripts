@@ -563,11 +563,11 @@ def update_layer(layer, new_creation_date, new_date):
             new_date: date of forecast to be shown in this layer (datetime)
     '''
     # get SQL from layer
-    sql = layer['attributes']['layerConfig']['body']['layers'][0]['options']['sql']
+    sql = layer['attributes']['layerConfig']['source']['provider']['layers'][0]['options']['sql']
     # get previous creation date being used from sql
     old_creation_date = sql.split('created')[1].split()[1][1:-1]
     # get previous date being used from sql
-    old_date = sql.split('date')[2].split()[0][1:-1]
+    old_date = sql.split('date')[1].split()[1][1:-1]
 
     #update sql with new dates
     sql = sql.replace(old_date, datetime.datetime.strftime(new_date, DATETIME_FORMAT))
@@ -584,7 +584,7 @@ def update_layer(layer, new_creation_date, new_date):
     layer['attributes']['name'] = layer['attributes']['name'].replace(old_date_text, new_date_text)
 
     # replace the sql in the layer def with new sql
-    layer['attributes']['layerConfig']['body']['layers'][0]['options']['sql'] = sql
+    layer['attributes']['layerConfig']['source']['provider']['layers'][0]['options']['sql'] = sql
 
     # send patch to API to replace layers
     # generate url to patch layer
