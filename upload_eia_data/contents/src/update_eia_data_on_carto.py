@@ -81,7 +81,7 @@ def fetch_eia_data(table_name):
     eia_unit = eia_rw_table.loc[table_name, 'eia_unit']
 
     # insert the url used to find the series ids of the data 
-    url = 'http://api.eia.gov/category/?api_key={}&category_id={}'.format(EIA_KEY, category_id)
+    url = 'https://api.eia.gov/category/?api_key={}&category_id={}'.format(EIA_KEY, category_id)
 
     # fetch the information of all series of data in this category from the API 
     r = requests.get(url)
@@ -97,7 +97,7 @@ def fetch_eia_data(table_name):
     # loop through each series id
     for id in ids:
         # construct the API call to fetch data from the series
-        data_url = 'http://api.eia.gov/series/?api_key={}&series_id={}'.format(EIA_KEY, id['series_id'])
+        data_url = 'https://api.eia.gov/series/?api_key={}&series_id={}'.format(EIA_KEY, id['series_id'])
         logging.info('Fetching data for {}'.format(id['country']))
         # extract the data from the response 
         data = requests.get(data_url).json()['series'][0]
