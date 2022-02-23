@@ -200,6 +200,12 @@ def updateResourceWatch(df):
         if cur_title.endswith('Tsunami Events (Past Year)'):
             # replace layer title with new dates
             update_layer(layer, cur_title)
+
+    # get current date
+    current_date = datetime.datetime.now().date()
+    # use script running date as last update date
+    if most_recent_date < current_date:
+        most_recent_date = current_date
     lastUpdateDate(DATASET_ID, most_recent_date)
 
 def main():
