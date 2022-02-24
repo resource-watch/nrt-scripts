@@ -4,6 +4,7 @@ import pandas as pd
 import datetime
 import logging
 import sys
+from io import StringIO
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
@@ -11,8 +12,7 @@ def main():
     # Get ‘Frequency of Updates’ column to determine how frequently we expect each dataset to update
     # get 'Update Strategy' column to determine which datasets are NRT
     sheet = requests.get(os.getenv('METADATA_SHEET'))
-    df = pd.read_csv(pd.compat.StringIO(sheet.text), header=0,
-                              usecols=['New WRI_ID', 'API_ID', 'Public Title', 'Frequency of Updates', 'Update strategy']).dropna()
+    df = pd.read_csv(StringIO(sheet.text), header=0, usecols=['New WRI_ID', 'API_ID', 'Public Title', 'Frequency of Updates', 'Update strategy']).dropna()
     # get data sets marked as RT
     full_nrt_df = df[df['Update strategy'].str.startswith('RT')]
     # get rid of Archived data sets
@@ -23,7 +23,7 @@ def main():
     # pull in sheet with out-of-date datasets that have been investigated
     known_errors_csv = 'https://raw.githubusercontent.com/resource-watch/nrt-scripts/master/check_if_nrt_datasets_current/outdated_nrt_scripts.csv'
     sheet = requests.get(known_errors_csv)
-    error_tracking_df = pd.read_csv(pd.compat.StringIO(sheet.text), header=0)
+    error_tracking_df = pd.read_csv(StringIO(sheet.text), header=0)
 
     # go through each NRT dataset and check if it is up-to-date
     for idx, dataset in nrt_df.iterrows():
