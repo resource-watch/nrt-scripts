@@ -17,6 +17,7 @@ import time
 from string import ascii_uppercase
 import json
 
+
 # url for historical air quality data
 SOURCE_URL_HISTORICAL = 'https://portal.nccs.nasa.gov/datashare/gmao/geos-cf/v1/das/Y{year}/M{month}/D{day}/GEOS-CF.v01.rpl.chm_tavg_1hr_g1440x721_v1.{year}{month}{day}_{time}z.nc4'
 
@@ -187,7 +188,7 @@ def flushTileCache(layer_id):
     # sometimetimes this fails, so we will try multiple times, if it does
 
     # specify that we are on the first try
-    try_num=1
+    try_num = 1
     tries = 4
     while try_num<tries:
         try:
@@ -395,7 +396,7 @@ def convert(files, var, period):
 
     return tifs
 
-def fetch(new_dates, unformatted_source_url, period):
+def fetch(date, first_date, unformatted_source_url, period):
     '''
     Fetch files by datestamp
     INPUT   new_dates: list of dates we want to try to fetch, in the format YYYY-MM-DD (list of strings)
@@ -413,56 +414,51 @@ def fetch(new_dates, unformatted_source_url, period):
     # create an empty dictionary to store downloaded file names as value and corresponding dates as key
     files_by_date = {}
     # Loop over all hours of the new dates, check if there is data available, and download netcdfs
-    for date in new_dates:
-        # make an empty list to store names of the files we downloaded
-        # this list will be used to insert values to the "files_by_date" dictionary
-        files_for_current_date = []
-        # convert date string to datetime object and go back one day
-        first_date = datetime.datetime.strptime(new_dates[0], DATE_FORMAT) - datetime.timedelta(days=1)
-        # generate a string from the datetime object
-        first_date = datetime.datetime.strftime(first_date, DATE_FORMAT)
-        # loop through each hours we want to pull data for
-        for hour in hours:
-            # for the first half of the hours, get data from previous day
-            if hours.index(hour) < 12:
-                # convert date string to datetime object and go back one day
-                prev_date = datetime.datetime.strptime(date, DATE_FORMAT) - datetime.timedelta(days=1)
-                # generate a string from the datetime object
-                fetching_date = datetime.datetime.strftime(prev_date, DATE_FORMAT)
-            # for the second half, use the current day
-            else:
-                fetching_date = date
-            # Set up the url of the filename to download historical data
-            if period=='historical':
-                url = unformatted_source_url.format(year=int(fetching_date[:4]), month='{:02d}'.format(int(fetching_date[5:7])), day='{:02d}'.format(int(fetching_date[8:])), time=hour)
-            # Set up the url of the filename to download forecast data
-            elif period=='forecast':
-                url = unformatted_source_url.format(start_year=int(first_date[:4]), start_month='{:02d}'.format(int(first_date[5:7])), start_day='{:02d}'.format(int(first_date[8:])),year=int(fetching_date[:4]), month='{:02d}'.format(int(fetching_date[5:7])), day='{:02d}'.format(int(fetching_date[8:])), time=hour)
-            # Create a file name to store the netcdf in after download
-            f = DATA_DIR+'/'+url.split('/')[-1]
-            # try to download the data
-            tries = 1
-            while tries <= 5:
-                try:
-                    logging.info('Retrieving {}'.format(f))
-                    # download files from url and put in specified file location (f)
-                    urllib.request.urlretrieve(url, f)
-                    # if successful, add the file to the list of files we have downloaded
-                    files.append(f)
-                    files_for_current_date.append(f)
-                    break
-                # if unsuccessful, log that the file was not downloaded
-                except Exception as e:
-                    logging.info('Unable to retrieve data from {}, trying again'.format(url))
-                    tries += 1
-                    time.sleep(30)
-                    logging.info('try {}'.format(tries))
-            if tries == 6:
-                logging.error('Unable to retrieve data from {}'.format(url))
-                exit()
+    # make an empty list to store names of the files we downloaded
+    # this list will be used to insert values to the "files_by_date" dictionary
+    files_for_current_date = []
+    # loop through each hours we want to pull data for
+    for hour in hours:
+        # for the first half of the hours, get data from previous day
+        if hours.index(hour) < 12:
+            # convert date string to datetime object and go back one day
+            prev_date = datetime.datetime.strptime(date, DATE_FORMAT) - datetime.timedelta(days=1)
+            # generate a string from the datetime object
+            fetching_date = datetime.datetime.strftime(prev_date, DATE_FORMAT)
+        # for the second half, use the current day
+        else:
+            fetching_date = date
+        # Set up the url of the filename to download historical data
+        if period=='historical':
+            url = unformatted_source_url.format(year=int(fetching_date[:4]), month='{:02d}'.format(int(fetching_date[5:7])), day='{:02d}'.format(int(fetching_date[8:])), time=hour)
+        # Set up the url of the filename to download forecast data
+        elif period=='forecast':
+            url = unformatted_source_url.format(start_year=int(first_date[:4]), start_month='{:02d}'.format(int(first_date[5:7])), start_day='{:02d}'.format(int(first_date[8:])),year=int(fetching_date[:4]), month='{:02d}'.format(int(fetching_date[5:7])), day='{:02d}'.format(int(fetching_date[8:])), time=hour)
+        # Create a file name to store the netcdf in after download
+        f = DATA_DIR+'/'+url.split('/')[-1]
+        # try to download the data
+        tries = 1
+        while tries <= 5:
+            try:
+                logging.info('Retrieving {}'.format(f))
+                # download files from url and put in specified file location (f)
+                urllib.request.urlretrieve(url, f)
+                # if successful, add the file to the list of files we have downloaded
+                files.append(f)
+                files_for_current_date.append(f)
+                break
+            # if unsuccessful, log that the file was not downloaded
+            except Exception as e:
+                logging.info('Unable to retrieve data from {}, trying again'.format(url))
+                tries += 1
+                time.sleep(30)
+                logging.info('try {}'.format(tries))
+        if tries == 6:
+            logging.error('Unable to retrieve data from {}'.format(url))
+            exit()
 
-        # populate dictionary of file names along with the date for which they were downloaded
-        files_by_date[date]=files_for_current_date
+    # populate dictionary of file names along with the date for which they were downloaded
+    files_by_date[date] = files_for_current_date
 
     return files, files_by_date
 
@@ -532,13 +528,13 @@ def daily_max(date, var, period, tifs_for_date):
         # add each tif name to the list to be used in gdal_calc
         gdal_tif_list.append('"'+tif+'"')
         #add the variable to the calc input for gdal_calc
-        if i==0:
-            calc= letter
+        if i == 0:
+            calc = letter
         else:
             # set up calc input for gdal_calc to find the maximum from all tifs
             calc = 'maximum('+calc+','+letter+')'
     # finish creating calc input
-    calc= '--calc="'+calc + '*{}"'.format(CONVERSION_FACTORS[var])
+    calc = '--calc="'+calc + '*{}"'.format(CONVERSION_FACTORS[var])
     #generate a file name for the daily maximum tif
     result_tif = DATA_DIR+'/'+FILENAME.format(period=period, metric=METRIC_BY_COMPOUND[var], var=var, date=date)+'.tif'
     # create the gdal command to calculate the maximum by putting it all together
@@ -835,9 +831,8 @@ def updateResourceWatch(new_dates_historical, new_dates_forecast):
     INPUT   new_dates_historical: list of dates for historical assets added to GEE, in the format of the DATE_FORMAT variable (list of strings)
             new_dates_forecast: list of dates for forecast assets added to GEE, in the format of the DATE_FORMAT variable (list of strings)
     '''
-
     # Update the dates on layer legends
-    if new_dates_historical and new_dates_forecast:
+    if new_dates_historical or new_dates_forecast:
         logging.info('Updating Resource Watch Layers')
         for var, ds_id in DATASET_IDS.items():
             logging.info('Updating {}'.format(var))
@@ -849,7 +844,7 @@ def updateResourceWatch(new_dates_historical, new_dates_forecast):
                 order = layer['attributes']['layerConfig']['order']
 
                 # if this is the first point on the timeline, we want to replace it the most recent historical data
-                if order==0:
+                if order == 0 and new_dates_historical:
                     # get date of most recent asset added
                     date = new_dates_historical[-1]
 
@@ -857,7 +852,7 @@ def updateResourceWatch(new_dates_historical, new_dates_forecast):
                     update_layer(var, 'historical', layer, date)
 
                 # otherwise, we want to replace it with the appropriate forecast data
-                else:
+                if order != 0 and new_dates_forecast:
                     # forecast layers start at order 1, and we will want this point on the timeline to be the first forecast asset
                     # order 4 will be the second asset, and so on
                     # get date of appropriate asset
@@ -865,13 +860,12 @@ def updateResourceWatch(new_dates_historical, new_dates_forecast):
 
                     # replace layer asset and title date with new
                     update_layer(var, 'forecast', layer, date)
-    elif not new_dates_historical and not new_dates_forecast:
-        logging.info('Layers do not need to be updated.')
-    else:
         if not new_dates_historical:
             logging.error('Historical data was not updated, but forecast was.')
-        if not new_dates_forecast:
-            logging.error('Forecast data was not updated, but historical was.')
+        elif not new_dates_forecast:
+            logging.error('Forecast data was not updated, but historical was.')    
+    else:
+        logging.info('Layers do not need to be updated.')
 
     # Update Last Update Date and flush tile cache on RW
     for var_num in range(len(VARS)):
@@ -897,7 +891,7 @@ def updateResourceWatch(new_dates_historical, new_dates_forecast):
         except KeyError:
             continue
 
-def delete_local(ext=None):
+def delete_local(ext = None):
     '''
     This function will delete local files in the Docker container with a specific extension, if specified.
     If no extension is specified, all local files will be deleted.
@@ -905,7 +899,7 @@ def delete_local(ext=None):
     '''
     try:
         if ext:
-            [file for file in os.listdir(DATA_DIR) if file.endswith(ext)]
+            files = [file for file in os.listdir(DATA_DIR) if file.endswith(ext)]
         else:
             files = os.listdir(DATA_DIR)
         for f in files:
@@ -942,36 +936,42 @@ def main():
     # Get a list of the dates that are available, minus the ones we have already uploaded correctly for all variables.
     logging.info('Getting new dates to pull.')
     new_dates_historical = getNewDatesHistorical(existing_dates)
-
+    
+    if new_dates_historical:
+        # convert date string to datetime object and go back one day 
+        first_date = datetime.datetime.strptime(new_dates_historical[0], DATE_FORMAT) - datetime.timedelta(days=1)
+        # generate a string from the datetime object
+        first_date = datetime.datetime.strftime(first_date, DATE_FORMAT)
     # Fetch new files
     logging.info('Fetching files for {}'.format(new_dates_historical))
-    files, files_by_date = fetch(new_dates_historical, SOURCE_URL_HISTORICAL, period='historical')
+    for new_date_historical in new_dates_historical:
+        files, files_by_date = fetch(new_date_historical, first_date, SOURCE_URL_HISTORICAL, period='historical')
 
-    # Process historical data, one variable at a time
-    for var_num in range(len(VARS)):
-        logging.info('Processing {}'.format(VARS[var_num]))
-        # get variable name
-        var = VARS[var_num]
+        # Process historical data, one variable at a time
+        for var_num in range(len(VARS)):
+            logging.info('Processing {}'.format(VARS[var_num]))
+            # get variable name
+            var = VARS[var_num]
 
-        # Process new data files, don't delete any historical assets
-        new_assets_historical = processNewData(var, files, files_by_date, period='historical', assets_to_delete=[])
+            # Process new data files, don't delete any historical assets
+            new_assets_historical = processNewData(var, files, files_by_date, period='historical', assets_to_delete=[])
 
-        logging.info('Previous assets for {}: {}, new: {}, max: {}'.format(var, len(existing_dates_by_var[var_num]), len(new_dates_historical), MAX_ASSETS))
+            logging.info('Previous assets for {}: {}, new: {}, max: {}'.format(var, len(existing_dates_by_var[var_num]), len(new_dates_historical), MAX_ASSETS))
 
-        # Delete extra assets, past our maximum number allowed that we have set
-        # get list of existing assets in current variable's GEE collection
-        existing_assets = eeUtil.ls(getCollectionName(period, var))
-        # make list of all assets by combining existing assets with new assets
-        all_assets_historical = np.sort(np.unique(existing_assets + [os.path.split(asset)[1] for asset in new_assets_historical]))
-        # delete the excess assets
-        deleteExcessAssets(getCollectionName(period, var), all_assets_historical, MAX_ASSETS)
-        logging.info('SUCCESS for {}'.format(var))
+            # Delete extra assets, past our maximum number allowed that we have set
+            # get list of existing assets in current variable's GEE collection
+            existing_assets = eeUtil.ls(getCollectionName(period, var))
+            # make list of all assets by combining existing assets with new assets
+            all_assets_historical = np.sort(np.unique(existing_assets + [os.path.split(asset)[1] for asset in new_assets_historical]))
+            # delete the excess assets
+            deleteExcessAssets(getCollectionName(period, var), all_assets_historical, MAX_ASSETS)
+            logging.info('SUCCESS for {}'.format(var))
 
-        # Delete local tif files because we will run out of space
-        delete_local(ext='.tif')
+            # Delete local tif files because we will run out of space
+            delete_local(ext = '.tif')
 
-    # Delete local netcdf files
-    delete_local()
+        # Delete local netcdf files
+        delete_local()
 
     '''
     Process Forecast Data
@@ -994,27 +994,38 @@ def main():
     logging.info('Getting new dates to pull.')
     new_dates_forecast = getNewDatesForecast(existing_dates)
 
+    if new_dates_forecast:
+        # convert date string to datetime object and go back one day
+        first_date = datetime.datetime.strptime(new_dates_forecast[0], DATE_FORMAT) - datetime.timedelta(days=1)
+        # generate a string from the datetime object
+        first_date = datetime.datetime.strftime(first_date, DATE_FORMAT)
     # Fetch new files
     logging.info('Fetching files for {}'.format(new_dates_forecast))
-    files, files_by_date = fetch(new_dates_forecast, SOURCE_URL_FORECAST, period='forecast')
+    new_layers = 0
+    for new_date_forecast in new_dates_forecast:
+        files, files_by_date = fetch(new_date_forecast, first_date, SOURCE_URL_FORECAST, period='forecast')
 
-    # Process forecast data, one variable at a time
-    for var_num in range(len(VARS)):
-        logging.info('Processing {}'.format(VARS[var_num]))
-        # get variable name
-        var = VARS[var_num]
+        # Process forecast data, one variable at a time
+        for var_num in range(len(VARS)):
+            logging.info('Processing {}'.format(VARS[var_num]))
+            # get variable name
+            var = VARS[var_num]
 
-        # Process new data files, delete all forecast assets currently in collection
-        new_assets_forecast = processNewData(var, files, files_by_date, period='forecast', assets_to_delete=listAllCollections(var, period))
+            # Process new data files, delete all forecast assets currently in collection
+            if new_date_forecast == new_dates_forecast[0]:
+                new_assets_forecast = processNewData(var, files, files_by_date, period='forecast', assets_to_delete=listAllCollections(var, period))
+            else:
+                new_assets_forecast = processNewData(var, files, files_by_date, period='forecast', assets_to_delete=[])
 
-        logging.info('New assets for {}: {}, max: {}'.format(var, len(new_dates_forecast), MAX_ASSETS))
-        logging.info('SUCCESS for {}'.format(var))
+            new_layers += 1
+            logging.info('New assets for {}: {}, max: {}'.format(var, new_layers, MAX_ASSETS))
+            logging.info('SUCCESS for {}'.format(var))
 
-        # Delete local tif files because we will run out of space
-        delete_local(ext='.tif')
+            # Delete local tif files because we will run out of space
+            delete_local(ext = '.tif')
 
-    # Delete local netcdf files
-    delete_local()
+        # Delete local netcdf files
+        delete_local()
 
     # Update Resource Watch
     updateResourceWatch(new_dates_historical, new_dates_forecast)
