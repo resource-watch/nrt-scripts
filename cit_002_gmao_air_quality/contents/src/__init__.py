@@ -955,7 +955,6 @@ def main():
 
             # Process new data files, don't delete any historical assets
             new_assets_historical = processNewData(var, files, files_by_date, period='historical', assets_to_delete=[])
-
             logging.info('Previous assets for {}: {}, new: {}, max: {}'.format(var, len(existing_dates_by_var[var_num]), len(new_dates_historical), MAX_ASSETS))
 
             # Delete extra assets, past our maximum number allowed that we have set
@@ -1001,10 +1000,11 @@ def main():
         first_date = datetime.datetime.strftime(first_date, DATE_FORMAT)
     # Fetch new files
     logging.info('Fetching files for {}'.format(new_dates_forecast))
+    
     new_layers = 0
     for new_date_forecast in new_dates_forecast:
         files, files_by_date = fetch(new_date_forecast, first_date, SOURCE_URL_FORECAST, period='forecast')
-
+        new_layers += 1
         # Process forecast data, one variable at a time
         for var_num in range(len(VARS)):
             logging.info('Processing {}'.format(VARS[var_num]))
@@ -1016,8 +1016,6 @@ def main():
                 new_assets_forecast = processNewData(var, files, files_by_date, period='forecast', assets_to_delete=listAllCollections(var, period))
             else:
                 new_assets_forecast = processNewData(var, files, files_by_date, period='forecast', assets_to_delete=[])
-
-            new_layers += 1
             logging.info('New assets for {}: {}, max: {}'.format(var, new_layers, MAX_ASSETS))
             logging.info('SUCCESS for {}'.format(var))
 
