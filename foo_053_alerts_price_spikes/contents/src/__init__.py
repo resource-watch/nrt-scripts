@@ -12,10 +12,9 @@ import numpy as np
 import json
 import hashlib
 from . import SamplePythonDataBridgesCall as wfpsample
-# import datedelta
 # import dotenv 
 import pandas as pd
-import time
+
 
 
 # do you want to delete everything currently in the Carto table when you run this script?
@@ -478,7 +477,7 @@ def processNewData(existing_markets, existing_alps):
     country_codes = []
     for regions in requests.get("https://api.vam.wfp.org/geodata/CountriesInRegion").json():
         country_codes = country_codes + [country['iso3Alpha3'] for country in regions['countryOffices']]
-    country_code = 'AFG'
+
     # get and parse each data for each country
     for country_code in country_codes:
         # Fetch new data
