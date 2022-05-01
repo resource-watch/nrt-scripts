@@ -353,13 +353,12 @@ def upload_to_carto(row):
         logging.error(insert_exception)
         raise insert_exception
 
-def processData():
+def processData(gdb):
     '''
-    Fetch, process, upload, and clean new data
+    Process, upload, and clean new data
+    INPUT gdb: fetched geodatabase with new data (geodatabase)
     RETURN  all_ids: a list storing all the wdpa_pids in the current dataframe (list of strings)
     '''
-    # fetch the path to the unzipped geodatabase folder
-    gdb = fetch_data()
     # whether we have reached the last slice 
     last_slice = False
     # the index of the first row we want to import from the geodatabase
@@ -470,7 +469,10 @@ def main():
     logging.info('Checking if table exists and getting existing IDs.')
     # fetch the existing ids in the carto table 
     existing_ids = checkCreateTable(CARTO_TABLE, CARTO_SCHEMA, UID_FIELD)
-
+    
+    # Fetch the path to the unzipped geodatabase folder
+    gdb = fetch_data()
+    
     # number of rows deleted
     deleted_ids = 0
     # clear the table before starting, if specified
@@ -494,10 +496,10 @@ def main():
             # to disappear until we log into Carto and open the table again. If we simply delete all the rows, this
             # problem does not occur
 
-    # Fetch, process, and upload the new data
+    # Process, and upload the new data
     logging.info('Fetching and processing new data')
     # The total number of rows in the Carto table
-    num_new = len(processData())
+    num_new = len(processData(gdb))
     logging.info('Previous rows: {},  Current rows: {}'.format(len(existing_ids), num_new))
 
     # Update Resource Watch
