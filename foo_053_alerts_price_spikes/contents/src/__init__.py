@@ -11,7 +11,12 @@ import shapely
 import numpy as np
 import json
 import hashlib
-import datedelta
+import SamplePythonDataBridgesCall as wfpsample
+# import datedelta
+import dotenv 
+import pandas as pd
+import time
+
 
 # do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = False
@@ -20,17 +25,21 @@ CLEAR_TABLE_FIRST = False
 CARTO_USER = os.getenv('CARTO_USER')
 CARTO_KEY = os.getenv('CARTO_KEY')
 
+# World Food Programme API key and secret for fetching the data
+WFP_KEY = os.getenv('WFP_KEY')
+WFP_SECRET = os.getenv('WFP_SECRET')
+
 # url for ALPS (alerts for price spikes) data
-ALPS_URL = 'http://dataviz.vam.wfp.org/api/GetAlps?ac={country_code}'
+# ALPS_URL = 'http://dataviz.vam.wfp.org/api/GetAlps?ac={country_code}'
 
 # url for markets data
-MARKETS_URL = 'http://dataviz.vam.wfp.org/api/GetMarkets?ac={country_code}'
+# MARKETS_URL = 'http://dataviz.vam.wfp.org/api/GetMarkets?ac={country_code}'
 
 # Do we want to process interactions for all ALPS data?
-PROCESS_HISTORY_INTERACTIONS=False
+PROCESS_HISTORY_INTERACTIONS = False
 
 # format of date used in Carto table
-DATE_FORMAT = '%Y/%m/%d'
+DATE_FORMAT = '%Y-%m-%dT00:00:00'
 
 # name of tables in Carto where we will upload the alps data
 CARTO_ALPS_TABLE = 'foo_053a_alerts_for_price_spikes'
@@ -96,11 +105,13 @@ CARTO_INTERACTION_SCHEMA = OrderedDict([
 # these are different because source data has typos
 CATEGORIES = OrderedDict([
     ('cereals and tubers', 'cereals and tubers'),
-    ('milk and dairy', 'milk and %'),
+    ('meat, fish and eggs', 'meat, fish and eggs'),
+    ('milk and dairy', 'milk and dairy'),
     ('oil and fats', 'oil and fats'),
     ('pulses and nuts','pulses and nuts'),
     ('vegetables and fruits', 'vegetables and fruits'),
-    ('miscellaneous food', 'miscellaneous food')])
+    ('miscellaneous food', 'miscellaneous food'),
+    ('non-food', 'non-food')])
 
 # list of carto tables that we will process
 CARTO_TABLES = [CARTO_ALPS_TABLE, CARTO_MARKET_TABLE, CARTO_INTERACTION_TABLE]
@@ -249,78 +260,67 @@ def genInteractionUID(rid, mid, mname, food_category):
     return hashlib.md5(id_str.encode('utf8')).hexdigest()
 
 
-def parseMarkets(region_scale, existing_markets):
+def parseMarkets(mkt, existing_markets):
     '''
     Parse markets data excluding existing observations
-    INPUT   region_scale: information about each regional market (JSON feature)
+    INPUT   mkt: information about each market (JSON feature)
             existing_markets: list of unique market IDs that we already have in our Carto table (list of strings)
     RETURN  new_rows: list of new rows of data found for the input market (list of strings)
     '''
-    # Happens w/ 'National Average' entries
-    # if 'items' variable doesn't exist in the parsed JSON
-    if 'items' not in region_scale:
-        logging.debug('Unfamiliar structure, probably National Average entry')
-        # return None for every column in Carto
-        return [None]*len(CARTO_MARKET_SCHEMA)
     # create an empty list to store new data (data that's not already in our Carto table)
-    new_rows = []
-    # get the id of the region from 'id' variable
-    region_id = region_scale['id']
-    # get the name of the region from 'text' variable
-    region_name = region_scale['text']
-    # loop each market in the region
-    for mkt in region_scale['items']:
-        # get the market id from 'id' variable and remove text from the beginning of the id
-        market_id = mkt['id'].replace('mk', '')
-        # get the name of the market from 'text' variable
-        market_name = mkt['text']
-        # get the latitude and longitude from 'lat', 'lon' variable
-        # construct geometry of the market using lat, lon information
-        geom = {
-            "type": "Point",
-            "coordinates": [
-                mkt['lon'],
-                mkt['lat']
-            ]
-        }
-        # generate unique id for the market using region id, market id and market name
-        uid = genMarketUID(region_id, market_id, market_name)
-        # if the unique id doesn't already exist in our Carto table
-        if uid not in existing_markets:
-            # append the id to existing_markets list
-            existing_markets.append(uid)
-            # create an empty list to store data from this row
-            row = []
-            # go through each column in the Carto table
-            for field in CARTO_MARKET_SCHEMA.keys():
-                # if we are fetching data for unique id column
-                if field == 'uid':
-                    # add the unique id to the list of data from this row
-                    row.append(uid)
-                # if we are fetching data for geometry column
-                elif field == 'the_geom':
-                    # add geometry to the list of data from this row
-                    row.append(geom)
-                # if we are fetching data for region name column
-                elif field == 'region_name':
-                    # add region name to the list of data from this row
-                    row.append(region_name)
-                # if we are fetching data for region id column
-                elif field == 'region_id':
-                    # add region id to the list of data from this row
-                    row.append(region_id)
-                # if we are fetching data for market name column
-                elif field == 'market_name':
-                    # add market name to the list of data from this row
-                    row.append(market_name)
-                # if we are fetching data for market id column
-                elif field == 'market_id':
-                    # add market id to the list of data from this row
-                    row.append(market_id)
-            # add the list of values from this row to the list of new data
-            new_rows.append(row)
+    row = []
 
-    return new_rows
+    # get the id of the region from 'admin1Code' variable
+    region_id = mkt['admin1Code']
+    # get the name of the region from 'admin1Name' variable
+    region_name = mkt['admin1Name']
+    # get the id of the market from 'marketId' variable
+    market_id = mkt['marketId']
+    # get the name of the market from 'marketName' variable
+    market_name = mkt['marketName']
+    # get the latitude and longitude from 'marketLatitude', 'marketLongitude' variable
+    # construct geometry of the market using latitude, longitude information
+    geom = {
+        "type": "Point",
+        "coordinates": [
+            mkt['marketLongitude'],
+            mkt['marketLatitude']
+        ]
+    }
+    # generate unique id for the market using region id, market id and market name
+    uid = genMarketUID(region_id, market_id, market_name)
+    # if the unique id doesn't already exist in our Carto table
+    if uid not in existing_markets:
+        # append the id to existing_markets list
+        existing_markets.append(uid)
+        # go through each column in the Carto table
+        for field in CARTO_MARKET_SCHEMA.keys():
+            # if we are fetching data for unique id column
+            if field == 'uid':
+                # add the unique id to the list of data from this row
+                row.append(uid)
+            # if we are fetching data for geometry column
+            elif field == 'the_geom':
+                # add geometry to the list of data from this row
+                row.append(geom)
+            # if we are fetching data for region name column
+            elif field == 'region_name':
+                # add region name to the list of data from this row
+                row.append(region_name)
+            # if we are fetching data for region id column
+            elif field == 'region_id':
+                # add region id to the list of data from this row
+                row.append(region_id)
+            # if we are fetching data for market name column
+            elif field == 'market_name':
+                # add market name to the list of data from this row
+                row.append(market_name)
+            # if we are fetching data for market id column
+            elif field == 'market_id':
+                # add market id to the list of data from this row
+                row.append(market_id)
+
+    return row
 
 
 def stepForward(start):
@@ -358,177 +358,85 @@ def parseAlps(market_data, existing_alps):
             existing_alps: list of unique alps IDs that we already have in our Carto table (list of strings)
     RETURN  new_rows: list of new rows of data found for the input market (list of strings)
     '''
-    # Happens w/ 'National Average' entries
-    # if 'admname' variable doesn't exist in the parsed JSON
-    if 'admname' not in market_data:
-        logging.debug('Unfamiliar structure, probably National Average entry')
-        # return None for every columns in Carto
-        return [[None]*len(CARTO_ALPS_SCHEMA)]
-    # create an empty list to store new data (data that's not already in our Carto table)
-    new_rows = []
-    # These are not always the same length, i.e. 23
-    # FLAG FOR WFP
-    # number of values in 'mp_price', 'trend' and 'pewi' variables are not always same
-    # so, we will choose the minimum length to make sure we have data for each variable
-    num_obs = min(len(market_data['mp_price']), len(market_data['trend']), len(market_data['pewi']))
-    # initialize the availability of forecast data as 'True' 
-    run_forecast = True
-    try:
-        # get the forecast data from 'f_price', 'p_trend' and 'f_pewi' variables
-        # choose the minimum length to make sure we have data for each variable
-        num_forecast = min(len(market_data['f_price']), len(market_data['p_trend']), len(market_data['f_pewi']))
-    except:
-        logging.debug('No forecast')
-        # set the availability of forecast data as 'False' if we couldn't retrieve forecast data variables
-        run_forecast = False
-    # get the start date from 'startdate' variable and convert it to a datetime object formatted according
+    # get the start date from 'commodityPriceDate' variable and convert it to a datetime object formatted according
     # to the variable DATE_FORMAT
-    date = datetime.datetime.strptime(market_data['startdate'], DATE_FORMAT)
-    # go through each observation
-    for i in range(num_obs):
-        # get the market price data for the current observation
-        mp_price = market_data['mp_price'][i]
-        # get the market trend data for the current observation
-        trend = market_data['trend'][i]
-        # get the market pewi data for the current observation
-        pewi = market_data['pewi'][i]
+    date = datetime.datetime.strptime(market_data['commodityPriceDate'], DATE_FORMAT)
+    # get the market price data for the current observation
+    mp_price = market_data['analysisValueEstimatedPrice']
+    # get the market pewi data for the current observation
+    pewi = market_data['analysisValuePewiValue']
+    flag = bool(market_data['analysisValuePriceFlag']=='forecast')
+    alps_assign = assignALPS(pewi)
+    market_data['sn'] = str(market_data['marketID'])+'_'+str(market_data['commodityID'])+'_'+str(market_data['priceTypeID'])+'_'+str(market_data['commodityUnitID'])
+    # generate unique id for the market using 'sn' variable, date and 
+    # the availability of forecast data
+    uid = genAlpsUID(market_data['sn'], date, flag)
+    # create an empty list to store data from this row
+    row = []
+    # if the unique id doesn't already exist in our Carto table
+    if uid not in existing_alps:
+        # append the id to existing_alps list
+        existing_alps.append(uid)
 
-        # This data point will be filtered out later
-        # if we couldn't retrieve any data for pewi variable
-        if not pewi:
-            logging.debug('No alert data for this month')
-            # return None for every columns in Carto
-            new_rows.append([None]*len(CARTO_ALPS_SCHEMA))
-            # get start date for next iteration
-            date = stepForward(date)
-            # since we couldn't retrieve any data, go to the next iteration
-            continue
-        # Based on the ALPS indicator value, assign the markets to one of four situations
-        # If we get here, pewi is not null
-        alps = assignALPS(pewi)
-        # generate unique id for the market using 'sn' variable, date and 
-        # the availability of forecast data
-        uid = genAlpsUID(market_data['sn'], date, False)
-        # if the unique id doesn't already exist in our Carto table
-        if uid not in existing_alps:
-            # append the id to existing_alps list
-            existing_alps.append(uid)
-            # create an empty list to store data from this row
-            row = []
-            # go through each column in the Carto table
-            for field in CARTO_ALPS_SCHEMA.keys():
-                # if we are fetching data for unique id column
-                if field == 'uid':
-                    # add the unique id to the list of data from this row
-                    row.append(uid)
-                # if we are fetching data for market price column
-                elif field == 'mp_price':
-                    # add the market price to the list of data from this row
-                    row.append(mp_price)
-                # if we are fetching data for trend column
-                elif field == 'trend':
-                    # add the trend to the list of data from this row
-                    row.append(trend)
-                # if we are fetching data for pewi column
-                elif field == 'pewi':
-                    # add the pewi to the list of data from this row
-                    row.append(pewi)
-                # if we are fetching data for alps column
-                elif field == 'alps':
-                    # add the alps data to the list of data from this row
-                    row.append(alps)
-                # if we are fetching data for datetime column
-                elif field == 'date':
-                    # convert datetime to string and format according to DATE_FORMAT
-                    # add the formatted date to the list of data from this row
-                    row.append(date.strftime(DATE_FORMAT))
-                # if we are fetching data for forecast column
-                elif field == 'forecast':
-                    # add False for this column to the list of data from this row
-                    row.append(False)
-                else:
-                    # for all other columns, we can fetch the data from fields feature 
-                    # using our column name in Carto
-                    row.append(market_data[field])
-            # add the list of values from this row to the list of new data
-            new_rows.append(row)
-        # get start date for next iteration
-        date = stepForward(date)
-    # if forecast data is available
-    if run_forecast:
-        # go through each observation in forecast data
-        for i in range(num_forecast):
-            # get the forecasted market price data for the current observation
-            f_price = market_data['f_price'][i]
-            # get the forecasted market trend data for the current observation
-            p_trend = market_data['p_trend'][i]
-            # get the forecasted market pewi data for the current observation
-            f_pewi = market_data['f_pewi'][i]
-
-            # This data point will be filtered out later
-            # if we couldn't retrieve any data for f_pewi variable
-            if not f_pewi:
-                logging.debug('No alert data forecast for this month')
-                # return None for every columns in Carto
-                new_rows.append([None]*len(CARTO_ALPS_SCHEMA))
-                # get start date for next iteration
-                date = stepForward(date)
-                # since we couldn't retrieve any data, go to the next iteration
-                continue
-            # Based on the ALPS indicator value, assign the markets to one of four situations
-            # If get here, that that pewi is not null
-            f_alps = assignALPS(f_pewi)
-            # generate unique id for the market using 'sn' variable, date and 
-            # the availability of forecast data (set to True in this case 
-            # since we are processing forecasted date now)
-            uid = genAlpsUID(market_data['sn'], date, True)
-            # if the unique id doesn't already exist in our Carto table
-            if uid not in existing_alps:
-                # append the id to existing_alps list
-                existing_alps.append(uid)
-                # create an empty list to store data from this row
-                row = []
-                # go through each column in the Carto table
-                for field in CARTO_ALPS_SCHEMA.keys():
-                    # if we are fetching data for unique id column
-                    if field == 'uid':
-                        # add the unique id to the list of data from this row
-                        row.append(uid)
-                    # if we are fetching data for market price column
-                    elif field == 'mp_price':
-                        # add the forecasted market price to the list of data from this row
-                        row.append(f_price)
-                    # if we are fetching data for trend column
-                    elif field == 'trend':
-                        # add the forecasted trend to the list of data from this row
-                        row.append(p_trend)
-                    # if we are fetching data for pewi column
-                    elif field == 'pewi':
-                        # add the forecasted pewi to the list of data from this row
-                        row.append(f_pewi)
-                    # if we are fetching data for alps column
-                    elif field == 'alps':
-                        # add the forecasted alps data to the list of data from this row
-                        row.append(f_alps)
-                    # if we are fetching data for datetime column
-                    elif field == 'date':
-                        # convert datetime to string and format according to DATE_FORMAT
-                        # add the formatted date to the list of data from this row
-                        row.append(date.strftime(DATE_FORMAT))
-                    # if we are fetching data for forecast column
-                    elif field == 'forecast':
-                        # add True for this column to the list of data from this row
-                        row.append(True)
-                    else:
-                        # for all other columns, we can fetch the data from fields feature 
-                        # using our column name in Carto
-                        row.append(market_data[field])
-                # add the list of values from this row to the list of new data
-                new_rows.append(row)
-            # get start date for next iteration
-            date = stepForward(date)
-
-    return new_rows
+        # go through each column in the Carto table
+        for field in CARTO_ALPS_SCHEMA.keys():
+            # if we are fetching data for unique id column
+            if field == 'uid':
+                # add the unique id to the list of data from this row
+                row.append(uid)
+            # if we are fetching data for market price column
+            elif field == 'mp_price':
+                # add the market price to the list of data from this row
+                row.append(mp_price)
+            # if we are fetching data for trend column
+            elif field == 'trend':
+                # add the trend to the list of data from this row
+                row.append(None)
+            # if we are fetching data for pewi column
+            elif field == 'pewi':
+                # add the pewi to the list of data from this row
+                row.append(pewi)
+            # if we are fetching data for alps column
+            elif field == 'alps':
+                # add the alps data to the list of data from this row
+                row.append(alps_assign)
+            # if we are fetching data for datetime column
+            elif field == 'date':
+                # convert datetime to string and format according to DATE_FORMAT
+                # add the formatted date to the list of data from this row
+                row.append(date.strftime(DATE_FORMAT))
+            # if we are fetching data for forecast column
+            elif field == 'forecast':
+                # add False for this column to the list of data from this row
+                row.append(flag)
+            elif field == 'sn':
+                row.append(market_data['sn'])
+            elif field == 'currency':
+                row.append(market_data['currencyName'])
+            elif field == 'mktid':
+                row.append(market_data['marketID'])
+            elif field == 'cmid':
+                row.append(market_data['commodityID'])
+            elif field == 'ptid':
+                row.append(market_data['priceTypeID'])
+            elif field == 'umid':
+                row.append(market_data['commodityUnitID'])
+            elif field == 'catid':
+                row.append(market_data['categoryId'])
+            elif field == 'unit':
+                row.append(market_data['commodityUnitName'])
+            elif field == 'cmname':
+                row.append(market_data['commodityName']+' - '+market_data['priceTypeName'])
+            elif field == 'category':
+                row.append(market_data['name'])
+            elif field == 'mktname':
+                row.append(market_data['marketName'])
+            elif field == 'admname':
+                row.append(market_data['admin1Name'])
+            elif field == 'adm1id':
+                row.append(market_data['admin1Code'])
+    
+    return row
 
 def flatten(lst, items):
     '''
@@ -563,48 +471,61 @@ def processNewData(existing_markets, existing_alps):
     # create an empty list to store the ids of the markets that are updated
     markets_updated = []
 
-    #get list of country codes
-    #countries = pd.read_csv('http://vam.wfp.org/sites/data/api/adm0code.csv')
-    #country_codes=countries['ADM0_CODE'].tolist()
-    #csv stopped loading, so I have manually added codes here:
-    country_codes = [1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 
-    46, 47, 48, 49, 50, 51, 53, 52, 54, 55, 56, 57, 58, 59, 60, 61, 66, 62, 63, 64, 65, 67, 68, 69, 40763, 70, 71, 72, 73, 40765, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89,
-     90, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 103, 104, 106, 105, 107, 108, 40760, 109, 110, 111, 33364, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 40781, 126, 127, 
-     128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 40762, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 
-     163, 164, 165, 166, 167, 2647, 168, 169, 170, 171, 172, 173, 174, 175, 177, 176, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 
-     198, 199, 200, 201, 202, 206, 203, 204, 205, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 2648, 220, 221, 222, 223, 224, 225, 226, 227, 228, 70001, 229, 230, 231, 
-     999, 40764, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 256, 253, 254, 255, 257, 259, 258, 260, 261, 262, 263, 264, 265, 266, 
-     268, 269, 270, 271]
+    # initialize WFP API
+    api = wfpsample.WfpApi(api_key=WFP_KEY, api_secret=WFP_SECRET)
+
+    # get iso3 code for all countries
+    country_codes = []
+    for regions in requests.get("https://api.vam.wfp.org/geodata/CountriesInRegion").json():
+        country_codes = country_codes + [country['iso3Alpha3'] for country in regions['countryOffices']]
+
     # get and parse each data for each country
     for country_code in country_codes:
         # Fetch new data
-        logging.info("Fetching country code {}".format(country_code))
+        logging.info("Fetching country data for {}".format(country_code))
         # initialize number of tries to fetch data as zero
-        try_num=0
+        try_num = 0
         try:
             # pull markets data from the url as a request response JSON
-            markets = requests.get(MARKETS_URL.format(country_code=country_code)).json()
+            markets = api.get_market_list(country_code)
             # pull alerts for price spikes (alps) data from the url as a request response JSON
-            alps = requests.get(ALPS_URL.format(country_code=country_code)).json()
+            alps = api.get_alps(country_code)
+            # pull commodity list from the url as a request response JSON
+            com_list = api.get_commodity_list(country_code)
+            # pull commodity category list from the url as a request response JSON
+            com_cat = api.get_commodity_category_list(country_code)
         except Exception as e:
-            # stop trying if we can't get data within two tries
-            if try_num < 2:
+            # stop trying if we can't get data within three tries
+            if try_num < 3:
                 # increase the count of number of tries
-                try_num+=1
+                try_num += 1
+                time.sleep(20)
             else:
                 logging.error(e)
+        # convert list dictionary to dataframe
+        markets_df = pd.DataFrame(markets)
+        alps_df = pd.DataFrame(alps)
+        com_list_df = pd.DataFrame(com_list)
+        com_cat_df = pd.DataFrame(com_cat)
 
-        # Parse regional market data excluding existing observations
-        # returns a 3D list, 1st dimension represents a particular region
-        # 2nd dimension represents a particular market
-        # 3rd dimention represents the columns of the Carto table for that region and market
+        # Parse market data excluding existing observations
+        # returns a 2D list, 1st dimension represents a particular market
+        # 2nd dimention represents the columns of the Carto table for that region and market
         new_markets = [parseMarkets(mkt, existing_markets) for mkt in markets]
 
+        # Merge alps dataframe with market dataframe, commodity dataframe, and category dataframe
+        alps_cat_df = alps_df.merge(markets_df.loc[:,['admin1Code', 'admin1Name', 'marketId']], left_on = 'marketID', right_on = 'marketId', how = 'left')
+        alps_cat_df = alps_cat_df.merge(com_list_df.loc[:, ['id','categoryId']], left_on='commodityID', right_on='id', how='left')
+        alps_cat_df = alps_cat_df.merge(com_cat_df.loc[:, ['id','name']], left_on='categoryId', right_on='id', how='left')
+        alps_cat_df.drop(['id_x','id_y', 'marketId'], axis=1, inplace=True)
+        alps_cat_df.drop_duplicates(inplace=True)
+        # convert dataframe back to list dictionary
+        alps_cat = [dict(x) for i, x in alps_cat_df.iterrows()]
+
         # Parse alps data excluding existing observations
-        # returns a 3D list, 1st dimension represents a particular market
-        # 2nd dimension represents the time steps that are new
-        # 3rd dimention represents the columns of the Carto table for that market and time step
-        new_alps = [parseAlps(alp, existing_alps) for alp in alps]
+        # returns a 2D list, 1st dimension represents the time steps that are new
+        # 2nd dimention represents the columns of the Carto table for that market and time step
+        new_alps = [parseAlps(alp, existing_alps) for alp in alps_cat]
 
         logging.debug('Country {} Data: After map:'.format(country_code))
         logging.debug(new_markets)
@@ -612,24 +533,28 @@ def processNewData(existing_markets, existing_alps):
 
         # removes extra dimensions of array
         # now each element of the array is just a row to be inserted into Carto table
-        new_markets = reduce(flatten, new_markets , [])
-        new_alps = reduce(flatten, new_alps, [])
+        # new_markets = reduce(flatten, new_markets , [])
+        # new_alps = reduce(flatten, new_alps, [])
+        # Remove empty List from List
+        # using list comprehension
+        new_markets = [ele for ele in new_markets if ele != []]
+        new_alps = [ele for ele in new_alps if ele != []]
 
         logging.debug('Country {} Data: After reduce:'.format(country_code))
         logging.debug(new_markets)
         logging.debug(new_alps)
 
         # Ensure new_<rows> is a list of lists, even if only one element
-        if len(new_markets):
-            # if the first element of new_markets is not a list
-            if type(new_markets[0]) != list:
-                # convert it to a list
-                new_markets = [new_markets]
-        if len(new_alps):
-            # if the first element of new_alps is not a list
-            if type(new_alps[0]) != list:
-                # convert it to a list
-                new_alps = [new_alps]
+        # if len(new_markets):
+        #     # if the first element of new_markets is not a list
+        #     if type(new_markets[0]) != list:
+        #         # convert it to a list
+        #         new_markets = [new_markets]
+        # if len(new_alps):
+        #     # if the first element of new_alps is not a list
+        #     if type(new_alps[0]) != list:
+        #         # convert it to a list
+        #         new_alps = [new_alps]
 
         # Clean any rows that are all None
         new_markets = list(filter(clean_null_rows, new_markets))
@@ -967,7 +892,7 @@ def update_layer(layer, new_date):
     # get text for new date
     new_date_end = datetime.datetime.strftime(new_date, "%B %d, %Y")
     # get most recent starting date, 3 months ago
-    new_date_start = (new_date - datedelta.datedelta(months=3))
+    new_date_start = (new_date - datetime.timedelta(days=30*3+1))
     new_date_start = datetime.datetime.strftime(new_date_start, "%B %d, %Y")
     # construct new date range by joining new start date and new end date
     new_date_text = new_date_start + ' - ' + new_date_end
@@ -1031,6 +956,7 @@ def main():
                 # problem does not occur
 
     logging.info('Checking if {} table exists and getting existing IDs.'.format(CARTO_MARKET_TABLE))
+
     # Check if table exists, create it if it does not
     existing_markets = checkCreateTable(CARTO_MARKET_TABLE, CARTO_MARKET_SCHEMA, UID_FIELD)
 
