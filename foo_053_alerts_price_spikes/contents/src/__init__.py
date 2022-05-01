@@ -512,19 +512,22 @@ def processNewData(existing_markets, existing_alps):
         # 2nd dimention represents the columns of the Carto table for that region and market
         new_markets = [parseMarkets(mkt, existing_markets) for mkt in markets]
 
-        # Merge alps dataframe with market dataframe, commodity dataframe, and category dataframe
-        alps_cat_df = alps_df.merge(markets_df.loc[:,['admin1Code', 'admin1Name', 'marketId']], left_on = 'marketID', right_on = 'marketId', how = 'left')
-        alps_cat_df = alps_cat_df.merge(com_list_df.loc[:, ['id','categoryId']], left_on='commodityID', right_on='id', how='left')
-        alps_cat_df = alps_cat_df.merge(com_cat_df.loc[:, ['id','name']], left_on='categoryId', right_on='id', how='left')
-        alps_cat_df.drop(['id_x','id_y', 'marketId'], axis=1, inplace=True)
-        alps_cat_df.drop_duplicates(inplace=True)
-        # convert dataframe back to list dictionary
-        alps_cat = [dict(x) for i, x in alps_cat_df.iterrows()]
+        if len(alps)>0:
+            # Merge alps dataframe with market dataframe, commodity dataframe, and category dataframe
+            alps_cat_df = alps_df.merge(markets_df.loc[:,['admin1Code', 'admin1Name', 'marketId']], left_on = 'marketID', right_on = 'marketId', how = 'left')
+            alps_cat_df = alps_cat_df.merge(com_list_df.loc[:, ['id','categoryId']], left_on='commodityID', right_on='id', how='left')
+            alps_cat_df = alps_cat_df.merge(com_cat_df.loc[:, ['id','name']], left_on='categoryId', right_on='id', how='left')
+            alps_cat_df.drop(['id_x','id_y', 'marketId'], axis=1, inplace=True)
+            alps_cat_df.drop_duplicates(inplace=True)
+            # convert dataframe back to list dictionary
+            alps_cat = [dict(x) for i, x in alps_cat_df.iterrows()]
 
-        # Parse alps data excluding existing observations
-        # returns a 2D list, 1st dimension represents the time steps that are new
-        # 2nd dimention represents the columns of the Carto table for that market and time step
-        new_alps = [parseAlps(alp, existing_alps) for alp in alps_cat]
+            # Parse alps data excluding existing observations
+            # returns a 2D list, 1st dimension represents the time steps that are new
+            # 2nd dimention represents the columns of the Carto table for that market and time step
+            new_alps = [parseAlps(alp, existing_alps) for alp in alps_cat]
+        else:
+            new_alps = []
 
         logging.debug('Country {} Data: After map:'.format(country_code))
         logging.debug(new_markets)
