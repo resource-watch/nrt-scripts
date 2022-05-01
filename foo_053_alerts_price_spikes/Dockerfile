@@ -1,5 +1,5 @@
 FROM python:3.6-alpine
-MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
+MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 #Note this script was originally developed by Nathan Suberi <nathan.suberi@wri.org> and Amelia Snyder <amelia.snyder@wri.org>
 
 # install core libraries
@@ -16,6 +16,7 @@ RUN pip install shapely==1.6.4
 RUN pip install numpy==1.18.1
 RUN pip install pandas==0.25.3
 RUN pip install backoff
+RUN pip install httpx
 
 # set name
 ARG NAME=nrt-script
