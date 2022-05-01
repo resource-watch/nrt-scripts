@@ -373,7 +373,7 @@ def parseAlps(market_data, existing_alps):
     # create an empty list to store data from this row
     row = []
     # if the unique id doesn't already exist in our Carto table
-    if uid not in existing_alps:
+    if uid not in existing_alps and date > datetime.datetime.strptime('01/01/2022', "%d/%m/%Y"):
         # append the id to existing_alps list
         existing_alps.append(uid)
 
