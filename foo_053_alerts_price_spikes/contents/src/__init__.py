@@ -478,30 +478,30 @@ def processNewData(existing_markets, existing_alps):
     country_codes = []
     for regions in requests.get("https://api.vam.wfp.org/geodata/CountriesInRegion").json():
         country_codes = country_codes + [country['iso3Alpha3'] for country in regions['countryOffices']]
-
+    country_code = 'AFG'
     # get and parse each data for each country
     for country_code in country_codes:
         # Fetch new data
         logging.info("Fetching country data for {}".format(country_code))
         # initialize number of tries to fetch data as zero
-        try_num = 0
-        try:
-            # pull markets data from the url as a request response JSON
-            markets = api.get_market_list(country_code)
-            # pull alerts for price spikes (alps) data from the url as a request response JSON
-            alps = api.get_alps(country_code)
-            # pull commodity list from the url as a request response JSON
-            com_list = api.get_commodity_list(country_code)
-            # pull commodity category list from the url as a request response JSON
-            com_cat = api.get_commodity_category_list(country_code)
-        except Exception as e:
-            # stop trying if we can't get data within three tries
-            if try_num < 3:
-                # increase the count of number of tries
-                try_num += 1
-                time.sleep(20)
-            else:
-                logging.error(e)
+        # try_num = 0
+        # try:
+        # pull markets data from the url as a request response JSON
+        markets = api.get_market_list(country_code)
+        # pull alerts for price spikes (alps) data from the url as a request response JSON
+        alps = api.get_alps(country_code)
+        # pull commodity list from the url as a request response JSON
+        com_list = api.get_commodity_list(country_code)
+        # pull commodity category list from the url as a request response JSON
+        com_cat = api.get_commodity_category_list(country_code)
+        # except Exception as e:
+        #     # stop trying if we can't get data within three tries
+        #     if try_num < 3:
+        #         # increase the count of number of tries
+        #         try_num += 1
+        #         time.sleep(20)
+        #     else:
+        #         logging.error(e)
         # convert list dictionary to dataframe
         markets_df = pd.DataFrame(markets)
         alps_df = pd.DataFrame(alps)
