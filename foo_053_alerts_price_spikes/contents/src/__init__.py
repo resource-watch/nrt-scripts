@@ -11,7 +11,7 @@ import shapely
 import numpy as np
 import json
 import hashlib
-import SamplePythonDataBridgesCall as wfpsample
+from . import SamplePythonDataBridgesCall as wfpsample
 # import datedelta
 import dotenv 
 import pandas as pd
