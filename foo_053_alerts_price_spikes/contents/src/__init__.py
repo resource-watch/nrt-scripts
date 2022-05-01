@@ -519,6 +519,9 @@ def processNewData(existing_markets, existing_alps):
             alps_cat_df = alps_cat_df.merge(com_cat_df.loc[:, ['id','name']], left_on='categoryId', right_on='id', how='left')
             alps_cat_df.drop(['id_x','id_y', 'marketId'], axis=1, inplace=True)
             alps_cat_df.drop_duplicates(inplace=True)
+            # replace all NaN with None
+            alps_cat_df = alps_cat_df.where((pd.notnull(alps_cat_df)), None)
+            alps_cat_df = alps_cat_df.replace({np.nan: None})
             # convert dataframe back to list dictionary
             alps_cat = [dict(x) for i, x in alps_cat_df.iterrows()]
 
