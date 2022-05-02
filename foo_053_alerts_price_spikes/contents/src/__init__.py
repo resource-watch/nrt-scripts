@@ -35,7 +35,7 @@ WFP_SECRET = os.getenv('WFP_SECRET')
 # MARKETS_URL = 'http://dataviz.vam.wfp.org/api/GetMarkets?ac={country_code}'
 
 # Do we want to process interactions for all ALPS data?
-PROCESS_HISTORY_INTERACTIONS = False
+PROCESS_HISTORY_INTERACTIONS = True
 
 # format of date used in Carto table
 DATE_FORMAT = '%Y-%m-%dT00:00:00'
@@ -473,11 +473,19 @@ def processNewData(existing_markets, existing_alps):
     # initialize WFP API
     api = wfpsample.WfpApi(api_key=WFP_KEY, api_secret=WFP_SECRET)
 
+    # pull commodity list from the url as a request response JSON
+    com_list = api.get_commodity_list()
+    # pull commodity category list from the url as a request response JSON
+    com_cat = api.get_commodity_category_list()
+    # convert list dictionary to dataframe
+    com_list_df = pd.DataFrame(com_list)
+    com_cat_df = pd.DataFrame(com_cat)
+
     # get iso3 code for all countries
     country_codes = []
     for regions in requests.get("https://api.vam.wfp.org/geodata/CountriesInRegion").json():
         country_codes = country_codes + [country['iso3Alpha3'] for country in regions['countryOffices']]
-
+    country_codes = country_codes[40:]
     # get and parse each data for each country
     for country_code in country_codes:
         # Fetch new data
@@ -489,10 +497,6 @@ def processNewData(existing_markets, existing_alps):
         markets = api.get_market_list(country_code)
         # pull alerts for price spikes (alps) data from the url as a request response JSON
         alps = api.get_alps(country_code)
-        # pull commodity list from the url as a request response JSON
-        com_list = api.get_commodity_list(country_code)
-        # pull commodity category list from the url as a request response JSON
-        com_cat = api.get_commodity_category_list(country_code)
         # except Exception as e:
         #     # stop trying if we can't get data within three tries
         #     if try_num < 3:
@@ -504,8 +508,6 @@ def processNewData(existing_markets, existing_alps):
         # convert list dictionary to dataframe
         markets_df = pd.DataFrame(markets)
         alps_df = pd.DataFrame(alps)
-        com_list_df = pd.DataFrame(com_list)
-        com_cat_df = pd.DataFrame(com_cat)
 
         # Parse market data excluding existing observations
         # returns a 2D list, 1st dimension represents a particular market
