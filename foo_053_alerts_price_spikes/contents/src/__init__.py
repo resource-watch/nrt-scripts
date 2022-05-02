@@ -357,7 +357,6 @@ def parseAlps(market_data, existing_alps):
             existing_alps: list of unique alps IDs that we already have in our Carto table (list of strings)
     RETURN  new_rows: list of new rows of data found for the input market (list of strings)
     '''
-    market_data = alps_cat_df.iloc[0,:]
     # get the start date from 'commodityPriceDate' variable and convert it to a datetime object formatted according
     # to the variable DATE_FORMAT
     date = datetime.datetime.strptime(market_data['commodityPriceDate'], DATE_FORMAT)
