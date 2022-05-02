@@ -118,24 +118,26 @@ class WfpApi:
             page = page + 1
         return all_data
 
-    def get_commodity_list(self, iso3):
+    def get_commodity_list(self):#, iso3):
         page = 1
         all_data = []
         data_mp = None
         while data_mp is None or len(data_mp) > 0:
             print(f'fetching commodity page {page}')
-            data_mp = self._invoke('commodities_list', {'CountryCode': iso3, 'page': page})['items']
+            data_mp = self._invoke('commodities_list', {'page': page})['items']
+            #data_mp = self._invoke('commodities_list', {'CountryCode': iso3, 'page': page})['items']
             all_data.extend(data_mp)
             page = page + 1
         return all_data
 
-    def get_commodity_category_list(self, iso3):
+    def get_commodity_category_list(self):#, iso3):
         page = 1
         all_data = []
         data_mp = None
         while data_mp is None or len(data_mp) > 0:
             print(f'fetching commodity category page {page}')
-            data_mp = self._invoke('commodities_categories_list', {'CountryCode': iso3, 'page': page})['items']
+            data_mp = self._invoke('commodities_categories_list', {'page': page})['items']
+            #data_mp = self._invoke('commodities_categories_list', {'CountryCode': iso3, 'page': page})['items']
             all_data.extend(data_mp)
             page = page + 1
         return all_data
