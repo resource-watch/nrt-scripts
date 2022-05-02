@@ -593,14 +593,14 @@ def processNewData(existing_markets, existing_alps):
             logging.info('Pushing {} new Markets rows'.format(len(new_markets)))
             cartosql.insertRows(CARTO_MARKET_TABLE, CARTO_MARKET_SCHEMA.keys(),
                                 CARTO_MARKET_SCHEMA.values(), new_markets,
-                                user=CARTO_USER, key =CARTO_KEY, blocksize=200)
+                                user=CARTO_USER, key =CARTO_KEY, blocksize=100)
         # if we have found new alps data
         if len(new_alps):
             # insert new data into the alps carto table
             logging.info('Pushing {} new ALPS rows'.format(len(new_alps)))
             cartosql.insertRows(CARTO_ALPS_TABLE, CARTO_ALPS_SCHEMA.keys(),
                                 CARTO_ALPS_SCHEMA.values(), new_alps,
-                                user=CARTO_USER, key =CARTO_KEY, blocksize=200)
+                                user=CARTO_USER, key =CARTO_KEY, blocksize=100)
 
 
     return num_new_markets, num_new_alps, markets_updated
