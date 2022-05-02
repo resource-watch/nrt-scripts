@@ -485,7 +485,7 @@ def processNewData(existing_markets, existing_alps):
     country_codes = []
     for regions in requests.get("https://api.vam.wfp.org/geodata/CountriesInRegion").json():
         country_codes = country_codes + [country['iso3Alpha3'] for country in regions['countryOffices']]
-    country_codes = country_codes[40:]
+    country_codes = country_codes[53:]
     # get and parse each data for each country
     for country_code in country_codes:
         # Fetch new data
