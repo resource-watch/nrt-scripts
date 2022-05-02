@@ -35,7 +35,7 @@ WFP_SECRET = os.getenv('WFP_SECRET')
 # MARKETS_URL = 'http://dataviz.vam.wfp.org/api/GetMarkets?ac={country_code}'
 
 # Do we want to process interactions for all ALPS data?
-PROCESS_HISTORY_INTERACTIONS = True
+PROCESS_HISTORY_INTERACTIONS = False
 
 # format of date used in Carto table
 DATE_FORMAT = '%Y-%m-%dT00:00:00'
@@ -485,7 +485,7 @@ def processNewData(existing_markets, existing_alps):
     country_codes = []
     for regions in requests.get("https://api.vam.wfp.org/geodata/CountriesInRegion").json():
         country_codes = country_codes + [country['iso3Alpha3'] for country in regions['countryOffices']]
-    country_codes = country_codes[106:]
+    
     # get and parse each data for each country
     for country_code in country_codes:
         # Fetch new data
@@ -629,7 +629,7 @@ def processInteractions(markets_updated):
     # what is allowed (specified by LOOKBACK variable)
     else:
         logging.info('Getting IDs of interactions that should be updated')
-        # get a list of all the values from 'region_id', 'market_id', 'market_name' columns where oldest interaction date is than three months ago
+        # get a list of all the values from 'region_id', 'market_id', 'market_name' columns where oldest interaction date is more than three months ago
         r = cartosql.getFields(['region_id', 'market_id', 'market_name'], CARTO_INTERACTION_TABLE, where="{} < current_date - interval '{}' month".format(INTERACTION_TIME_FIELD, LOOKBACK),
                                f='csv', user=CARTO_USER, key=CARTO_KEY)
         # turn the response into a list of strings, removing the first and last entries (header and an empty space at end)
