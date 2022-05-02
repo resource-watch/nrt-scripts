@@ -113,7 +113,7 @@ class WfpApi:
         data_mp = None
         while data_mp is None or len(data_mp) > 0:
             print(f'fetching alps page {page}')
-            data_mp = self._invoke('alps', {'CountryCode': iso3, 'page': page, 'startDate': '2022/01/01', 'endDate': '2022/06/01'})['items']
+            data_mp = self._invoke('alps', {'CountryCode': iso3, 'page': page, 'startDate': '2022/04/01', 'endDate': '2022/10/01'})['items']
             all_data.extend(data_mp)
             page = page + 1
         return all_data
