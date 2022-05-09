@@ -5,7 +5,6 @@ import requests
 from collections import OrderedDict
 import datetime
 import cartosql
-from functools import reduce
 from shapely import wkb
 import shapely
 import numpy as np
@@ -14,7 +13,7 @@ import hashlib
 from . import SamplePythonDataBridgesCall as wfpsample
 # import dotenv 
 import pandas as pd
-
+from dateutil.relativedelta import relativedelta
 
 
 # do you want to delete everything currently in the Carto table when you run this script?
@@ -27,12 +26,6 @@ CARTO_KEY = os.getenv('CARTO_KEY')
 # World Food Programme API key and secret for fetching the data
 WFP_KEY = os.getenv('WFP_KEY')
 WFP_SECRET = os.getenv('WFP_SECRET')
-
-# url for ALPS (alerts for price spikes) data
-# ALPS_URL = 'http://dataviz.vam.wfp.org/api/GetAlps?ac={country_code}'
-
-# url for markets data
-# MARKETS_URL = 'http://dataviz.vam.wfp.org/api/GetMarkets?ac={country_code}'
 
 # Do we want to process interactions for all ALPS data?
 PROCESS_HISTORY_INTERACTIONS = False
@@ -100,8 +93,8 @@ CARTO_INTERACTION_SCHEMA = OrderedDict([
     ("oldest_interaction_date", "timestamp"),
 
 ])
-#(name of category in interaction table, sql query from source data)
-# these are different because source data has typos
+
+#name of category in interaction table, sql query from source data
 CATEGORIES = OrderedDict([
     ('cereals and tubers', 'cereals and tubers'),
     ('meat, fish and eggs', 'meat, fish and eggs'),
@@ -145,7 +138,6 @@ FUNCTIONS FOR ALL DATASETS
 The functions below must go in every near real-time script.
 Their format should not need to be changed.
 '''
-
 def lastUpdateDate(dataset, date):
     '''
     Given a Resource Watch dataset's API ID and a datetime,
@@ -178,7 +170,6 @@ FUNCTIONS FOR CARTO DATASETS
 The functions below must go in every near real-time script for a Carto dataset.
 Their format should not need to be changed.
 '''
-
 def checkCreateTable(table, schema, id_field, time_field=''):
     '''
     Create the table if it does not exist, and pull list of IDs already in the table if it does
@@ -218,7 +209,6 @@ FUNCTIONS FOR THIS DATASET
 The functions below have been tailored to this specific dataset.
 They should all be checked because their format likely will need to be changed.
 '''
-
 def genAlpsUID(sn, date, forecast):
     '''
     Generate unique id for a market in the alps table using 'sn' variable, date and 
@@ -257,7 +247,6 @@ def genInteractionUID(rid, mid, mname, food_category):
     # join region id, market id, market name and food category using underscores
     id_str = '{}_{}_{}_{}'.format(rid, mid, mname, food_category)
     return hashlib.md5(id_str.encode('utf8')).hexdigest()
-
 
 def parseMarkets(mkt, existing_markets):
     '''
@@ -321,7 +310,6 @@ def parseMarkets(mkt, existing_markets):
 
     return row
 
-
 def stepForward(start):
     '''
     Move forward by a certain number of days
@@ -364,8 +352,11 @@ def parseAlps(market_data, existing_alps):
     mp_price = market_data['analysisValueEstimatedPrice']
     # get the market pewi data for the current observation
     pewi = market_data['analysisValuePewiValue']
+    # get the flag (price is forecast or not) for the current observation
     flag = bool(market_data['analysisValuePriceFlag']=='forecast')
+    # assign ALPS based on market pewi
     alps_assign = assignALPS(pewi)
+    # generate sn variable 
     market_data['sn'] = str(market_data['marketID'])+'_'+str(market_data['commodityID'])+'_'+str(market_data['priceTypeID'])+'_'+str(market_data['commodityUnitID'])
     # generate unique id for the market using 'sn' variable, date and 
     # the availability of forecast data
@@ -406,7 +397,7 @@ def parseAlps(market_data, existing_alps):
                 row.append(date.strftime(DATE_FORMAT))
             # if we are fetching data for forecast column
             elif field == 'forecast':
-                # add False for this column to the list of data from this row
+                # add the flag data to the list of data from this row
                 row.append(flag)
             elif field == 'sn':
                 row.append(market_data['sn'])
@@ -490,21 +481,10 @@ def processNewData(existing_markets, existing_alps):
     for country_code in country_codes:
         # Fetch new data
         logging.info("Fetching country data for {}".format(country_code))
-        # initialize number of tries to fetch data as zero
-        # try_num = 0
-        # try:
         # pull markets data from the url as a request response JSON
         markets = api.get_market_list(country_code)
         # pull alerts for price spikes (alps) data from the url as a request response JSON
         alps = api.get_alps(country_code)
-        # except Exception as e:
-        #     # stop trying if we can't get data within three tries
-        #     if try_num < 3:
-        #         # increase the count of number of tries
-        #         try_num += 1
-        #         time.sleep(20)
-        #     else:
-        #         logging.error(e)
         # convert list dictionary to dataframe
         markets_df = pd.DataFrame(markets)
         alps_df = pd.DataFrame(alps)
@@ -538,10 +518,6 @@ def processNewData(existing_markets, existing_alps):
         logging.debug(new_markets)
         logging.debug(new_alps)
 
-        # removes extra dimensions of array
-        # now each element of the array is just a row to be inserted into Carto table
-        # new_markets = reduce(flatten, new_markets , [])
-        # new_alps = reduce(flatten, new_alps, [])
         # Remove empty List from List
         # using list comprehension
         new_markets = [ele for ele in new_markets if ele != []]
@@ -550,18 +526,6 @@ def processNewData(existing_markets, existing_alps):
         logging.debug('Country {} Data: After reduce:'.format(country_code))
         logging.debug(new_markets)
         logging.debug(new_alps)
-
-        # Ensure new_<rows> is a list of lists, even if only one element
-        # if len(new_markets):
-        #     # if the first element of new_markets is not a list
-        #     if type(new_markets[0]) != list:
-        #         # convert it to a list
-        #         new_markets = [new_markets]
-        # if len(new_alps):
-        #     # if the first element of new_alps is not a list
-        #     if type(new_alps[0]) != list:
-        #         # convert it to a list
-        #         new_alps = [new_alps]
 
         # Clean any rows that are all None
         new_markets = list(filter(clean_null_rows, new_markets))
@@ -899,7 +863,7 @@ def update_layer(layer, new_date):
     # get text for new date
     new_date_end = datetime.datetime.strftime(new_date, "%B %d, %Y")
     # get most recent starting date, 3 months ago
-    new_date_start = (new_date - datetime.timedelta(days=30*3+1))
+    new_date_start = (new_date - relativedelta(months=+3))
     new_date_start = datetime.datetime.strftime(new_date_start, "%B %d, %Y")
     # construct new date range by joining new start date and new end date
     new_date_text = new_date_start + ' - ' + new_date_end

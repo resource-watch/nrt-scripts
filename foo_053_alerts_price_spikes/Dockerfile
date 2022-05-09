@@ -3,11 +3,6 @@ MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 #Note this script was originally developed by Nathan Suberi <nathan.suberi@wri.org> and Amelia Snyder <amelia.snyder@wri.org>
 
 # install core libraries
-# RUN echo "http://mirror.leaseweb.com/alpine/edge/testing/" >> /etc/apk/repositories
-# RUN apk add --no-cache geos-dev
-# RUN apk update && apk upgrade && \
-#    apk add --no-cache --update bash git openssl-dev build-base alpine-sdk \
-#    libffi-dev gcc python3-dev musl-dev
 RUN apt-get update
 # install application libraries
 RUN pip install --upgrade pip
@@ -16,6 +11,7 @@ RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=car
 RUN pip install shapely
 RUN pip install numpy==1.18.1
 RUN pip install pandas==0.25.3
+RUN pip install python-dateutil
 RUN pip install backoff
 RUN pip install httpx
 
