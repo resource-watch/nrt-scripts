@@ -28,7 +28,7 @@ WFP_KEY = os.getenv('WFP_KEY')
 WFP_SECRET = os.getenv('WFP_SECRET')
 
 # Do we want to process interactions for all ALPS data?
-PROCESS_HISTORY_INTERACTIONS = False
+PROCESS_HISTORY_INTERACTIONS = True
 
 # format of date used in Carto table
 DATE_FORMAT = '%Y-%m-%dT00:00:00'
@@ -125,6 +125,8 @@ LOOKBACK = 3
 
 # how many rows can be stored in the Carto table before the oldest ones are deleted?
 MAXROWS = 1000000
+# how many days can be stored in the Carto table before the old data is deleted?
+MAXAGE = datetime.datetime.utcnow() - datetime.timedelta(days=365)
 
 # Resource Watch dataset API ID
 # Important! Before testing this script:
@@ -660,7 +662,7 @@ def processInteractions(markets_updated):
                         interaction_string = INTERACTION_STRING_FORMAT.format(num=commodity_num, commodity=entry['cmname'], alps=entry['alps'].lower(), date=entry['date'][:10])
                     # if there is more than one commodity, add the interaction_string to the existing one(s), separated by a semicolon
                     else:
-                        interaction_string = interaction_string + '; ' + INTERACTION_STRING_FORMAT.format(num=commodity_num, commodity=entry['cmname'], alps=entry['alps'].lower(), date=entry['date'][:10])
+                        interaction_string = interaction_string + ';\n' + INTERACTION_STRING_FORMAT.format(num=commodity_num, commodity=entry['cmname'], alps=entry['alps'].lower(), date=entry['date'][:10])
                     # increase commodity_num by 1 for next iteration
                     commodity_num+=1
                 # create an empty list to store data from this row
@@ -896,7 +898,7 @@ def updateResourceWatch():
     This may include updating the 'last update date' and updating any dates on layers
     '''
     # Update dataset's last update date on Resource Watch
-    most_recent_date = get_most_recent_date(CARTO_ALPS_TABLE, TIME_FIELD)
+    most_recent_date = datetime.datetime.now().date()
     lastUpdateDate(DATASET_ID, most_recent_date)
     
     # Update the dates on layer legends
@@ -959,7 +961,7 @@ def main():
         num_existing_interactions, num_new_interactions, MAXROWS))
 
     # Remove old observations
-    deleteExcessRows(CARTO_ALPS_TABLE, MAXROWS, TIME_FIELD) 
+    deleteExcessRows(CARTO_ALPS_TABLE, MAXROWS, TIME_FIELD, MAXAGE) 
 
     # Update Resource Watch
     updateResourceWatch()
