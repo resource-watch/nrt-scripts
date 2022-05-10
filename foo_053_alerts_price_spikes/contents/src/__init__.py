@@ -28,7 +28,7 @@ WFP_KEY = os.getenv('WFP_KEY')
 WFP_SECRET = os.getenv('WFP_SECRET')
 
 # Do we want to process interactions for all ALPS data?
-PROCESS_HISTORY_INTERACTIONS = True
+PROCESS_HISTORY_INTERACTIONS = False
 
 # format of date used in Carto table
 DATE_FORMAT = '%Y-%m-%dT00:00:00'
@@ -898,7 +898,7 @@ def updateResourceWatch():
     This may include updating the 'last update date' and updating any dates on layers
     '''
     # Update dataset's last update date on Resource Watch
-    most_recent_date = datetime.datetime.now().date()
+    most_recent_date = datetime.datetime.utcnow().date()
     lastUpdateDate(DATASET_ID, most_recent_date)
     
     # Update the dates on layer legends
