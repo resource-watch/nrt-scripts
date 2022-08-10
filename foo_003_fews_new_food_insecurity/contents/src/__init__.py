@@ -4,14 +4,13 @@ import sys
 import urllib
 import zipfile
 import datetime
-import pandas as pd
 from dateutil.relativedelta import relativedelta
 import fiona
 from bs4 import BeautifulSoup
 from collections import OrderedDict
-from shapely import geometry
 import cartosql
 import requests
+import shutil
 
 # do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = False
@@ -54,7 +53,7 @@ CARTO_SCHEMA = OrderedDict([
 ])
 
 # how many rows can be stored in the Carto table before the oldest ones are deleted?
-MAXROWS = 1000000
+MAXROWS = 200000
 
 # format of date used in source files
 DATE_FORMAT = "%Y-%m-%d"
@@ -66,7 +65,7 @@ DATETIME_FORMAT = '%Y%m%dT00:00:00Z'
 SOURCE_URL = 'https://fdw.fews.net/api/ipcpackage/?country_code={}&collection_date={}'
 
 # oldest date that can be stored in the Carto table before we start deleting
-MAXAGE = datetime.date.today() - datetime.timedelta(days=365*5)
+MAXAGE = datetime.date.today() - datetime.timedelta(days=365*2)
 
 # minimum number of months we want to check back through for data
 MINDATES = 3
@@ -107,6 +106,23 @@ def lastUpdateDate(dataset, date):
         return 0
     except Exception as e:
         logging.error('[lastUpdated]: '+str(e))
+
+def delete_local():
+    '''
+    Delete all files and folders in Docker container's data directory
+    '''
+    try:
+        # for each object in the data directory
+        for f in os.listdir(DATA_DIR):
+            # try to remove it as a file
+            try:
+                logging.info('Removing {}'.format(f))
+                os.remove(DATA_DIR+'/'+f)
+            # if it is not a file, remove it as a folder
+            except:
+                shutil.rmtree(DATA_DIR+'/'+f, ignore_errors=True)
+    except NameError:
+        logging.info('No local files to clean.')
 
 '''
 FUNCTIONS FOR CARTO DATASETS
@@ -181,7 +197,7 @@ def findcountries():
         for div in divs:
             for string in div.strings:
                 # if string is not within the list of regions 
-                if string not in ['Global', 'Central America and Caribbean', 'Central Asia', 'East Africa', 'Southern Africa', 'West Africa']:
+                if string not in ['Global', 'Central America and Caribbean', 'Central Asia', 'East Africa', 'Southern Africa', 'West Africa', 'Europe and Eurasia']:
                     # append the string the list
                     list_countries.append(string)
     
@@ -502,5 +518,8 @@ def main():
 
     # Update Resource Watch
     updateResourceWatch(num_new)
+
+    # Delete local files in Docker container
+    delete_local()
 
     logging.info('SUCCESS')
