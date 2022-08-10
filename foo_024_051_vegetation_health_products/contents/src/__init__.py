@@ -16,7 +16,8 @@ import ee
 import json 
 
 # url for vegetation health products data
-SOURCE_URL = 'ftp://ftp.star.nesdis.noaa.gov/pub/corp/scsb/wguo/data/Blended_VH_4km/VH/{target_file}'
+# old url 'ftp://ftp.star.nesdis.noaa.gov/pub/corp/scsb/wguo/data/Blended_VH_4km/VH/{target_file}'
+SOURCE_URL = 'https://www.star.nesdis.noaa.gov/pub/corp/scsb/wguo/data/Blended_VH_4km/VH/{target_file}'
 
 # filename format for GEE
 SOURCE_FILENAME = 'VHP.G04.C07.npp.P{date}.VH.nc'
