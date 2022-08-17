@@ -18,8 +18,9 @@ import json
 # url for chlorophyll concentration data
 # example netcdf file name from source: A20181822018212.L3m_MO_CHL_chlor_a_9km.nc
 # SOURCE_URL = 'https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/A{date}.L3m_MO_CHL_chlor_a_4km.nc'
+# SOURCE_URL = 'https://oceandata.sci.gsfc.nasa.gov/opendap/hyrax/MODISA/L3SMI/{year}/{day}/AQUA_MODIS.{date}.L3m_MO_CHL_chlor_a_4km.nc.nc4'
 # The above url stopped working recently and this is the current working url
-SOURCE_URL = 'https://oceandata.sci.gsfc.nasa.gov/opendap/hyrax/MODISA/L3SMI/{year}/{day}/A{date}.L3m_MO_CHL_chlor_a_4km.nc.nc4'
+SOURCE_URL = 'https://oceandata.sci.gsfc.nasa.gov/opendap/hyrax/MODISA/L3SMI/{year}/{day}/AQUA_MODIS.{date}.L3m.MO.CHL.chlor_a.4km.NRT.nc.nc4'
 
 # subdataset to be converted to tif
 # should be of the format 'NETCDF:"filename.nc":variable'
@@ -38,13 +39,16 @@ DATA_DIR = 'data'
 GS_FOLDER = 'bio_037_chl_a'
 
 # name of collection in GEE where we will upload the final data
-EE_COLLECTION = 'bio_037_chl_a'
+EE_COLLECTION = '/projects/resource-watch-gee/bio_037_chl_a'
 
 # do you want to delete everything currently in the GEE collection when you run this script?
 CLEAR_COLLECTION_FIRST = False
 
 # how many assets can be stored in the GEE collection before the oldest ones are deleted?
 MAX_ASSETS = 8
+
+# format of date used in both source and GEE
+DATE_FORMAT = '%Y%m%d'
 
 # Resource Watch dataset API ID
 # Important! Before testing this script:
@@ -90,7 +94,6 @@ FUNCTIONS FOR RASTER DATASETS
 The functions below must go in every near real-time script for a RASTER dataset.
 Their format should not need to be changed.
 '''
-
 
 def getLastUpdate(dataset):
     '''
@@ -198,7 +201,7 @@ def getUrl(date):
     # get year from first indices of date
     year = date[0:4] 
     # get day from fourth to sixth indices of date
-    day = date[4:7]
+    day = date[4:8]
 
     return SOURCE_URL.format(year=year, day=day, date=date)
 
@@ -225,9 +228,10 @@ def getDate(filename):
     INPUT   filename: file name that ends in the start date and end date in the format YYYYDDDYYYYDDD, where DDD is the day of year (string)
     RETURN Julian start and end dates in the format YYYYDDDYYYYDDD (string)
     '''
-    return os.path.splitext(os.path.basename(filename))[0][14:28]
+    return os.path.splitext(os.path.basename(filename))[0][14:31]
 
 def getNewDates(exclude_dates):
+    # exclude_dates=existing_dates
     '''
     Get new dates we want to try to fetch data for
     INPUT   exclude_dates: list of date ranges that we already have in GEE, given as a Julian start and end date in the format YYYYDDDYYYYDDD (list of strings)
@@ -261,28 +265,8 @@ def getNewDates(exclude_dates):
         # get the last day of the current month for end date
         enddate = date.replace(day=calendar.monthrange(startdate.year, startdate.month)[1])
         
-        # get equivalent julian day from the start date
-        start_jday = str(startdate.timetuple().tm_yday) # example output: '61'
-        # julian days are 3 digit numbers
-        # if start_jday is 2 digits then add a "0" in the beginning to make it 3 digits
-        if len(start_jday)==2:
-            start_jday = '0'+start_jday    # example output: '061'
-        # if start_jday is 1 digit then add "00" in the beginning to make it 3 digits
-        elif len(start_jday)==1:
-            start_jday = '00'+start_jday
-        # get equivalent julian day from the end date
-        end_jday = str(enddate.timetuple().tm_yday) # example output: 91
-        if len(end_jday)==2:                        # example output: 091
-            end_jday = '0'+end_jday
-        elif len(end_jday)==1:
-            end_jday = '00'+end_jday
-        
-        # combine year and days to get start and end date in the format YYYYDDD (julian format)
-        start = str(startdate.year)+ start_jday     # example output: 2020061
-        end = str(enddate.year)+ end_jday           # example output: 2020091
         # merge start and end date to match the file naming convention that the data source uses
-        datestr = start+end                         # example output: 20200612020091
-
+        datestr = startdate.strftime(DATE_FORMAT) + '_' + enddate.strftime(DATE_FORMAT)
         # if the date string is not the list of dates we already have, add it to the list of new dates to try and fetch
         if datestr not in exclude_dates:
             new_dates.append(datestr)   
@@ -437,10 +421,10 @@ def get_most_recent_date(collection):
     # sort these dates oldest to newest
     existing_dates.sort()
     # get the most recent date (last in the list)
-    # get last 7 characters from most recent date in the format YYYYDDD ({end year}{julian day of the end of the month})
-    most_recent_date_julian = existing_dates[-1][-7:]
+    # get last 8 characters from most recent date in the format YYYYMMDD
+    most_recent_date_str = existing_dates[-1][-8:]
     # turn the most recent date into a datetime in julian format
-    most_recent_date = datetime.datetime.strptime(most_recent_date_julian, '%Y%j').date()
+    most_recent_date = datetime.datetime.strptime(most_recent_date_str, DATE_FORMAT).date()
     return most_recent_date
 
 def create_headers():
@@ -530,6 +514,7 @@ def updateResourceWatch():
         for layer_id in layer_ids:
             flushTileCache(layer_id)
 
+
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
@@ -563,3 +548,4 @@ def main():
     updateResourceWatch()
 
     logging.info('SUCCESS')
+    
