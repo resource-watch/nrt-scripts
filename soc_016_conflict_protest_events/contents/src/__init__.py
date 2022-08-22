@@ -317,7 +317,7 @@ def upload_to_carto(row):
     RETURN  the objectid of the row just uploaded (string)
     '''
     # maximum attempts to make
-    n_tries = 4
+    n_tries = 8
     # sleep time between each attempt   
     retry_wait_time = 6
 
