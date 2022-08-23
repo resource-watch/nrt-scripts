@@ -20,7 +20,8 @@ import json
 SOURCE_URL = 'https://www.star.nesdis.noaa.gov/pub/corp/scsb/wguo/data/Blended_VH_4km/VH/{target_file}'
 
 # filename format for GEE
-SOURCE_FILENAME = 'VHP.G04.C07.npp.P{date}.VH.nc'
+# old format 'VHP.G04.C07.npp.P{date}.VH.nc'
+SOURCE_FILENAME = 'VHP.G04.C07.j01.P{date}.VH.nc'
 
 # list variables (as named in GEE) that we want to pull
 VARS = ['VHI', 'VCI']

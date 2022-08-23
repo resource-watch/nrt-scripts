@@ -341,7 +341,7 @@ def upload_to_carto(row):
             insert_exception = e
             if r.status_code != 429:
                 try:
-                    logging.error(r.content)
+                    logging.warning(r.content)
                 except:
                     pass
             logging.warning('Attempt #{} to upload row #{} unsuccessful. Trying again after {} seconds'.format(i, row['objectid'], retry_wait_time))

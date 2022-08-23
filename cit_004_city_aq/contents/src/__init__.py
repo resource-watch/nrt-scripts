@@ -681,9 +681,9 @@ def processMetrics(new_ids):
             if len(df)>0:
                 df['uid'] = df.apply(lambda row: genUID(row['created'], row['date'], row['name']), axis=1)
                 df['the_geom'] = df.apply(lambda row: json.loads(row['the_geom']), axis=1)
-                df = df.where(pd.notnull(df), None)
-                # upload data to carto
-                cartosql.insertRows(METRICS_CARTO_TABLE, METRICS_CARTO_SCHEMA.keys(), METRICS_CARTO_SCHEMA.values(), df.values.tolist(), user=CARTO_USER, key=CARTO_KEY)
+                df = df.replace({np.nan: None})
+                df1 = df.where(pd.notnull(df), None)
+                cartosql.insertRows(METRICS_CARTO_TABLE, METRICS_CARTO_SCHEMA.keys(), METRICS_CARTO_SCHEMA.values(), df1.values.tolist(), user=CARTO_USER, key=CARTO_KEY)
             else:
                 continue
 
@@ -743,7 +743,7 @@ def main():
 
     # Check if metrics table exists, create it if it does not
     checkCreateTable(METRICS_CARTO_TABLE, METRICS_CARTO_SCHEMA, UID_FIELD)
-
+    
     # Calculate air quality metrics
     existing_metrics_ids = processMetrics(new_ids)
 
