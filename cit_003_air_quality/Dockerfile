@@ -3,8 +3,9 @@ MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 #Note this script was originally developed by Francis Gassert <fgassert@wri.org>
 
 # install core libraries
-RUN apk update
-RUN apk add git
+# RUN apk update
+# RUN apk add git
+RUN apt-get update
 
 # install application libraries
 RUN pip install requests==2.22.0
@@ -23,7 +24,7 @@ COPY contents/ .
 VOLUME ./data
 
 # Set user for container security
-RUN adduser -D $NAME
+RUN useradd $NAME
 RUN chown -R $NAME:$NAME .
 USER $NAME
 
