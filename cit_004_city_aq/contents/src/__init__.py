@@ -85,7 +85,7 @@ TIME_FIELD = 'created'
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
 # how many rows can be stored in the Carto table before the oldest ones are deleted?
-MAXROWS = 500000
+MAXROWS = 400000
 
 # url for devseed air quality data
 SOURCE_URL = 'http://gmao-aq-prod-1707436367.us-east-1.elb.amazonaws.com/api/forecast/'
