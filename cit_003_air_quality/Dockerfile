@@ -1,4 +1,4 @@
-FROM python:3.6-alpine
+FROM python:3.7
 MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 #Note this script was originally developed by Francis Gassert <fgassert@wri.org>
 

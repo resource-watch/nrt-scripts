@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #Change the NAME variable with the name of your script
-NAME=conflict_protest
+NAME=soc_016_conflict_protest
 LOG=${LOG:-udp://localhost}
 
 docker build -t $NAME --build-arg NAME=$NAME .
