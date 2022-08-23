@@ -1,5 +1,5 @@
 FROM python:3-stretch
-MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
+MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 #Note this script was originally developed by Nathan Suberi <nathan.suberi@wri.org>
 
 # install core libraries
