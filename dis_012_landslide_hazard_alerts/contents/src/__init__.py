@@ -52,7 +52,7 @@ CARTO_SCHEMA = OrderedDict([
 ])
 
 # how many rows can be stored in the Carto table before the oldest ones are deleted?
-MAX_ROWS = 100000
+MAX_ROWS = 80000
 
 # oldest date that can be stored in the Carto table before we start deleting
 MAX_AGE = datetime.datetime.utcnow() - datetime.timedelta(days=365)
