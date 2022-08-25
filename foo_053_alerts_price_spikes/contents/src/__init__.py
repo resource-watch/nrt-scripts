@@ -124,9 +124,9 @@ INTERACTION_STRING_FORMAT = "[{num}] {commodity} markets were at a '{alps}' leve
 LOOKBACK = 3
 
 # how many rows can be stored in the Carto table before the oldest ones are deleted?
-MAXROWS = 1000000
+MAXROWS = 150000
 # how many days can be stored in the Carto table before the old data is deleted?
-MAXAGE = datetime.datetime.utcnow() - datetime.timedelta(days=365)
+MAXAGE = datetime.datetime.utcnow() - datetime.timedelta(days=300)
 
 # Resource Watch dataset API ID
 # Important! Before testing this script:
