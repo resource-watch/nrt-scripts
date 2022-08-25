@@ -17,7 +17,8 @@ import json
 
 
 # url for surface temperature analysis data
-SOURCE_URL = 'ftp://ftp.cdc.noaa.gov/Datasets/gistemp/combined/250km/{target_file}'
+# old URL 'ftp://ftp.cdc.noaa.gov/Datasets/gistemp/combined/250km/{target_file}'
+SOURCE_URL = 'https://downloads.psl.noaa.gov/Datasets/gistemp/combined/250km/{target_file}'
 
 # name of target_file to be joined with SOURCE_URL
 SOURCE_FILENAME = 'air.2x2.250.mon.anom.comb.nc'
