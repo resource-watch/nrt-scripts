@@ -53,7 +53,7 @@ CARTO_SCHEMA = OrderedDict([
 ])
 
 # how many rows can be stored in the Carto table before the oldest ones are deleted?
-MAXROWS = 200000
+MAXROWS = 150000
 
 # format of date used in source files
 DATE_FORMAT = "%Y-%m-%d"
@@ -65,7 +65,7 @@ DATETIME_FORMAT = '%Y%m%dT00:00:00Z'
 SOURCE_URL = 'https://fdw.fews.net/api/ipcpackage/?country_code={}&collection_date={}'
 
 # oldest date that can be stored in the Carto table before we start deleting
-MAXAGE = datetime.date.today() - datetime.timedelta(days=365*2)
+MAXAGE = datetime.date.today() - datetime.timedelta(days=365)
 
 # minimum number of months we want to check back through for data
 MINDATES = 3
