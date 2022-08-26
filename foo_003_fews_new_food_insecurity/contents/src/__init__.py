@@ -53,7 +53,7 @@ CARTO_SCHEMA = OrderedDict([
 ])
 
 # how many rows can be stored in the Carto table before the oldest ones are deleted?
-MAXROWS = 150000
+MAXROWS = 100000
 
 # format of date used in source files
 DATE_FORMAT = "%Y-%m-%d"
