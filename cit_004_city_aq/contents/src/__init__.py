@@ -689,17 +689,38 @@ def processMetrics(new_ids):
                 continue
 
 
-
-def updateResourceWatch(new_ids):
+def updateResourceWatch(new_ids, existing_ids):
     '''
     This function should update Resource Watch to reflect the new data.
     This may include updating the 'last update date' and updating any dates on layers
     INPUT   new_ids: new IDs added to Carto table (list)
+            existing_ids: existing IDs in Carto table (list)
     '''
     # If there are new entries in the Carto table
     if len(new_ids)>0:
         # get a list of the newest dates
         new_dates = getLatestForecastDates(new_ids)
+        # get the creation date for the forecast
+        new_creation_date = new_dates[0]
+        logging.info('Updating Resource Watch Layers')
+        for var, ds_id in DATASET_IDS.items():
+            # Update the dates on layer legends
+            logging.info('Updating {}'.format(var))
+            # pull dictionary of current layers from API
+            layer_dict = pull_layers_from_API(ds_id)
+            # go through each layer, pull the definition and update
+            for layer in layer_dict:
+                # check which point on the timeline this is
+                order = layer['attributes']['layerConfig']['order']
+                # get the new date that should be used for this layer
+                new_date = new_dates[order+1]
+                # replace layer sql and title with new dates
+                update_layer(layer, new_creation_date, new_date)
+            # Update dataset's last update date on Resource Watch
+            lastUpdateDate(ds_id, new_creation_date)
+    else:
+        # get a list of the newest dates in Carto table
+        new_dates = getLatestForecastDates(existing_ids)
         # get the creation date for the forecast
         new_creation_date = new_dates[0]
         logging.info('Updating Resource Watch Layers')
@@ -753,6 +774,6 @@ def main():
     deleteExcessRows(CARTO_TABLE, MAXROWS, TIME_FIELD)
 
     # Update Resource Watch
-    updateResourceWatch(new_ids)
+    updateResourceWatch(new_ids, existing_ids)
 
     logging.info('SUCCESS')
