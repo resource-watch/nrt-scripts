@@ -17,7 +17,7 @@ CARTO_USER = os.getenv('CARTO_USER')
 CARTO_KEY = os.getenv('CARTO_KEY')
 
 # maximum number of features we want to retrieve from source url
-LIMIT = 1000
+LIMIT = 100
 
 # url for source data
 SOURCE_URL = "https://api.reliefweb.int/v1/disasters?preset=latest&limit={}&profile=full".format(LIMIT)
@@ -32,7 +32,7 @@ UID_FIELD='uid'
 AGE_FIELD = 'date'
 
 # how many rows can be stored in the Carto table before the oldest ones are deleted?
-MAX_ROWS = 1000000
+MAX_ROWS = 10000
 
 # name of tables in Carto where we will upload the data
 CARTO_TABLE = 'dis_006_reliefweb_disasters'
