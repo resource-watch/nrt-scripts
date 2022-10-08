@@ -36,7 +36,7 @@ CARTO_SCHEMA = OrderedDict([
     ('_start', 'timestamp'),
     ('_end', 'timestamp'),
     ('duration', 'text'),
-    ('Density', 'numeric')
+    ('Density', 'text')
 ])
 
 # column of table that can be used as a unique ID 
@@ -46,10 +46,11 @@ UID_FIELD = '_UID'
 TIME_FIELD = 'date'
 
 # how many rows can be stored in the Carto table before the oldest ones are deleted?
-MAXROWS = 100000
+MAXROWS = 50000
 
 # url for latest Hazard Mapping System (HMS) data
-SOURCE_URL = 'http://satepsanone.nesdis.noaa.gov/pub/FIRE/HMS/GIS/hms_smoke{date}.zip'
+# SOURCE_URL = 'http://satepsanone.nesdis.noaa.gov/pub/FIRE/HMS/GIS/hms_smoke{date}.zip'
+SOURCE_URL = 'http://satepsanone.nesdis.noaa.gov/pub/FIRE/web/HMS/Smoke_Polygons/Shapefile/{year}/{month}/hms_smoke{date}.zip'
 
 # url for archive Hazard Mapping System (HMS) data
 SOURCE_URL_ARCHIVE = 'http://satepsanone.nesdis.noaa.gov/pub/FIRE/HMS/GIS/ARCHIVE/hms_smoke{date}.zip'
@@ -71,7 +72,7 @@ MAXAGE_UPLOAD = datetime.datetime.today() - datetime.timedelta(days=360)
 MAX_CHECK_CURRENT = datetime.datetime.today() - datetime.timedelta(days=7)
 
 # oldest date that can be stored in the Carto table before we start deleting
-MAXAGE = datetime.datetime.today() - datetime.timedelta(days=365*10)
+MAXAGE = datetime.datetime.today() - datetime.timedelta(days=365*2)
 
 # Resource Watch dataset API ID
 # Important! Before testing this script:
@@ -283,7 +284,7 @@ def processNewData(existing_ids):
             if datetime.datetime.strptime(date, DATE_FORMAT) > MAX_CHECK_CURRENT:
                 try:
                     # generate url using date
-                    url = SOURCE_URL.format(date=date)
+                    url = SOURCE_URL.format(year=date[0:4], month=date[4:6], date=date)
                     # pull data from url and save to tmpfile
                     urllib.request.urlretrieve(url, tmpfile)
                 except urllib.error.HTTPError as e:
