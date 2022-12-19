@@ -42,7 +42,7 @@ CARTO_SCHEMA = OrderedDict([
 MAX_ROWS = 1000000
 
 # url for Greenland mass data
-SOURCE_URL = 'https://podaac-tools.jpl.nasa.gov/drive/files/allData/tellus/L4/ice_mass/RL06/v02/mascon_CRI'
+SOURCE_URL = 'https://podaac-tools.jpl.nasa.gov/drive/files/allData/tellus/L4/ice_mass/RL06.1/v03/mascon_CRI'
 
 # Resource Watch dataset API ID
 # Important! Before testing this script:
