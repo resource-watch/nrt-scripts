@@ -9,4 +9,4 @@ Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blo
 
 This script is run monthly. The exact time that the script is run to update the dataset can be found in the the `time.cron` file. This time is in Coordinated Universal Time (UTC), expressed in cron format.
 
-###### Note: This script was originally written by [Yujing Wu](https://www.wri.org/profile/yujing-wu), and is currently maintained by [Yujing Wu](https://www.wri.org/profile/yujing-wu).
+###### Note: This script was originally written by [Yujing Wu](https://www.wri.org/profile/yujing-wu), and is currently maintained by [Weiqi Zhou](https://wri.org.cn/en/profile/weiqi-zhou).

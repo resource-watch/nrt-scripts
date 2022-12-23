@@ -9,4 +9,4 @@ Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blo
 
 This script is run daily. The exact time that the script is run to update the dataset can be found in the the `time.cron` file. This time is in Coordinated Universal Time (UTC), expressed in cron format.
 
-###### Note: This script was originally written by [Taufiq Rashid](https://www.wri.org/profile/taufiq-rashid), and is currently maintained by [Taufiq Rashid](https://www.wri.org/profile/taufiq-rashid).
+###### Note: This script was originally written by [Taufiq Rashid](https://www.wri.org/profile/taufiq-rashid), and is currently maintained by [Weiqi Zhou](https://wri.org.cn/en/profile/weiqi-zhou).
