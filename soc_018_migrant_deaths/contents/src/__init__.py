@@ -71,7 +71,7 @@ MAX_AGE = datetime.datetime.today() - datetime.timedelta(days=365*MAX_YEARS)
 
 # url for Missing Migrants data
 # SOURCE_URL = "https://missingmigrants.iom.int/global-figures/{year}/xls"
-SOURCE_URL = 'https://missingmigrants.iom.int/sites/g/files/tmzbdl601/files/{year}-{month}/Missing_Migrants_Global_Figures_allData.xlsx'
+SOURCE_URL = 'https://missingmigrants.iom.int/sites/g/files/tmzbdl601/files/{year}-{month}/Missing_Migrants_Global_Figures_allData_2.xlsx'
 
 # format of dates in source csv file
 INPUT_DATE_FORMAT = '%Y-%m-%d'
@@ -204,7 +204,13 @@ def processData(src_url, existing_ids):
     # while year > MAX_AGE.year:
     logging.info("Fetching data from {}".format(src_url.format(year = year, month = month)))
     # generate the url and pull data for the selected year
-    urllib.request.urlretrieve(src_url.format(year = year, month = month), os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}-{month}.xlsx'))
+    try:
+        urllib.request.urlretrieve(src_url.format(year = year, month = month), os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}-{month}.xlsx'))
+    except:
+        # try to pull last month's data
+        year = (datetime.datetime.today().replace(day=1) - datetime.timedelta(days=1)).year
+        month = (datetime.datetime.today().replace(day=1) - datetime.timedelta(days=1)).month
+        urllib.request.urlretrieve(src_url.format(year = year, month = month), os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}-{month}.xlsx'))
     # convert excel file to csv
     read_file = pd.read_excel(os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}-{month}.xlsx'), sheet_name='Worksheet', engine = 'openpyxl')
     read_file.to_csv(os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}-{month}.csv'), index = None, header=True)
