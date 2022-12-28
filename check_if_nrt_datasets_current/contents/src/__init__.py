@@ -191,6 +191,6 @@ def main():
         today = datetime.datetime.utcnow()
         time_since_checking = today - last_check_dt
         days = time_since_checking.days
-        # if it has been more than two weeks, log an error
-        if days > 14:
+        # if it has been more than three weeks, log an error
+        if days > 21:
             logging.error('The status of {wri_id} has not been checked in {days} days.'.format(wri_id=dataset['WRI ID'],days=days))
