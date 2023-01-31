@@ -1,4 +1,4 @@
-FROM python:3.6
+FROM python:3.7.7
 MAINTAINER Taufiq Rashid <taufiq.rashid@wri.org>
 #Note this script was originally developed by Taufiq Rashid <taufiq.rashid@wri.org>
 
@@ -18,7 +18,7 @@ RUN pip install GDAL==2.4.2
 RUN apt-get -y install python-gdal
 
 # set name
-ARG NAME=nrt-script
+ARG NAME=ocn_007_coral_bleaching_monitoring
 ENV NAME ${NAME}
 
 # copy the application folder inside the container
