@@ -457,7 +457,7 @@ def main():
                 uid = genUID(obs)
                 param = obs['parameter']
                 # 2.1 parse data excluding existing observations
-                if datetime.datetime.strptime(obs['date']['utc'], '%Y-%m-%dT%H:%M:%S.000Z') > most_recent_dates[param]:
+                if param in PARAMS and datetime.datetime.strptime(obs['date']['utc'], '%Y-%m-%dT%H:%M:%S.000Z') > most_recent_dates[param]:
                     if uid not in new_ids[param]: 
                         new_ids[param].append(uid)
                         rows[param].append(parseFields(obs, uid, CARTO_SCHEMA.keys()))
