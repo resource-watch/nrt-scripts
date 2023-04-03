@@ -25,7 +25,7 @@ jobs:
         # Command to execute on the remote server.
         command: sudo /home/ubuntu/scripts/install.sh
         # Hostname or IP address of the server.
-        host: ec2-34-228-112-43.compute-1.amazonaws.com
+        host: ec2-3-80-230-37.compute-1.amazonaws.com
         # Username for authentication.
         username: ubuntu
         # File Location or string that contains a private key for either key-based or hostbased user authentication (OpenSSH format)
