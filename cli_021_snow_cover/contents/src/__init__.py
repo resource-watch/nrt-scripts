@@ -16,7 +16,7 @@ from dateutil.relativedelta import relativedelta
 import json
 
 # url for snow cover data
-SOURCE_URL = 'https://n5eil01u.ecs.nsidc.org/MOST/MOD10CM.006/{date}'
+SOURCE_URL = 'https://n5eil01u.ecs.nsidc.org/MOST/MOD10CM.061/{date}'
     
 # subdataset to be converted to tif
 # should be of the format 'HDF4_EOS:EOS_GRID:"filename.hdf":variable'
