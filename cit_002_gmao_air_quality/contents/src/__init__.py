@@ -16,7 +16,12 @@ import ee
 import time
 from string import ascii_uppercase
 import json
+from urllib3.exceptions import InsecureRequestWarning
+from urllib3 import disable_warnings
+import ssl
 
+ssl._create_default_https_context = ssl._create_unverified_context
+disable_warnings(InsecureRequestWarning)
 
 # url for historical air quality data
 SOURCE_URL_HISTORICAL = 'https://portal.nccs.nasa.gov/datashare/gmao/geos-cf/v1/das/Y{year}/M{month}/D{day}/GEOS-CF.v01.rpl.chm_tavg_1hr_g1440x721_v1.{year}{month}{day}_{time}z.nc4'
@@ -283,7 +288,7 @@ def list_available_files(url, file_start=''):
     RETURN  list of files available for the given url (list of strings)
     '''
     # open and read the url
-    page = requests.get(url).text
+    page = requests.get(url, verify=False).text
     # use BeautifulSoup to read the content as a nested data structure
     soup = BeautifulSoup(page, 'html.parser')
     # Extract all the <a> tags within the html content to find the files available for download marked with these tags.
