@@ -209,7 +209,7 @@ def processData(src_url, existing_ids):
     except:
         # try to pull last month's data
         year = (datetime.datetime.today().replace(day=1) - datetime.timedelta(days=1)).year
-        month = (datetime.datetime.today().replace(day=1) - datetime.timedelta(days=1)).month
+        month = f"{(datetime.datetime.today().replace(day=1) - datetime.timedelta(days=1)).month:02d}"
         urllib.request.urlretrieve(src_url.format(year = year, month = month), os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}-{month}.xlsx'))
     # convert excel file to csv
     read_file = pd.read_excel(os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}-{month}.xlsx'), sheet_name='Worksheet', engine = 'openpyxl')
