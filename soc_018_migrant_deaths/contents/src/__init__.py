@@ -194,7 +194,7 @@ def processData(src_url, existing_ids):
     num_new = 1
     # create a datetime object with today's date and get the year
     year = datetime.datetime.today().year
-    month = datetime.datetime.today().month
+    month = f"{datetime.datetime.today().month:02d}"   
 
     # create an empty list to store unique ids of new data we will be sending to Carto table
     new_ids = []
