@@ -254,7 +254,15 @@ def processData(src_url, existing_ids):
             # skip if there is no data for Coordinates
             if not len(row[idx['Coordinates']]):
                 continue
-            if datetime.datetime.strptime(row[idx[TIME_FIELD]],INPUT_DATE_FORMAT) < MAX_AGE:
+            # skip if no date
+            try:
+                date = datetime.datetime.strptime(row[idx[TIME_FIELD]],INPUT_DATE_FORMAT)
+            except ValueError:
+                date = False
+            if date == False:
+                continue
+            # skip if old date
+            if date < MAX_AGE:
                 continue
             # generate unique id from the 'URL' column
             uid = row[idx['Main_ID']]
