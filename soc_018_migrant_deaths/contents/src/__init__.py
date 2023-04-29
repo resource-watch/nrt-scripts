@@ -257,7 +257,7 @@ def processData(src_url, existing_ids):
             if datetime.datetime.strptime(row[idx[TIME_FIELD]],INPUT_DATE_FORMAT) < MAX_AGE:
                 continue
             # generate unique id from the 'URL' column
-            uid = row[idx['URL']]
+            uid = row[idx['Main_ID']]
             # if the id doesn't already exist in Carto table or 
             # isn't added to the list for sending to Carto yet 
             if uid not in existing_ids and uid not in new_ids:
