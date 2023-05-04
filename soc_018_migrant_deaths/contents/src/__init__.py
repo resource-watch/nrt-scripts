@@ -254,7 +254,7 @@ def processData(src_url, existing_ids):
                 break
             # skip if there is no data for Coordinates
             if not len(row[idx['Coordinates']]):
-                logging.info("Row has no Coordinates")
+                # Row has no Coordinates
                 continue
             # skip if no date
             try:
@@ -262,11 +262,11 @@ def processData(src_url, existing_ids):
             except ValueError:
                 date = False
             if date == False:
-                logging.info("Row has no valid date")
+                # Row has no valid date
                 continue
             # skip if old date
             if date < MAX_AGE:
-                logging.info("Row is older than max age")
+                # Row is older than max age
                 continue
             # generate unique id from the 'URL' column
             uid = row[idx['Main_ID']]
