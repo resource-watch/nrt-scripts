@@ -196,12 +196,12 @@ def fetch_data(src_url):
             """  cols = ["data_id", "event_date", "year", "time_precision", "event_type", "sub_event_type", "actor1", "assoc_actor_1", "inter1", 
             "actor2", "assoc_actor_2", "inter2", "interaction", "country", "iso3", "region", "admin1", "admin2", "admin3", "location", 
             "geo_precision", "time_precision", "source", "source_scale", "notes", "fatalities", "latitude", "longitude"] """
-            cols = ['data_id','event_type', 'latitude', 'longitude']
+            cols = ['event_id_cnty','event_type', 'latitude', 'longitude']
 
             # pull data from request response json
             for obs in r.json()['data']:
                 # append the id to the list for sending to Carto 
-                new_ids.append(obs['data_id'])
+                new_ids.append(obs['event_id_cnty'])
                 # create an empty list to store data from this row
                 row = []
                 # go through each column in the Carto table
@@ -224,8 +224,8 @@ def fetch_data(src_url):
 
         except:
             logging.error('Could not fetch or process page {}'.format(page))
-    # drop duplicate records by data_id
-    data_df = data_df.drop_duplicates(['data_id']).iloc[:, 1:]
+    # drop duplicate records by event_id_cnty
+    data_df = data_df.drop_duplicates(['event_id_cnty']).iloc[:, 1:]
 
     # convert the pandas dataframe to a geopandas dataframe
     data_gdf = gpd.GeoDataFrame(data_df, geometry=gpd.points_from_xy(data_df.longitude, data_df.latitude))
