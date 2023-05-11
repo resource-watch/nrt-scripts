@@ -199,10 +199,11 @@ def flushTileCache(layer_id):
             r = requests.delete(url = apiUrl, headers = headers, timeout = 1000)
             # if we get a 200, the cache has been deleted
             # if we get a 504 (gateway timeout) - the tiles are still being deleted, but it worked
-            if r.ok or r.status_code == 504:
+            # if we get a 503 - the layers are still being replaced, but it worked
+            if r.ok or r.status_code==504 or r.status_code==503 or r.status_code==500:
                 logging.info('[Cache tiles deleted] for {}: status code {}'.format(layer_id, r.status_code))
                 return r.status_code
-            # if we don't get a 200 or 504:
+            # if we don't get a 200 or 504 or 503 or 500:
             else:
                 # if we are not on our last try, wait 60 seconds and try to clear the cache again
                 if try_num < (tries - 1):
@@ -660,7 +661,8 @@ def update_layer(var, layer, end_date, start_date):
     # check response
     # if we get a 200, the layers have been replaced
     # if we get a 504 (gateway timeout) - the layers are still being replaced, but it worked
-    if r.ok or r.status_code==504:
+    # if we get a 503 - the layers are still being replaced, but it worked
+    if r.ok or r.status_code==504 or r.status_code==503:
         logging.info('Layer replaced: {}'.format(layer['id']))
     else:
         logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))

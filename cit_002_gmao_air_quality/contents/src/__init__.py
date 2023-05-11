@@ -824,7 +824,8 @@ def update_layer(var, period, layer, new_date):
     # check response
     # if we get a 200, the layers have been replaced
     # if we get a 504 (gateway timeout) - the layers are still being replaced, but it worked
-    if r.ok or r.status_code==504:
+    # if we get a 503 - the layers are still being replaced, but it worked
+    if r.ok or r.status_code==504 or r.status_code==503:
         logging.info('Layer replaced: {}'.format(layer['id']))
     else:
         logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
