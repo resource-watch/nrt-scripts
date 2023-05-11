@@ -194,7 +194,7 @@ def processData(src_url, existing_ids):
     num_new = 1
     # create a datetime object with today's date and get the year
     year = datetime.datetime.today().year
-    month = datetime.datetime.today().month
+    month = f"{datetime.datetime.today().month:02d}"   
 
     # create an empty list to store unique ids of new data we will be sending to Carto table
     new_ids = []
@@ -209,7 +209,7 @@ def processData(src_url, existing_ids):
     except:
         # try to pull last month's data
         year = (datetime.datetime.today().replace(day=1) - datetime.timedelta(days=1)).year
-        month = (datetime.datetime.today().replace(day=1) - datetime.timedelta(days=1)).month
+        month = f"{(datetime.datetime.today().replace(day=1) - datetime.timedelta(days=1)).month:02d}"
         urllib.request.urlretrieve(src_url.format(year = year, month = month), os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}-{month}.xlsx'))
     # convert excel file to csv
     read_file = pd.read_excel(os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}-{month}.xlsx'), sheet_name='Worksheet', engine = 'openpyxl')
@@ -250,14 +250,26 @@ def processData(src_url, existing_ids):
         for row in csv_reader:
             # break if there is no data (0 rows)
             if not len(row):
+                logging.error("No data in file")
                 break
-            # break if there is no data for Coordinates
+            # skip if there is no data for Coordinates
             if not len(row[idx['Coordinates']]):
-                break
-            if datetime.datetime.strptime(row[idx[TIME_FIELD]],INPUT_DATE_FORMAT) < MAX_AGE:
+                # Row has no Coordinates
+                continue
+            # skip if no date
+            try:
+                date = datetime.datetime.strptime(row[idx[TIME_FIELD]],INPUT_DATE_FORMAT)
+            except ValueError:
+                date = False
+            if date == False:
+                # Row has no valid date
+                continue
+            # skip if old date
+            if date < MAX_AGE:
+                # Row is older than max age
                 continue
             # generate unique id from the 'URL' column
-            uid = row[idx['URL']]
+            uid = row[idx['Main_ID']]
             # if the id doesn't already exist in Carto table or 
             # isn't added to the list for sending to Carto yet 
             if uid not in existing_ids and uid not in new_ids:
