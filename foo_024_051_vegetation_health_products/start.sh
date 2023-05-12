@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #Change the NAME variable with the name of your script
-NAME=vegetation_health_products
+NAME=foo_024_051_vegetation_health
 LOG=${LOG:-udp://localhost}
 
 docker build -t $NAME --build-arg NAME=$NAME .
