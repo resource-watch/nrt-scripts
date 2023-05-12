@@ -1,4 +1,4 @@
-FROM python:3-stretch
+FROM python:3.7
 MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 #Note this script was originally developed by Nathan Suberi <nathan.suberi@wri.org>
 
@@ -15,7 +15,7 @@ RUN pip install \
     rasterio==1.1.2
 
 # set name
-ARG NAME=nrt-script
+ARG NAME=foo_024_051
 ENV NAME ${NAME}
 
 # copy the application folder inside the container
