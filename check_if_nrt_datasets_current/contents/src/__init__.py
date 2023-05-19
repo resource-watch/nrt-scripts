@@ -27,6 +27,9 @@ def main():
 
     # go through each NRT dataset and check if it is up-to-date
     for idx, dataset in nrt_df.iterrows():
+        # skip datasets with known issues
+        if dataset['New WRI_ID'] in list(error_tracking_df['WRI ID']):
+            continue
         # get data from API for data set
         api_call = requests.get('https://api.resourcewatch.org/v1/dataset/{}'.format(dataset['API_ID']))
         r = api_call.json()
@@ -182,7 +185,7 @@ def main():
                                                                                   public_title=dataset[
                                                                                       'Public Title']))
 
-    # prepare bi-weekly reminder to check any data sets that have been investigated but are still outdated
+    # prepare monthly reminder to check any data sets that have been investigated but are still outdated
     for idx, dataset in error_tracking_df.iterrows():
         # find when the dataset was last checked
         last_check = dataset['Last Check']
@@ -192,5 +195,5 @@ def main():
         time_since_checking = today - last_check_dt
         days = time_since_checking.days
         # if it has been more than three weeks, log an error
-        if days > 21:
+        if days > 31:
             logging.error('The status of {wri_id} has not been checked in {days} days.'.format(wri_id=dataset['WRI ID'],days=days))
