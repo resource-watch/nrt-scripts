@@ -6,8 +6,8 @@ MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 RUN apt-get update && pip install -U pip
 
 # install application libraries
-RUN pip install requests==2.22.0
-RUN pip install pandas==0.24.2
+RUN pip install requests==2.30.0
+RUN pip install pandas==2.0.1
 
 # set name
 ARG NAME=nrt-script
