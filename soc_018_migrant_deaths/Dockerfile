@@ -13,6 +13,7 @@ RUN pip install --upgrade pip && pip install requests==2.28.2
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 RUN pip install pandas==1.5.3
 RUN pip install openpyxl
+RUN pip install bs4
 
 # Copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data
