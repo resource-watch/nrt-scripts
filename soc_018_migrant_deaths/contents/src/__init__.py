@@ -10,6 +10,7 @@ import shutil
 import json
 import pandas as pd
 import urllib
+from bs4 import BeautifulSoup
 
 '''
 ---------------------------------Important Note--------------------------------------------------
@@ -71,7 +72,7 @@ MAX_AGE = datetime.datetime.today() - datetime.timedelta(days=365*MAX_YEARS)
 
 # url for Missing Migrants data
 # SOURCE_URL = "https://missingmigrants.iom.int/global-figures/{year}/xls"
-SOURCE_URL = 'https://missingmigrants.iom.int/sites/g/files/tmzbdl601/files/{year}-{month}/Missing_Migrants_Global_Figures_allData.xlsx'
+SOURCE_URL = 'https://missingmigrants.iom.int/sites/g/files/tmzbdl601/files/{year}-{month}/{file_name}'
 
 # format of dates in source csv file
 INPUT_DATE_FORMAT = '%Y-%m-%d'
@@ -194,7 +195,19 @@ def processData(src_url, existing_ids):
     num_new = 1
     # create a datetime object with today's date and get the year
     year = datetime.datetime.today().year
-    month = f"{datetime.datetime.today().month:02d}"   
+    month = f"{datetime.datetime.today().month:02d}" 
+
+    # get excel file name
+    # Send a GET request to the web page
+    url = "https://missingmigrants.iom.int/downloads"
+    response = requests.get(url)
+    # Parse the HTML content
+    soup = BeautifulSoup(response.text, "html.parser")
+    # Find the link(s) with .xlsx extension
+    xlsx_links = soup.find_all("a", href=lambda href: href and href.endswith(".xlsx"))
+    # Extract the first file name from the link(s)
+    # The web page has two links with .xlsx extension, and their file names are the same
+    file_name = [link["href"].split("/")[-1] for link in xlsx_links][0]
 
     # create an empty list to store unique ids of new data we will be sending to Carto table
     new_ids = []
@@ -202,15 +215,15 @@ def processData(src_url, existing_ids):
     # Retrieve and process new data; continue until the current year is 
     # older than the oldest year allowed in the table, set by the MAX_AGE variable
     # while year > MAX_AGE.year:
-    logging.info("Fetching data from {}".format(src_url.format(year = year, month = month)))
+    logging.info("Fetching data from {}".format(src_url.format(year=year, month=month, file_name=file_name)))
     # generate the url and pull data for the selected year
     try:
-        urllib.request.urlretrieve(src_url.format(year = year, month = month), os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}-{month}.xlsx'))
+        urllib.request.urlretrieve(src_url.format(year=year, month=month, file_name=file_name), os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}-{month}.xlsx'))
     except:
         # try to pull last month's data
         year = (datetime.datetime.today().replace(day=1) - datetime.timedelta(days=1)).year
         month = f"{(datetime.datetime.today().replace(day=1) - datetime.timedelta(days=1)).month:02d}"
-        urllib.request.urlretrieve(src_url.format(year = year, month = month), os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}-{month}.xlsx'))
+        urllib.request.urlretrieve(src_url.format(year = year, month = month, file_name=file_name), os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}-{month}.xlsx'))
     # convert excel file to csv
     read_file = pd.read_excel(os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}-{month}.xlsx'), sheet_name='Worksheet', engine = 'openpyxl')
     read_file.to_csv(os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}-{month}.csv'), index = None, header=True)
@@ -246,6 +259,10 @@ def processData(src_url, existing_ids):
                 logging.info('updated column name:{}'.format(k.replace(' ', '_')))
         # create an empty list to store each row of new data
         new_rows = []
+        # count skipped records
+        n_no_coord = 0
+        n_no_date = 0
+        n_max_age = 0
         # iterate over each line in the reader object
         for row in csv_reader:
             # break if there is no data (0 rows)
@@ -255,6 +272,7 @@ def processData(src_url, existing_ids):
             # skip if there is no data for Coordinates
             if not len(row[idx['Coordinates']]):
                 # Row has no Coordinates
+                n_no_coord += 1
                 continue
             # skip if no date
             try:
@@ -263,10 +281,12 @@ def processData(src_url, existing_ids):
                 date = False
             if date == False:
                 # Row has no valid date
+                n_no_date += 1
                 continue
             # skip if old date
             if date < MAX_AGE:
                 # Row is older than max age
+                n_max_age += 1
                 continue
             # generate unique id from the 'URL' column
             uid = row[idx['Main_ID']]
@@ -324,6 +344,11 @@ def processData(src_url, existing_ids):
             # insert new data into the carto table
             cartosql.insertRows(CARTO_TABLE, CARTO_SCHEMA.keys(), CARTO_SCHEMA.values(),
                                 new_rows, user=CARTO_USER, key=CARTO_KEY)
+        # log number of skipped records
+        logging.info("Skipped {} rows - Row has no coordinates".format(n_no_coord))
+        logging.info("Skipped {} rows - Row has no valid date".format(n_no_date))
+        logging.info("Skipped {} rows - Row is older than max age".format(n_max_age))
+
         # year -= 1
     return new_ids
 
@@ -492,6 +517,8 @@ def main():
 
     # Delete data to get back to MAX_ROWS
     num_deleted = deleteExcessRows(CARTO_TABLE, MAX_ROWS, TIME_FIELD, MAX_AGE)
+    if num_deleted !=0:
+        logging.info('{} rows of old records removed!'.format(num_deleted))
 
     # Update Resource Watch
     updateResourceWatch(num_new)
