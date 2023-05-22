@@ -229,7 +229,7 @@ def flushTileCache(layer_id):
     while try_num<tries:
         try:
             # try to delete the cache
-            logging.info(headers)
+            # logging.info(headers)
             logging.info(apiUrl)
             r = requests.delete(url = apiUrl, headers = headers, timeout=1000)
             # if we get a 200, the cache has been deleted
