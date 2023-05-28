@@ -144,7 +144,7 @@ def flushTileCache(layer_id):
             r = requests.delete(url = apiUrl, headers = headers, timeout=1000)
             # if we get a 200, the cache has been deleted
             # if we get a 504 (gateway timeout) - the tiles are still being deleted, but it worked
-            if r.ok or r.status_code==504:
+            if r.ok or r.status_code==504 or r.status_code==500:
                 logging.info('[Cache tiles deleted] for {}: status code {}'.format(layer_id, r.status_code))
                 return r.status_code
             # if we don't get a 200 or 504:
