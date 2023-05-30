@@ -53,7 +53,7 @@ def main():
         elif expected_freq.lower().strip() == 'annual':
             allowed_time = datetime.timedelta(days=410)
         elif expected_freq.lower().strip() == 'varies':
-            allowed_time = datetime.timedelta(days=10)
+            allowed_time = datetime.timedelta(days=15)
         # if frequency on the order of days, we will let the update be 3 days overdue
         elif 'days' in expected_freq.lower():
             x = int(expected_freq.lower()[0:-5])
