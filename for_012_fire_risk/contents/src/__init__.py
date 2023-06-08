@@ -349,6 +349,9 @@ def processNewData(existing_dates):
     # Get list of new dates we want to try to fetch data for
     new_dates = getNewDates(existing_dates)
 
+    if not os.path.exists(DATA_DIR):
+        os.makedirs(DATA_DIR)
+
     # Fetch new files
     logging.info('Fetching files')
     files = fetch(new_dates) 
