@@ -12,6 +12,7 @@ import urllib.request
 import time
 import json
 import re
+import shutil
 
 # url for fire weather data
 SOURCE_URL = 'https://portal.nccs.nasa.gov/datashare/GlobalFWI/v2.0/fwiCalcs.GEOS-5/Default/GPM.LATE.v5/{year}/FWI.GPM.LATE.v5.Daily.Default.{date}.nc'
@@ -85,6 +86,25 @@ def lastUpdateDate(dataset, date):
         return 0
     except Exception as e:
         logging.error('[lastUpdated]: '+str(e))
+
+
+def delete_local():
+    '''
+    Delete all files and folders in Docker container's data directory
+    '''
+    try:
+        # for each object in the data directory
+        for f in os.listdir(DATA_DIR):
+            # try to remove it as a file
+            try:
+                logging.info('Removing {}'.format(f))
+                os.remove(DATA_DIR+'/'+f)
+            # if it is not a file, remove it as a folder
+            except:
+                shutil.rmtree(DATA_DIR+'/'+f, ignore_errors=True)
+    except NameError:
+        logging.info('No local files to clean.')
+
 
 '''
 FUNCTIONS FOR RASTER DATASETS
@@ -551,5 +571,8 @@ def main():
 
     # Update Resource Watch
     updateResourceWatch()
+
+    # Delete local files in Docker container
+    delete_local()
 
     logging.info('SUCCESS')
