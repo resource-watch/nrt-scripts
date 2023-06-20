@@ -471,7 +471,7 @@ def check_first_run(existing_ids):
     r = requests.get(f'http://api.resourcewatch.org/v1/dataset/{DATASET_ID}')
     # get current last updated date
     dataLastUpdated = json.loads(r.content.decode('utf-8'))['data']['attributes']['dataLastUpdated']
-    # Check if it's more then 15 days ago
+    # Check if it's more then 10 days ago
     if datetime.datetime.utcnow() - datetime.datetime.strptime(dataLastUpdated, "%Y-%m-%dT%H:%M:%S.%fZ") > datetime.timedelta(days=10):
         # update last update date
         lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
