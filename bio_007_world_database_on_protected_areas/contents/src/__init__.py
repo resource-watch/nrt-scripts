@@ -14,11 +14,12 @@ import geopandas as gpd
 import shutil
 import glob
 import warnings
+import json
 warnings.simplefilter(action='ignore', category=UserWarning)
 
 
 # do you want to delete everything currently in the Carto table when you run this script?
-CLEAR_TABLE_FIRST = True
+CLEAR_TABLE_FIRST = False
 
 # name of data directory in Docker container
 DATA_DIR = 'data'
@@ -353,7 +354,7 @@ def upload_to_carto(row):
         logging.error(insert_exception)
         raise insert_exception
 
-def processData(gdb):
+def processData(gdb, existing_ids):
     '''
     Process, upload, and clean new data
     INPUT gdb: fetched geodatabase with new data (geodatabase)
@@ -368,29 +369,30 @@ def processData(gdb):
     # the row after the last one we want to fetch and process
     end = None
     # create an empty list to store all the wdpa_pids 
-    all_ids = []
+    all_ids = existing_ids
 
-    # deal with the large geometries first 
-    for i in range(0, 100000000):
-        # import a slice of the geopandas dataframe 
-        gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(start, end))
-        if '555643543' in gdf['WDPA_PID'].to_list():
-            # isolate the large polygon
-            gdf_large = gdf.loc[gdf['WDPA_PID'] =='555643543']
-            # get rid of the \r\n in the wdpa_pid column 
-            gdf_large['WDPA_PID'] = [x.split('\r\n')[0] for x in gdf_large['WDPA_PID']]
-            # create a new column to store the status_yr column as timestamps
-            gdf_large.insert(19, "legal_status_updated_at", [None if x == 0 else datetime.datetime(x, 1, 1) for x in gdf_large['STATUS_YR']])
-            gdf_large["legal_status_updated_at"] = gdf_large["legal_status_updated_at"].astype(object)
-        
-            # first upload the polygon to carto
-            upload_to_carto(gdf_large.iloc[0])
-            logging.info('Large geometry upload completed!')
-            all_ids.append('555643543')
-            break
-        else:
-            end = start 
-            start -= step
+    if '555643543' not in all_ids:
+        # deal with the large geometries first 
+        for i in range(0, 100000000):
+            # import a slice of the geopandas dataframe 
+            gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(start, end))
+            if '555643543' in gdf['WDPA_PID'].to_list():
+                # isolate the large polygon
+                gdf_large = gdf.loc[gdf['WDPA_PID'] =='555643543']
+                # get rid of the \r\n in the wdpa_pid column 
+                gdf_large['WDPA_PID'] = [x.split('\r\n')[0] for x in gdf_large['WDPA_PID']]
+                # create a new column to store the status_yr column as timestamps
+                gdf_large.insert(19, "legal_status_updated_at", [None if x == 0 else datetime.datetime(x, 1, 1) for x in gdf_large['STATUS_YR']])
+                gdf_large["legal_status_updated_at"] = gdf_large["legal_status_updated_at"].astype(object)
+            
+                # first upload the polygon to carto
+                upload_to_carto(gdf_large.iloc[0])
+                logging.info('Large geometry upload completed!')
+                all_ids.append('555643543')
+                break
+            else:
+                end = start 
+                start -= step
 
     # the index of the first row we want to import from the geodatabase
     start = -100
@@ -461,6 +463,27 @@ def updateResourceWatch(num_new):
 
     # Update the dates on layer legends - TO BE ADDED IN FUTURE
 
+def check_first_run(existing_ids):
+    '''
+    Check if this is the first time of the month that the data was successfully fetched
+    If it is then update the date of the dataset and clear the existing table
+    '''
+    r = requests.get(f'http://api.resourcewatch.org/v1/dataset/{DATASET_ID}')
+    # get current last updated date
+    dataLastUpdated = json.loads(r.content.decode('utf-8'))['data']['attributes']['dataLastUpdated']
+    # Check if it's more then 15 days ago
+    if datetime.datetime.utcnow() - datetime.datetime.strptime(dataLastUpdated, "%Y-%m-%dT%H:%M:%S.%fZ") > datetime.timedelta(days=10):
+        # update last update date
+        lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
+        # set CLEAR_TABLE_FIRST to True
+        CLEAR_TABLE_FIRST = True
+        # clear existing_ids
+        existing_ids = []
+    else:
+        CLEAR_TABLE_FIRST = False
+
+    return CLEAR_TABLE_FIRST, existing_ids
+
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     logging.info('STARTING')
@@ -472,7 +495,10 @@ def main():
     
     # Fetch the path to the unzipped geodatabase folder
     gdb = fetch_data()
-    
+
+    # Check if this is the first time of the month that the data was successfully fetched
+    CLEAR_TABLE_FIRST, existing_ids = check_first_run(existing_ids)
+
     # number of rows deleted
     deleted_ids = 0
     # clear the table before starting, if specified
@@ -499,7 +525,7 @@ def main():
     # Process, and upload the new data
     logging.info('Fetching and processing new data')
     # The total number of rows in the Carto table
-    num_new = len(processData(gdb))
+    num_new = len(processData(gdb, existing_ids))
     logging.info('Previous rows: {},  Current rows: {}'.format(len(existing_ids), num_new))
 
     # Update Resource Watch
