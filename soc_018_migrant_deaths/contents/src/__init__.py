@@ -316,10 +316,10 @@ def processData(src_url, existing_ids):
                     elif field == 'the_geom':
                         # get the value from the column 'Coordinates'
                         # coordinates are stored as 19.456996117519, 5.764623476008
-                        # remove the space between the values
-                        # split the values using comma to get longitude and latitude
-                        lon, lat = row[idx['Coordinates']]\
-                            .replace('(', '').replace(')', '').split(' ')[1:3]
+                        # remove the special characters between the values
+                        # split the values using space to get longitude and latitude
+                        lat, lon = row[idx['Coordinates']]\
+                            .replace('(', '').replace(')', '').replace(',', '').split(' ')
                         # lon, lat = row[idx['Coordinates']]\
                         #     .replace(' ', '').split(',')
                         # construct geojson geometry
