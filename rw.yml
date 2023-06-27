@@ -1,0 +1,18 @@
+name: rw
+channels:
+- conda-forge
+- defaults
+dependencies:
+- python=3.9
+- requests
+- gdal
+- pandas
+- geopandas
+- earthengine-api
+- python-dotenv
+- openpyxl
+- pip
+- pip:
+  - "--editable=git+https://github.com/resource-watch/eeUtil.git#egg=eeUtil"
+  - "--editable=git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql"
+  - pyairtable
