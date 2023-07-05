@@ -42,6 +42,8 @@ DATA_DIR = 'data'
 eia_rw_table = pd.read_csv(
     'https://raw.githubusercontent.com/resource-watch/nrt-scripts/master/upload_eia_data/EIA_RW_dataset_names_ids.csv').set_index(
     'Carto Table')
+# pull in sheet with information about each country/region name and Alpha-3 code
+country_table = pd.read_csv('https://raw.githubusercontent.com/resource-watch/nrt-scripts/master/upload_eia_data/country_region_list.csv')
 
 # get list of all current Carto table names
 carto_table_names = cartosql.getTables(user = CARTO_USER, key = CARTO_KEY)
@@ -70,47 +72,46 @@ def upload_to_aws(local_file, bucket, s3_file):
         logging.error("Credentials not available")
         return False
 
-def fetch_eia_data(table_name):
+def fetch_eia_data(table_name, country_table):
     '''
     This function fetches and processes data from the EIA API for a specified Carto table
     INPUT   table_name: name of Carto table we want to fetch and process data for (string)
+            country_table: name of countries and regions we want to fetch and process data for (dataframe)
     RETURN  all_eia_data: dataframe of processed data for this table (pandas dataframe)
     '''
-    # pull the eia catogory id that is included in this table
-    category_id = eia_rw_table.loc[table_name, 'eia_category_id']
-    eia_unit = eia_rw_table.loc[table_name, 'eia_unit']
-
-    # insert the url used to find the series ids of the data 
-    url = 'https://api.eia.gov/category/?api_key={}&category_id={}'.format(EIA_KEY, category_id)
-
-    # fetch the information of all series of data in this category from the API 
-    r = requests.get(url)
-    series = r.json()['category']['childseries']
-
-    # store the names, ids and units of the child series in a list of dictionaries
-    ids = [{'country': ', '.join(child['name'].split(', ')[1:-1]), 'series_id': child['series_id'], 'units': child['units']} for child in series]
-    # subset the dictionary list by EIA unit
-    ids = [id for id in ids if id['units'] == eia_unit]
+    # pull the eia activityId, productId, unit that is included in this table info
+    activityId = eia_rw_table.loc[table_name, 'activityId']
+    productId = eia_rw_table.loc[table_name, 'productId']
+    unit = eia_rw_table.loc[table_name, 'unit']
 
     # create an empty dataframe to store data 
     df = pd.DataFrame()
-    # loop through each series id
-    for id in ids:
-        # construct the API call to fetch data from the series
-        data_url = 'https://api.eia.gov/series/?api_key={}&series_id={}'.format(EIA_KEY, id['series_id'])
-        logging.info('Fetching data for {}'.format(id['country']))
+    # loop through each country/region
+    for alpha_3_code in country_table['Alpha-3 code']:
+        # construct the API call to fetch data from the country
+        url = 'https://api.eia.gov/v2/international/data/?api_key={}&frequency=annual&data[0]=value&facets[activityId][]={}&facets[productId][]={}&facets[countryRegionId][]={}&facets[unit][]={}'.format(EIA_KEY, activityId, productId, alpha_3_code, unit)
+        logging.info('Fetching data for {}'.format(alpha_3_code))
         # extract the data from the response 
-        data = requests.get(data_url).json()['series'][0]
-        # create a dataframe with the column 'year' and 'yr_data' from the data 
-        df_country = pd.DataFrame({'year':[x for [x,y] in data['data']], 'yr_data': [y for [x,y] in data['data']]})
-        # create a new column 'country' to store the country information 
-        df_country['country'] = id['country']
-        # create a new column 'geography' to store the code of the country/region
-        df_country['geography'] = data['geography']
-        # create a new column 'unit' to store the units
-        df_country['unit'] = data['units']
-        # concat the data frame to the larger dataframe created before the loop
-        df = pd.concat([df, df_country], ignore_index=True)
+        data = pd.DataFrame(requests.get(url).json()['response']['data'])
+        if len(data) > 0:
+            # create a dataframe to store the data for the country
+            df_country = pd.DataFrame()
+            # subset and rename columns from the response dataframe 
+            # create a new column 'year' to store the year of the data 
+            df_country['year'] = data['period']
+            # create a new column 'country' to store the country information 
+            df_country['country'] =  data['countryRegionName']
+            # create a new column 'geography' to store the code of the country/region
+            df_country['geography'] = data['countryRegionId']
+            # create a new column 'yr_data' to store the value
+            df_country['yr_data'] = data['value']
+            # create a new column 'unit' to store the units
+            df_country['unit'] = data['unitName']
+            # concat the data frame to the larger dataframe created before the loop
+            df = pd.concat([df, df_country], ignore_index=True)
+        else:
+            logging.info('No data for {}, skip it for now'.format(alpha_3_code))
+            continue
 
     # save the raw data as a csv file 
     raw_data_file = os.path.join(DATA_DIR, f'{table_name[:-5]}_data.csv')
@@ -143,8 +144,9 @@ def process_eia_data(df, table_name):
     # create a column to store the year information as datetime objects 
     df['datetime'] = [datetime.datetime(x, 1, 1) for x in df['year']]
 
-    # remove rows with no data '--'
+    # remove rows with no data '--'/'ie'
     df = df.loc[df.yr_data != '--']
+    df = df.loc[df.yr_data != 'ie']
     # remove rows with no data 'NA'
     nan_value = float("NaN")
     df.replace("NA", nan_value, inplace = True)
@@ -198,7 +200,7 @@ def main():
         '''
         Download data and save to your data directory
         '''
-        df, raw_data_file = fetch_eia_data(table_name)
+        df, raw_data_file = fetch_eia_data(table_name, country_table)
 
         '''
         Process data
