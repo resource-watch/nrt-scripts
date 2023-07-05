@@ -323,4 +323,3 @@ def main():
                         update_rw_layer_year(ds_id, rw_year, latest_carto_year)
 
     logging.info('SUCCESS')
-main()
