@@ -7,4 +7,4 @@ cli.040.rw0.nrt.dash,Sea Level,5/25/2023,7/04/2023,"source site has major update
 cli.041.rw0.nrt.dash,Land Ice: Antarctica,5/19/2023,7/04/2023,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
 cli.042.rw0.nrt.dash,Land Ice: Greenland,5/19/2023,7/04/2023,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
 cli.043.rw0.nrt.dash,Minimum Annual Arctic Sea Ice Extent,7/04/2023,7/04/2023,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
-foo.003.rw0.nrt,Current and Projected Food Insecurity,7/04/2023,7/04/2023,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
+foo.003.rw1.nrt,Current and Projected Food Insecurity,7/04/2023,7/04/2023,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
