@@ -229,8 +229,12 @@ def flushTileCache(layer_id):
                     logging.info('Trying again.')
                 # if we are on our last try, log that the cache flush failed
                 else:
-                    logging.error('Cache failed to flush: status code {}'.format(r.status_code))
-                    logging.error('Aborting.')
+                    if r.status_code==500:
+                        logging.info('Cache failed to flush: status code {}'.format(r.status_code))
+                        logging.info('Aborting.')
+                    else:
+                        logging.error('Cache failed to flush: status code {}'.format(r.status_code))
+                        logging.error('Aborting.')
             try_num += 1
         except Exception as e:
             logging.error('Failed: {}'.format(e))
