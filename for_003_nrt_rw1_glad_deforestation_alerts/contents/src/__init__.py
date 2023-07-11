@@ -18,7 +18,7 @@ EE_COLLECTION_ORI = 'projects/glad/alert/UpdResult'
 CLEAR_COLLECTION_FIRST = False
 
 # how many assets can be stored in the GEE collection before the oldest ones are deleted?
-MAX_ASSETS = 2
+MAX_ASSETS = 5
 
 # format of date (used in both the source data files and GEE)
 DATE_FORMAT = '%Y%m%d'
@@ -176,13 +176,17 @@ def getAssetName(date):
     '''
     return '/'.join([EE_COLLECTION, 'for_003_nrt_rw1_glad_deforestation_alerts_{}'.format(date.strftime(DATE_FORMAT))])
                          
-def getDate(image):
+def getDate(images):
     '''
     get date from the asset id of the image in the RW image collection (last 8 characters of asset ids)
-    INPUT   image: the asset id of image that ends in a date of the format YYYYMMDD (string)
+    INPUT   images: the asset id list of image that ends in a date of the format YYYYMMDD (list of string)
     RETURN  date (string)
     '''
-    return image[-8:]
+    dates = []
+    for image in images:
+        dates.append(image[-8:])
+
+    return dates
 
 def getNewDates(exclude_dates):
     '''
@@ -192,16 +196,17 @@ def getNewDates(exclude_dates):
     '''
     # create empty list to store dates we want to fetch
     new_dates = []
-    # start with yesterday since today's data may not be availabele yet 
+    # start with today's data may not be availabele yet 
     date = datetime.date.today() - datetime.timedelta(days=1)
     # if the current date string is not in the list of dates we already have
     # add the date to the list of new dates to try and fetch 
-    if date.strftime(DATE_FORMAT) not in exclude_dates:
+    while date.strftime(DATE_FORMAT) not in exclude_dates and len(new_dates) < MAX_ASSETS:
         # generate a string from the date
         datestr = date.strftime(DATE_FORMAT)
         # add to list of new dates
         new_dates.append(datestr)
-    else:
+        date = date - datetime.timedelta(days=1)
+    if len(new_dates)==0:
         logging.info('latest data already available in RW')
     return new_dates
 
@@ -236,19 +241,20 @@ def mosaic(files):
         image_mosaicked= []
         # go through each key,value pair in the dictionary 
         for k, v in files.items():
-            # determine the band that's showing the alerts in the current year 
-            band = 'conf{yy}'.format(yy = k[2:4])
-            # mosaic the selected band of the images of the five different regions 
-            mosaicked = ee.ImageCollection(v).select(band).mosaic()
-            # since the data is encoded as no loss (0), probable loss (2), confirmed loss (3)
-            # and we are only interested in the alerts 
-            # we create a mask of all the cells whose values are greater than 0
-            mask_alerts = mosaicked.gt(0)
-            # mask the mosaicked image and rename the band to be 'b1'
-            mosaicked = mosaicked.mask(mask_alerts).select([band], ['b1'])
-            # add the masked mosaicked image to the list of processed images 
-            image_mosaicked.append(ee.Image(mosaicked))
-            
+            if len(v)>0:
+                # determine the band that's showing the alerts in the current year 
+                band = 'conf{yy}'.format(yy = k[2:4])
+                # mosaic the selected band of the images of the five different regions 
+                mosaicked = ee.ImageCollection(v).select(band).mosaic()
+                # since the data is encoded as no loss (0), probable loss (2), confirmed loss (3)
+                # and we are only interested in the alerts 
+                # we create a mask of all the cells whose values are greater than 0
+                mask_alerts = mosaicked.gt(0)
+                # mask the mosaicked image and rename the band to be 'b1'
+                mosaicked = mosaicked.mask(mask_alerts).select([band], ['b1'])
+                # add the masked mosaicked image to the list of processed images 
+                image_mosaicked.append(ee.Image(mosaicked))
+                
         return image_mosaicked
     else:
         return []
@@ -274,40 +280,45 @@ def processNewData(existing_dates):
         images = mosaic(files)
         # the extent of the data we want to export 
         bounds = ee.Geometry.Rectangle([-179.999, -90, 180, 90], 'EPSG:4326', False)
-        # create an asset id for the composite image
-        asset_pro = getAssetName(datetime.date.today()-datetime.timedelta(days=1))
-        # create a task to export the processed image to an asset in the corresponding GEE image collection 
-        task = ee.batch.Export.image.toAsset(image=images[0],  
-                                     description='export mosaicked image to asset',
-                                     region=bounds,
-                                     pyramidingPolicy= {'b1': 'SAMPLE'},
-                                     scale=30,
-                                     maxPixels=1e12,
-                                     assetId=asset_pro)
-        logging.info('Creating asset {}'.format(asset_pro))
-        # start the task to export the mosaicked image to an asset
-        task.start()
-        # set the state to 'RUNNING' because we have started the task
-        state = 'RUNNING'
-        # set a start time to track the time it takes to upload the image
-        start = time.time()
-        # wait for task to complete, but quit if it takes more than 43200 seconds
-        while state == 'RUNNING' and (time.time() - start) < 43200:
-            # wait for 20 minutes before checking the state
-            time.sleep(1200)
-            # check the status of the upload
-            status = task.status()['state']
-            logging.info('Current Status: ' + status +', run time (min): ' + str((time.time() - start)/60))
-            # log if the task is completed and change the state
-            if status == 'COMPLETED':
-                state = status
-                logging.info(status)
-            # log an error if the task fails and change the state
-            elif status == 'FAILED':
-                state = status
-                logging.error(task.status()['error_message'])
-                logging.debug(task.status())
-        return asset_pro
+        asset_pros = []
+        for k, v in files.items():
+            if len(v)>0:
+                # create an asset id for the composite image
+                asset_pro = getAssetName(datetime.datetime.strptime(k, DATE_FORMAT))
+                asset_pros.append(asset_pro)
+                # create a task to export the processed image to an asset in the corresponding GEE image collection 
+                task = ee.batch.Export.image.toAsset(image=images[0],  
+                                            description='export mosaicked image to asset',
+                                            region=bounds,
+                                            pyramidingPolicy= {'b1': 'SAMPLE'},
+                                            scale=30,
+                                            maxPixels=1e12,
+                                            assetId=asset_pro)
+                logging.info('Creating asset {}'.format(asset_pro))
+                # start the task to export the mosaicked image to an asset
+                task.start()
+                # set the state to 'RUNNING' because we have started the task
+                state = 'RUNNING'
+                # set a start time to track the time it takes to upload the image
+                start = time.time()
+                # wait for task to complete, but quit if it takes more than 43200 seconds
+                while state == 'RUNNING' and (time.time() - start) < 43200:
+                    # wait for 20 minutes before checking the state
+                    time.sleep(1200)
+                    # check the status of the upload
+                    status = task.status()['state']
+                    logging.info('Current Status: ' + status +', run time (min): ' + str((time.time() - start)/60))
+                    # log if the task is completed and change the state
+                    if status == 'COMPLETED':
+                        state = status
+                        logging.info(status)
+                    # log an error if the task fails and change the state
+                    elif status == 'FAILED':
+                        state = status
+                        logging.error(task.status()['error_message'])
+                        logging.debug(task.status())
+    
+        return asset_pros
 
 def checkCreateCollection(collection):
     '''
@@ -483,20 +494,23 @@ def main():
     # If it exists return the list of assets currently in the collection
     existing_assets = checkCreateCollection(EE_COLLECTION)
     # Get a list of the dates of data we already have in the collection
-    existing_dates = [getDate(a) for a in existing_assets]
+    existing_dates = getDate(existing_assets)
 
     # Fetch, process, and upload the new data
-    new_asset = processNewData(existing_dates)
-    # Get the date of the new data we have added
-    new_date = getDate(new_asset)
+    new_assets = processNewData(existing_dates)
+    if new_assets:
+        # Get the date of the new data we have added
+        new_dates = getDate(new_assets)
 
-    print('Previous asset: {}, new: {}, max: {}'.format(
-        len(existing_dates), new_date, MAX_ASSETS))
+        print('Previous asset: {}, new: {}, max: {}'.format(
+            len(existing_dates), len(new_dates), MAX_ASSETS))
 
-    # Delete excess assets
-    deleteExcessAssets(existing_dates + [new_date], MAX_ASSETS)
+        # Delete excess assets
+        deleteExcessAssets(existing_dates + new_dates, MAX_ASSETS)
 
-    # Update Resource Watch
-    updateResourceWatch()
+        # Update Resource Watch
+        updateResourceWatch()
+    else:
+        logging.info(f'Latest data {existing_dates[-1]} already available in RW')
 
     logging.info('SUCCESS')
