@@ -1,5 +1,5 @@
-FROM python:3.6
-MAINTAINER Yujing Wu <yujing.wu@wri.org>
+FROM python:3.9
+MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 #Note this script was originally developed by Yujing Wu <yujing.wu@wri.org>
 
 # install core libraries
