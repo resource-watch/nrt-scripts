@@ -63,7 +63,7 @@ def upload_to_aws(local_file, bucket, s3_file):
     try:
         s3.upload_file(local_file, bucket, s3_file)
         logging.info("Upload Successful")
-        logging.info("http://{}.s3.amazonaws.com/{}".format(bucket, s3_file))
+        logging.info(f"http://{bucket}.s3.amazonaws.com/{s3_file}")
         return True
     except FileNotFoundError:
         logging.error("The file was not found")
@@ -90,7 +90,7 @@ def fetch_eia_data(table_name, country_table):
     for alpha_3_code in country_table['Alpha-3 code']:
         # construct the API call to fetch data from the country
         url = 'https://api.eia.gov/v2/international/data/?api_key={}&frequency=annual&data[0]=value&facets[activityId][]={}&facets[productId][]={}&facets[countryRegionId][]={}&facets[unit][]={}'.format(EIA_KEY, activityId, productId, alpha_3_code, unit)
-        logging.info('Fetching data for {}'.format(alpha_3_code))
+        logging.info(f'Fetching data for {alpha_3_code}')
         # extract the data from the response 
         data = pd.DataFrame(requests.get(url).json()['response']['data'])
         if len(data) > 0:
@@ -110,7 +110,7 @@ def fetch_eia_data(table_name, country_table):
             # concat the data frame to the larger dataframe created before the loop
             df = pd.concat([df, df_country], ignore_index=True)
         else:
-            logging.info('No data for {}, skip it for now'.format(alpha_3_code))
+            logging.info(f'No data for {alpha_3_code}, skip it for now')
             continue
 
     # save the raw data as a csv file 
@@ -173,7 +173,7 @@ def delete_local():
         for f in os.listdir(DATA_DIR):
             # try to remove it as a file
             try:
-                logging.info('Removing {}'.format(f))
+                logging.info(f'Removing {f}')
                 os.remove(DATA_DIR + '/' + f)
             # if it is not a file, remove it as a folder
             except:
@@ -195,7 +195,7 @@ def main():
             dataset_name = table_name[:-5]
         else:
             dataset_name = table_name
-        logging.info('Next table to update: {}'.format(dataset_name))
+        logging.info(f'Next table to update: {dataset_name}')
 
         '''
         Download data and save to your data directory
