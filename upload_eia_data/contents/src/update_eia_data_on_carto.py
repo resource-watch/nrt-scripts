@@ -89,7 +89,7 @@ def fetch_eia_data(table_name, country_table):
     # loop through each country/region
     for alpha_3_code in country_table['Alpha-3 code']:
         # construct the API call to fetch data from the country
-        url = 'https://api.eia.gov/v2/international/data/?api_key={}&frequency=annual&data[0]=value&facets[activityId][]={}&facets[productId][]={}&facets[countryRegionId][]={}&facets[unit][]={}'.format(EIA_KEY, activityId, productId, alpha_3_code, unit)
+        url = f'https://api.eia.gov/v2/international/data/?api_key={EIA_KEY}&frequency=annual&data[0]=value&facets[activityId][]={activityId}&facets[productId][]={productId}&facets[countryRegionId][]={alpha_3_code}&facets[unit][]={unit}'
         logging.info(f'Fetching data for {alpha_3_code}')
         # extract the data from the response 
         data = pd.DataFrame(requests.get(url).json()['response']['data'])
