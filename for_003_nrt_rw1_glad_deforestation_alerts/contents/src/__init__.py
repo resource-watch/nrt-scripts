@@ -18,7 +18,7 @@ EE_COLLECTION_ORI = 'projects/glad/alert/UpdResult'
 CLEAR_COLLECTION_FIRST = False
 
 # how many assets can be stored in the GEE collection before the oldest ones are deleted?
-MAX_ASSETS = 5
+MAX_ASSETS = 3
 
 # format of date (used in both the source data files and GEE)
 DATE_FORMAT = '%Y%m%d'
