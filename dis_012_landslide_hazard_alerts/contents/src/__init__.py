@@ -58,8 +58,8 @@ MAX_ROWS = 80000
 MAX_AGE = datetime.datetime.utcnow() - datetime.timedelta(days=365)
 
 # if we get error during data fetching process, how many seconds do you want to wait before you try to fetch again?
-# currently, when fetching process fails, the 5 tries take 10 mins, so we will try with a wait time of 15 mins
-WAIT_TIME = 15*60
+# we will try with a wait time of 5 mins
+WAIT_TIME = 5*60
 
 # Resource Watch dataset API ID
 # Important! Before testing this script:
@@ -188,62 +188,64 @@ def processData(src_url, table, existing_ids):
             try_num +=1
 
     # loop until no new observations
-    for item in results['items']:
-        # create an empty list to store each row of new data
-        new_rows = []
+    if results is not None:
+        for item in results['items']:
+            # create an empty list to store each row of new data
+            new_rows = []
 
-        # get date and url containing more information about each landslide in the results json
-        date = item['properties']['date']['@value']
-        url = item['action'][5]['using'][0]['url']
+            # get date and url containing more information about each landslide in the results json
+            date = item['properties']['date']['@value']
+            url = item['action'][5]['using'][0]['url']
 
-        logging.info('Fetching data for {}'.format(date))
-        # pull data from url for this landslide using request response json
-        data = requests.get(url).json()
+            logging.info('Fetching data for {}'.format(date))
+            # pull data from url for this landslide using request response json
+            data = requests.get(url).json()
 
-        # loop through to retrieve data from each geojson feature
-        for i in range(len(data['features'])):
-            # generate unique id for this data
-            uid = genUID(date, i)
-            # if the id doesn't already exist in Carto table or 
-            # isn't added to the list for sending to Carto yet
-            if uid not in existing_ids and uid not in new_ids:
-                # append the id to the list for sending to Carto 
-                new_ids.append(uid)
-                # get features for this index
-                obs = data['features'][i]
-                # create an empty list to store data from this row
-                row = []
-                # go through each column in the Carto table
-                for field in CARTO_SCHEMA:
-                    # if we are fetching data for unique id column
-                    if field == UID_FIELD:
-                        # add the unique id to the list of data from this row
-                        row.append(uid)
-                    # if we are fetching data for datetime column
-                    if field == TIME_FIELD:
-                        # add the datetime information to the list of data from this row
-                        row.append(date)
-                    # if we are fetching data for landslide hazard alert column
-                    if field == 'nowcast':
-                        # add the landslide hazard alert information to the list of data from this row
-                        row.append(obs['properties']['nowcast'])
-                    # if we are fetching data for geometry column
-                    if field == 'the_geom':
-                        # add the geometry information to the list of data from this row
-                        row.append(obs['geometry'])
-                # add the list of values from this row to the list of new data
-                new_rows.append(row)
+            # loop through to retrieve data from each geojson feature
+            for i in range(len(data['features'])):
+                # generate unique id for this data
+                uid = genUID(date, i)
+                # if the id doesn't already exist in Carto table or 
+                # isn't added to the list for sending to Carto yet
+                if uid not in existing_ids and uid not in new_ids:
+                    # append the id to the list for sending to Carto 
+                    new_ids.append(uid)
+                    # get features for this index
+                    obs = data['features'][i]
+                    # create an empty list to store data from this row
+                    row = []
+                    # go through each column in the Carto table
+                    for field in CARTO_SCHEMA:
+                        # if we are fetching data for unique id column
+                        if field == UID_FIELD:
+                            # add the unique id to the list of data from this row
+                            row.append(uid)
+                        # if we are fetching data for datetime column
+                        if field == TIME_FIELD:
+                            # add the datetime information to the list of data from this row
+                            row.append(date)
+                        # if we are fetching data for landslide hazard alert column
+                        if field == 'nowcast':
+                            # add the landslide hazard alert information to the list of data from this row
+                            row.append(obs['properties']['nowcast'])
+                        # if we are fetching data for geometry column
+                        if field == 'the_geom':
+                            # add the geometry information to the list of data from this row
+                            row.append(obs['geometry'])
+                    # add the list of values from this row to the list of new data
+                    new_rows.append(row)
 
-        # find the length (number of rows) of new_data 
-        num_new = len(new_rows)
-        # check if length of new data is less than the maximum allowable data on Carto
-        if num_new and len(new_ids) < MAX_ROWS:
-            logging.info("Inserting {} new rows".format(num_new))
-            # insert new data into the carto table
-            cartosql.insertRows(table, CARTO_SCHEMA.keys(),CARTO_SCHEMA.values(), new_rows, user=CARTO_USER, key=CARTO_KEY)
-        else:
-            break
-
+            # find the length (number of rows) of new_data 
+            num_new = len(new_rows)
+            # check if length of new data is less than the maximum allowable data on Carto
+            if num_new and len(new_ids) < MAX_ROWS:
+                logging.info("Inserting {} new rows".format(num_new))
+                # insert new data into the carto table
+                cartosql.insertRows(table, CARTO_SCHEMA.keys(),CARTO_SCHEMA.values(), new_rows, user=CARTO_USER, key=CARTO_KEY)
+            else:
+                break
+    else:
+        logging.info("Didn't get data from source, try again in 3 hours.")
     return new_ids
 
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
