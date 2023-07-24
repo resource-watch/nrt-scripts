@@ -188,7 +188,7 @@ def processData(src_url, table, existing_ids):
             try_num +=1
 
     # loop until no new observations
-    if results is not None:
+    if 'results' in locals():
         for item in results['items']:
             # create an empty list to store each row of new data
             new_rows = []
