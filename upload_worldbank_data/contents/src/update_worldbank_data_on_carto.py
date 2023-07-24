@@ -14,6 +14,7 @@ import boto3
 from botocore.exceptions import NoCredentialsError
 from zipfile import ZipFile
 import shutil
+import time
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
@@ -129,22 +130,38 @@ def fetch_wb_data(table):
         # get the units
         unit = units[i]
 
-        # fetch data for this indicator (only the first 10,000 entries will be returned)
-        res = requests.get(
-            "http://api.worldbank.org/v2/countries/all/indicators/{}?format=json&per_page=10000".format(indicator))
-        # check how many pages of data there are for this indicator
-        pages = int(res.json()[0]['pages'])
+        try_num = 1 
+        while try_num <= 5:
+            try:
+                # fetch data for this indicator (only the first 10,000 entries will be returned)
+                res = requests.get(
+                    "http://api.worldbank.org/v2/countries/all/indicators/{}?format=json&per_page=10000".format(indicator))
+                # check how many pages of data there are for this indicator
+                pages = int(res.json()[0]['pages'])
+                break
+            except:
+                logging.info("Failed to fetch data. Trying again after 30 seconds.")
+                time.sleep(30)
+                try_num += 1
 
         # pull the data, one page at a time, appending the data to the json variable
         json = []
         for page in range(pages):
-            res = requests.get(
-                "http://api.worldbank.org/v2/countries/all/indicators/{}?format=json&per_page=10000&page={}".format(
-                    indicator, page + 1))
-            json = json + res.json()[1]
+            try_num = 1 
+            while try_num <= 5:
+                try:
+                    res = requests.get(
+                        "http://api.worldbank.org/v2/countries/all/indicators/{}?format=json&per_page=10000&page={}".format(
+                            indicator, page + 1))
+                    json = json + res.json()[1]
+                    break
+                except:
+                    logging.info("Failed to fetch data. Trying again after 30 seconds.")
+                    time.sleep(30)
+                    try_num += 1
 
         # format into dataframe and only keep relevant columns
-        data = pd.io.json.json_normalize(json)
+        data = pd.json_normalize(json)
         data = data[["country.value", "date", "value"]]
         # rename these columns
         data.columns = ["country_name", "year", value_name]
