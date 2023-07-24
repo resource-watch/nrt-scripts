@@ -7,12 +7,12 @@ RUN apt-get update
 RUN pip install -U pip
 
 # install application libraries
-RUN pip install pandas==1.3.5
+RUN pip install pandas==2.0.3
 RUN pip install boto3==1.28.9
 RUN pip install requests==2.31.0
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 RUN pip install carto==1.11.3
-RUN pip install LMIPy==0.2.8
+RUN pip install LMIPy==0.6.2
 RUN pip install cartoframes==1.2.5
 
 # set name
