@@ -222,6 +222,9 @@ def fetch_wb_data(table):
 
     # make sure all null values are set to None
     all_world_bank_data = all_world_bank_data.where((pd.notnull(all_world_bank_data)), None).reset_index(drop=True)
+    all_world_bank_data = all_world_bank_data.where((pd.notna(all_world_bank_data)), None).reset_index(drop=True)
+    all_world_bank_data.replace(pd.NA, None, inplace=True)
+    all_world_bank_data.replace(np.nan, None, inplace=True)
 
     return all_world_bank_data
 
