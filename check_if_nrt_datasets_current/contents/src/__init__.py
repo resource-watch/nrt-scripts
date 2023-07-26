@@ -9,6 +9,7 @@ from io import StringIO
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 def main():
+    logging.info('BEGIN')
     # Get ‘Frequency of Updates’ column to determine how frequently we expect each dataset to update
     # get 'Update Strategy' column to determine which datasets are NRT
     sheet = requests.get(os.getenv('METADATA_SHEET'))
@@ -54,6 +55,9 @@ def main():
             allowed_time = datetime.timedelta(days=410)
         elif expected_freq.lower().strip() == 'varies':
             allowed_time = datetime.timedelta(days=15)
+        # if frequency on the order of minutes or hours, we will let the update be 1 day overdue
+        elif 'minutes' in expected_freq.lower() or 'hours' in expected_freq.lower():
+            allowed_time = datetime.timedelta(days=1)
         # if frequency on the order of days, we will let the update be 3 days overdue
         elif 'days' in expected_freq.lower():
             x = int(expected_freq.lower()[0:-5])
@@ -197,6 +201,8 @@ def main():
         today = datetime.datetime.utcnow()
         time_since_checking = today - last_check_dt
         days = time_since_checking.days
-        # if it has been more than three weeks, log an error
+        # if it has been more than a month, log an error
         if days > 31:
             logging.error('The status of {wri_id} has not been checked in {days} days.'.format(wri_id=dataset['WRI ID'],days=days))
+
+    logging.info('SUCCESS')

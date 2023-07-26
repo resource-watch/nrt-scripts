@@ -6,11 +6,11 @@ MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 RUN apt-get update && pip install -U pip
 
 # install application libraries
-RUN pip install requests==2.30.0
-RUN pip install pandas==2.0.1
+RUN pip install requests==2.31.0
+RUN pip install pandas==2.0.3
 
 # set name
-ARG NAME=nrt-script
+ARG NAME=check-nrt-current
 ENV NAME ${NAME}
 
 # copy the application folder inside the container
