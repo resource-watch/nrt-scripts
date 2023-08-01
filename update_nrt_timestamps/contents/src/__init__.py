@@ -93,8 +93,12 @@ def flushTileCache(layer_id):
                     logging.info('Trying again.')
                 # if we are on our last try, log that the cache flush failed
                 else:
-                    logging.error('Cache failed to flush: status code {}'.format(r.status_code))
-                    logging.error('Aborting.')
+                    if r.status_code==500:
+                        logging.info('[Cache tiles deleted] for {}: status code {}'.format(layer_id, r.status_code))
+                        return r.status_code
+                    else:
+                        logging.error('Cache failed to flush: status code {}'.format(r.status_code))
+                        logging.error('Aborting.')
             try_num += 1
         except Exception as e:
             logging.error('Failed: {}'.format(e))
@@ -144,7 +148,16 @@ def pull_layers_from_API(dataset_id):
     # generate url to access layer configs for this dataset in back office
     rw_api_url = 'https://api.resourcewatch.org/v1/dataset/{}/layer'.format(dataset_id)
     # request data
-    r = requests.get(rw_api_url)
+    try_num = 1
+    while try_num <= 4:
+        try:
+            r = requests.get(rw_api_url)
+            break
+        except:
+            logging.info('Fail to get layers info. Try again after 20 seconds.')
+            time.sleep(20)
+            try_num += 1
+
     # convert response into json and make dictionary of layers
     layer_dict = json.loads(r.content.decode('utf-8'))['data']
     return layer_dict
