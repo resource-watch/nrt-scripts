@@ -7,13 +7,10 @@ from carto.datasets import DatasetManager
 from carto.auth import APIKeyAuthClient
 import requests
 import datetime
-import copy
 import time
 import geopandas as gpd
-import pandas as pd
 from zipfile import ZipFile
 import glob 
-import numpy as np
 import urllib
 import zipfile
 import pandas as pd
@@ -252,11 +249,16 @@ def fetch():
         zip_ref.extractall(os.path.join(raw_data_file_unzipped, zipped.split('.')[0][-5:]))
         zip_ref.close()
     
+    # store the path to all the shapefiles in a list
+    paths = []
+    for zipped in zipped_shp:
+        paths = paths+glob.glob(os.path.join(raw_data_file_unzipped, zipped.split('.')[0][-5:], '*.shp'))
+
     # store the path to all the point shapefiles in a list 
-    DATA_DICT['point']['path'] = [glob.glob(os.path.join(raw_data_file_unzipped, zipped.split('.')[0][-5:], '*points.shp'))[0] for zipped in zipped_shp]
+    DATA_DICT['point']['path'] = [path for path in paths if "points.shp" in path]
 
     # store the path to all the polygon shapefiles in a list
-    DATA_DICT['polygon']['path'] = [glob.glob(os.path.join(raw_data_file_unzipped, zipped.split('.')[0][-5:], '*polygons.shp'))[0] for zipped in zipped_shp]
+    DATA_DICT['polygon']['path'] = [path for path in paths if "polygons.shp" in path]
 
 def convert_geometry(geom):
     '''
