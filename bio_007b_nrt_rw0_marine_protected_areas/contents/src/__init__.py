@@ -196,7 +196,7 @@ def delete_local():
                 os.remove(DATA_DIR+'/'+f)
             # if it is not a file, remove it as a folder
             except:
-                shutil.rmtree(f, ignore_errors=True)
+                shutil.rmtree(DATA_DIR+'/'+f, ignore_errors=True)
     except NameError:
         logging.info('No local files to clean.')
 
