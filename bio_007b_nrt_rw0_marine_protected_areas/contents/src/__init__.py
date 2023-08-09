@@ -15,6 +15,9 @@ import urllib
 import zipfile
 import pandas as pd
 import shutil
+import gdal
+# Set the SHAPE_RESTORE_SHX configuration option
+gdal.SetConfigOption('SHAPE_RESTORE_SHX', 'YES')
 
 # do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = True
