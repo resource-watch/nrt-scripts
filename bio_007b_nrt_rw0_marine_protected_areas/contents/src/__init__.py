@@ -15,9 +15,6 @@ import urllib
 import zipfile
 import pandas as pd
 import shutil
-import gdal
-# Set the SHAPE_RESTORE_SHX configuration option
-gdal.SetConfigOption('SHAPE_RESTORE_SHX', 'YES')
 
 # do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = True
@@ -255,7 +252,9 @@ def fetch():
     # store the path to all the shapefiles in a list
     paths = []
     for zipped in zipped_shp:
-        paths = paths+glob.glob(os.path.join(raw_data_file_unzipped, zipped.split('.')[0][-5:], '*.shp'))
+        # check if .shx file exist
+        if len(glob.glob(os.path.join(raw_data_file_unzipped, zipped.split('.')[0][-5:], '*.shx'))) > 0:
+            paths = paths+glob.glob(os.path.join(raw_data_file_unzipped, zipped.split('.')[0][-5:], '*.shp'))
 
     # store the path to all the point shapefiles in a list 
     DATA_DICT['point']['path'] = [path for path in paths if "points.shp" in path]

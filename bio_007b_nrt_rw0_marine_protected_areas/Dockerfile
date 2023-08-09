@@ -1,4 +1,4 @@
-FROM python:3.7.7
+FROM python:3.9
 MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 # Note this script was originally developed by Yujing Wu <yujing.wu@wri.org>
 
@@ -13,8 +13,7 @@ RUN pip install requests
 RUN pip install carto==1.11.3
 RUN pip install numpy
 RUN pip install pandas
-RUN pip install geopandas==0.9.0
-RUN pip install GDAL==2.4.2
+RUN pip install geopandas==0.13.2
 
 # set name
 ARG NAME=bio_007b
