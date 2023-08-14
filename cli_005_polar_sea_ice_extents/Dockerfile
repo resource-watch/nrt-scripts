@@ -7,11 +7,18 @@ RUN apt-get update
 RUN pip install -U pip
 
 # install application libraries
+RUN apt-get install -y \
+  gdal-bin \
+  libgdal-dev \
+  libnetcdf-dev \
+  netcdf-bin \
+  cron \
+  && apt-get clean
 
 RUN pip install oauth2client==4.1.3
-RUN pip install google-api-python-client==1.12.8
+RUN pip install google-api-python-client==2.96.0
 RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
-RUN pip install python-dateutil==2.8.1
+RUN pip install python-dateutil==2.8.2
 RUN pip install LMIPy
 
 ARG NAME=cli_005
