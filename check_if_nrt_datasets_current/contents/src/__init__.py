@@ -70,9 +70,9 @@ def main():
         elif 'months' in expected_freq.lower():
             x = int(expected_freq.lower()[0:-7])
             allowed_time = datetime.timedelta(days=x * 30 + 30)
-        # for any other scenario, we will let the update be 1 day overdue
+        # for any other scenario, we will let the update be 2 day overdue
         else:
-            allowed_time = datetime.timedelta(days=1)
+            allowed_time = datetime.timedelta(days=2)
 
         '''allow for exceptions to the rules when certain datasets update on a lag'''
         # biodiversity hotspots
