@@ -129,9 +129,9 @@ def main():
         # Tropical Cyclones
         elif 'dis.015' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=20)
-        # oil spills data set doesn't always have events that occur every 10 days
+        # oil spills data set doesn't always have events that occur every 30 days
         elif 'ene.008' in r['data']['attributes']['name']:
-            allowed_time = datetime.timedelta(days=20)
+            allowed_time = datetime.timedelta(days=30)
         # Vegetation Health Index
         elif 'foo.024' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=12)
@@ -144,7 +144,7 @@ def main():
         # Fire Risk Index often goes offline for a few days
         elif 'for.012' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=10)
-        # Conflict and Protest Events Dataset (working on it, hold for 10 days)
+        # Conflict and Protest Events Dataset (working on it, hold for 20 days)
         elif 'soc.016' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=20)
         # Internal Displacement doesn't always occur everyday
