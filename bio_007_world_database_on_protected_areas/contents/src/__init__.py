@@ -499,25 +499,21 @@ def main():
     # Check if this is the first time of the month that the data was successfully fetched
     CLEAR_TABLE_FIRST, existing_ids = check_first_run(existing_ids)
 
-    # number of rows deleted
-    deleted_ids = 0
     # clear the table before starting, if specified
     if CLEAR_TABLE_FIRST:
         logging.info('Clearing Table')
         # if the table exists
         if cartosql.tableExists(CARTO_TABLE, user=CARTO_USER, key=CARTO_KEY):
             with ThreadPoolExecutor(max_workers=10) as executor:
-                futures = []
                 for i in range(0, len(existing_ids), 500):
                     # loop through the existing ids to remove all rows from the table in chunks of size 500 
-                    futures.append(
-                        executor.submit(delete_carto_entries, existing_ids[i: i + 500])
-                    )
-                # sum the numbers of rows deleted
-                for future in as_completed(futures):
-                    deleted_ids += future.result()
+                    executor.submit(delete_carto_entries, existing_ids[i: i + 500])
+            time.sleep(60)
 
-            logging.info('{} rows of old records removed!'.format(deleted_ids))
+            # delete all the rows
+            cartosql.deleteRows(CARTO_TABLE, 'cartodb_id IS NOT NULL', user=CARTO_USER, key=CARTO_KEY)
+
+            logging.info('{} rows of old records removed!'.format(len(existing_ids)))
             # note: we do not delete the entire table because this will cause the dataset visualization on Resource Watch
             # to disappear until we log into Carto and open the table again. If we simply delete all the rows, this
             # problem does not occur
