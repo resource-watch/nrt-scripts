@@ -14,6 +14,7 @@ import gdal
 import numpy as np
 from collections import OrderedDict 
 import json 
+import shutil
 
 '''
 ************************************ Useful Info About Source Data **********************************************************
@@ -288,6 +289,23 @@ def flushTileCache(layer_id):
             try_num += 1
         except Exception as e:
               logging.error('Failed: {}'.format(e))
+
+def delete_local():
+    '''
+    Delete all files and folders in Docker container's data directory
+    '''
+    try:
+        # for each object in the data directory
+        for f in os.listdir(DATA_DIR):
+            # try to remove it as a file
+            try:
+                logging.info('Removing {}'.format(f))
+                os.remove(DATA_DIR+'/'+f)
+            # if it is not a file, remove it as a folder
+            except:
+                shutil.rmtree(DATA_DIR+'/'+f, ignore_errors=True)
+    except NameError:
+        logging.info('No local files to clean.')
 
 '''
 FUNCTIONS FOR THIS DATASET
@@ -853,5 +871,8 @@ def main():
 
     # Update Resource Watch
     updateResourceWatch()
+
+    # Delete local files
+    delete_local()
 
     logging.info('SUCCESS')

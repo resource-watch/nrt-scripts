@@ -8,6 +8,7 @@ import requests
 import datetime
 import pandas as pd
 import wget
+import shutil
 
 # name of data directory in Docker container
 DATA_DIR = './data'
@@ -81,6 +82,24 @@ def lastUpdateDate(dataset, date):
         return 0
     except Exception as e:
         logging.error('[lastUpdated]: '+str(e))
+
+
+def delete_local():
+    '''
+    Delete all files and folders in Docker container's data directory
+    '''
+    try:
+        # for each object in the data directory
+        for f in os.listdir(DATA_DIR):
+            # try to remove it as a file
+            try:
+                logging.info('Removing {}'.format(f))
+                os.remove(DATA_DIR+'/'+f)
+            # if it is not a file, remove it as a folder
+            except:
+                shutil.rmtree(DATA_DIR+'/'+f, ignore_errors=True)
+    except NameError:
+        logging.info('No local files to clean.')
 
 '''
 FUNCTIONS FOR THIS DATASET
@@ -217,5 +236,8 @@ def main():
 
     # Update Resource Watch
     updateResourceWatch()
+
+    # Delete local files
+    delete_local()
 
     logging.info('SUCCESS')

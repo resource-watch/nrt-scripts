@@ -48,10 +48,10 @@ CARTO_SCHEMA = OrderedDict([
 ])
 
 # how many rows can be stored in the Carto table before the oldest ones are deleted?
-MAX_ROWS = 200000
+MAX_ROWS = 150000
 
 # oldest date that can be stored in the Carto table before we start deleting
-MAX_AGE = datetime.datetime.today() - datetime.timedelta(days=365*2)
+MAX_AGE = datetime.datetime.today() - datetime.timedelta(days=365)
 
 # url for recent earthquake data
 SOURCE_URL = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime={startTime}&endtime={endTime}&minsig={minSig}"

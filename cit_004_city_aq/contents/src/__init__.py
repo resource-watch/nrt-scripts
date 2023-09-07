@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 import cartoframes
 from shapely.geometry import mapping
+import shutil
 
 # do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = False

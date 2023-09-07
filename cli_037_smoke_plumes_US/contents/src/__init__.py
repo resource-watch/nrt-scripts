@@ -11,6 +11,7 @@ import cartosql
 import zipfile
 import requests
 import json
+import shutil
 
 # do you want to delete everything currently in the Carto table when you run this script?
 CLEAR_TABLE_FIRST = False
@@ -105,6 +106,23 @@ def lastUpdateDate(dataset, date):
         return 0
     except Exception as e:
         logging.error('[lastUpdated]: '+str(e))
+
+def delete_local():
+    '''
+    Delete all files and folders in Docker container's data directory
+    '''
+    try:
+        # for each object in the data directory
+        for f in os.listdir(DATA_DIR):
+            # try to remove it as a file
+            try:
+                logging.info('Removing {}'.format(f))
+                os.remove(DATA_DIR+'/'+f)
+            # if it is not a file, remove it as a folder
+            except:
+                shutil.rmtree(DATA_DIR+'/'+f, ignore_errors=True)
+    except NameError:
+        logging.info('No local files to clean.')
 
 '''
 FUNCTIONS FOR CARTO DATASETS
@@ -576,5 +594,8 @@ def main():
 
     # Update Resource Watch
     updateResourceWatch(num_new)
+
+    # Delete local files
+    delete_local()
 
     logging.info('SUCCESS')
