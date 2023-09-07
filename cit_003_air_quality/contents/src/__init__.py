@@ -71,9 +71,9 @@ CARTO_KEY = os.environ.get('CARTO_KEY')
 AWS_ACCESS_KEY_ID = os.environ.get('S3_ACCESS_KEY')
 AWS_SECRET_ACCESS_KEY = os.environ.get('S3_SECRET_KEY')
 
-# limit to 350000 rows / 7 days
-MAXROWS = 350000
-MAXAGE = datetime.datetime.utcnow() - datetime.timedelta(days=7)
+# limit to 300000 rows / 5 days
+MAXROWS = 300000
+MAXAGE = datetime.datetime.utcnow() - datetime.timedelta(days=5)
 
 # conversion units and parameters
 UGM3 = ["\u00b5g/m\u00b3", "ug/m3"]

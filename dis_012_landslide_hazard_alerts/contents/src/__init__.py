@@ -55,7 +55,7 @@ CARTO_SCHEMA = OrderedDict([
 MAX_ROWS = 80000
 
 # oldest date that can be stored in the Carto table before we start deleting
-MAX_AGE = datetime.datetime.utcnow() - datetime.timedelta(days=365)
+MAX_AGE = datetime.datetime.utcnow() - datetime.timedelta(days=180)
 
 # if we get error during data fetching process, how many seconds do you want to wait before you try to fetch again?
 # we will try with a wait time of 5 mins
