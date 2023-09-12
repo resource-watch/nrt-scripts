@@ -229,32 +229,6 @@ def processData():
             
         return(existing_ids, new_rows)
 
-# def deleteExcessRows(table, max_rows, time_field):
-#     ''' 
-#     Delete rows to bring count down to max_rows
-#     INPUT   table: name of table in Carto from which we will delete excess rows (string)
-#             max_rows: maximum rows that can be stored in the Carto table (integer)
-#             time_field: column that stores datetime information (string) 
-#     RETURN  num_dropped: number of rows that have been dropped from the table (integer)
-#     ''' 
-#     # initialize number of rows that will be dropped as 0
-#     num_dropped = 0
-#     # get cartodb_ids from carto table sorted by date (new->old)
-#     r = cartosql.getFields('cartodb_id', table, order='{} desc'.format(time_field),
-#                            f='csv', user=CARTO_USER, key=CARTO_KEY)
-#     # turn response into a list of strings of the ids
-#     ids = r.text.split('\r\n')[1:-1]
-
-#     # if number of rows is greater than max_rows, delete excess rows
-#     if len(ids) > max_rows:
-#         r = cartosql.deleteRowsByIDs(table, ids[max_rows:], CARTO_USER, CARTO_KEY)
-#         # get the number of rows that have been dropped from the table
-#         num_dropped += r.json()['total_rows']
-#     if num_dropped:
-#         logging.info('Dropped {} old rows from {}'.format(num_dropped, table))
-
-    # return(num_dropped)
-
 def deleteExcessRows(table, max_rows, time_field, max_age=''):
     ''' 
     Delete rows that are older than a certain threshold and also bring count down to max_rows
