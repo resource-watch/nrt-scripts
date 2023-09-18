@@ -624,15 +624,37 @@ def update_layer(layer, new_date):
         'application': ['rw'],
         'name': layer['attributes']['name']
     }
-    # patch API with updates
-    r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
-    # check response
-    # if we get a 200, the layers have been replaced
-    # if we get a 504 (gateway timeout) - the layers are still being replaced, but it worked
-    if r.ok or r.status_code==504:
-        logging.info('Layer replaced: {}'.format(layer['id']))
-    else:
-        logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
+    
+    # specify that we are on the first try
+    try_num = 1
+    tries = 4
+    while try_num < tries:
+        try:
+            # patch API with updates
+            r = requests.request('PATCH', rw_api_url_layer, data=json.dumps(payload), headers=create_headers())
+            # check response
+            # if we get a 200, the layers have been replaced
+            if r.ok or r.status_code==504:
+                logging.info('Layer replaced: {}'.format(layer['id']))
+                return r.status_code
+            else:
+                # if we are not on our last try, wait 60 seconds and try to replace the layer again
+                if try_num < (tries-1):
+                    logging.info('Layer failed to replace: status code {}'.format(r.status_code))
+                    time.sleep(60)
+                    logging.info('Trying again.')
+                # if we are on our last try, log that the cache flush failed
+                else:            
+                    # if we get a 504 (gateway timeout) - the layers are still being replaced, but it worked
+                    # if we get a 503 or 500 - the layers are still being replaced, but it worked
+                    if r.status_code==504 or r.status_code==503 or r.status_code==500:
+                        logging.info('Layer replaced: {} (status code {})'.format(layer['id'], r.status_code))
+                        return r.status_code
+                    else:
+                        logging.error('Error replacing layer: {} ({})'.format(layer['id'], r.status_code))
+            try_num += 1
+        except Exception as e:
+            logging.error('Failed: {}'.format(e))
         
 def updateResourceWatch():
     '''

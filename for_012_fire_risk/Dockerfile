@@ -1,5 +1,5 @@
-FROM python:3.6
-MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
+FROM python:3.9
+MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 #Note this script was originally developed by Amelia Snyder <amelia.snyder@wri.org>
 
 # install core libraries
@@ -13,7 +13,7 @@ RUN pip install google-api-python-client==1.12.8
 RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
 RUN pip install bs4==0.0.1
 RUN pip install Cython==0.29.15
-RUN pip install netCDF4==1.5.3
+RUN pip install netCDF4
 
 # set name
 ARG NAME=nrt-script
