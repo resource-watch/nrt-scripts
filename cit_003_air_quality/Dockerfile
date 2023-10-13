@@ -5,7 +5,7 @@ MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 # install core libraries
 # RUN apk update
 # RUN apk add git
-RUN apt-get update
+RUN apt-get -y update
 
 # install application libraries
 RUN pip install requests==2.22.0
