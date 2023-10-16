@@ -19,7 +19,7 @@ RUN mkdir -p /opt/$NAME/data
 WORKDIR /opt/$NAME/
 COPY contents/ .
 COPY time.cron .
-VOLUME ./data
+# VOLUME ./data
 
 # Set user for container security
 USER root
