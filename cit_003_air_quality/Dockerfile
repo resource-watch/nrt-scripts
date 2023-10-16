@@ -6,7 +6,7 @@ MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 # RUN apk update
 # RUN apk add git
 RUN sed -i -e 's/^APT/# APT/' -e 's/^DPkg/# DPkg/' /etc/apt/apt.conf.d/docker-clean
-RUN apt-get update
+RUN apt-get update && apt-get install -y apt-transport-https
 RUN pip install --upgrade pip
 
 # install application libraries
