@@ -5,7 +5,7 @@ MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 # install core libraries
 # RUN apk update
 # RUN apk add git
-RUN apt-get -y update
+RUN apt-get update && apt-get install -y apt-transport-https
 
 # install application libraries
 RUN pip install requests==2.22.0
