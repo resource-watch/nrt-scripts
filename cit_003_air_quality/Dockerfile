@@ -7,13 +7,13 @@ MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 # RUN apk add git
 # RUN sed -i -e 's/^APT/# APT/' -e 's/^DPkg/# DPkg/' /etc/apt/apt.conf.d/docker-clean
 # RUN apt-get update && apt-get install -y apt-transport-https
-RUN pip install --upgrade pip
+# RUN pip install --upgrade pip
 
 # install application libraries
-RUN pip install requests==2.22.0
+RUN pip install requests
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 RUN pip install boto3
-RUN pip install ndjson==0.3.1
+RUN pip install ndjson
 
 # set name
 ARG NAME=nrt-script
