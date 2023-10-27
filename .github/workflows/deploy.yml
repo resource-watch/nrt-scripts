@@ -20,7 +20,7 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Run SSH command
-      uses: garygrossgarten/github-action-ssh@v0.7.0
+      uses: garygrossgarten/github-action-ssh@release
       with:
         # Command to execute on the remote server.
         command: sudo /home/ubuntu/scripts/install.sh
