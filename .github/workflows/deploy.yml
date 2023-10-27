@@ -6,6 +6,7 @@ name: Deploy NRT Scripts to AWS
 on:
   push:
     branches: [ master ]
+  workflow_dispatch:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -17,16 +18,16 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4.1.1
 
     - name: Run SSH command
-      uses: garygrossgarten/github-action-ssh@release
+      uses: appleboy/ssh-action@v1.0.0
       with:
         # Command to execute on the remote server.
-        command: sudo /home/ubuntu/scripts/install.sh
+        script: sudo /home/ubuntu/scripts/install.sh
         # Hostname or IP address of the server.
         host: ec2-3-80-230-37.compute-1.amazonaws.com
         # Username for authentication.
         username: ubuntu
         # File Location or string that contains a private key for either key-based or hostbased user authentication (OpenSSH format)
-        privateKey: ${{secrets.EC2_PRIVATE_KEY}}
+        key: ${{secrets.EC2_PRIVATE_KEY}}
