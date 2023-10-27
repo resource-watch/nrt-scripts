@@ -20,3 +20,4 @@
 # Environmental variables
 *.env*
 *credentials*
+act.secrets
