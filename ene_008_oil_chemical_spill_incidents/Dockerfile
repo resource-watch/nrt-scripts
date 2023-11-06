@@ -1,18 +1,17 @@
-FROM python:3.6-alpine
-MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
-#Note this script was originally developed by Nathan Suberi <nathan.suberi@wri.org>
+FROM python:3.9
+MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
+#Note this script was originally developed by Nathan Suberi <nathan.suberi@wri.org> and maintained by Amelia Snyder
 
 # install core libraries
-RUN apk update
-RUN apk add git
-RUN pip install --upgrade pip
+RUN apt-get update
+RUN pip install -U pip
 
 # install application libraries
-RUN pip install requests==2.22.0
+RUN pip install requests
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 
 # env
-ARG NAME=ene_008
+ARG NAME=nrt-script
 ENV NAME ${NAME}
 
 # Copy the application folder inside the container
@@ -22,7 +21,7 @@ COPY contents/ .
 COPY time.cron .
 
 # Set user for container security
-RUN adduser -D $NAME
+RUN useradd $NAME
 RUN chown -R $NAME /opt/$NAME/
 USER $NAME
 VOLUME ./data

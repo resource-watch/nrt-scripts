@@ -1,5 +1,5 @@
 #Change the NAME variable with the name of your script
-NAME=$(basename $(pwd))
+NAME=ene_008_oil_spill
 LOG=${LOG:-udp://localhost}
 
 docker build -t $NAME --build-arg NAME=$NAME .
