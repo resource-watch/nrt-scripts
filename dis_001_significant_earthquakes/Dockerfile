@@ -1,10 +1,10 @@
-FROM python:3.6-alpine
-MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
-#Note this script was originally developed by Nathan Suberi <nathan.suberi@wri.org>
+FROM python:3.9
+MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
+# Note this script was originally developed by Nathan Suberi <nathan.suberi@wri.org> and maintained by Amelia Snyder
 
 # install core libraries
-RUN apk update
-RUN apk add git
+RUN apt-get update
+RUN pip install -U pip
 
 # install application libraries
 RUN pip install --upgrade pip && pip install requests==2.22.0
@@ -19,11 +19,11 @@ RUN mkdir -p /opt/$NAME/data
 WORKDIR /opt/$NAME/
 COPY contents/ .
 COPY time.cron .
-# VOLUME ./data
+VOLUME ./data
 
 # Set user for container security
 USER root
-RUN adduser -D $NAME
+RUN adduser $NAME
 RUN chown -R $NAME:$NAME .
 USER $NAME
 
