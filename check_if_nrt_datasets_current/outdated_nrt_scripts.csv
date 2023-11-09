@@ -1,10 +1,11 @@
 WRI ID,Public Title,Date Added to Sheet,Last Check,Known Reason?,Script in pause
-soc.062c.rw1.nrt,"Recent Internal Displacement from Conflict, Natural Disasters, and Development",8/10/2022,11/07/2023,the data source has not been updated since 6/30/2022,TRUE
-com.024.rw0.nrt,Oil Palm Concessions,1/12/2021,11/07/2023,the dataset is now only available as vector layer tiles,
-com.025.rw0.nrt,Wood Fiber Concessions,1/12/2021,11/07/2023,the dataset is now only available as vector layer tiles,
-ocn.002.rw0.nrt,Wave Height,8/19/2021,11/07/2023,the version we use is no longer updated by the data source,TRUE
-cli.040.rw0.nrt.dash,Sea Level,5/25/2023,11/07/2023,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
-cli.041.rw0.nrt.dash,Land Ice: Antarctica,5/19/2023,11/07/2023,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
-cli.042.rw0.nrt.dash,Land Ice: Greenland,5/19/2023,11/07/2023,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
-cli.043.rw0.nrt.dash,Minimum Annual Arctic Sea Ice Extent,7/04/2023,11/07/2023,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
-foo.003.rw1.nrt,Current and Projected Food Insecurity,7/04/2023,11/07/2023,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
+soc.062c.rw1.nrt,"Recent Internal Displacement from Conflict, Natural Disasters, and Development",8/10/2022,11/9/2023,the data source has not been updated since 6/30/2022,TRUE
+com.024.rw0.nrt,Oil Palm Concessions,1/12/2021,11/9/2023,the dataset is now only available as vector layer tiles,
+com.025.rw0.nrt,Wood Fiber Concessions,1/12/2021,11/9/2023,the dataset is now only available as vector layer tiles,
+ocn.002.rw0.nrt,Wave Height,8/19/2021,11/9/2023,the version we use is no longer updated by the data source,TRUE
+cli.040.rw0.nrt.dash,Sea Level,5/25/2023,11/9/2023,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
+cli.041.rw0.nrt.dash,Land Ice: Antarctica,5/19/2023,11/9/2023,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
+cli.042.rw0.nrt.dash,Land Ice: Greenland,5/19/2023,11/9/2023,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
+cli.043.rw0.nrt.dash,Minimum Annual Arctic Sea Ice Extent,7/4/2023,11/9/2023,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
+foo.003.rw1.nrt,Current and Projected Food Insecurity,7/4/2023,11/9/2023,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
+cit.003.rw0.nrt,Air Quality: Station Measurements,11/9/2023,11/9/2023,OpenAQ updated its API and data fetching options. The script cannot directly get data from their S3 bucket anymore. Need to register an account and use their API instead.,TRUE
