@@ -15,7 +15,7 @@ RUN pip install \
     rasterio==1.1.2
 
 # set name
-ARG NAME=foo_024_051
+ARG NAME=nrt-script
 ENV NAME ${NAME}
 
 # copy the application folder inside the container

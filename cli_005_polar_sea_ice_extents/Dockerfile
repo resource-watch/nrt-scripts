@@ -21,7 +21,8 @@ RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
 RUN pip install python-dateutil==2.8.2
 RUN pip install LMIPy
 
-ARG NAME=cli_005
+# set name
+ARG NAME=nrt-script
 ENV NAME ${NAME}
 
 # copy the application folder inside the container

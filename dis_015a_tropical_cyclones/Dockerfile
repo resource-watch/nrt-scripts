@@ -3,7 +3,7 @@ MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 # Note this script was originally developed by Taufiq Rashid <taufiq.rashid@wri.org>
 
 # set name
-ARG NAME=dis_015a_tropical_cyclones
+ARG NAME=nrt-script
 ENV NAME ${NAME}
 
 # install core libraries

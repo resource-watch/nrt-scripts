@@ -16,7 +16,7 @@ RUN pip install netCDF4==1.4.2
 RUN pip install earthengine-api==0.1.234
 
 # set name
-ARG NAME=loc_mcaqf
+ARG NAME=nrt-script
 ENV NAME ${NAME}
 
 # copy the application folder inside the container

@@ -2,7 +2,8 @@ FROM python:3.6
 MAINTAINER Taufiq Rashid <taufiq.rashid@wri.org>
 #Note this script was originally developed by Taufiq Rashid <taufiq.rashid@wri.org>
 
-ARG NAME=cli_045_gcc_co2_concentrations
+# set name
+ARG NAME=nrt-script
 ENV NAME ${NAME}
 
 # install core libraries

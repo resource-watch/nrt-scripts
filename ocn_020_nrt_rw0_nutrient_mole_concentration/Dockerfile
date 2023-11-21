@@ -16,7 +16,7 @@ RUN pip install GDAL==2.4.2
 RUN apt-get -y install python-gdal
 
 # set name
-ARG NAME=ocn_020
+ARG NAME=nrt-script
 ENV NAME ${NAME}
 
 # copy the application folder inside the container

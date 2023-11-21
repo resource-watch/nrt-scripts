@@ -13,7 +13,7 @@ RUN pip install simplejson==3.19.1
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 
 # set name
-ARG NAME=dis_012_landslide_hazard_alerts
+ARG NAME=nrt-script
 ENV NAME ${NAME}
 
 # copy the application folder inside the container

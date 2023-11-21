@@ -15,7 +15,7 @@ RUN pip install numpy==1.25.2
 RUN pip install Cython==3.0.0
 
 # set name
-ARG NAME=ocn_011_total_suspended_matter
+ARG NAME=nrt-script
 ENV NAME ${NAME}
 
 # copy the application folder inside the container

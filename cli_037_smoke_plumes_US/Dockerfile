@@ -8,7 +8,7 @@ RUN pip install --upgrade pip && \
     pip install requests==2.22.0 fiona==1.8.13
 
 # set name
-ARG NAME=cli_037
+ARG NAME=nrt-script
 ENV NAME ${NAME}
 
 # copy the application folder inside the container

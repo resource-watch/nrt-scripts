@@ -16,7 +16,7 @@ RUN pip install LMIPy==0.6.2
 RUN pip install cartoframes==1.2.5
 
 # set name
-ARG NAME=upload-world-bank
+ARG NAME=nrt-script
 ENV NAME ${NAME}
 
 # copy the application folder inside the container
