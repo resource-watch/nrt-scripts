@@ -2,7 +2,8 @@ FROM python:3.6
 MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
 #Note this script was originally developed by Nathan Suberi <nathan.suberi@wri.org>
 
-ARG NAME=dis_003
+# set name
+ARG NAME=nrt-script
 ENV NAME ${NAME}
 
 # install core libraries

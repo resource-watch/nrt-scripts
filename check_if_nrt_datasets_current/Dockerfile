@@ -10,7 +10,7 @@ RUN pip install requests==2.31.0
 RUN pip install pandas==2.0.3
 
 # set name
-ARG NAME=check-nrt-current
+ARG NAME=nrt-script
 ENV NAME ${NAME}
 
 # copy the application folder inside the container

@@ -2,7 +2,8 @@ FROM python:3.9
 MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 #Note this script was originally developed by Nathan Suberi <nathan.suberi@wri.org>
 
-ARG NAME=soc_018
+# set name
+ARG NAME=nrt-script
 ENV NAME ${NAME}
 
 # install core libraries

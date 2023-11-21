@@ -16,7 +16,7 @@ RUN pip install python-rapidjson
 RUN pip install geopandas==0.9.0
 
 # set name
-ARG NAME=bio_007_wdpa
+ARG NAME=nrt-script
 ENV NAME ${NAME}
 
 # copy the application folder inside the container

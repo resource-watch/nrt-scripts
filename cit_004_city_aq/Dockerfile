@@ -14,7 +14,7 @@ RUN pip install shapely==1.7.1
 RUN pip install cartoframes==1.1.0
 
 # set name
-ARG NAME=cit_004_city_aq
+ARG NAME=nrt-script
 ENV NAME ${NAME}
 
 # copy the application folder inside the container

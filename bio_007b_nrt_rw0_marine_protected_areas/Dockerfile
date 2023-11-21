@@ -16,7 +16,7 @@ RUN pip install pandas
 RUN pip install geopandas==0.13.2
 
 # set name
-ARG NAME=bio_007b
+ARG NAME=nrt-script
 ENV NAME ${NAME}
 
 # copy the application folder inside the container
