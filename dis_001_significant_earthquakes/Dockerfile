@@ -7,7 +7,7 @@ RUN apt-get update
 RUN pip install -U pip
 
 # install application libraries
-RUN pip install --upgrade pip && pip install requests==2.22.0
+RUN pip install --upgrade pip && pip install requests
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 
 # Env
@@ -23,7 +23,7 @@ VOLUME ./data
 
 # Set user for container security
 USER root
-RUN adduser $NAME
+RUN useradd $NAME
 RUN chown -R $NAME:$NAME .
 USER $NAME
 
