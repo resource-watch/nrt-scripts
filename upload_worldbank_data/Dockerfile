@@ -24,7 +24,7 @@ RUN mkdir -p /opt/$NAME/data
 WORKDIR /opt/$NAME/
 COPY contents .
 
-RUN adduser $NAME
+RUN useradd $NAME
 RUN chown -R $NAME:$NAME /opt/$NAME
 VOLUME /opt/$NAME/data
 USER $NAME

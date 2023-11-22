@@ -22,7 +22,7 @@ WORKDIR /opt/$NAME/
 COPY contents/ .
 VOLUME ./data
 
-RUN adduser $NAME
+RUN useradd $NAME
 RUN chown -R $NAME:$NAME .
 USER $NAME
 
