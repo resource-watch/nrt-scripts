@@ -115,8 +115,8 @@ class WfpApi:
         data_mp = None
         while data_mp is None or len(data_mp) > 0:
             # print(f'fetching alps page {page}')
-            # fetch data from 4 months ago
-            data_mp = self._invoke('alps', {'CountryCode': iso3, 'page': page, 'startDate': (datetime.datetime.today() - relativedelta(months=4)).strftime('%Y/%m/%d')})['items']
+            # fetch data from 3 months ago
+            data_mp = self._invoke('alps', {'CountryCode': iso3, 'page': page, 'startDate': (datetime.datetime.today() - relativedelta(months=3)).strftime('%Y/%m/%d')})['items']
             all_data.extend(data_mp)
             page = page + 1
         return all_data
