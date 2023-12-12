@@ -1,4 +1,4 @@
-FROM python:3.7
+FROM python:3.9
 MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 #Note this script was originally developed by Nathan Suberi <nathan.suberi@wri.org> and Amelia Snyder <amelia.snyder@wri.org>
 
@@ -6,7 +6,7 @@ MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 RUN apt-get update
 # install application libraries
 RUN pip install --upgrade pip
-RUN pip install requests==2.22.0
+RUN pip install requests
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 RUN pip install shapely
 RUN pip install numpy==1.18.1
