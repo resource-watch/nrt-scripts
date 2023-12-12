@@ -10,7 +10,7 @@ RUN pip install requests
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 RUN pip install shapely
 RUN pip install numpy
-RUN pip install pandas==0.25.3
+RUN pip install pandas
 RUN pip install python-dateutil
 RUN pip install backoff
 RUN pip install httpx
