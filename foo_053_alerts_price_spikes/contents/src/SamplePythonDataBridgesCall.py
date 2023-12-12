@@ -64,7 +64,7 @@ class WfpApi:
             raise TokenScopeError(f'Could not acquire requested scopes: {scopes}')
         self.tokens_by_scopes[scopes] = resp_data['access_token']
 
-    @backoff.on_exception(backoff.expo, (ApiServerError, ApiNotAuthorizedError), max_tries=5)
+    @backoff.on_exception(backoff.expo, (ApiServerError, ApiNotAuthorizedError), max_tries=8, base=10)
     def _invoke(self, endpoint_name, params=None, body=None):
         if endpoint_name not in API_ENDPOINTS:
             raise ValueError('Invalid endpoint invoked. Check the system configuration')
@@ -88,13 +88,13 @@ class WfpApi:
                 print('unauthorized. Retrying...')
                 raise ApiNotAuthorizedError()
             if resp.status_code >= httpx.codes.INTERNAL_SERVER_ERROR:
-                print('Internal server error. Retrying...')
+                print('Internal server issue. Retrying...')
                 raise ApiServerError()
             if resp.status_code == httpx.codes.NOT_FOUND:
                 raise NotFoundError()
             if httpx.codes.BAD_REQUEST <= resp.status_code < httpx.codes.INTERNAL_SERVER_ERROR:
-                print('Http client error! Not retrying (as it would be useless)')
-                raise HTTPError(f'HTTP Client error ({resp.status_code})')
+                print('Http client issue! Not retrying (as it would be useless)')
+                raise HTTPError(f'HTTP Client issue ({resp.status_code})')
 
         return resp.json()
 
