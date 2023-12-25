@@ -120,6 +120,9 @@ def main():
         # NDC ratification status probably would only update once a year, after COP
         elif 'cli.047' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=400)
+        # Volcano events data set doesn't always have events that occur every week
+        elif 'dis.003' in r['data']['attributes']['name']:
+            allowed_time = datetime.timedelta(days=15)
         # Disaster events data set doesn't always have events that occur everyday
         elif 'dis.006' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=15)
