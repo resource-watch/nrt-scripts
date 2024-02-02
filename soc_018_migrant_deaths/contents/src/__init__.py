@@ -14,12 +14,13 @@ from bs4 import BeautifulSoup
 
 '''
 ---------------------------------Important Note--------------------------------------------------
-# this data source regularly alternates between names for 'Region'
-# any time they use a new name, add it to the REGION_NAMES list
+# this data source regularly alternates between names for 'Region', and 'Location of death'
+# any time they use a new name, add it to the REGION_NAMES list, and LOCATION_NAMES
 # this script uses whichever of these is in the table as the region so that we don't get an error
 ---------------------------------Important Note--------------------------------------------------
 '''
 REGION_NAMES = ['Region', 'Region of Incident']
+LOCATION_NAMES = ['Location of death', 'Location of Incident']
 
 DATA_DIR = 'data'
 
@@ -51,7 +52,7 @@ CARTO_SCHEMA = OrderedDict([
     ('Cause_of_Death', 'text'),
     ('Location_of_death', 'text'),
     ('Information_Source', 'text'),
-    ('Migrantion_route', 'text'),
+    ('Migration_Route', 'text'),
     ('URL', 'text'),
     ('UNSD_Geographical_Grouping', 'text'),
     ('Source_Quality', 'text')
@@ -253,6 +254,9 @@ def processData(src_url, existing_ids):
             # add both possible names for the column, pointing to the same column index number
             if k in REGION_NAMES:
                 for name in REGION_NAMES:
+                    idx[name.replace(' ', '_')] = v
+            elif k in LOCATION_NAMES:
+                for name in LOCATION_NAMES:
                     idx[name.replace(' ', '_')] = v
             else:
                 idx[k.replace(' ', '_')] = v
