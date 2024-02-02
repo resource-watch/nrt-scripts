@@ -122,7 +122,7 @@ def main():
             allowed_time = datetime.timedelta(days=400)
         # Volcano events data set doesn't always have events that occur every week
         elif 'dis.003' in r['data']['attributes']['name']:
-            allowed_time = datetime.timedelta(days=15)
+            allowed_time = datetime.timedelta(days=20)
         # Disaster events data set doesn't always have events that occur everyday
         elif 'dis.006' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=15)

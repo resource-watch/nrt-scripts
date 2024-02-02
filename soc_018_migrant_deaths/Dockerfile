@@ -10,7 +10,7 @@ ENV NAME ${NAME}
 RUN apt-get update
 
 # install application libraries
-RUN pip install --upgrade pip && pip install requests==2.28.2
+RUN pip install --upgrade pip && pip install requests
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 RUN pip install pandas==1.5.3
 RUN pip install openpyxl
