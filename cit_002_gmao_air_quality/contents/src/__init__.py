@@ -867,9 +867,9 @@ def updateResourceWatch(new_dates_historical, new_dates_forecast):
                     # replace layer asset and title date with new
                     update_layer(var, 'forecast', layer, date)
         if not new_dates_historical:
-            logging.error('Historical data was not updated, but forecast was.')
+            logging.warning('Historical data was not updated, but forecast was.')
         elif not new_dates_forecast:
-            logging.error('Forecast data was not updated, but historical was.')    
+            logging.warning('Forecast data was not updated, but historical was.')    
     else:
         logging.info('Layers do not need to be updated.')
 
