@@ -98,7 +98,7 @@ def main():
             allowed_time = datetime.timedelta(days=80)
         # around the 15th of each month, Surface Temperature Change updates for the 15th of the PREVIOUS month
         elif 'cli.035' in r['data']['attributes']['name']:
-            allowed_time = datetime.timedelta(days=70)
+            allowed_time = datetime.timedelta(days=120)
         # SPEI
         elif 'cli.039' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=60)
@@ -122,7 +122,7 @@ def main():
             allowed_time = datetime.timedelta(days=400)
         # Volcano events data set doesn't always have events that occur every week
         elif 'dis.003' in r['data']['attributes']['name']:
-            allowed_time = datetime.timedelta(days=40)
+            allowed_time = datetime.timedelta(days=60)
         # Disaster events data set doesn't always have events that occur everyday
         elif 'dis.006' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=15)
