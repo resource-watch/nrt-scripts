@@ -73,7 +73,8 @@ MAX_AGE = datetime.datetime.today() - datetime.timedelta(days=365*MAX_YEARS)
 
 # url for Missing Migrants data
 # SOURCE_URL = "https://missingmigrants.iom.int/global-figures/{year}/xls"
-SOURCE_URL = 'https://missingmigrants.iom.int/sites/g/files/tmzbdl601/files/{year}-{month}/{file_name}'
+# SOURCE_URL = 'https://missingmigrants.iom.int/sites/g/files/tmzbdl601/files/{year}-{month}/{file_name}'
+SOURCE_URL = 'https://missingmigrants.iom.int/sites/g/files/tmzbdl601/files/report-migrant-incident/{file_name}'
 
 # format of dates in source csv file
 INPUT_DATE_FORMAT = '%Y-%m-%d'
