@@ -1,4 +1,4 @@
-FROM python:3.6
+FROM python:3.9
 LABEL maintainer="Kristine Lister <kristine.lister@wri.org>"
 #Note this script was originally developed by Ken Wakabayashi <ken.wakabayashi@wri.org> and Kristine Lister <kristine.lister@wri.org>
 

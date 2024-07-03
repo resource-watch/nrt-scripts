@@ -1,4 +1,4 @@
-FROM python:3.6
+FROM python:3.9
 LABEL maintainer="Liz Saccoccia <elizabeth.saccoccia@wri.org>"
 #Note this script was originally developed by Liz Saccoccia <elizabeth.saccoccia@wri.org>
 

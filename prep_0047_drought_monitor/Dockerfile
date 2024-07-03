@@ -1,4 +1,4 @@
-FROM python:3.6
+FROM python:3.9
 LABEL maintainer="Amelia Snyder <amelia.snyder@wri.org>"
 #Note this script was originally developed by Francis Gassert <fgassert@wri.org>
 
