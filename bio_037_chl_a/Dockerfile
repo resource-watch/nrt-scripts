@@ -1,5 +1,5 @@
 FROM python:3.9
-LABLE maintainer="Kristine Lister <kristine.lister@wri.org>"
+LABEL maintainer="Kristine Lister <kristine.lister@wri.org>"
 #Note this script was originally developed by Kristine Lister <kristine.lister@wri.org>
 
 # install core libraries

@@ -1,5 +1,5 @@
 FROM python:3.9
-LABLE maintainer="Weiqi Zhou <weiqi.zhou@wri.org>"
+LABEL maintainer="Weiqi Zhou <weiqi.zhou@wri.org>"
 #Note this script was originally developed by Taufiq Rashid <taufiq.rashid@wri.org>
 
 # install core libraries
