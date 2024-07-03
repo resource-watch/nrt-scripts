@@ -1,10 +1,10 @@
 FROM python:3.6
-MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
+LABEL maintainer="Weiqi Zhou <weiqi.zhou@wri.org>"
 #Note this script was originally developed by Nathan Suberi <nathan.suberi@wri.org>
 
 # set name
 ARG NAME=nrt-script
-ENV NAME ${NAME}
+ENV NAME=${NAME}
 
 # install core libraries
 RUN apt-get update
@@ -12,10 +12,10 @@ RUN apt-get install -y cron
 
 # install application libraries
 RUN pip install --upgrade pip && pip install \
-    requests==2.22.0
+    requests==2.32.0
 RUN pip install cartoframes
-RUN pip install numpy==1.18.1
-RUN pip install geopandas==0.9.0
+RUN pip install numpy==1.26.4
+RUN pip install geopandas==1.0.0
 
 # Copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data

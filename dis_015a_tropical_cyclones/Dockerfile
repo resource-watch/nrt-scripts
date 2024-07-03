@@ -1,10 +1,10 @@
 FROM python:3.9
-MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
+LABEL maintainer="Weiqi Zhou <weiqi.zhou@wri.org>"
 # Note this script was originally developed by Taufiq Rashid <taufiq.rashid@wri.org>
 
 # set name
 ARG NAME=nrt-script
-ENV NAME ${NAME}
+ENV NAME=${NAME}
 
 # install core libraries
 RUN apt-get update

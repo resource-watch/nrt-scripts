@@ -1,10 +1,10 @@
 FROM python:3.6
-MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
+LABEL maintainer="Amelia Snyder <amelia.snyder@wri.org>"
 #Note this script was originally developed by Amelia Snyder <amelia.snyder@wri.org>
 
 # set name
 ARG NAME=nrt-script
-ENV NAME ${NAME}
+ENV NAME=${NAME}
 
 
 # install core libraries
