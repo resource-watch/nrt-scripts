@@ -15,7 +15,6 @@ RUN pip install requests==2.32.3
 RUN pip install numpy==1.26.4
 RUN pip install Cython==3.0.10
 RUN pip install GDAL==3.6.2
-RUN apt-get -y install python-gdal
 
 # set name
 ARG NAME=nrt-script
