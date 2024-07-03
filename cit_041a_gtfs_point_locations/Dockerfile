@@ -13,7 +13,7 @@ RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=car
 RUN pip install numpy==1.26.4
 RUN pip install pandas==2.2.2
 RUN pip install boto3==1.11.8
-RUN pip install shapely==1.6.4
+RUN pip install shapely==2.0.4
 RUN pip install carto==1.8.4 cartoframes==0.9.2
 
 
