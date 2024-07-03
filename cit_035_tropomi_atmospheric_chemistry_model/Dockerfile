@@ -1,5 +1,5 @@
 FROM python:3.6
-MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
+LABLE maintainer="Weiqi Zhou <weiqi.zhou@wri.org>"
 # Note this script was originally developed by Amelia Snyder <amelia.snyder@wri.org>
 
 # install core libraries
@@ -14,7 +14,7 @@ RUN pip install boto3
 
 # set name
 ARG NAME=nrt-script
-ENV NAME ${NAME}
+ENV NAME=${NAME}
 
 # copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data

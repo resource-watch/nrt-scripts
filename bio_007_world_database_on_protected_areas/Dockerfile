@@ -1,5 +1,5 @@
 FROM python:3.9
-MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
+LABLE maintainer="Weiqi Zhou <weiqi.zhou@wri.org>"
 #Note this script was originally developed by Yujing Wu <yujing.wu@wri.org>
 
 # install core libraries
@@ -17,7 +17,7 @@ RUN pip install geopandas==0.9.0
 
 # set name
 ARG NAME=nrt-script
-ENV NAME ${NAME}
+ENV NAME=${NAME}
 
 # copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data
