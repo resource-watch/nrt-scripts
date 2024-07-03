@@ -8,12 +8,12 @@ RUN apt-get update && pip install -U pip
 # install application libraries
 RUN apt-get install -y gdal-bin libgdal-dev
 RUN pip install oauth2client==4.1.3
-RUN pip install google-api-python-client==1.12.8
+RUN pip install google-api-python-client==2.135.0
 RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
-RUN pip install rasterio==1.1.6
-RUN pip install boto3==1.9.66
+RUN pip install rasterio==1.3.10
+RUN pip install boto3==1.34.136
 RUN pip install netCDF4==1.7.1
-RUN pip install earthengine-api==0.1.234
+RUN pip install earthengine-api==0.1.408
 
 # set name
 ARG NAME=nrt-script
