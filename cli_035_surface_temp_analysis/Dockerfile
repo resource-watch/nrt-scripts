@@ -20,14 +20,14 @@ RUN apt-get install -y \
   && apt-get clean
 
 RUN pip install oauth2client==4.1.3
-RUN pip install google-api-python-client==1.12.8
+RUN pip install google-api-python-client==2.135.0
 RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
 RUN pip install numpy==1.26.4 #Install this ahead of rasterio for appropriate applications
 RUN pip install --upgrade pip && pip install \
-    requests==2.32.0 \
-    rasterio==1.1.2 \
+    requests==2.32.3 \
+    rasterio==1.3.10 \
     netCDF4==1.7.1 \
-    python-dateutil==2.8.0
+    python-dateutil==2.9.0
 
 
 # copy the application folder inside the container
