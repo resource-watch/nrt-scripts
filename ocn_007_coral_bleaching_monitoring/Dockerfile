@@ -13,8 +13,8 @@ RUN pip install google-api-python-client==2.135.0
 RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
 RUN pip install requests==2.32.3
 RUN pip install numpy==1.26.4
-RUN pip install Cython==0.29.15
-RUN pip install GDAL==2.4.2
+RUN pip install Cython==3.0.10
+RUN pip install GDAL==3.9.1
 RUN apt-get -y install python-gdal
 
 # set name
