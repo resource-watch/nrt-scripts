@@ -5,7 +5,7 @@ LABEL maintainer="Amelia Snyder <amelia.snyder@wri.org>"
 # install application libraries
 RUN pip install --upgrade pip && \
     pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql && \
-    pip install requests==2.32.0 fiona==1.8.13
+    pip install requests==2.32.3 fiona==1.9.6
 
 # set name
 ARG NAME=nrt-script
