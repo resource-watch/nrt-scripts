@@ -1,5 +1,5 @@
 FROM python:3.6
-MAINTAINER Liz Saccoccia <elizabeth.saccoccia@wri.org>
+LABEL maintainer="Liz Saccoccia <elizabeth.saccoccia@wri.org>"
 #Note this script was originally developed by Liz Saccoccia <elizabeth.saccoccia@wri.org>
 
 # install core libraries
@@ -15,7 +15,7 @@ RUN pip install python-dateutil==2.8.1
 
 # set name
 ARG NAME=nrt-script
-ENV NAME ${NAME}
+ENV NAME=${NAME}
 
 # copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data

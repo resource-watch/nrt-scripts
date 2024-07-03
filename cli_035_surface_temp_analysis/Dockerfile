@@ -1,10 +1,10 @@
 FROM python:3.6
-MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
+LABEL maintainer="Amelia Snyder <amelia.snyder@wri.org>"
 #Note this script was originally developed by Nathan Suberi <nathan.suberi@wri.org>
 
 # set name
 ARG NAME=nrt-script
-ENV NAME ${NAME}
+ENV NAME=${NAME}
 
 # install core libraries
 RUN apt-get update
@@ -22,11 +22,11 @@ RUN apt-get install -y \
 RUN pip install oauth2client==4.1.3
 RUN pip install google-api-python-client==1.12.8
 RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
-RUN pip install numpy==1.18.1 #Install this ahead of rasterio for appropriate applications
+RUN pip install numpy==1.26.4 #Install this ahead of rasterio for appropriate applications
 RUN pip install --upgrade pip && pip install \
-    requests==2.22.0 \
+    requests==2.32.0 \
     rasterio==1.1.2 \
-    netCDF4==1.5.3 \
+    netCDF4==1.7.1 \
     python-dateutil==2.8.0
 
 
