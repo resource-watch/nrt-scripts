@@ -1,5 +1,5 @@
 FROM python:3.6
-MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
+LABEL maintainer="Amelia Snyder <amelia.snyder@wri.org>"
 #Note this script was originally developed by Amelia Snyder <amelia.snyder@wri.org>
 
 # install core libraries
@@ -8,11 +8,11 @@ RUN pip install -U pip
 
 # install application libraries
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
-RUN pip install pandas==0.25.3
+RUN pip install pandas==2.2.2
 
 # set name
 ARG NAME=nrt-script
-ENV NAME ${NAME}
+ENV NAME=${NAME}
 
 # copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data

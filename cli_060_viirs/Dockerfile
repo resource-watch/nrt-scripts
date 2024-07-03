@@ -1,5 +1,5 @@
 FROM python:3.9
-MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
+LABEL maintainer="Amelia Snyder <amelia.snyder@wri.org>"
 #Note this script was originally developed by Francis Gassert <fgassert@wri.org>
 
 # install core libraries
@@ -11,7 +11,7 @@ RUN pip install requests
 
 # set name
 ARG NAME=nrt-script
-ENV NAME ${NAME}
+ENV NAME=${NAME}
 
 # copy the application folder inside the container
 WORKDIR /opt/$NAME/

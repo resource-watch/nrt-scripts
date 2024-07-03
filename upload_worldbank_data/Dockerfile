@@ -1,5 +1,5 @@
 FROM python:3.9
-MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
+LABEL maintainer="Weiqi Zhou <weiqi.zhou@wri.org>"
 # Note this script was originally developed by Amelia Snyder
 
 # install core libraries
@@ -17,7 +17,7 @@ RUN pip install cartoframes==1.2.5
 
 # set name
 ARG NAME=nrt-script
-ENV NAME ${NAME}
+ENV NAME=${NAME}
 
 # copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data

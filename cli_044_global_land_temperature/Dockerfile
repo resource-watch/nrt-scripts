@@ -1,10 +1,10 @@
 FROM python:3.6
-MAINTAINER Taufiq Rashid <taufiq.rashid@wri.org>
+LABEL maintainer="Taufiq Rashid <taufiq.rashid@wri.org>"
 #Note this script was originally developed by Taufiq Rashid <taufiq.rashid@wri.org>
 
 # set name
 ARG NAME=nrt-script
-ENV NAME ${NAME}
+ENV NAME=${NAME}
 
 # install core libraries
 RUN apt-get update
@@ -12,7 +12,7 @@ RUN apt-get install -y cron
 
 # install application libraries
 RUN pip install --upgrade pip
-RUN pip install requests==2.22.0 \
+RUN pip install requests==2.32.0 \
     python-dateutil==2.6.1 \
     pytz==2017.3 \
     bs4==0.0.1
