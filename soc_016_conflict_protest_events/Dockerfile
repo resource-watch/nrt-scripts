@@ -1,5 +1,5 @@
 FROM python:3.6
-MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
+LABEL maintainer="Weiqi Zhou <weiqi.zhou@wri.org>"
 #Note this script was originally developed by Francis Gassert <fgassert@wri.org>
 
 # install core libraries
@@ -9,14 +9,14 @@ RUN pip install --upgrade pip
 # install application libraries
 RUN pip install requests==2.22.0
 RUN pip install python-dateutil==2.8.1
-RUN pip install geopandas==0.9.0
+RUN pip install geopandas==1.0.0
 RUN pip install Rtree
 
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 
 # set name
 ARG NAME=nrt-script
-ENV NAME ${NAME}
+ENV NAME=${NAME}
 
 # copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data
