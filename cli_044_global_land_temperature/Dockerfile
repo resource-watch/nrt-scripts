@@ -1,4 +1,4 @@
-FROM python:3.6
+FROM python:3.9
 LABEL maintainer="Taufiq Rashid <taufiq.rashid@wri.org>"
 #Note this script was originally developed by Taufiq Rashid <taufiq.rashid@wri.org>
 
