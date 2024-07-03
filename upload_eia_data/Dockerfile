@@ -6,7 +6,7 @@ MAINTAINER Weiqi Zhou <weiqi.zhou@wri.org>
 RUN apt-get update && pip install -U pip
 
 # install application libraries
-RUN pip install pandas==2.0.3
+RUN pip install pandas==2.2.2
 RUN pip install boto3==1.10.45
 RUN pip install requests==2.22.0
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
