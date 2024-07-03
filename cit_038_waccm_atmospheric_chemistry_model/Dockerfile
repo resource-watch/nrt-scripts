@@ -1,5 +1,5 @@
 FROM python:3.6
-MAINTAINER Amelia Snyder <amelia.snyder@wri.org>
+LABLE maintainer="Amelia Snyder <amelia.snyder@wri.org>"
 #Note this script was originally developed by Amelia Snyder <amelia.snyder@wri.org>
 
 # install core libraries
@@ -12,11 +12,11 @@ RUN pip install oauth2client==4.1.3
 RUN pip install google-api-python-client==1.12.8
 RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
 RUN pip install bs4==0.0.1
-RUN pip install numpy==1.14.3
+RUN pip install numpy==1.26.4
 
 # set name
 ARG NAME=nrt-script
-ENV NAME ${NAME}
+ENV NAME=${NAME}
 
 # copy the application folder inside the container
 RUN mkdir -p /opt/$NAME/data
