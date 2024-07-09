@@ -59,7 +59,7 @@ import shutil
 # create an ordered dictionary to store information about all the netcdf files that we want to fetch and process
 DATA_DICT = OrderedDict()
 DATA_DICT['bleaching_alert_area_7d'] = {
-        'url_template': 'ftp://ftp.star.nesdis.noaa.gov/pub/sod/mecb/crw/data/5km/v3.1/nc/v1.0/daily/baa-max-7d/{}/ct5km_baa-max-7d_v3.1_{}.nc',
+        'url_template': 'ftp://ftp.star.nesdis.noaa.gov/pub/socd/mecb/crw/data/5km/v3.1_op/nc/v1.0/daily/baa5-max-7d/{}/ct5km_baa5-max-7d_v3.1_{}.nc',
         'sds': [
             'bleaching_alert_area',
         ],
@@ -70,7 +70,7 @@ DATA_DICT['bleaching_alert_area_7d'] = {
         'pyramiding_policy': 'MEAN',
     }
 DATA_DICT['hotspots'] = {
-        'url_template': 'ftp://ftp.star.nesdis.noaa.gov/pub/sod/mecb/crw/data/5km/v3.1/nc/v1.0/daily/hs/{}/ct5km_hs_v3.1_{}.nc',
+        'url_template': 'ftp://ftp.star.nesdis.noaa.gov/pub/socd/mecb/crw/data/5km/v3.1_op/nc/v1.0/daily/hs/{}/ct5km_hs_v3.1_{}.nc',
         'sds': [
             'hotspot',
         ],
@@ -82,7 +82,7 @@ DATA_DICT['hotspots'] = {
         'scale_factor': 0.0099999998,
     }
 DATA_DICT['degree_heating_week'] = {
-        'url_template': 'ftp://ftp.star.nesdis.noaa.gov/pub/sod/mecb/crw/data/5km/v3.1/nc/v1.0/daily/dhw/{}/ct5km_dhw_v3.1_{}.nc',
+        'url_template': 'ftp://ftp.star.nesdis.noaa.gov/pub/socd/mecb/crw/data/5km/v3.1_op/nc/v1.0/daily/dhw/{}/ct5km_dhw_v3.1_{}.nc',
         'sds': [
             'degree_heating_week',
         ],
@@ -94,7 +94,7 @@ DATA_DICT['degree_heating_week'] = {
         'scale_factor': 0.0099999998,
     }
 DATA_DICT['sea_surface_temperature_anomaly'] = {
-        'url_template': 'ftp://ftp.star.nesdis.noaa.gov/pub/sod/mecb/crw/data/5km/v3.1/nc/v1.0/daily/ssta/{}/ct5km_ssta_v3.1_{}.nc',
+        'url_template': 'ftp://ftp.star.nesdis.noaa.gov/pub/socd/mecb/crw/data/5km/v3.1_op/nc/v1.0/daily/ssta/{}/ct5km_ssta_v3.1_{}.nc',
         'sds': [
             'sea_surface_temperature_anomaly',
         ],
@@ -106,7 +106,8 @@ DATA_DICT['sea_surface_temperature_anomaly'] = {
         'scale_factor': 0.0099999998,
     }
 DATA_DICT['sea_surface_temperature'] = {
-        'url_template': 'ftp://ftp.star.nesdis.noaa.gov/pub/sod/mecb/crw/data/coraltemp/v1.0/nc/{}/coraltemp_v1.0_{}.nc',
+        # 'url_template': 'ftp://ftp.star.nesdis.noaa.gov/pub/sod/mecb/crw/data/coraltemp/v1.0/nc/{}/coraltemp_v1.0_{}.nc',
+        'url_template': 'ftp://ftp.star.nesdis.noaa.gov/pub/socd/mecb/crw/data/5km/v3.1_op/nc/v1.0/daily/sst/{}/coraltemp_v3.1_{}.nc',
         'sds': [
             'analysed_sst',
         ],
@@ -118,7 +119,7 @@ DATA_DICT['sea_surface_temperature'] = {
         'scale_factor': 0.01,
     }
 DATA_DICT['sea_surface_temperature_trend_7d'] = {
-        'url_template': 'ftp://ftp.star.nesdis.noaa.gov/pub/sod/mecb/crw/data/5km/v3.1/nc/v1.0/daily/sst-trend-7d/{}/ct5km_sst-trend-7d_v3.1_{}.nc',
+        'url_template': 'ftp://ftp.star.nesdis.noaa.gov/pub/socd/mecb/crw/data/5km/v3.1_op/nc/v1.0/daily/sst-trend-7d/{}/ct5km_sst-trend-7d_v3.1_{}.nc',
         'sds': [
             'trend',
         ],
