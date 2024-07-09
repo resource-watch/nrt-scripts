@@ -28,6 +28,6 @@ RUN useradd $NAME
 RUN chown -R $NAME:$NAME /opt/$NAME
 VOLUME /opt/$NAME/data
 USER $NAME
-ENV PYTHONPATH /src
+ENV PYTHONPATH=/src
 
 CMD ["python", "main.py"]
