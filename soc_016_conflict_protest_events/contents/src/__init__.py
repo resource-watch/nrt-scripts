@@ -65,13 +65,14 @@ CARTO_SCHEMA = OrderedDict([('cartodb_id', 'text'),
 ('total', 'numeric')])
 
 # url for armed conflict location & event data
-SOURCE_URL = 'https://api.acleddata.com/acled/read/?key={key}&email={user}&event_date={date_start}|{date_end}&event_date_where=BETWEEN&page={page}'
+# SOURCE_URL = 'https://api.acleddata.com/acled/read/?key={key}&email={user}&event_date={date_start}|{date_end}&event_date_where=BETWEEN&page={page}'
+SOURCE_URL = 'https://api.acleddata.com/acled/read/?key={key}&email={user}&event_date={evt_date}'
 
 # minimum pages to process
-MIN_PAGES = 1
+# MIN_PAGES = 1
 
 # maximum pages to process
-MAX_PAGES = 800
+# MAX_PAGES = 800
 
 # Resource Watch dataset API ID
 # Important! Before testing this script:
@@ -166,12 +167,8 @@ def fetch_data(src_url):
     '''
     src_url = SOURCE_URL
     # the dates between which we want the data 
-    date_start = get_date_range()[0].strftime("%Y-%m-%d")
-    date_end = get_date_range()[1].strftime("%Y-%m-%d")
-
-    # specify the page of source url we want to pull
-    # initialize at 0 so that we can start pulling from page 1 in the loop
-    page = 0
+    date_start = get_date_range()[0]
+    date_end = get_date_range()[1]
 
     # length (number of rows) of new_data
     # initialize at 1 so that the while loop works during first step
@@ -180,18 +177,16 @@ def fetch_data(src_url):
     # create an empty list to store ids of data
     new_ids = []
     # create an empty dataframe to store data
-    data_df = pd.DataFrame()
-    # get and parse each page; stop when no new results or max pages
-    # process up to MIN_PAGES even if there are no new results from them
-    while page <= MIN_PAGES or new_count and page < MAX_PAGES:
+    data_df = pd.DataFrame(columns = ['event_id_cnty','event_type', 'latitude', 'longitude'])
+    # get and parse each day's data; stop when no new results or end date
+    while date_start <= date_end:
         try:
-            # increment page number in every loop
-            page += 1
-            logging.info("Fetching page {}".format(page))
+            logging.info("Fetching data for {}".format(date_start.strftime("%Y-%m-%d")))
             # create an empty list to store data
             new_rows = []
-            # generate the url and pull data for this page 
-            r = requests.get(src_url.format(key=ACLED_KEY, user=ACLED_USER, date_start=date_start, date_end=date_end, page=page))
+            # generate the url and pull data for this day
+            # r = requests.get(src_url.format(key=ACLED_KEY, user=ACLED_USER, date_start=date_start, date_end=date_end, page=page))
+            r = requests.get(src_url.format(key=ACLED_KEY, user=ACLED_USER, evt_date=date_start.strftime("%Y-%m-%d")))
             # columns of the pandas dataframe
             """  cols = ["data_id", "event_date", "year", "time_precision", "event_type", "sub_event_type", "actor1", "assoc_actor_1", "inter1", 
             "actor2", "assoc_actor_2", "inter2", "interaction", "country", "iso3", "region", "admin1", "admin2", "admin3", "location", 
@@ -217,13 +212,16 @@ def fetch_data(src_url):
                 # add the list of values from this row to the list of new data
                 new_rows.append(row)
             
-            # number of new rows added in this page 
+            # number of new rows added on this day 
             new_count = len(new_rows)
             # append the new rows to the pandas dataframe
-            data_df = data_df.append(pd.DataFrame(new_rows, columns=cols))
+            data_df = pd.concat([data_df,pd.DataFrame(new_rows, columns=cols)])
+            # data_df = data_df.append(pd.DataFrame(new_rows, columns=cols))
+            date_start += datetime.timedelta(days=1)
 
         except:
-            logging.error('Could not fetch or process page {}'.format(page))
+            logging.error(f'Could not fetch or process data for {date_start}')
+            date_start += datetime.timedelta(days=1)
     # drop duplicate records by event_id_cnty
     data_df = data_df.drop_duplicates(['event_id_cnty']).iloc[:, 1:]
 
