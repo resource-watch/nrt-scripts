@@ -51,8 +51,8 @@ MAXROWS = 50000
 
 # url for latest Hazard Mapping System (HMS) data
 # SOURCE_URL = 'http://satepsanone.nesdis.noaa.gov/pub/FIRE/HMS/GIS/hms_smoke{date}.zip'
-SOURCE_URL = 'http://satepsanone.nesdis.noaa.gov/pub/FIRE/web/HMS/Smoke_Polygons/Shapefile/{year}/{month}/hms_smoke{date}.zip'
-
+SOURCE_URL = 'https://satepsanone.nesdis.noaa.gov/pub/FIRE/web/HMS/Smoke_Polygons/Shapefile/{year}/{month}/hms_smoke{date}.zip'
+             
 # url for archive Hazard Mapping System (HMS) data
 SOURCE_URL_ARCHIVE = 'http://satepsanone.nesdis.noaa.gov/pub/FIRE/HMS/GIS/ARCHIVE/hms_smoke{date}.zip'
 
@@ -352,7 +352,7 @@ def processNewData(existing_ids):
                     if field == 'the_geom':
                         # get geometry from the 'geometry' feature of the GeoJSON
                         # add geojson geometry to the list of data from this row
-                        row.append(obs['geometry'])
+                        row.append(obs['geometry'].__geo_interface__)
                     # if we are fetching data for unique id
                     elif field == UID_FIELD:
                         # add the unique id to the list of data from this row
