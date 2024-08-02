@@ -132,9 +132,9 @@ def main():
         # Tropical Cyclones
         elif 'dis.015' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=50)
-        # oil spills data set doesn't always have events that occur every 30 days
+        # oil spills data set doesn't always have events that occur every 50 days
         elif 'ene.008' in r['data']['attributes']['name']:
-            allowed_time = datetime.timedelta(days=30)
+            allowed_time = datetime.timedelta(days=50)
         # Vegetation Health Index
         elif 'foo.024' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=12)

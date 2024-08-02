@@ -45,7 +45,7 @@ MAX_AGE = datetime.datetime.utcnow() - datetime.timedelta(days=365*20)
 
 # url for cyclone track data for latest 3 years
 url_a = 'https://www.ncei.noaa.gov/data/international-best-track-archive-for-climate-stewardship-ibtracs/'
-url_b = 'v04r00/access/shapefile/IBTrACS.last3years.list.v04r00.lines.zip'
+url_b = 'v04r01/access/shapefile/IBTrACS.last3years.list.v04r01.lines.zip'
 SOURCE_URL = url_a + url_b
 
 # maximum number of attempts that will be made to download the data
