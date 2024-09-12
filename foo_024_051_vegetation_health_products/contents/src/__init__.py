@@ -18,7 +18,8 @@ import shutil
 
 # url for vegetation health products data
 # old url 'ftp://ftp.star.nesdis.noaa.gov/pub/corp/scsb/wguo/data/Blended_VH_4km/VH/{target_file}'
-SOURCE_URL = 'https://www.star.nesdis.noaa.gov/pub/corp/scsb/wguo/data/Blended_VH_4km/VH/{target_file}'
+# old url 'https://www.star.nesdis.noaa.gov/pub/corp/scsb/wguo/data/Blended_VH_4km/VH/{target_file}'
+SOURCE_URL = 'https://www.star.nesdis.noaa.gov/data/pub0018/VHPdata4users/data/Blended_VH_4km/VH/{target_file}'
 
 # filename format for GEE
 # old format 'VHP.G04.C07.npp.P{date}.VH.nc'
