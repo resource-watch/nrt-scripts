@@ -135,7 +135,7 @@ def fetch_wb_data(table):
             try:
                 # fetch data for this indicator (only the first 10,000 entries will be returned)
                 res = requests.get(
-                    "http://api.worldbank.org/v2/countries/all/indicators/{}?format=json&per_page=10000".format(indicator))
+                    "https://api.worldbank.org/v2/countries/all/indicators/{}?format=json&per_page=10000".format(indicator))
                 # check how many pages of data there are for this indicator
                 pages = int(res.json()[0]['pages'])
                 break
@@ -151,7 +151,7 @@ def fetch_wb_data(table):
             while try_num <= 5:
                 try:
                     res = requests.get(
-                        "http://api.worldbank.org/v2/countries/all/indicators/{}?format=json&per_page=10000&page={}".format(
+                        "https://api.worldbank.org/v2/countries/all/indicators/{}?format=json&per_page=10000&page={}".format(
                             indicator, page + 1))
                     json = json + res.json()[1]
                     break
@@ -269,7 +269,7 @@ def main():
         # pull the CSVs for each indicator
         for indicator in indicators:
             # insert the url used to download the data from the source website
-            url = f'http://api.worldbank.org/v2/en/indicator/{indicator}?downloadformat=csv'
+            url = f'https://api.worldbank.org/v2/en/indicator/{indicator}?downloadformat=csv'
             # download the data from the source
             raw_data_file = os.path.join(data_dir, f'{indicator}_DS2_en_csv_v2')
             urllib.request.urlretrieve(url, raw_data_file)
