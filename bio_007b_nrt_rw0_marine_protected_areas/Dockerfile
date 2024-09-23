@@ -10,10 +10,10 @@ RUN pip install --upgrade pip
 RUN apt-get install -y gdal-bin libgdal-dev
 RUN pip install -e git+https://github.com/resource-watch/cartosql.py.git#egg=cartosql
 RUN pip install requests
-RUN pip install carto==1.11.3
+RUN pip install carto==1.11.2
 RUN pip install numpy
 RUN pip install pandas
-RUN pip install geopandas==0.13.2
+RUN pip install geopandas==1.0.1
 
 # set name
 ARG NAME=nrt-script
