@@ -95,7 +95,7 @@ def main():
             allowed_time = datetime.timedelta(days=70)
         # within the first few days of each month, Snow Cover updates for the 1st of the previous month
         elif 'cli.021' in r['data']['attributes']['name']:
-            allowed_time = datetime.timedelta(days=80)
+            allowed_time = datetime.timedelta(days=90)
         # around the 15th of each month, Surface Temperature Change updates for the 15th of the PREVIOUS month
         elif 'cli.035' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=120)
