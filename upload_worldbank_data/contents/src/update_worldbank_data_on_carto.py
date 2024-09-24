@@ -253,10 +253,8 @@ def main():
     if not os.path.exists(data_dir):
         os.mkdir(data_dir)
 
-    wb_rw_table = wb_rw_table[wb_rw_table['skip']!=True]
-
     # process each Carto table for World Bank datasets one at a time
-    for table_name, info in wb_rw_table.iterrows():
+    for table_name, info in wb_rw_table[wb_rw_table['skip'] != True].iterrows():
         # get the dataset name (table name without the '_edit' at the end of the table_name
         dataset_name = table_name[:-5]
         logging.info('Next table to update: {}'.format(dataset_name))
