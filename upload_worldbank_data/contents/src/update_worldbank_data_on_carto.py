@@ -135,7 +135,7 @@ def fetch_wb_data(table):
             try:
                 # fetch data for this indicator (only the first 10,000 entries will be returned)
                 res = requests.get(
-                    "https://api.worldbank.org/v2/countries/all/indicators/{}?format=json&per_page=10000".format(indicator))
+                    f"https://api.worldbank.org/v2/countries/all/indicators/{indicator}?format=json&per_page=10000")
                 # check how many pages of data there are for this indicator
                 pages = int(res.json()[0]['pages'])
                 break
@@ -252,6 +252,8 @@ def main():
     data_dir = 'data'
     if not os.path.exists(data_dir):
         os.mkdir(data_dir)
+
+    wb_rw_table = wb_rw_table[wb_rw_table['skip']!=True]
 
     # process each Carto table for World Bank datasets one at a time
     for table_name, info in wb_rw_table.iterrows():
@@ -371,3 +373,4 @@ def main():
     delete_local()
 
     logging.info('SUCCESS')
+    
