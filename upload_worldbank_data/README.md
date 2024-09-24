@@ -14,6 +14,9 @@ Each time this script is run, it updates all Carto tables for these datasets and
 
 Please see the [Python script](https://github.com/resource-watch/nrt-scripts/blob/master/upload_worldbank_data/contents/main.py) for more details on this processing.
 
+###### Note: Pump Price for Diesel Fuel (ene.036.rw0) and Pump Price for Gasoline (ene.037.rw0) are no longer available on World Bank website. Marked as skipped since September 2024.
+
+
 **Adding new World Bank datasets to Resource Watch**
 
 Any time a new World Bank dataset is added to Resource Watch, it should be added using this script, if at all possible. To add a new dataset to this script, you can follow these steps:
