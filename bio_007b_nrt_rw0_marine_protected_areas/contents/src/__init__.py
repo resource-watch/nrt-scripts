@@ -212,7 +212,7 @@ def fetch():
     '''
     # pull the data from the url 
     n_tries = 5
-    date = datetime.datetime.utcnow()  
+    date = datetime.datetime.now(datetime.timezone.utc)
     fetch_exception = None
     for i in range(0, n_tries):
         try:
@@ -355,7 +355,7 @@ def updateResourceWatch(num_new):
     # If there have been data uploaded to the Carto table
     if num_new > 0:
         # Update dataset's last update date on Resource Watch
-        most_recent_date = datetime.datetime.utcnow()
+        most_recent_date = datetime.datetime.now(datetime.timezone.utc)
         lastUpdateDate(DATASET_ID, most_recent_date)
 
 def main():

@@ -1,4 +1,4 @@
-FROM python:3.9
+FROM python:3.10
 LABEL maintainer="Weiqi Zhou <weiqi.zhou@wri.org>"
 #Note this script was originally developed by Yujing Wu <yujing.wu@wri.org>
 
@@ -14,6 +14,7 @@ RUN pip install numpy
 RUN pip install pandas
 RUN pip install python-rapidjson
 RUN pip install geopandas==1.0.1
+RUN pip install fiona
 
 # set name
 ARG NAME=nrt-script

@@ -15,6 +15,7 @@ import shutil
 import glob
 import warnings
 import json
+import fiona
 warnings.simplefilter(action='ignore', category=UserWarning)
 
 
@@ -189,7 +190,7 @@ def fetch_data():
     # maximum number of attempts 
     n_tries = 5
     # retrieve the current date 
-    date = datetime.datetime.utcnow()  
+    date = datetime.datetime.now(datetime.timezone.utc)  
     fetch_exception = None
     for i in range(0, n_tries):
         try:
@@ -360,6 +361,10 @@ def processData(gdb, existing_ids):
     INPUT gdb: fetched geodatabase with new data (geodatabase)
     RETURN  all_ids: a list storing all the wdpa_pids in the current dataframe (list of strings)
     '''
+    # retrieve the current date 
+    date = datetime.datetime.now(datetime.timezone.utc)
+    date_str = date.strftime("%b%Y")
+
     # whether we have reached the last slice 
     last_slice = False
     # the index of the first row we want to import from the geodatabase
@@ -375,7 +380,7 @@ def processData(gdb, existing_ids):
         # deal with the large geometries first 
         for i in range(0, 100000000):
             # import a slice of the geopandas dataframe 
-            gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(start, end))
+            gdf = gpd.read_file(gdb, driver='FileGDB', layer =f'WDPA_poly_{date_str}', encoding='utf-8', rows = slice(start, end), engine="fiona")
             if '555643543' in gdf['WDPA_PID'].to_list():
                 # isolate the large polygon
                 gdf_large = gdf.loc[gdf['WDPA_PID'] =='555643543']
@@ -394,6 +399,7 @@ def processData(gdb, existing_ids):
                 end = start 
                 start -= step
 
+    # process WDPA_poly
     # the index of the first row we want to import from the geodatabase
     start = -100
     # the number of rows we want to fetch and process each time 
@@ -402,7 +408,7 @@ def processData(gdb, existing_ids):
     end = None    
     for i in range(0, 100000000):
         # import a slice of the geopandas dataframe 
-        gdf = gpd.read_file(gdb, driver='FileGDB', layer = 0, encoding='utf-8', rows = slice(start, end))
+        gdf = gpd.read_file(gdb, driver='FileGDB', layer =f'WDPA_poly_{date_str}', encoding='utf-8', rows = slice(start, end), engine="fiona")
         # get rid of the \r\n in the wdpa_pid column 
         gdf['WDPA_PID'] = [x.split('\r\n')[0] for x in gdf['WDPA_PID']]
         # create a new column to store the status_yr column as timestamps
@@ -445,7 +451,7 @@ def processData(gdb, existing_ids):
             start = 0
             last_slice = True
         else:
-            # we've processed the whole dataframe 
+            # we've processed the whole poly dataframe 
             break
 
     return(all_ids)
@@ -458,7 +464,7 @@ def updateResourceWatch(num_new):
     # If there are new entries in the Carto table
     if num_new>0:
         # Update dataset's last update date on Resource Watch
-        most_recent_date = datetime.datetime.utcnow()
+        most_recent_date = datetime.datetime.now(datetime.timezone.utc)
         lastUpdateDate(DATASET_ID, most_recent_date)
 
     # Update the dates on layer legends - TO BE ADDED IN FUTURE
@@ -472,9 +478,9 @@ def check_first_run(existing_ids):
     # get current last updated date
     dataLastUpdated = json.loads(r.content.decode('utf-8'))['data']['attributes']['dataLastUpdated']
     # Check if it's more then 10 days ago
-    if datetime.datetime.utcnow() - datetime.datetime.strptime(dataLastUpdated, "%Y-%m-%dT%H:%M:%S.%fZ") > datetime.timedelta(days=10):
+    if datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.strptime(dataLastUpdated, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=datetime.timezone.utc) > datetime.timedelta(days=10):
         # update last update date
-        lastUpdateDate(DATASET_ID, datetime.datetime.utcnow())
+        lastUpdateDate(DATASET_ID, datetime.datetime.now(datetime.timezone.utc))
         # set CLEAR_TABLE_FIRST to True
         CLEAR_TABLE_FIRST = True
         # clear existing_ids
