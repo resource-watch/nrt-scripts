@@ -1,4 +1,4 @@
-FROM python:3.9
+FROM python:3.10
 LABEL maintainer="Weiqi Zhou <weiqi.zhou@wri.org>"
 # Note this script was originally developed by Yujing Wu <yujing.wu@wri.org>
 
