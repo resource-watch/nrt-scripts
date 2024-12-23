@@ -146,7 +146,7 @@ def main():
             allowed_time = datetime.timedelta(days=10)
         # Fire Risk Index often goes offline for a few days
         elif 'for.012' in r['data']['attributes']['name']:
-            allowed_time = datetime.timedelta(days=10)
+            allowed_time = datetime.timedelta(days=30)
         # Conflict and Protest Events Dataset (working on it, hold for 20 days)
         elif 'soc.016' in r['data']['attributes']['name']:
             allowed_time = datetime.timedelta(days=20)
