@@ -74,7 +74,7 @@ MAX_AGE = datetime.datetime.today() - datetime.timedelta(days=365*MAX_YEARS)
 # url for Missing Migrants data
 # SOURCE_URL = "https://missingmigrants.iom.int/global-figures/{year}/xls"
 # SOURCE_URL = 'https://missingmigrants.iom.int/sites/g/files/tmzbdl601/files/{year}-{month}/{file_name}'
-SOURCE_URL = 'https://missingmigrants.iom.int/sites/g/files/tmzbdl601/files/report-migrant-incident/{file_name}'
+SOURCE_URL = 'https://missingmigrants.iom.int/sites/g/files/tmzbdl601/files/report-migrant-incident/Missing_Migrants_Global_Figures_allData.xlsx'
 
 # format of dates in source csv file
 INPUT_DATE_FORMAT = '%Y-%m-%d'
@@ -199,17 +199,17 @@ def processData(src_url, existing_ids):
     year = datetime.datetime.today().year
     month = f"{datetime.datetime.today().month:02d}" 
 
-    # get excel file name
-    # Send a GET request to the web page
-    url = "https://missingmigrants.iom.int/downloads"
-    response = requests.get(url)
-    # Parse the HTML content
-    soup = BeautifulSoup(response.text, "html.parser")
-    # Find the link(s) with .xlsx extension
-    xlsx_links = soup.find_all("a", href=lambda href: href and href.endswith(".xlsx"))
-    # Extract the first file name from the link(s)
-    # The web page has two links with .xlsx extension, and their file names are the same
-    file_name = [link["href"].split("/")[-1] for link in xlsx_links][0]
+    # # get excel file name
+    # # Send a GET request to the web page
+    # url = "https://missingmigrants.iom.int/downloads"
+    # response = requests.get(url)
+    # # Parse the HTML content
+    # soup = BeautifulSoup(response.text, "html.parser")
+    # # Find the link(s) with .xlsx extension
+    # xlsx_links = soup.find_all("a", href=lambda href: href and href.endswith(".xlsx"))
+    # # Extract the first file name from the link(s)
+    # # The web page has two links with .xlsx extension, and their file names are the same
+    # file_name = [link["href"].split("/")[-1] for link in xlsx_links][0]
 
     # create an empty list to store unique ids of new data we will be sending to Carto table
     new_ids = []
@@ -217,15 +217,20 @@ def processData(src_url, existing_ids):
     # Retrieve and process new data; continue until the current year is 
     # older than the oldest year allowed in the table, set by the MAX_AGE variable
     # while year > MAX_AGE.year:
-    logging.info("Fetching data from {}".format(src_url.format(year=year, month=month, file_name=file_name)))
+    logging.info(f"Fetching data from {src_url}")
     # generate the url and pull data for the selected year
     try:
-        urllib.request.urlretrieve(src_url.format(year=year, month=month, file_name=file_name), os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}-{month}.xlsx'))
+        # urllib.request.urlretrieve(src_url.format(year=year, month=month, file_name=file_name), os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}-{month}.xlsx'))
+        req = urllib.request.Request(src_url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req) as response:
+            data = response.read()
+            with open(os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}-{month}.xlsx'), "wb") as f:
+                f.write(data)
     except:
         # try to pull last month's data
         year = (datetime.datetime.today().replace(day=1) - datetime.timedelta(days=1)).year
         month = f"{(datetime.datetime.today().replace(day=1) - datetime.timedelta(days=1)).month:02d}"
-        urllib.request.urlretrieve(src_url.format(year = year, month = month, file_name=file_name), os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}-{month}.xlsx'))
+        urllib.request.urlretrieve(src_url.format(year = year, month = month), os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}-{month}.xlsx'))
     # convert excel file to csv
     read_file = pd.read_excel(os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}-{month}.xlsx'), sheet_name='Worksheet', engine = 'openpyxl')
     read_file.to_csv(os.path.join(DATA_DIR, f'MissingMigrants-Global-{year}-{month}.csv'), index = None, header=True)

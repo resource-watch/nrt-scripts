@@ -169,7 +169,7 @@ def fetchDataFileName(url):
 
     # extract all the <a> tags within the html content. The <a> tags are used to mark links, so 
     # we will be able to find the files available for download marked with these tags.
-    links = soup.findAll('a')
+    links = soup.find_all('a')
     # There are some anchors (<a> tags) without href attribute
     # first filter your links for the existence of the href attribute
     # https://stackoverflow.com/questions/52398738/python-sort-to-avoid-keyerror-href?noredirect=1&lq=1
@@ -259,7 +259,13 @@ def processData(url, existing_ids, date_format='%Y-%m-%d %H:%M:%S'):
     # Get the link from source url for which we want to download data
     resource_location = fetchDataFileName(url)
     # get the data from source as a list of strings, with each string holding one line from the source data file
-    res_rows = tryRetrieveData(url, resource_location)
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    response = requests.get(resource_location, headers=headers)
+    if response.ok:
+        text_data = response.text
+        # Splitting the data into rows based on newlines
+        res_rows = text_data.splitlines()
+    
     # create an empty dictionary to store new data (data that's not already in our Carto table)
     new_data = {}
     # remove headers by deleting first five rows
