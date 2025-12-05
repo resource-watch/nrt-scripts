@@ -1,18 +1,19 @@
 WRI ID,Public Title,Date Added to Sheet,Last Check,Known Reason?,Script in pause
-cit.003a.rw0.nrt,Air Quality: Fine Particulate Matter (PM2.5) Station Measurements,11/9/2023,11/02/2025,OpenAQ updated its API and data fetching options. The script cannot directly get data from their S3 bucket anymore. Need to register an account and use their API instead.,TRUE
-cit.003b.rw0.nrt,Air Quality: Particulate Matter (PM10) Station Measurements,11/9/2023,11/02/2025,OpenAQ updated its API and data fetching options. The script cannot directly get data from their S3 bucket anymore. Need to register an account and use their API instead.,TRUE
-cit.003c.rw0.nrt,Air Quality: Sulfur Dioxide (SO₂) Station Measurements,11/9/2023,11/02/2025,OpenAQ updated its API and data fetching options. The script cannot directly get data from their S3 bucket anymore. Need to register an account and use their API instead.,TRUE
-cit.003d.rw0.nrt,Air Quality: Nitrogen Dioxide (NO₂) Station Measurements,11/9/2023,11/02/2025,OpenAQ updated its API and data fetching options. The script cannot directly get data from their S3 bucket anymore. Need to register an account and use their API instead.,TRUE
-cit.003e.rw0.nrt,Air Quality: Ozone (O₃) Station Measurements,11/9/2023,11/02/2025,OpenAQ updated its API and data fetching options. The script cannot directly get data from their S3 bucket anymore. Need to register an account and use their API instead.,TRUE
-cit.003f.rw0.nrt,Air Quality: Carbon Monoxide (CO) Station Measurements,11/9/2023,11/02/2025,OpenAQ updated its API and data fetching options. The script cannot directly get data from their S3 bucket anymore. Need to register an account and use their API instead.,TRUE
-cit.003g.rw0.nrt,Air Quality: Black Carbon Station Measurements,11/9/2023,11/02/2025,OpenAQ updated its API and data fetching options. The script cannot directly get data from their S3 bucket anymore. Need to register an account and use their API instead.,TRUE
-cli.039.rw1.nrt,Standardised Precipitation-Evapotranspiration Index,11/21/2023,11/02/2025,Source upgraded and it needs an account for the latest data,TRUE
-cli.040.rw0.nrt.dash,Sea Level,5/25/2023,11/02/2025,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
-cli.041.rw0.nrt.dash,Land Ice: Antarctica,5/19/2023,11/02/2025,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
-cli.042.rw0.nrt.dash,Land Ice: Greenland,5/19/2023,11/02/2025,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
-cli.043.rw0.nrt.dash,Minimum Annual Arctic Sea Ice Extent,7/4/2023,11/02/2025,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
-com.024.rw0.nrt,Oil Palm Concessions,1/12/2021,11/02/2025,the dataset is now only available as vector layer tiles,
-com.025.rw0.nrt,Wood Fiber Concessions,1/12/2021,11/02/2025,the dataset is now only available as vector layer tiles,
-foo.003.rw1.nrt,Current and Projected Food Insecurity,07/04/2023,11/02/2025,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
-ocn.002.rw0.nrt,Wave Height,8/19/2021,11/02/2025,the version we use is no longer updated by the data source,TRUE
-soc.062c.rw1.nrt,"Recent Internal Displacement from Conflict, Natural Disasters, and Development",8/10/2022,11/02/2025,the data source has not been updated since 6/30/2022,TRUE
+cit.003a.rw0.nrt,Air Quality: Fine Particulate Matter (PM2.5) Station Measurements,11/9/2023,12/05/2025,OpenAQ updated its API and data fetching options. The script cannot directly get data from their S3 bucket anymore. Need to register an account and use their API instead.,TRUE
+cit.003b.rw0.nrt,Air Quality: Particulate Matter (PM10) Station Measurements,11/9/2023,12/05/2025,OpenAQ updated its API and data fetching options. The script cannot directly get data from their S3 bucket anymore. Need to register an account and use their API instead.,TRUE
+cit.003c.rw0.nrt,Air Quality: Sulfur Dioxide (SO₂) Station Measurements,11/9/2023,12/05/2025,OpenAQ updated its API and data fetching options. The script cannot directly get data from their S3 bucket anymore. Need to register an account and use their API instead.,TRUE
+cit.003d.rw0.nrt,Air Quality: Nitrogen Dioxide (NO₂) Station Measurements,11/9/2023,12/05/2025,OpenAQ updated its API and data fetching options. The script cannot directly get data from their S3 bucket anymore. Need to register an account and use their API instead.,TRUE
+cit.003e.rw0.nrt,Air Quality: Ozone (O₃) Station Measurements,11/9/2023,12/05/2025,OpenAQ updated its API and data fetching options. The script cannot directly get data from their S3 bucket anymore. Need to register an account and use their API instead.,TRUE
+cit.003f.rw0.nrt,Air Quality: Carbon Monoxide (CO) Station Measurements,11/9/2023,12/05/2025,OpenAQ updated its API and data fetching options. The script cannot directly get data from their S3 bucket anymore. Need to register an account and use their API instead.,TRUE
+cit.003g.rw0.nrt,Air Quality: Black Carbon Station Measurements,11/9/2023,12/05/2025,OpenAQ updated its API and data fetching options. The script cannot directly get data from their S3 bucket anymore. Need to register an account and use their API instead.,TRUE
+cli.039.rw1.nrt,Standardised Precipitation-Evapotranspiration Index,11/21/2023,12/05/2025,Source upgraded and it needs an account for the latest data,TRUE
+cli.040.rw0.nrt.dash,Sea Level,5/25/2023,12/05/2025,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
+cli.041.rw0.nrt.dash,Land Ice: Antarctica,5/19/2023,12/05/2025,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
+cli.042.rw0.nrt.dash,Land Ice: Greenland,5/19/2023,12/05/2025,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
+cli.043.rw0.nrt.dash,Minimum Annual Arctic Sea Ice Extent,7/4/2023,12/05/2025,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
+com.024.rw0.nrt,Oil Palm Concessions,1/12/2021,12/05/2025,the dataset is now only available as vector layer tiles,
+com.025.rw0.nrt,Wood Fiber Concessions,1/12/2021,12/05/2025,the dataset is now only available as vector layer tiles,
+foo.003.rw1.nrt,Current and Projected Food Insecurity,07/04/2023,12/05/2025,"source site has major update on their data storage, we paused on updating it since this dataset may not be kept in the data catelog ",TRUE
+ocn.002.rw0.nrt,Wave Height,8/19/2021,12/05/2025,the version we use is no longer updated by the data source,TRUE
+soc.062c.rw1.nrt,"Recent Internal Displacement from Conflict, Natural Disasters, and Development",8/10/2022,12/05/2025,the data source has not been updated since 6/30/2022,TRUE
+
