@@ -195,17 +195,17 @@ def main():
                                                                                   public_title=dataset[
                                                                                       'Public Title']))
 
-    # prepare monthly reminder to check any data sets that have been investigated but are still outdated
-    for idx, dataset in error_tracking_df.iterrows():
-        # find when the dataset was last checked
-        last_check = dataset['Last Check']
-        last_check_dt = datetime.datetime.strptime(last_check, '%m/%d/%Y')
-        # see how many days it has been since we have checked
-        today = datetime.datetime.utcnow()
-        time_since_checking = today - last_check_dt
-        days = time_since_checking.days
-        # if it has been more than a month, log an error
-        if days > 31:
-            logging.error('The status of {wri_id} has not been checked in {days} days.'.format(wri_id=dataset['WRI ID'],days=days))
+    # # prepare monthly reminder to check any data sets that have been investigated but are still outdated
+    # for idx, dataset in error_tracking_df.iterrows():
+    #     # find when the dataset was last checked
+    #     last_check = dataset['Last Check']
+    #     last_check_dt = datetime.datetime.strptime(last_check, '%m/%d/%Y')
+    #     # see how many days it has been since we have checked
+    #     today = datetime.datetime.utcnow()
+    #     time_since_checking = today - last_check_dt
+    #     days = time_since_checking.days
+    #     # if it has been more than a month, log an error
+    #     if days > 31:
+    #         logging.error('The status of {wri_id} has not been checked in {days} days.'.format(wri_id=dataset['WRI ID'],days=days))
 
     logging.info('SUCCESS')
