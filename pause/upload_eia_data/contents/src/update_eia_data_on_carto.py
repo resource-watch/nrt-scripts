@@ -45,21 +45,8 @@ eia_rw_table = pd.read_csv(
 # pull in sheet with information about each country/region name and Alpha-3 code
 country_table = pd.read_csv('https://raw.githubusercontent.com/resource-watch/nrt-scripts/master/upload_eia_data/country_region_list.csv')
 
-def get_carto_table_names(user, key):
-    '''
-    Get a list of tables for a Carto account.
-
-    Some cartosql installs do not expose getTables, so query the SQL API
-    directly through cartosql's lower-level get function.
-    '''
-    if hasattr(cartosql, 'getTables'):
-        return cartosql.getTables(user=user, key=key)
-
-    response = cartosql.get('SELECT * FROM CDB_UserTables()', user=user, key=key)
-    return [row['cdb_usertables'] for row in response.json()['rows']]
-
 # get list of all current Carto table names
-carto_table_names = get_carto_table_names(user=CARTO_USER, key=CARTO_KEY)
+carto_table_names = cartosql.getTables(user = CARTO_USER, key = CARTO_KEY)
 
 def upload_to_aws(local_file, bucket, s3_file):
     '''

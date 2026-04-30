@@ -35,21 +35,8 @@ wb_name_to_iso3_conversion = pd.read_csv(
     'https://raw.githubusercontent.com/resource-watch/nrt-scripts/master/upload_worldbank_data/WB_name_to_ISO3.csv').set_index(
     'WB_name')
 
-def get_carto_table_names(user, key):
-    '''
-    Get a list of tables for a Carto account.
-
-    Some cartosql installs do not expose getTables, so query the SQL API
-    directly through cartosql's lower-level get function.
-    '''
-    if hasattr(cartosql, 'getTables'):
-        return cartosql.getTables(user=user, key=key)
-
-    response = cartosql.get('SELECT * FROM CDB_UserTables()', user=user, key=key)
-    return [row['cdb_usertables'] for row in response.json()['rows']]
-
 # get list of all current Carto table names
-carto_table_names = get_carto_table_names(user=CARTO_USER, key=CARTO_KEY)
+carto_table_names = cartosql.getTables(user = CARTO_USER, key = CARTO_KEY)
 
 def upload_to_aws(local_file, bucket, s3_file):
     '''
