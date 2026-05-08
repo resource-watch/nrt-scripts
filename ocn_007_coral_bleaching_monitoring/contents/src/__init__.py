@@ -10,6 +10,7 @@ import requests
 import time
 import urllib
 import urllib.request
+import re
 from osgeo import gdal
 import numpy as np
 from collections import OrderedDict 
@@ -59,7 +60,7 @@ import shutil
 # create an ordered dictionary to store information about all the netcdf files that we want to fetch and process
 DATA_DICT = OrderedDict()
 DATA_DICT['bleaching_alert_area_7d'] = {
-        'url_template': 'ftp://ftp.star.nesdis.noaa.gov/pub/socd/mecb/crw/data/5km/v3.1_op/nc/v1.0/daily/baa5-max-7d/{}/ct5km_baa5-max-7d_v3.1_{}.nc',
+        'url_template': 'https://www.star.nesdis.noaa.gov/pub/sod/mecb/crw/data/5km/v3.1_op/nc/v1.0/daily/baa5-max-7d/{}/ct5km_baa5-max-7d_v3.1_{}.nc',
         'sds': [
             'bleaching_alert_area',
         ],
@@ -70,7 +71,7 @@ DATA_DICT['bleaching_alert_area_7d'] = {
         'pyramiding_policy': 'MEAN',
     }
 DATA_DICT['hotspots'] = {
-        'url_template': 'ftp://ftp.star.nesdis.noaa.gov/pub/socd/mecb/crw/data/5km/v3.1_op/nc/v1.0/daily/hs/{}/ct5km_hs_v3.1_{}.nc',
+        'url_template': 'https://www.star.nesdis.noaa.gov/pub/sod/mecb/crw/data/5km/v3.1_op/nc/v1.0/daily/hs/{}/ct5km_hs_v3.1_{}.nc',
         'sds': [
             'hotspot',
         ],
@@ -82,7 +83,7 @@ DATA_DICT['hotspots'] = {
         'scale_factor': 0.0099999998,
     }
 DATA_DICT['degree_heating_week'] = {
-        'url_template': 'ftp://ftp.star.nesdis.noaa.gov/pub/socd/mecb/crw/data/5km/v3.1_op/nc/v1.0/daily/dhw/{}/ct5km_dhw_v3.1_{}.nc',
+        'url_template': 'https://www.star.nesdis.noaa.gov/pub/sod/mecb/crw/data/5km/v3.1_op/nc/v1.0/daily/dhw/{}/ct5km_dhw_v3.1_{}.nc',
         'sds': [
             'degree_heating_week',
         ],
@@ -94,7 +95,7 @@ DATA_DICT['degree_heating_week'] = {
         'scale_factor': 0.0099999998,
     }
 DATA_DICT['sea_surface_temperature_anomaly'] = {
-        'url_template': 'ftp://ftp.star.nesdis.noaa.gov/pub/socd/mecb/crw/data/5km/v3.1_op/nc/v1.0/daily/ssta/{}/ct5km_ssta_v3.1_{}.nc',
+        'url_template': 'https://www.star.nesdis.noaa.gov/pub/sod/mecb/crw/data/5km/v3.1_op/nc/v1.0/daily/ssta/{}/ct5km_ssta_v3.1_{}.nc',
         'sds': [
             'sea_surface_temperature_anomaly',
         ],
@@ -107,7 +108,7 @@ DATA_DICT['sea_surface_temperature_anomaly'] = {
     }
 DATA_DICT['sea_surface_temperature'] = {
         # 'url_template': 'ftp://ftp.star.nesdis.noaa.gov/pub/sod/mecb/crw/data/coraltemp/v1.0/nc/{}/coraltemp_v1.0_{}.nc',
-        'url_template': 'ftp://ftp.star.nesdis.noaa.gov/pub/socd/mecb/crw/data/5km/v3.1_op/nc/v1.0/daily/sst/{}/coraltemp_v3.1_{}.nc',
+        'url_template': 'https://www.star.nesdis.noaa.gov/pub/sod/mecb/crw/data/5km/v3.1_op/nc/v1.0/daily/sst/{}/coraltemp_v3.1_{}.nc',
         'sds': [
             'analysed_sst',
         ],
@@ -119,7 +120,7 @@ DATA_DICT['sea_surface_temperature'] = {
         'scale_factor': 0.01,
     }
 DATA_DICT['sea_surface_temperature_trend_7d'] = {
-        'url_template': 'ftp://ftp.star.nesdis.noaa.gov/pub/socd/mecb/crw/data/5km/v3.1_op/nc/v1.0/daily/sst-trend-7d/{}/ct5km_sst-trend-7d_v3.1_{}.nc',
+        'url_template': 'https://www.star.nesdis.noaa.gov/pub/sod/mecb/crw/data/5km/v3.1_op/nc/v1.0/daily/sst-trend-7d/{}/ct5km_sst-trend-7d_v3.1_{}.nc',
         'sds': [
             'trend',
         ],
@@ -340,6 +341,46 @@ def getDate(filename):
 
      return existing_dates
 
+def parse_available_dates(content):
+    '''
+    Extract available YYYYMMDD dates from a NOAA directory listing.
+    Only real .nc files are considered; .nc.md5 checksum placeholders can appear
+    before the corresponding data files are published.
+    '''
+    text = content.decode()
+    filenames = re.findall(r'href=["\']([^"\']+\.nc)["\']', text)
+    if not filenames:
+        filenames = [line.split()[-1] for line in text.splitlines() if line.split()]
+
+    return sorted({
+        os.path.basename(filename).split('.nc')[0].split('_')[-1]
+        for filename in filenames
+        if re.search(r'_\d{8}\.nc$', os.path.basename(filename))
+    })
+
+def parse_available_years(content):
+    '''
+    Extract available year folder names from a NOAA directory listing.
+    '''
+    text = content.decode()
+    years = re.findall(r'href=["\'](\d{4})/["\']', text)
+    if not years:
+        years = [
+            line.split()[-1].strip('/')
+            for line in text.splitlines()
+            if line.split() and re.match(r'^\d{4}/?$', line.split()[-1])
+        ]
+
+    return sorted(set(years))
+
+def source_file_exists(url):
+    '''
+    Check whether a NOAA source file is available without downloading it.
+    '''
+    request = urllib.request.Request(url, method='HEAD')
+    with urllib.request.urlopen(request) as response:
+        return response.status < 400
+
 def find_latest_date():
     '''
     Fetch the latest date for which coral bleach monitoring data is available
@@ -354,11 +395,9 @@ def find_latest_date():
         response = urllib.request.urlopen(url)
         # read the opened url
         content = response.read()
-        # use string manipulation to get all the available links in source url
-        links = [url + line.split()[-1] for line in content.decode().splitlines()]
-        # split the folder names on '/' and get the last elements after each split to retrieve years
-        # also get the last element from the collection of years to get the latest year
-        latest_year = ([s.split('/')[-1] for s in links])[-1]
+        # get the latest available year folder
+        years = parse_available_years(content)
+        latest_year = years[-1]
         # generate a sub url to fetch data from the latest year folder
         sub_url = url + latest_year + '/'
         # open the sub url
@@ -366,15 +405,14 @@ def find_latest_date():
         # read the opened sub url
         content = response.read()
         # use string manipulation to get all the available links in sub url 
-        sub_link = [sub_url + line.split()[-1] for line in content.decode().splitlines()]
-        # use string manipulation to separate out the dates from the links
-        available_dates = ([s.split('.nc')[0].split('_')[-1] for s in sub_link])
+        # use source links to separate out dates with complete NetCDF files
+        available_dates = parse_available_dates(content)
         # last element in available_dates list is the latest date for which 'sea_surface_temperature_trend_7d' 
         # data is available; we also want to make sure other data sources also have data for this date
         if len(available_dates) == 0:
             logging.info('No data for {} yet'.format(latest_year))
-            # get the second to last element from the collection of years to get the latest year
-            latest_year = ([s.split('/')[-1] for s in links])[-2]
+            # get the second to last year folder
+            latest_year = years[-2]
              # generate a sub url to fetch data from the latest year folder
             sub_url = url + latest_year + '/'
             # open the sub url
@@ -382,9 +420,8 @@ def find_latest_date():
             # read the opened sub url
             content = response.read()
             # use string manipulation to get all the available links in sub url 
-            sub_link = [sub_url + line.split()[-1] for line in content.decode().splitlines()]
-            # use string manipulation to separate out the dates from the links
-            available_dates = ([s.split('.nc')[0].split('_')[-1] for s in sub_link])
+            # use source links to separate out dates with complete NetCDF files
+            available_dates = parse_available_dates(content)
 
         # set success to False initially
         success = False
@@ -398,7 +435,7 @@ def find_latest_date():
             logging.info('Checking availibility of data in every sources, try number = {}'.format(tries))
             try:
               # pull data from source url for every item in the global dictionary
-              url_check = [urllib.request.urlopen(val['url_template'].format(latest_year, available_dates[idx])) 
+              url_check = [source_file_exists(val['url_template'].format(latest_year, available_dates[idx]))
                             for key, val in DATA_DICT.items()]
               # if data is available in every source for the date in the iteration, set it as latest available date  
               latest_available_date = available_dates[idx]

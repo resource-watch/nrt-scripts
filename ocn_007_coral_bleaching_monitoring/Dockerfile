@@ -1,20 +1,25 @@
 FROM python:3.9
-LABEL maintainer="Taufiq Rashid <taufiq.rashid@wri.org>"
-#Note this script was originally developed by Taufiq Rashid <taufiq.rashid@wri.org>
+LABEL maintainer="Weiqi Zhou <weiqi.zhou@wri.org>"
+# Note this script was originally developed by Taufiq Rashid <taufiq.rashid@wri.org>
 
-# install core libraries
-RUN apt-get update
-RUN pip install -U pip
+# install system libraries
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gdal-bin \
+    libgdal-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # install application libraries
-RUN apt-get install -y gdal-bin libgdal-dev
-RUN pip install oauth2client==4.1.3
-RUN pip install google-api-python-client==2.135.0
-RUN pip install -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil
-RUN pip install requests==2.32.3
-RUN pip install numpy==1.26.4
-RUN pip install Cython==3.0.10
-RUN pip install GDAL==3.6.2
+RUN pip install --no-cache-dir -U pip \
+    && pip install --no-cache-dir \
+        oauth2client==4.1.3 \
+        google-api-python-client==2.135.0 \
+        requests==2.32.3 \
+        numpy==1.26.4 \
+        Cython==3.0.10 \
+    && pip install --no-cache-dir -e git+https://github.com/resource-watch/eeUtil#egg=eeUtil \
+    && pip install --no-cache-dir GDAL=="$(gdal-config --version)" \
+    && python -c "from osgeo import gdal, gdal_array; print(gdal.VersionInfo())"
 
 # set name
 ARG NAME=nrt-script

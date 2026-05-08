@@ -78,6 +78,62 @@ CARTO_SCHEMA =OrderedDict([
     ("cons_obj", "text"),
     ("the_geom", "geometry")])
 
+SOURCE_COLUMNS = [
+    "WDPAID",
+    "WDPA_PID",
+    "PA_DEF",
+    "NAME",
+    "ORIG_NAME",
+    "DESIG",
+    "DESIG_ENG",
+    "DESIG_TYPE",
+    "IUCN_CAT",
+    "INT_CRIT",
+    "MARINE",
+    "REP_M_AREA",
+    "GIS_M_AREA",
+    "REP_AREA",
+    "GIS_AREA",
+    "NO_TAKE",
+    "NO_TK_AREA",
+    "STATUS",
+    "STATUS_YR",
+    "legal_status_updated_at",
+    "GOV_TYPE",
+    "OWN_TYPE",
+    "MANG_AUTH",
+    "MANG_PLAN",
+    "VERIF",
+    "METADATAID",
+    "SUB_LOC",
+    "PARENT_ISO3",
+    "ISO3",
+    "SUPP_INFO",
+    "CONS_OBJ",
+    "geometry",
+]
+
+WDPCA_COLUMN_RENAMES = {
+    "SITE_ID": "WDPAID",
+    "SITE_PID": "WDPA_PID",
+    "SITE_TYPE": "PA_DEF",
+    "NAME_ENG": "NAME",
+    "NAME": "ORIG_NAME",
+    "REALM": "MARINE",
+    "PRNT_ISO3": "PARENT_ISO3",
+}
+
+WDPCA_SITE_TYPE_TO_PA_DEF = {
+    "PA": 1,
+    "OECM": 0,
+}
+
+WDPCA_REALM_TO_MARINE = {
+    "Terrestrial": 0,
+    "Coastal": 1,
+    "Marine": 2,
+}
+
 # Resource Watch dataset API ID
 # Important! Before testing this script:
 # Please change this ID OR comment out the getLayerIDs(DATASET_ID) function in the script below
@@ -268,6 +324,36 @@ def convert_geometry(geom):
     else:
         return geom.__geo_interface__
 
+def normalize_source_columns(gdf):
+    '''
+    Normalize WDPA/WDPCA source columns to the existing Carto upload schema.
+    '''
+    is_wdpca_schema = "SITE_ID" in gdf.columns or "SITE_PID" in gdf.columns
+
+    if is_wdpca_schema:
+        gdf = gdf.rename(columns={k: v for k, v in WDPCA_COLUMN_RENAMES.items() if k in gdf.columns})
+
+    if "PA_DEF" in gdf.columns:
+        gdf["PA_DEF"] = gdf["PA_DEF"].map(lambda x: WDPCA_SITE_TYPE_TO_PA_DEF.get(x, x))
+
+    if "MARINE" in gdf.columns:
+        gdf["MARINE"] = gdf["MARINE"].map(lambda x: WDPCA_REALM_TO_MARINE.get(x, x))
+
+    for column in SOURCE_COLUMNS:
+        if column not in gdf.columns and column != "legal_status_updated_at":
+            gdf[column] = None
+
+    if "WDPA_PID" not in gdf.columns:
+        raise KeyError("Expected either WDPA_PID or SITE_PID in source data")
+
+    gdf["WDPA_PID"] = [str(x).split('\r\n')[0] if x is not None else None for x in gdf["WDPA_PID"]]
+    gdf["legal_status_updated_at"] = [
+        None if x in (None, 0) else datetime.datetime(int(x), 1, 1) for x in gdf["STATUS_YR"]
+    ]
+    gdf["legal_status_updated_at"] = gdf["legal_status_updated_at"].astype(object)
+
+    return gdf[SOURCE_COLUMNS]
+
 def _escapeValue(value, dtype):
     '''
     Escape value for SQL based on field type
@@ -381,14 +467,12 @@ def processData(gdb, existing_ids):
         for i in range(0, 100000000):
             # import a slice of the geopandas dataframe 
             gdf = gpd.read_file(gdb, driver='FileGDB', layer =f'WDPA_poly_{date_str}', encoding='utf-8', rows = slice(start, end), engine="fiona")
+            if gdf.shape[0] == 0:
+                break
+            gdf = normalize_source_columns(gdf)
             if '555643543' in gdf['WDPA_PID'].to_list():
                 # isolate the large polygon
                 gdf_large = gdf.loc[gdf['WDPA_PID'] =='555643543']
-                # get rid of the \r\n in the wdpa_pid column 
-                gdf_large['WDPA_PID'] = [x.split('\r\n')[0] for x in gdf_large['WDPA_PID']]
-                # create a new column to store the status_yr column as timestamps
-                gdf_large.insert(19, "legal_status_updated_at", [None if x == 0 else datetime.datetime(x, 1, 1) for x in gdf_large['STATUS_YR']])
-                gdf_large["legal_status_updated_at"] = gdf_large["legal_status_updated_at"].astype(object)
             
                 # first upload the polygon to carto
                 upload_to_carto(gdf_large.iloc[0])
@@ -409,11 +493,16 @@ def processData(gdb, existing_ids):
     for i in range(0, 100000000):
         # import a slice of the geopandas dataframe 
         gdf = gpd.read_file(gdb, driver='FileGDB', layer =f'WDPA_poly_{date_str}', encoding='utf-8', rows = slice(start, end), engine="fiona")
-        # get rid of the \r\n in the wdpa_pid column 
-        gdf['WDPA_PID'] = [x.split('\r\n')[0] for x in gdf['WDPA_PID']]
-        # create a new column to store the status_yr column as timestamps
-        gdf.insert(19, "legal_status_updated_at", [None if x == 0 else datetime.datetime(x, 1, 1) for x in gdf['STATUS_YR']])
-        gdf["legal_status_updated_at"] = gdf["legal_status_updated_at"].astype(object)
+        if gdf.shape[0] == 0 and last_slice == False:
+            # we may have reached the last slice
+            start = 0
+            last_slice = True
+            continue
+        elif gdf.shape[0] == 0:
+            # we've processed the whole poly dataframe
+            break
+
+        gdf = normalize_source_columns(gdf)
         logging.info('Process {} rows starting from the {}th row as a geopandas dataframe.'.format(step, start))
 
         # create an empty list to store the ids of large polygons
@@ -446,10 +535,6 @@ def processData(gdb, existing_ids):
             end = start 
             start -= step
 
-        elif gdf.shape[0] == 0 and last_slice == False:
-            # we may have reached the last slice 
-            start = 0
-            last_slice = True
         else:
             # we've processed the whole poly dataframe 
             break

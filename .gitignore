@@ -21,3 +21,6 @@
 *.env*
 *credentials*
 act.secrets
+
+# Local Codex files
+.codex
